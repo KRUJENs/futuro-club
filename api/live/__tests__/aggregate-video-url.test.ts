@@ -131,6 +131,9 @@ describe("live/aggregate · consentimiento del vídeo (decisión del owner, 30 s
       actor: { userId: "user-123" },
       endpoint: "live/aggregate",
     });
+    // B5: el gate comprueba la propiedad de las filas Y de cada jugador antes de leer nada de él.
+    expect(typeof storedGate.mock.calls[0][0].ownsVideo).toBe("function");
+    expect(typeof storedGate.mock.calls[0][0].ownsPlayer).toBe("function");
   });
 
   it.each(["attestation_required", "parental_consent_required", "consent_check_failed"])(

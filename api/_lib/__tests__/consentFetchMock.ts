@@ -118,6 +118,11 @@ export function consentFetch(
           // Consulta de propiedad (ownership.ownsPlayer): solo el id, y solo si es SU dueño.
           return new Response(JSON.stringify(db.playerOwners[id] === owner ? [{ id }] : []), { status: 200 });
         }
+        if (u.searchParams.get("select") === "user_id") {
+          // Dueño del jugador (ownership.playerOwnerId). Existe si tiene fecha o dueño registrados.
+          if (!(id in db.birthDates) && !(id in db.playerOwners)) return new Response("[]", { status: 200 });
+          return new Response(JSON.stringify([{ user_id: db.playerOwners[id] ?? null }]), { status: 200 });
+        }
         if (!(id in db.birthDates)) return new Response("[]", { status: 200 });
         return new Response(JSON.stringify([{ birth_date: db.birthDates[id] }]), { status: 200 });
       }

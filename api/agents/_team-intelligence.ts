@@ -30,7 +30,7 @@ import { checkTeamReportQuality } from "../_lib/reportQualityCheck";
 import { NO_VISUAL_INPUT, hasGeminiObservations, hasVisualInput } from "../../src/lib/shared/teamVisualInput";
 import { withholdIndividualData } from "../../src/lib/shared/teamReportIdentity";
 import { gateClipAnalysis, clipGateErrorResponse } from "../_lib/analysisConsentGate";
-import { ownsVideo } from "../_lib/ownership";
+import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 import { errorResponse } from "../_lib/apiResponse";
 import {
   normalizeLocale,
@@ -68,6 +68,7 @@ export default withHandler(
       scope: "team",
       locale: preBody.locale ?? preBody.teamContext?.locale,
       ownsVideo: (video, uid) => ownsVideo(video, uid),
+      ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
     });
     if (!consent.allowed) return clipGateErrorResponse(consent);
 

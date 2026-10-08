@@ -14,9 +14,11 @@
  * Flujo:
  *   1. SELECT analyses WHERE status='queued' LIMIT 2
  *   2. UPDATE status='processing'
- *   2b. Gate de consentimiento (declaración guardada + consentimiento parental de un
- *       menor de 14 conocido · api/_lib/analysisConsentGate) → si falta, failed con motivo
- *   3. Construir URL de video desde Bunny CDN
+ *   2a. Leer el GUID de Bunny de la fila `videos` y exigir que sea un GUID (B4)
+ *   2b. Gate de consentimiento con ESE GUID, en nombre del dueño del jugador del análisis
+ *       (declaración guardada + propiedad + consentimiento parental de un menor de 14
+ *       conocido · api/_lib/analysisConsentGate) → si falta, failed con motivo
+ *   3. Construir URL de video desde Bunny CDN (GUID comprobado, escapado)
  *   4. POST a /api/agents/video-observation (Gemini · hasta 120s)
  *   5. Convertir GeminiObservation → biomechanics format
  *   6. Persistir en analyses table
@@ -32,6 +34,8 @@ import {
   type GeminiObservation,
 } from "../_lib/geminiBiomechanics";
 import { gateClipAnalysis } from "../_lib/analysisConsentGate";
+import { isBunnyGuid } from "../_lib/bunnyGuid";
+import { clipResolutionReason } from "../../src/lib/shared/videoConsent";
 
 // Node.js runtime. maxDuration 300 (no 120): este worker encadena DOS pasos largos
 // por análisis — gemini-analyze (hasta ~120s) + pipeline-orchestrator (6 informes
@@ -86,6 +90,8 @@ interface QueuedAnalysis {
  */
 export async function dispatchToGeminiEndpoint(
   analysis: QueuedAnalysis,
+  /** GUID de Bunny que comprobó el gate (B4): gemini-analyze no lee píxeles de otro. */
+  bunnyVideoId?: string,
 ): Promise<{ success: boolean; abstained?: boolean; error?: string }> {
   try {
     const res = await fetch(`${PUBLIC_URL}/api/pipeline/gemini-analyze`, {
@@ -98,6 +104,7 @@ export async function dispatchToGeminiEndpoint(
         videoId: analysis.video_id,
         playerId: analysis.player_id,
         analysisId: analysis.id,
+        ...(bunnyVideoId ? { bunnyVideoId } : {}),
       }),
     });
 
@@ -319,33 +326,13 @@ async function processQueue() {
       }
     }
 
-    // ── 1b. Consentimiento (defensa en profundidad) ANTES de cualquier despacho ──
-    // enqueueAnalysis ya lo exige, pero aquí llegan también filas encoladas ANTES de este
-    // gate y filas que no pasaron por él (p. ej. escritas desde el navegador bajo RLS).
-    // Solo cuenta una declaración GUARDADA con el vídeo; consentimiento parental de un
-    // menor de 14 conocido: el jugador del análisis Y el `player_id` de cada fila `videos`
-    // de ese vídeo de Bunny (B1). Bloqueado → failed con el motivo; ni Gemini ni informes.
-    const consent = await gateClipAnalysis({
-      videoId: analysis.video_id,
-      requireVideoRow: true,
-      storedOnly: true,
-      playerId: analysis.player_id,
-      actor: { userId: null, tenantId: analysis.tenant_id ?? null },
-      endpoint: "crons/process-analyses-queue",
-      scope: "player",
-      locale: await analysisLocale(supabase, analysis.id),
-      ownsVideo: null,
-    });
-    if (!consent.allowed) {
-      await supabase
-        .from("analyses")
-        .update({ status: "failed", status_message: consent.gate_reason })
-        .eq("id", analysis.id);
-      results.push({ id: analysis.id, status: "consent_blocked", error: consent.code });
-      continue;
-    }
+    const locale = await analysisLocale(supabase, analysis.id);
 
-    // ── 2. Get video URL from Bunny ──
+    // ── 1b. GUID de Bunny del vídeo (B4, review del PR #308) ──
+    // Es el id que va TAL CUAL en la URL que descarga Gemini y lo puede reescribir el dueño
+    // de la fila (RLS 038). Se lee ANTES del gate para que el gate compruebe EXACTAMENTE
+    // ese GUID, y tiene que ser un GUID: con otra forma (`a/../<GUID ajeno>`) `fetch`
+    // resolvería los puntos y se analizaría otro vídeo.
     const { data: video } = await supabase
       .from("videos")
       .select("bunny_video_id")
@@ -360,16 +347,60 @@ async function processQueue() {
       results.push({ id: analysis.id, status: "failed", error: "no_video" });
       continue;
     }
+    const bunnyGuid = String(video.bunny_video_id);
+    if (!isBunnyGuid(bunnyGuid)) {
+      await supabase
+        .from("analyses")
+        .update({ status: "failed", status_message: clipResolutionReason(locale, "invalid_video_reference") })
+        .eq("id", analysis.id);
+      results.push({ id: analysis.id, status: "failed", error: "invalid_video_reference" });
+      continue;
+    }
 
+    // ── 1c. Consentimiento (defensa en profundidad) ANTES de cualquier despacho ──
+    // enqueueAnalysis ya lo exige, pero aquí llegan también filas encoladas ANTES de este
+    // gate y filas que no pasaron por él (p. ej. escritas desde el navegador bajo RLS).
+    // Solo cuenta una declaración GUARDADA con el vídeo; consentimiento parental de un
+    // menor de 14 conocido: el jugador del análisis Y el `player_id` de cada fila `videos`
+    // de ese vídeo de Bunny (B1). B5: el motivo se escribe en analyses.status_message, que
+    // lee quien gestiona el jugador del análisis → el cron actúa en nombre del DUEÑO de ese
+    // jugador (actAsPlayerOwner): las filas del vídeo y sus jugadores tienen que ser suyos
+    // ANTES de leer ninguna fecha de nacimiento; si no, un motivo genérico (403 forbidden).
+    // Bloqueado → failed con el motivo; ni Gemini ni informes.
+    const consent = await gateClipAnalysis({
+      videoId: analysis.video_id,
+      bunnyGuid,
+      requireVideoRow: true,
+      storedOnly: true,
+      playerId: analysis.player_id,
+      actor: { userId: null, tenantId: analysis.tenant_id ?? null },
+      endpoint: "crons/process-analyses-queue",
+      scope: "player",
+      locale,
+      ownsVideo: null,
+      ownsPlayer: null,
+      actAsPlayerOwner: true,
+    });
+    if (!consent.allowed) {
+      await supabase
+        .from("analyses")
+        .update({ status: "failed", status_message: consent.gate_reason })
+        .eq("id", analysis.id);
+      results.push({ id: analysis.id, status: "consent_blocked", error: consent.code });
+      continue;
+    }
+
+    // ── 2. URL del vídeo en Bunny (el GUID comprobado, escapado) ──
     const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID ?? "";
     const cdnHost = process.env.BUNNY_CDN_HOSTNAME ?? "";
+    const guidInUrl = encodeURIComponent(bunnyGuid);
     const videoUrl = cdnHost
-      ? `https://${cdnHost}/${video.bunny_video_id}/play_720p.mp4`
-      : `https://video.bunnycdn.com/library/${libraryId}/videos/${video.bunny_video_id}/play.mp4`;
+      ? `https://${cdnHost}/${guidInUrl}/play_720p.mp4`
+      : `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${guidInUrl}/play.mp4`;
 
     // ── 3. Dispatch to Gemini via dedicated endpoint (Sprint 7 refactor) ──
     console.log(`[queue] Dispatching ${analysis.id} to gemini-analyze...`);
-    const geminiRes = await dispatchToGeminiEndpoint(analysis);
+    const geminiRes = await dispatchToGeminiEndpoint(analysis, bunnyGuid);
 
     // Abstención (jugador no identificado / inexistente): gemini-analyze ya cerró el
     // análisis con su motivo. NO se reintenta inline ni se generan informes bajo el

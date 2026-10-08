@@ -132,6 +132,7 @@ export default withHandler(
       scope: "player",
       locale,
       ownsVideo: (video, uid) => ownsVideo(video, uid),
+      ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
     });
     if (!consent.allowed) {
       // El navegador ya dejó el análisis en "processing_reports" (upsert previo): se cierra

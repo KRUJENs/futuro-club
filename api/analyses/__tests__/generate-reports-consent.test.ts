@@ -158,16 +158,58 @@ describe("generate-reports · consentimiento", () => {
   });
 
   it("B2 · videoId = GUID de Bunny de la fila create-upload de OTRO usuario (id vid-x) → 403; nada guardado", async () => {
-    db.videos.push({ id: "vid-x", user_id: "99999999-9999-4999-8999-999999999999", tenant_id: null, player_id: null, bunny_video_id: "g-x" });
-    const res = await post({ videoId: "g-x", attestation: ATTESTATION });
+    db.videos.push({ id: "vid-x", user_id: "99999999-9999-4999-8999-999999999999", tenant_id: null, player_id: null, bunny_video_id: "1a000000-0000-4000-8000-00000000000a" });
+    const res = await post({ videoId: "1a000000-0000-4000-8000-00000000000a", attestation: ATTESTATION });
     expect(res.status).toBe(403);
     expect(mock.inserts).toHaveLength(0);
     expect(orchestratorCalls()).toHaveLength(0);
   });
 
+  it.each([
+    ["menor de 14 sin consentimiento", MINOR_BIRTH_DATE],
+    ["adulto", "1990-01-01"],
+    ["jugador que no existe", undefined],
+  ])(
+    "B5 · analysisId que NO existe + playerId AJENO (%s) → 404 igual en los tres casos; no se lee ningún dato del jugador ni se guarda nada",
+    async (_label, bd) => {
+      const OTHER = "99999999-9999-4999-8999-999999999999";
+      if (bd !== undefined) {
+        db.birthDates.pForeign = bd;
+        db.playerOwners.pForeign = OTHER;
+      }
+      const res = await post({ analysisId: "44444444-4444-4444-8444-444444444444", playerId: "pForeign", attestation: ATTESTATION });
+      expect(res.status).toBe(404);
+      expect((await res.json()).errorDetail.code).toBe("analysis_not_found");
+      expect(mock.calls.some((c) => c.url.includes("/rest/v1/players"))).toBe(false);
+      expect(mock.calls.some((c) => c.url.includes("/rest/v1/parental_consents"))).toBe(false);
+      expect(mock.inserts).toHaveLength(0);
+      expect(orchestratorCalls()).toHaveLength(0);
+    },
+  );
+
+  it.each([
+    ["menor de 14 sin consentimiento", MINOR_BIRTH_DATE],
+    ["adulto", "1990-01-01"],
+  ])(
+    "B5 · análisis propio + fila videos PROPIA ligada a un jugador AJENO (%s) → 403 forbidden sin leer su fecha de nacimiento",
+    async (_label, bd) => {
+      db.videos.push({ id: "local-vid-1", user_id: USER, tenant_id: null, player_id: "pForeign", bunny_video_id: null });
+      db.birthDates.pForeign = bd;
+      db.playerOwners.pForeign = "99999999-9999-4999-8999-999999999999";
+      const res = await post({ attestation: ATTESTATION });
+      expect(res.status).toBe(403);
+      expect((await res.json()).errorDetail.code).toBe("forbidden");
+      expect(mock.calls.some((c) => c.url.includes("/rest/v1/players?id=eq.pForeign&select=birth_date"))).toBe(false);
+      expect(mock.calls.some((c) => c.url.includes("/rest/v1/parental_consents"))).toBe(false);
+      expect(mock.inserts).toHaveLength(0);
+      expect(orchestratorCalls()).toHaveLength(0);
+    },
+  );
+
   it("B1 · la fila videos propia es de un menor de 14 sin consentimiento y el análisis es para OTRO jugador → 403", async () => {
     db.videos.push({ id: "local-vid-1", user_id: USER, tenant_id: null, player_id: "pMinor", bunny_video_id: "local-vid-1" });
     db.birthDates.pMinor = MINOR_BIRTH_DATE;
+    db.playerOwners.pMinor = USER; // jugador propio (B5)
     const res = await post({ attestation: ATTESTATION });
     expect(res.status).toBe(403);
     expect((await res.json()).errorDetail.code).toBe("parental_consent_required");

@@ -72,6 +72,48 @@ export async function ownsPlayer(playerId: string | null | undefined, userId: st
 }
 
 /**
+ * Dueño del jugador (players.user_id), o null si no existe, no tiene dueño o no se puede
+ * consultar (fail-closed: null nunca autoriza nada). Para las rutas AUTOMÁTICAS que
+ * actúan en nombre del dueño del jugador de un análisis (cola de análisis): ahí no hay
+ * un usuario en la petición.
+ */
+export async function playerOwnerId(playerId: string | null | undefined): Promise<string | null> {
+  if (!playerId) return null;
+  const env = supabaseEnv();
+  if (!env) return null;
+  try {
+    const res = await fetch(
+      `${env.url}/rest/v1/players?id=eq.${encodeURIComponent(playerId)}&select=user_id&limit=1`,
+      { headers: serviceHeaders(env.key) },
+    );
+    if (!res.ok) return null;
+    const rows = (await res.json()) as Array<{ user_id: string | null }>;
+    const owner = rows[0]?.user_id;
+    return typeof owner === "string" && owner !== "" ? owner : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * ¿Puede una ruta AUTOMÁTICA usar esta fila `videos` en nombre de `userId` (el dueño del
+ * jugador del análisis)? Más estricta que ownsVideo (regla de LECTURA): si la fila tiene
+ * creador (videos.user_id), tiene que ser él — una fila que OTRA cuenta creó apuntando a
+ * su jugador no cuenta (la RLS 038 deja al creador reescribir player_id); si no lo tiene
+ * (subidas antiguas de create-upload, que no ponían user_id), el dueño de su jugador.
+ * Sin creador ni jugador → false. Fail-closed.
+ */
+export async function ownsVideoAsCreatorOrItsPlayer(
+  video: { user_id?: string | null; player_id?: string | null } | null | undefined,
+  userId: string | null,
+): Promise<boolean> {
+  if (!video || !userId) return false;
+  if (video.user_id) return video.user_id === userId;
+  if (video.player_id) return await ownsPlayer(video.player_id, userId);
+  return false;
+}
+
+/**
  * ¿Puede el usuario LEER esta fila atada (o no) a un jugador?
  * Quien la creó (row.user_id) o el dueño de su jugador (row.player_id →
  * players.user_id). Sin creador ni jugador → false. Es la regla de lectura de

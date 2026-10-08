@@ -27,7 +27,7 @@ import { createClient } from "@supabase/supabase-js";
 import { normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
 import { isAllowedVideoUrl } from "../_lib/videoUrlGuard";
 import { enforceStoredConsentForVideoUrl } from "../_lib/analysisConsentGate";
-import { ownsVideo } from "../_lib/ownership";
+import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 
 // Node.js runtime for Gemini video analysis (up to 120s)
 export const config = { runtime: "nodejs", maxDuration: 120 };
@@ -373,6 +373,7 @@ export default withHandler(
         endpoint: "live/aggregate",
         locale: reportLocale,
         ownsVideo: (video, uid) => ownsVideo(video, uid),
+        ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
       });
       if (consent.allowed) {
         videoObs = await analyzeMatchVideo(

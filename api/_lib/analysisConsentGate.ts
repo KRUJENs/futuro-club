@@ -9,13 +9,18 @@
  *     api/agents/video-observation.ts (llamadas con JWT de usuario), team-observation,
  *     _team-intelligence, api/pipeline/_start.ts, api/analyses/generate-reports.ts,
  *     api/coaching/_track-players.ts / _track-async.ts (llamadas de usuario),
- *     api/tactical/_compute-from-video.ts (llamadas de usuario), api/live/aggregate.ts.
+ *     api/tactical/_compute-from-video.ts (llamadas de usuario), api/live/aggregate.ts,
+ *     api/crons/rescue-tracking-jobs.ts (B3: re-spawn a Modal de jobs de tracking_jobs,
+ *     que un cliente puede insertar bajo la RLS 052).
  *
  * QUÉ VÍDEO Y QUÉ JUGADOR (B1/B2 · una sola regla, ver resolveClipVideo / gateClipAnalysis):
  * el servidor busca TODAS las filas `videos` del clip (por id o por bunny_video_id, y por
  * el GUID cuyos píxeles va a leer), exige que el usuario las gestione y comprueba el
  * consentimiento del jugador pedido Y del `player_id` de cada fila. El `playerId` del
- * body nunca sustituye al jugador que el servidor liga al vídeo.
+ * body nunca sustituye al jugador que el servidor liga al vídeo. Ronda 3 de la review:
+ * los ids que el servidor mete en una URL tienen forma estricta (B4, api/_lib/bunnyGuid.ts)
+ * y, en rutas de usuario, cada jugador tiene que ser del usuario ANTES de leer su fecha de
+ * nacimiento o su consentimiento (B5).
  *
  * DÓNDE SE GUARDA LA DECLARACIÓN (sin migración nueva): una fila append-only, escrita
  * SOLO por el servidor con service_role, en public.gdpr_audit_log (migración 003):
@@ -47,6 +52,7 @@ import {
   CLIP_CONSENT_HTTP_STATUS,
   VIDEO_ANALYSIS_ATTESTED_ACTION,
   clipConsentGateReason,
+  clipResolutionReason,
   evaluateClipConsent,
   isClipConsentCode,
   minorStatusFromBirthDate,
@@ -54,9 +60,12 @@ import {
   type ClipAttestation,
   type ClipAttestationResourceType,
   type ClipConsentCode,
+  type ClipResolutionMessageKey,
   type MinorStatus,
 } from "../../src/lib/shared/videoConsent";
 import { isMissingBirthDateColumnError } from "../../src/lib/shared/birthDate";
+import { isBunnyGuid, isSafeVideoRef } from "./bunnyGuid";
+import { ownsPlayer as ownsPlayerByOwner, ownsVideoAsCreatorOrItsPlayer, playerOwnerId } from "./ownership";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -404,14 +413,27 @@ export function clipConsentErrorResponse(result: BlockedGateResult): Response {
 // consentimiento con el `playerId` del body (o null) y buscaban la fila `videos` solo
 // por `id`; con el GUID de Bunny (o sin playerId) se saltaban la propiedad y al menor
 // del vídeo. Regla única para TODAS las entradas que analizan un clip:
+//   0. (B4, ronda 3) Antes de buscar nada, cada id que el servidor va a usar tiene que
+//      tener forma segura: la referencia del cliente (isSafeVideoRef: sin `/`, `.`, `%`,
+//      espacios…) y el GUID cuyos píxeles se leen (isBunnyGuid, un UUID). Si no → 400
+//      invalid_video_reference. Así el gate busca EXACTAMENTE el id que el servidor pone
+//      en la URL: antes `a/../<GUID ajeno>` encontraba una fila propia y `fetch` resolvía
+//      los puntos y leía el vídeo ajeno.
 //   1. Se buscan TODAS las filas `videos` del vídeo: por id o por bunny_video_id = la
 //      referencia del cliente, y por el GUID de Bunny cuyos píxeles va a leer el servidor
 //      (URL o GUID directo). bunny_video_id no es UNIQUE (060) y la RLS 038 deja al dueño
 //      escribirlo, así que puede haber varias.
-//   2. En rutas de usuario TODAS tienen que ser del usuario/tenant (ownsVideo) → si no, 403.
+//   2. En rutas de usuario TODAS tienen que ser del usuario (ownsVideo, solo el dueño:
+//      076) → si no, 403.
 //   3. Si el servidor lee píxeles por referencia, ninguna fila puede apuntar a OTRO GUID
 //      (400 video_url_mismatch) y tiene que existir una fila del vídeo (404 video_not_found).
-//   4. El consentimiento comprueba el jugador pedido Y el `player_id` de cada fila
+//   4. (B5, ronda 3) En rutas de usuario, CADA jugador (el pedido y el `player_id` de cada
+//      fila) tiene que ser del usuario (ownsPlayer) ANTES de leer su fecha de nacimiento o
+//      su consentimiento → si no, 403 forbidden, la MISMA respuesta para un jugador ajeno
+//      que para uno inexistente. Antes la respuesta (403 parental / 200 / 500) revelaba la
+//      edad y el consentimiento de un menor ajeno: la RLS 038 deja al dueño de una fila
+//      `videos` apuntar su `player_id` a cualquier jugador.
+//   5. El consentimiento comprueba el jugador pedido Y el `player_id` de cada fila
 //      (enforceClipConsent · videoPlayerIds). Un jugador distinto en el body no se rechaza
 //      (un mismo clip se analiza para varios jugadores: enqueueAnalysis por (vídeo,
 //      jugador)), pero nunca sustituye al del vídeo.
@@ -424,13 +446,16 @@ export interface VideoRowLite {
   bunny_video_id: string | null;
 }
 
-/** Predicado de propiedad (api/_lib/ownership.ownsVideo); null = ruta automática sin usuario. */
+/** Predicado de propiedad de un vídeo (api/_lib/ownership.ownsVideo); null = ruta automática sin usuario. */
 export type OwnsVideoFn = (video: VideoRowLite, userId: string | null) => Promise<boolean>;
+/** Predicado de propiedad de un jugador (api/_lib/ownership.ownsPlayer); null = ruta automática sin usuario. */
+export type OwnsPlayerFn = (playerId: string, userId: string | null) => Promise<boolean>;
 
 /**
  * GUID de Bunny de una URL de vídeo de Bunny: el segmento tras `/videos/` en
  * video.bunnycdn.com, o el PRIMER segmento de la ruta en una pull zone (`/<guid>/play_720p.mp4`).
- * Es el vídeo que el CDN sirve; un GUID en un segmento posterior NO lo identifica.
+ * Es el vídeo que el CDN sirve; un GUID en un segmento posterior NO lo identifica. Se
+ * devuelve tal cual (sin decodificar): `a%2F..%2F<guid>` no es un GUID y el gate lo rechaza.
  */
 export function bunnyGuidFromVideoUrl(videoUrl: string): string | null {
   try {
@@ -486,15 +511,33 @@ export type ClipVideoResolution =
     }
   | { ok: false; status: 400 | 403 | 404 | 500; code: string; message: string };
 
-const RESOLUTION_MESSAGES = {
-  video_reference_required: "Falta la referencia del vídeo: el análisis debe referirse a un vídeo guardado.",
-  video_not_found: "Vídeo no encontrado: el análisis debe referirse a un vídeo guardado.",
-  video_url_mismatch: "La URL no corresponde a ese vídeo.",
-  forbidden: "No gestionas este vídeo",
-} as const;
+type ResolutionFailureCode =
+  | "video_reference_required"
+  | "video_not_found"
+  | "video_url_mismatch"
+  | "invalid_video_reference"
+  | "forbidden"
+  | "consent_check_failed";
 
-function resolutionFailure(status: 400 | 403 | 404 | 500, code: keyof typeof RESOLUTION_MESSAGES | "consent_check_failed"): Extract<ClipVideoResolution, { ok: false }> {
-  return { ok: false, status, code, message: code === "consent_check_failed" ? code : RESOLUTION_MESSAGES[code] };
+/** Texto (7 idiomas, src/lib/shared/videoConsent.ts) de cada código de resolución. */
+const RESOLUTION_MESSAGE_KEY: Readonly<Record<Exclude<ResolutionFailureCode, "consent_check_failed">, ClipResolutionMessageKey>> = {
+  video_reference_required: "video_reference_required",
+  video_not_found: "video_not_found",
+  video_url_mismatch: "video_url_mismatch",
+  invalid_video_reference: "invalid_video_reference",
+  forbidden: "video_forbidden",
+};
+
+function resolutionFailure(
+  status: 400 | 403 | 404 | 500,
+  code: ResolutionFailureCode,
+  locale: unknown,
+): Extract<ClipVideoResolution, { ok: false }> {
+  const message =
+    code === "consent_check_failed"
+      ? clipConsentGateReason(locale, "consent_check_failed")
+      : clipResolutionReason(locale, RESOLUTION_MESSAGE_KEY[code]);
+  return { ok: false, status, code, message };
 }
 
 /**
@@ -521,17 +564,29 @@ export async function resolveClipVideo(input: {
   actor: ConsentActor;
   ownsVideo: OwnsVideoFn | null;
   endpoint: string;
+  locale?: unknown;
 }): Promise<ClipVideoResolution> {
+  const { locale } = input;
   const videoId = typeof input.videoId === "string" && input.videoId.trim() !== "" ? input.videoId : null;
+  // B4: la referencia del cliente se busca tal cual → tiene que tener forma segura.
+  if (videoId !== null && !isSafeVideoRef(videoId)) {
+    console.warn(`[consent-gate] ${input.endpoint}: referencia de vídeo con forma no válida → 400`);
+    return resolutionFailure(400, "invalid_video_reference", locale);
+  }
   let pixelGuid = typeof input.bunnyGuid === "string" && input.bunnyGuid.trim() !== "" ? input.bunnyGuid : null;
   if (!pixelGuid && typeof input.videoUrl === "string" && input.videoUrl !== "") {
     pixelGuid = bunnyGuidFromVideoUrl(input.videoUrl);
-    if (!pixelGuid) return resolutionFailure(404, "video_not_found");
+    if (!pixelGuid) return resolutionFailure(404, "video_not_found", locale);
+  }
+  // B4: el GUID cuyos píxeles se leen es el que va en la URL → tiene que ser un GUID.
+  if (pixelGuid !== null && !isBunnyGuid(pixelGuid)) {
+    console.warn(`[consent-gate] ${input.endpoint}: GUID de Bunny con forma no válida → 400`);
+    return resolutionFailure(400, "invalid_video_reference", locale);
   }
   const keys = uniqueIds([videoId, pixelGuid]);
   if (keys.length === 0) {
     return input.requireVideoRow
-      ? resolutionFailure(400, "video_reference_required")
+      ? resolutionFailure(400, "video_reference_required", locale)
       : { ok: true, video: null, rows: [], resource: { type: "video_ref", id: null }, videoPlayerIds: [] };
   }
 
@@ -546,12 +601,12 @@ export async function resolveClipVideo(input: {
     }
   } catch (err) {
     console.error(`[consent-gate] ${input.endpoint}: no se pudo leer el vídeo (falla cerrado):`, err instanceof Error ? err.message : err);
-    return resolutionFailure(500, "consent_check_failed");
+    return resolutionFailure(500, "consent_check_failed", locale);
   }
 
   if (rows.length === 0) {
     return input.requireVideoRow
-      ? resolutionFailure(404, "video_not_found")
+      ? resolutionFailure(404, "video_not_found", locale)
       : { ok: true, video: null, rows: [], resource: { type: "video_ref", id: videoId }, videoPlayerIds: [] };
   }
   // Filas del vídeo cuyos píxeles se leen. Con keys = [GUID] son todas; si además vino un
@@ -570,7 +625,7 @@ export async function resolveClipVideo(input: {
     for (const row of rows) {
       if (!(await input.ownsVideo(row, input.actor.userId))) {
         console.warn(`[consent-gate] ${input.endpoint}: la fila videos ${row.id} no es de quien pide el análisis`);
-        return resolutionFailure(403, "forbidden");
+        return resolutionFailure(403, "forbidden", locale);
       }
     }
   }
@@ -578,7 +633,7 @@ export async function resolveClipVideo(input: {
   // Un solo vídeo de Bunny: TODAS las filas encontradas tienen que ser de los píxeles que se
   // leen (si el videoId del cliente es otro vídeo, o una fila apunta a otro GUID → 400).
   if (pixelGuid && (pixelRows.length === 0 || pixelRows.length !== rows.length)) {
-    return resolutionFailure(400, "video_url_mismatch");
+    return resolutionFailure(400, "video_url_mismatch", locale);
   }
 
   const candidates = pixelRows.length > 0 ? pixelRows : rows;
@@ -609,11 +664,39 @@ export type ClipAnalysisGateResult =
   | (Extract<ClipConsentGateResult, { allowed: true }> & { video: VideoRowLite | null; videoPlayerIds: string[] })
   | ClipAnalysisBlocked;
 
+/** 403 «no gestionas este jugador»: el mismo para un jugador ajeno y para uno que no existe (B5). */
+function playerForbidden(locale: unknown): ClipAnalysisBlocked {
+  return { allowed: false, status: 403, code: "forbidden", gate_reason: clipResolutionReason(locale, "player_forbidden"), minor: null };
+}
+
 /**
- * Gate COMPLETO antes de analizar un clip: resolveClipVideo + enforceClipConsent con los
- * jugadores del vídeo. Lo usan todas las entradas que reciben una referencia de vídeo
- * (pipeline/start, track-*, compute-from-video, team-*, generate-reports, finalize, la
- * cola, enqueueAnalysis, live/aggregate y video-observation).
+ * B5: el primer jugador de `playerIds` que NO es de `userId` (o null si todos lo son). Se
+ * llama ANTES de leer nada de esos jugadores (fecha de nacimiento, consentimiento). Un
+ * error del predicado cuenta como «no es suyo» (falla cerrado).
+ */
+async function firstForeignPlayer(
+  playerIds: ReadonlyArray<string | null>,
+  userId: string | null,
+  ownsPlayer: OwnsPlayerFn,
+): Promise<string | null> {
+  for (const id of uniqueIds(playerIds)) {
+    let owned = false;
+    try {
+      owned = await ownsPlayer(id, userId);
+    } catch {
+      owned = false;
+    }
+    if (!owned) return id;
+  }
+  return null;
+}
+
+/**
+ * Gate COMPLETO antes de analizar un clip: resolveClipVideo + propiedad de cada jugador
+ * (rutas de usuario) + enforceClipConsent con los jugadores del vídeo. Lo usan todas las
+ * entradas que reciben una referencia de vídeo (pipeline/start, track-*,
+ * compute-from-video, team-*, generate-reports, finalize, la cola, enqueueAnalysis,
+ * live/aggregate, video-observation y el rescate de tracking_jobs).
  */
 export async function gateClipAnalysis(input: {
   videoId?: unknown;
@@ -630,25 +713,62 @@ export async function gateClipAnalysis(input: {
   endpoint: string;
   scope?: "player" | "team";
   locale?: unknown;
+  /** Propiedad de las filas `videos` (rutas de usuario); null = ruta automática. */
   ownsVideo: OwnsVideoFn | null;
+  /**
+   * Propiedad de CADA jugador (rutas de usuario) ANTES de leer su fecha de nacimiento
+   * (B5); null = ruta automática sin usuario.
+   */
+  ownsPlayer: OwnsPlayerFn | null;
+  /**
+   * Ruta AUTOMÁTICA que escribe el resultado donde lo lee quien gestiona el jugador (la
+   * cola: analyses.status_message). Actúa en nombre del DUEÑO del jugador pedido
+   * (players.user_id): las filas del vídeo tienen que ser suyas como creador (o, sin
+   * creador, de su jugador) y cada jugador también; solo cuenta una declaración guardada.
+   * Sin dueño → 403 forbidden. Sustituye a `actor.userId`, `ownsVideo` y `ownsPlayer`.
+   */
+  actAsPlayerOwner?: boolean;
   now?: Date;
 }): Promise<ClipAnalysisGateResult> {
   if (!sbEnv()) {
     console.error("[consent-gate] Supabase no configurado → no se puede comprobar ni guardar la declaración (falla cerrado)");
     return blockedResult("consent_check_failed", input.locale, null);
   }
-  const target = await resolveClipVideo(input);
+  let actor = input.actor;
+  let ownsVideo = input.ownsVideo;
+  let ownsPlayer = input.ownsPlayer;
+  let storedOnly = input.storedOnly;
+  if (input.actAsPlayerOwner) {
+    const owner = await playerOwnerId(input.playerId);
+    if (!owner) {
+      console.warn(`[consent-gate] ${input.endpoint}: el jugador del análisis no tiene dueño (o no se pudo leer) → 403`);
+      return playerForbidden(input.locale);
+    }
+    actor = { userId: owner, tenantId: input.actor.tenantId, ip: null };
+    ownsVideo = (row, uid) => ownsVideoAsCreatorOrItsPlayer(row, uid);
+    ownsPlayer = (pid, uid) => ownsPlayerByOwner(pid, uid);
+    storedOnly = true;
+  }
+  const target = await resolveClipVideo({ ...input, actor, ownsVideo });
   if (!target.ok) {
     if (target.code === "consent_check_failed") return blockedResult("consent_check_failed", input.locale, null);
     return { allowed: false, status: target.status, code: target.code, gate_reason: target.message, minor: null };
   }
+  // B5: propiedad de CADA jugador antes de leer su fecha de nacimiento o su consentimiento.
+  if (ownsPlayer) {
+    const foreign = await firstForeignPlayer([input.playerId, ...target.videoPlayerIds], actor.userId, ownsPlayer);
+    if (foreign !== null) {
+      console.warn(`[consent-gate] ${input.endpoint}: un jugador del análisis no es de quien lo pide → 403`);
+      return playerForbidden(input.locale);
+    }
+  }
   const consent = await enforceClipConsent({
     attestation: input.attestation,
-    storedOnly: input.storedOnly,
+    storedOnly,
     resource: target.resource,
     playerId: input.playerId,
     videoPlayerIds: target.videoPlayerIds,
-    actor: input.actor,
+    actor,
     endpoint: input.endpoint,
     scope: input.scope,
     locale: input.locale,
@@ -673,8 +793,9 @@ export function clipGateErrorResponse(result: ClipAnalysisBlocked): Response {
  * Ruta SIN declaración en el body (live/aggregate, que analiza la `video_url` guardada de
  * un partido): el vídeo tiene que ser una fila `videos` QUE GESTIONE quien pide el
  * análisis y con una declaración YA guardada (la de VideoUpload al subirlo). Sin fila, de
- * otro usuario o de otro vídeo → attestation_required (no consta una declaración de quien
- * analiza para ESE vídeo). El jugador de CADA fila del vídeo se comprueba (gateClipAnalysis).
+ * otro usuario, de otro vídeo o con un jugador que no es suyo → attestation_required (no
+ * consta una declaración de quien analiza para ESE vídeo; nada se revela del jugador). El
+ * jugador de CADA fila del vídeo se comprueba (gateClipAnalysis).
  */
 export async function enforceStoredConsentForVideoUrl(input: {
   videoUrl: string;
@@ -682,6 +803,7 @@ export async function enforceStoredConsentForVideoUrl(input: {
   endpoint: string;
   locale?: unknown;
   ownsVideo: OwnsVideoFn;
+  ownsPlayer: OwnsPlayerFn;
 }): Promise<ClipConsentGateResult> {
   const gate = await gateClipAnalysis({
     videoUrl: input.videoUrl,
@@ -692,6 +814,7 @@ export async function enforceStoredConsentForVideoUrl(input: {
     endpoint: input.endpoint,
     locale: input.locale,
     ownsVideo: input.ownsVideo,
+    ownsPlayer: input.ownsPlayer,
   });
   if (gate.allowed) {
     return { allowed: true, attestation: gate.attestation, pendingAttestation: gate.pendingAttestation, minor: gate.minor };
@@ -710,8 +833,9 @@ export type UserVideoGateResult =
  * quede guardada CON el vídeo y el menor se pueda comprobar, la petición tiene que
  * identificar una fila `videos` que gestione el usuario y la URL tiene que ser la de ESE
  * vídeo (primer segmento de la pull zone). Sin fichero en base64 (no se podría ligar a
- * ningún vídeo). Las llamadas de servicio (cola, gemini-analyze, live/aggregate) NO pasan
- * por aquí: su gate va antes.
+ * ningún vídeo). Cada jugador de las filas del vídeo tiene que ser del usuario (B5). Las
+ * llamadas de servicio (cola, gemini-analyze, live/aggregate) NO pasan por aquí: su gate
+ * va antes.
  */
 export async function enforceUserVideoObservationConsent(input: {
   videoId: unknown;
@@ -722,16 +846,15 @@ export async function enforceUserVideoObservationConsent(input: {
   actor: ConsentActor;
   locale?: unknown;
   ownsVideo: OwnsVideoFn;
+  ownsPlayer: OwnsPlayerFn;
 }): Promise<UserVideoGateResult> {
-  const reject = (status: number, code: string, message: string): UserVideoGateResult => ({
+  const reject = (status: number, code: string, key: ClipResolutionMessageKey): UserVideoGateResult => ({
     allowed: false,
-    response: errorResponse({ status, code, message }),
+    response: errorResponse({ status, code, message: clipResolutionReason(input.locale, key) }),
   });
-  if (input.hasBase64) {
-    return reject(400, "video_reference_required", "Las llamadas de usuario deben analizar un vídeo guardado (videoId + videoUrl), no un fichero en el cuerpo.");
-  }
+  if (input.hasBase64) return reject(400, "video_reference_required", "saved_video_required");
   if (typeof input.videoId !== "string" || input.videoId.trim() === "" || typeof input.videoUrl !== "string") {
-    return reject(400, "video_reference_required", "Falta videoId: el análisis debe referirse a un vídeo guardado.");
+    return reject(400, "video_reference_required", "video_id_required");
   }
   const endpoint = "agents/video-observation";
   const target = await resolveClipVideo({
@@ -741,17 +864,23 @@ export async function enforceUserVideoObservationConsent(input: {
     actor: input.actor,
     ownsVideo: input.ownsVideo,
     endpoint,
+    locale: input.locale,
   });
   if (!target.ok) {
     if (target.code === "consent_check_failed") {
       return { allowed: false, response: clipConsentErrorResponse(blockedResult("consent_check_failed", input.locale, null)) };
     }
-    return reject(target.status, target.code, target.message);
+    return { allowed: false, response: errorResponse({ status: target.status, code: target.code, message: target.message }) };
   }
   const video = target.video as VideoRowLite; // requireVideoRow ⇒ hay fila
+  // B5: cada jugador del vídeo tiene que ser del usuario ANTES de leer su fecha de nacimiento.
+  if ((await firstForeignPlayer(target.videoPlayerIds, input.actor.userId, input.ownsPlayer)) !== null) {
+    console.warn(`[consent-gate] ${endpoint}: un jugador del vídeo no es de quien pide el análisis → 403`);
+    return reject(403, "forbidden", "player_forbidden");
+  }
   // Ámbito jugador sin jugador en el vídeo: no se puede comprobar al menor → no se analiza.
   if (input.scope === "player" && target.videoPlayerIds.length === 0) {
-    return reject(400, "player_scope_requires_player_video", "El análisis por jugador solo se hace sobre un vídeo con jugador asignado.");
+    return reject(400, "player_scope_requires_player_video", "player_scope_requires_player_video");
   }
   const gate = await enforceClipConsent({
     attestation: input.attestation,

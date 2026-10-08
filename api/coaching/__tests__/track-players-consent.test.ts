@@ -28,7 +28,7 @@ vi.mock("../../_lib/budgetGuard", () => ({
 import { recordSpendUsd } from "../../_lib/budgetGuard";
 
 const MODAL_URL = "https://modal.test/track";
-const VIDEO_URL = "https://cdn.test/g-1/play_720p.mp4";
+const VIDEO_URL = "https://cdn.test/1a000000-0000-4000-8000-000000000001/play_720p.mp4";
 const MODAL_OK = {
   status: "ok", duration_sec: 10, frames_processed: 50, fps_source: 25, sample_fps: 5,
   players: [], ball: [], ball_stops: [], total_player_tracks: 0, total_ball_detections: 0,
@@ -52,7 +52,7 @@ beforeEach(() => {
   process.env.INTERNAL_API_TOKEN = "svc-token";
   db = emptyConsentDb();
   // Vídeo de equipo propio (sin jugador) en nuestro CDN → fila `videos` id = GUID.
-  db.videos.push({ id: "g-1", user_id: USER, tenant_id: null, player_id: null, bunny_video_id: "g-1" });
+  db.videos.push({ id: "1a000000-0000-4000-8000-000000000001", user_id: USER, tenant_id: null, player_id: null, bunny_video_id: "1a000000-0000-4000-8000-000000000001" });
   modalCalls = [];
   mock = consentFetch(db, {
     fallback: async (url, init) => {
@@ -105,7 +105,7 @@ describe("track-players · consentimiento", () => {
   it("declarada → se guarda y Modal recibe el MISMO body y Bearer que antes", async () => {
     const res = await post({ videoUrl: VIDEO_URL, attestation: ATTESTATION });
     expect(res.status).toBe(200);
-    expect(mock.inserts[0]).toMatchObject({ resource_type: "videos", resource_id: "g-1", metadata: { endpoint: "coaching/track-players" } });
+    expect(mock.inserts[0]).toMatchObject({ resource_type: "videos", resource_id: "1a000000-0000-4000-8000-000000000001", metadata: { endpoint: "coaching/track-players" } });
     expect(modalCalls).toHaveLength(1);
     expect((modalCalls[0].init.headers as Record<string, string>).Authorization).toBe("Bearer modal-key");
     const sent = JSON.parse(String(modalCalls[0].init.body));
@@ -124,6 +124,7 @@ describe("track-players · consentimiento", () => {
 describe("track-players · B1/B2: el jugador del vídeo lo resuelve el SERVIDOR", () => {
   it("B1 · vídeo (fila propia) de un menor de 14 sin consentimiento → 403 (no 503); ni gasto ni Modal", async () => {
     db.videos[0].player_id = "pMinor";
+    db.playerOwners.pMinor = USER; // su propio jugador (B5: uno ajeno daría forbidden)
     db.birthDates.pMinor = MINOR_BIRTH_DATE;
     const res = await post({ videoUrl: VIDEO_URL, attestation: ATTESTATION });
     expect(res.status).toBe(403);
@@ -133,14 +134,31 @@ describe("track-players · B1/B2: el jugador del vídeo lo resuelve el SERVIDOR"
   });
 
   it("B2 · vídeo de OTRO usuario (fila create-upload encontrada por el GUID de la URL) → 403", async () => {
-    db.videos[0] = { id: "vid-x", user_id: "99999999-9999-4999-8999-999999999999", tenant_id: null, player_id: null, bunny_video_id: "g-1" };
+    db.videos[0] = { id: "vid-x", user_id: "99999999-9999-4999-8999-999999999999", tenant_id: null, player_id: null, bunny_video_id: "1a000000-0000-4000-8000-000000000001" };
     const res = await post({ videoUrl: VIDEO_URL, attestation: ATTESTATION });
     expect(res.status).toBe(403);
     expect(modalCalls).toHaveLength(0);
   });
 
+  it.each([
+    ["menor de 14 sin consentimiento", MINOR_BIRTH_DATE],
+    ["adulto", "1990-01-01"],
+  ])("B5 · fila PROPIA ligada a un jugador AJENO (%s) → 403 forbidden igual; sin leer su fecha; ni gasto ni Modal", async (_label, bd) => {
+    db.videos[0].player_id = "pForeign";
+    db.birthDates.pForeign = bd;
+    db.playerOwners.pForeign = "99999999-9999-4999-8999-999999999999";
+    const res = await post({ videoUrl: VIDEO_URL, attestation: ATTESTATION });
+    expect(res.status).toBe(403);
+    expect((await res.json()).errorDetail.code).toBe("forbidden");
+    expect(mock.calls.some((c) => c.url.includes("select=birth_date"))).toBe(false);
+    expect(mock.calls.some((c) => c.url.includes("/rest/v1/parental_consents"))).toBe(false);
+    expect(mock.inserts).toHaveLength(0);
+    expect(recordSpendUsd).not.toHaveBeenCalled();
+    expect(modalCalls).toHaveLength(0);
+  });
+
   it("URL sin fila `videos` → 404 video_not_found (nunca 503); ni gasto ni Modal", async () => {
-    const res = await post({ videoUrl: "https://cdn.test/sin-fila/play.mp4", attestation: ATTESTATION });
+    const res = await post({ videoUrl: "https://cdn.test/1c000000-0000-4000-8000-000000000001/play.mp4", attestation: ATTESTATION });
     expect(res.status).toBe(404);
     expect(recordSpendUsd).not.toHaveBeenCalled();
     expect(modalCalls).toHaveLength(0);

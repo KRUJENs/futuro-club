@@ -48,7 +48,7 @@ import teamObservation from "../team-observation";
 import teamIntelligence from "../_team-intelligence";
 
 const CDN = "cdn.test";
-const GUID = "g-1";
+const GUID = "1a000000-0000-4000-8000-000000000001";
 const VIDEO_URL = `https://${CDN}/${GUID}/play_720p.mp4`;
 const OBS = { resumenGeneral: "ok" };
 
@@ -139,7 +139,7 @@ describe("video-observation · llamadas de USUARIO", () => {
 
   it("URL de OTRO vídeo de nuestro CDN → 400 video_url_mismatch", async () => {
     const res = await videoObservation(
-      post("video-observation", teamObsBody({ videoId: GUID, attestation: ATTESTATION, videoUrl: `https://${CDN}/otro/play_720p.mp4` })),
+      post("video-observation", teamObsBody({ videoId: GUID, attestation: ATTESTATION, videoUrl: `https://${CDN}/1c000000-0000-4000-8000-000000000003/play_720p.mp4` })),
     );
     expect(res.status).toBe(400);
     expect((await res.json()).errorDetail.code).toBe("video_url_mismatch");
@@ -156,6 +156,7 @@ describe("video-observation · llamadas de USUARIO", () => {
   it("vídeo con jugador menor de 14 conocido y sin consentimiento parental → 403", async () => {
     db.videos[0].player_id = "p1";
     db.birthDates.p1 = MINOR_BIRTH_DATE;
+    db.playerOwners.p1 = USER; // jugador propio (B5)
     db.storedAttestations.push({ resource_type: "videos", resource_id: GUID });
     const res = await videoObservation(post("video-observation", teamObsBody({ videoId: GUID })));
     expect(res.status).toBe(403);
@@ -164,9 +165,9 @@ describe("video-observation · llamadas de USUARIO", () => {
   });
 
   it("URL de OTRO vídeo que solo CONTIENE el GUID propio en un segmento posterior → 400 video_url_mismatch", async () => {
-    // Pull zone: el vídeo que se descarga es el del PRIMER segmento (`otro`), no el de g-1.
+    // Pull zone: el vídeo que se descarga es el del PRIMER segmento (`otro`), no el del GUID propio.
     const res = await videoObservation(
-      post("video-observation", teamObsBody({ videoId: GUID, attestation: ATTESTATION, videoUrl: `https://${CDN}/otro/${GUID}/play_720p.mp4` })),
+      post("video-observation", teamObsBody({ videoId: GUID, attestation: ATTESTATION, videoUrl: `https://${CDN}/1c000000-0000-4000-8000-000000000003/${GUID}/play_720p.mp4` })),
     );
     expect(res.status).toBe(400);
     expect((await res.json()).errorDetail.code).toBe("video_url_mismatch");
@@ -178,6 +179,20 @@ describe("video-observation · llamadas de USUARIO", () => {
     db.storedAttestations.push({ resource_type: "videos", resource_id: GUID });
     const res = await videoObservation(post("video-observation", teamObsBody({ videoId: GUID })));
     expect(res.status).toBe(403);
+    expect(geminiCalls()).toHaveLength(0);
+  });
+
+  it.each([
+    ["menor de 14 sin consentimiento", MINOR_BIRTH_DATE],
+    ["adulto", "1990-01-01"],
+  ])("B5 · vídeo PROPIO ligado a un jugador AJENO (%s) → 403 forbidden igual; sin leer su fecha; Gemini no se llama", async (_label, bd) => {
+    db.videos[0].player_id = "pForeign";
+    db.birthDates.pForeign = bd;
+    db.playerOwners.pForeign = "99999999-9999-4999-8999-999999999999";
+    const res = await videoObservation(post("video-observation", teamObsBody({ videoId: GUID, attestation: ATTESTATION })));
+    expect(res.status).toBe(403);
+    expect((await res.json()).errorDetail.code).toBe("forbidden");
+    expect(mock.calls.some((c) => c.url.includes("select=birth_date"))).toBe(false);
     expect(geminiCalls()).toHaveLength(0);
   });
 
@@ -222,6 +237,7 @@ describe("team-observation (vídeo de equipo del navegador)", () => {
   it("B1 · el videoId es una fila `videos` propia de un menor de 14 sin consentimiento → 403 aunque se pida 'de equipo'", async () => {
     db.videos[0].player_id = "pMinor";
     db.birthDates.pMinor = MINOR_BIRTH_DATE;
+    db.playerOwners.pMinor = USER; // jugador propio (B5)
     const res = await teamObservation(post("team-observation", body({ videoId: GUID, attestation: ATTESTATION })));
     expect(res.status).toBe(403);
     expect((await res.json()).errorDetail.code).toBe("parental_consent_required");
@@ -230,9 +246,20 @@ describe("team-observation (vídeo de equipo del navegador)", () => {
   });
 
   it("B2 · el videoId es el GUID de la fila de OTRO usuario → 403", async () => {
-    db.videos.push({ id: "vid-x", user_id: "99999999-9999-4999-8999-999999999999", tenant_id: null, player_id: null, bunny_video_id: "g-x" });
-    const res = await teamObservation(post("team-observation", body({ videoId: "g-x", attestation: ATTESTATION })));
+    db.videos.push({ id: "vid-x", user_id: "99999999-9999-4999-8999-999999999999", tenant_id: null, player_id: null, bunny_video_id: "1a000000-0000-4000-8000-00000000000a" });
+    const res = await teamObservation(post("team-observation", body({ videoId: "1a000000-0000-4000-8000-00000000000a", attestation: ATTESTATION })));
     expect(res.status).toBe(403);
+    expect(geminiCalls()).toHaveLength(0);
+  });
+
+  it("B5 · el videoId es una fila propia ligada a un jugador AJENO → 403 forbidden sin leer su fecha; Gemini no se llama", async () => {
+    db.videos[0].player_id = "pForeign";
+    db.birthDates.pForeign = MINOR_BIRTH_DATE;
+    db.playerOwners.pForeign = "99999999-9999-4999-8999-999999999999";
+    const res = await teamObservation(post("team-observation", body({ videoId: GUID, attestation: ATTESTATION })));
+    expect(res.status).toBe(403);
+    expect((await res.json()).errorDetail.code).toBe("forbidden");
+    expect(mock.calls.some((c) => c.url.includes("select=birth_date"))).toBe(false);
     expect(geminiCalls()).toHaveLength(0);
   });
 
@@ -269,6 +296,7 @@ describe("team-intelligence (informe de equipo)", () => {
   it("B1 · el videoId es una fila `videos` propia de un menor de 14 sin consentimiento → 403 JSON, Claude no se llama", async () => {
     db.videos[0].player_id = "pMinor";
     db.birthDates.pMinor = MINOR_BIRTH_DATE;
+    db.playerOwners.pMinor = USER; // jugador propio (B5)
     const res = await teamIntelligence(post("team-intelligence", body({ videoId: GUID, attestation: ATTESTATION })));
     expect(res.status).toBe(403);
     expect((await res.json()).errorDetail.code).toBe("parental_consent_required");
@@ -276,9 +304,20 @@ describe("team-intelligence (informe de equipo)", () => {
   });
 
   it("B2 · el videoId es el GUID de la fila de OTRO usuario → 403", async () => {
-    db.videos.push({ id: "vid-x", user_id: "99999999-9999-4999-8999-999999999999", tenant_id: null, player_id: null, bunny_video_id: "g-x" });
-    const res = await teamIntelligence(post("team-intelligence", body({ videoId: "g-x", attestation: ATTESTATION })));
+    db.videos.push({ id: "vid-x", user_id: "99999999-9999-4999-8999-999999999999", tenant_id: null, player_id: null, bunny_video_id: "1a000000-0000-4000-8000-00000000000a" });
+    const res = await teamIntelligence(post("team-intelligence", body({ videoId: "1a000000-0000-4000-8000-00000000000a", attestation: ATTESTATION })));
     expect(res.status).toBe(403);
+    expect(fetchMessages).not.toHaveBeenCalled();
+  });
+
+  it("B5 · el videoId es una fila propia ligada a un jugador AJENO → 403 forbidden sin leer su fecha; Claude no se llama", async () => {
+    db.videos[0].player_id = "pForeign";
+    db.birthDates.pForeign = "1990-01-01";
+    db.playerOwners.pForeign = "99999999-9999-4999-8999-999999999999";
+    const res = await teamIntelligence(post("team-intelligence", body({ videoId: GUID, attestation: ATTESTATION })));
+    expect(res.status).toBe(403);
+    expect((await res.json()).errorDetail.code).toBe("forbidden");
+    expect(mock.calls.some((c) => c.url.includes("select=birth_date"))).toBe(false);
     expect(fetchMessages).not.toHaveBeenCalled();
   });
 });

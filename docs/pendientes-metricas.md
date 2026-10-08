@@ -223,7 +223,7 @@ Tipo de desbloqueo: **CÓDIGO** (implementable) · **DATOS_HUMANOS** (antropomet
   4. Solo después: `supabase/migrations/076_owner_only_player_access.sql` (aborta sola si queda algo por tenant en esas tablas).
   5. `supabase/checks/076_posterior.sql`: `resultado = esperado` y `ok = true` en todas.
   6. Si la 073 se aplica más tarde con rama por tenant, repetir 4-5.
-- [ ] **C10 · Gate de consentimiento de clips — comprobación ANTES DE FUSIONAR** (PR #308 `feat/clip-consent-gate`, ver §E; fusionar a main = desplegar en Vercel, así que NO vale hacerla después): el owner ejecuta en el SQL Editor de producción `supabase/checks/clip_consent_previa.sql` (solo lectura, una fila) y pasa el resultado. Para fusionar hace falta `audit_table_exists=true`, `audit_columns=8`, `audit_open_insert_policy=0`, `auth_can_insert_audit=false` (y `auth_can_update_audit=false`). Sin `public.gdpr_audit_log` (migración 003) el gate falla cerrado (500): **ninguna** subida ni análisis de clip funcionaría (VideoUpload en 8 páginas incluido el selector del partido completo, VideoUploader, finalize, generate-reports, pipeline/start, team-*, video-observation, la cola). Que la 003 esté aplicada en producción **no está verificado** (la 072 la toca con `to_regclass`, así que aplicar la 072 no lo prueba). La consulta se volvió a probar en PGlite el 1 oct (SIMULACIÓN, no la base real): base vacía → `audit_table_exists=false` sin error; todas las migraciones → `true/8/0/false`; hasta la 071 sin la 072 (control positivo) → `audit_open_insert_policy=1`, `auth_can_insert_audit=true`. NO verificado: si la Supabase de `vitas-demo` necesita la misma comprobación (solo si allí se suben vídeos).
+- [ ] **C10 · Gate de consentimiento de clips — comprobación ANTES DE FUSIONAR** (PR #308 `feat/clip-consent-gate`, ver §E; fusionar a main = desplegar en Vercel, así que NO vale hacerla después): el owner ejecuta en el SQL Editor de producción `supabase/checks/clip_consent_previa.sql` (solo lectura, una fila) y pasa el resultado. Para fusionar hace falta `audit_table_exists=true`, `audit_columns=8`, `audit_open_insert_policy=0`, `auth_can_insert_audit=false` (y `auth_can_update_audit=false`); desde la ronda 3 también `service_can_select_audit=true` y `service_can_insert_audit=true` (el gate solo usa service_role y ningún otro código usa esa tabla, así que producción no prueba que el privilegio exista) y, por B4, `videos_bunny_id_not_uuid=0` y `videos_id_unsafe=0` (si salen >0, esos vídeos ya no se pueden analizar: 400 `invalid_video_reference`; revisar antes de fusionar). Simulación PGlite del 9 oct de la versión ampliada (NO la base real): base vacía → todo `null`/`false` sin error; todas las migraciones → `true/8/0/false/false/true/true` y `0/0`; con un vídeo `a/../x` + bunny `g-1` (control positivo) → `1/1`; con `REVOKE SELECT, INSERT … FROM service_role` (control positivo) → `false/false`; hasta la 071 sin la 072 → `audit_open_insert_policy=1`. Sin `public.gdpr_audit_log` (migración 003) el gate falla cerrado (500): **ninguna** subida ni análisis de clip funcionaría (VideoUpload en 8 páginas incluido el selector del partido completo, VideoUploader, finalize, generate-reports, pipeline/start, team-*, video-observation, la cola). Que la 003 esté aplicada en producción **no está verificado** (la 072 la toca con `to_regclass`, así que aplicar la 072 no lo prueba). La consulta se volvió a probar en PGlite el 1 oct (SIMULACIÓN, no la base real): base vacía → `audit_table_exists=false` sin error; todas las migraciones → `true/8/0/false`; hasta la 071 sin la 072 (control positivo) → `audit_open_insert_policy=1`, `auth_can_insert_audit=true`. NO verificado: si la Supabase de `vitas-demo` necesita la misma comprobación (solo si allí se suben vídeos).
 
 > **Verificación automática:** `scripts/diag-jwt-tenant.mjs` (recreado) confirma la precondición
 > (usuarios con `app_metadata.tenant_id`) y, con `DIAG_TEST_EMAIL/PASSWORD`, el claim raíz del token.
@@ -369,13 +369,59 @@ Una sola regla para todas las entradas (`resolveClipVideo` / `gateClipAnalysis`,
    separado)— pero ya no sustituye al del vídeo: si el del vídeo es un menor de 14 sin
    consentimiento, se bloquea igual.
 
+**Ronda 3 de la review (9 oct, hallazgos B3/B4/B5; cada uno reproducido con tests en ROJO
+antes del arreglo — 51 tests nuevos en rojo sobre la cabeza fusionada `6533421` — y en verde
+después):**
+- **B4 · el id que se busca es EXACTAMENTE el que va en la URL** (`api/_lib/bunnyGuid.ts`, una
+  sola implementación; el job de partido completo ya exigía la misma forma en
+  `matchJob/bunnySource.ts`, que ahora la importa). Antes de buscar nada: la referencia del
+  cliente tiene que tener forma segura (`[A-Za-z0-9][A-Za-z0-9_-]{0,127}`: sin `/`, `.`, `%`,
+  espacios ni comillas) y el GUID cuyos píxeles se leen tiene que ser un UUID; si no, 400
+  `invalid_video_reference`. Antes `pipeline/start {videoId:'a/../<GUID ajeno>'}` encontraba
+  una fila propia sin jugador y `fetch` leía la miniatura del vídeo ajeno (200 + Claude).
+  `pipeline/start` exige además que `videoId` sea un GUID antes de buscar nada y lo escapa en
+  las dos URL. La cola (`process-analyses-queue`) lee el `bunny_video_id` ANTES del gate, exige
+  un GUID, comprueba en el gate ese mismo GUID, lo escapa y se lo pasa a `gemini-analyze`, que
+  rechaza un GUID con otra forma (422) o distinto del comprobado (409, la fila cambió después
+  del gate). INFERIDO, no verificado: que todos los GUID de Bunny tengan forma de UUID (la
+  documentación de Bunny solo dice «The GUID of the video», string; leída el 9 oct). Lo mide
+  la previa (`videos_bunny_id_not_uuid`).
+- **B5 · propiedad de CADA jugador ANTES de leer su fecha de nacimiento** (rutas de usuario y
+  el rescate de tracking): el jugador pedido y el `player_id` de cada fila del vídeo tienen
+  que ser del usuario (`ownsPlayer`, solo el dueño, 076); si no, 403 `forbidden` con el MISMO
+  texto para un jugador ajeno que para uno inexistente, sin leer su fecha ni su
+  consentimiento y sin guardar nada. Antes la respuesta (403 parental / 200 / 500) revelaba la
+  edad y el consentimiento de un menor ajeno: la RLS 038 deja al dueño de una fila `videos`
+  apuntar su `player_id` a cualquier jugador. `generate-reports` con un `analysisId` que no
+  existe ya respondía 404 `analysis_not_found` desde main (076) — ahora con test de que no se
+  lee nada del jugador. La **cola** escribe el motivo en `analyses.status_message` (lo lee
+  quien gestiona el jugador del análisis), así que actúa en nombre del DUEÑO del jugador del
+  análisis (`actAsPlayerOwner`): las filas del vídeo tienen que ser suyas como creador (o, sin
+  creador —subidas antiguas de create-upload—, de su jugador) y cada jugador también; si no,
+  `failed` con un motivo genérico. Jugador del análisis sin dueño → `failed`.
+- **B3 · el rescate de `tracking_jobs` pasa por el gate antes de Modal**
+  (`api/crons/rescue-tracking-jobs.ts`). La RLS de la 052 (`tracking_jobs_insert`) deja a
+  cualquier usuario con sesión insertar un job con su user_id, que nace `queued` sin
+  `modal_call_id` y la RPC de claim lo reclama; antes el cron lo mandaba a Modal sin nada.
+  Ahora, por job: allowlist de la URL (la misma de track-async), `user_id` obligatorio, ese
+  usuario tiene que gestionar todas las filas del vídeo y cada jugador, declaración YA
+  guardada (el rescate no acepta declaraciones) y consentimiento parental si hay un menor de
+  14 conocido. Bloqueado → `failed` con el motivo, sin Modal; fallo de la base al comprobar →
+  vuelve a `queued` (los intentos ya cuentan, máx. 3). El body del spawn de un job permitido
+  es el de antes, byte a byte (test), con la URL normalizada que comprobó el gate (la misma que
+  track-async guardó). Modal sin cambios.
+
 **Puntos de control:** `upload/video-init` y `videos/create-upload` (antes de crear nada en
 Bunny), `videos/finalize`, `_lib/enqueueAnalysis` (webhook de Bunny → 200 `{ skipped }`),
 `crons/process-analyses-queue` (defensa en profundidad → `failed` con motivo), llamadas de usuario
 a `agents/video-observation` (vídeo propio + URL de ese vídeo), `team-observation`,
 `team-intelligence`, `pipeline/start`, `analyses/generate-reports`, llamadas de usuario a
 `coaching/track-players|track-async` y `tactical/compute-from-video`, `live/aggregate` (omite solo
-la observación del vídeo y lo declara). UI: casilla obligatoria (`ClipAttestationField`) en
+la observación del vídeo y lo declara), `crons/rescue-tracking-jobs` (B3) y, para el GUID,
+`pipeline/gemini-analyze` (B4). Los motivos de resolución del vídeo y de propiedad salen en los 7
+idiomas (`clipResolutionReason`, `src/lib/shared/videoConsent.ts`); SoloDrill manda ya su idioma a
+`pipeline/start`. `track-players|track-async|compute-from-video` no reciben idioma (no tienen
+llamador en la UI) y responden en español. UI: casilla obligatoria (`ClipAttestationField`) en
 VideoUpload, VideoUploader, VitasLab (también para re-analizar vídeos antiguos) y análisis de
 equipo; nunca se marca sola. Modal sin cambios (test de spawn byte a byte + callback HMAC).
 
@@ -384,9 +430,13 @@ equipo; nunca se marca sola. Modal sin cambios (test de spawn byte a byte + call
 - [ ] **El orquestador lee el consentimiento sin `withdrawn_at IS NULL`** (`api/agents/_pipeline-orchestrator.ts`: flywheel `labeled_datasets` y email al tutor) — difiere del predicado canónico (inv #7). No se tocó en este PR (cadena del callback de Modal); hoy no cambia nada porque ningún código escribe `withdrawn_at`.
 - [ ] **El tracking del navegador no se puede impedir desde el servidor** (onnxruntime-web / MediaPipe en VitasLab): la UI exige la declaración antes de la pasada local; el servidor exige declaración + consentimiento parental cuando llegan los resultados (`generate-reports`).
 - [ ] **Análisis pendientes de ANTES del gate**: el cron los cierra `failed` con «falta la declaración…»; el entrenador los relanza desde VitasLab marcando la casilla. Vídeos de partido en directo antiguos (`live_matches.video_url`) sin declaración guardada: el resumen sale solo con eventos y lo dice (no hay forma de declararlos después).
-- [ ] **Sin gate propio** (documentado): `crons/rescue-tracking-jobs` (reintenta jobs ya admitidos; los encolados antes del despliegue no pasaron por el gate), `pipeline/gemini-analyze` (serviceOnly; su único llamador, el cron, ya lo comprueba), `videos/_bunny-create` (balón parado: no crea fila ni análisis), `roboflow/analyze` (sin llamador).
+- [ ] **Sin gate propio** (documentado): `pipeline/gemini-analyze` (serviceOnly; su único llamador, el cron, ya lo comprueba; desde B4 sí valida el GUID y que sea el comprobado), `videos/_bunny-create` (balón parado: no crea fila ni análisis), `roboflow/analyze` (sin llamador). **Corrección:** antes este apartado decía que `crons/rescue-tracking-jobs` «solo reintenta jobs ya admitidos»; era FALSO (B3: un cliente puede insertar jobs bajo la RLS 052). Desde la ronda 3 el rescate pasa por el gate.
+- [ ] **B3 · endurecimiento opcional en base de datos (NO escrito, decisión del owner):** una migración que retire la política `tracking_jobs_insert` (052:84-87; la propia 052 dice que la API escribe siempre con service_role y ningún código de `src/` inserta en `tracking_jobs` — VERIFICADO con ripgrep el 9 oct: los únicos aciertos de `tracking_jobs` en `src/` son un comentario de `videoTrackingService.ts:100` y un texto de `src/test/migrations/securityDefinerAllowlist.ts:19`; control positivo: la misma búsqueda sobre `api/` encuentra `api/coaching/_track-async.ts`). Con el gate del cron no hace falta para cerrar B3; quitaría además la escritura de filas basura. Que producción conceda INSERT en `tracking_jobs` a `authenticated` NO está verificado (es el valor por defecto de Supabase; ningún GRANT/REVOKE de esa tabla en el repo).
+- [ ] **B3 · cambio de comportamiento:** un job `queued` sin `modal_call_id` cuyo vídeo no tenga una declaración guardada (p. ej. encolado antes de este gate) ahora se cierra `failed` con el motivo en vez de re-lanzarse. Cuántos hay en producción: NO verificado. Consulta de solo lectura: `select count(*) as pendientes from public.tracking_jobs where status = 'queued' and modal_call_id is null;`
+- [ ] **B5 · cambio de comportamiento:** en rutas de usuario, una fila `videos` propia ligada a un jugador que NO es del usuario (p. ej. filas compartidas por tenant antes de la 076) da 403 `forbidden`; en la cola, un análisis cuyo vídeo lo creó otra cuenta (o con un jugador de otra cuenta) se cierra `failed` con un motivo genérico. Coherente con «solo el dueño» (076). Cuántas filas hay así en producción: NO verificado.
+- [ ] **Residual (webhook de Bunny):** `enqueueAnalysis` (ruta automática, sin usuario) sigue sin comprobar que el creador de la fila `videos` gestione al jugador de esa fila: si un usuario reapunta `videos.player_id` a un jugador ajeno ANTES de que Bunny termine de codificar (RLS 038), se crea un análisis en cola para ese jugador. No revela nada al usuario (el webhook responde a Bunny y el análisis no es suyo) y la cola lo cierra `failed` antes de Gemini (B5, `actAsPlayerOwner`); queda una fila `failed` en el jugador ajeno. Se cierra del todo con el guard de `videos.player_id` del punto siguiente.
 - [ ] **Partido completo**: la subida por VideoUpload pide la declaración y el inicio del job (`/api/match/start`) la vuelve a pedir — dos casillas en ese flujo (el job mantiene su propia declaración, sin cambios).
-- [ ] **`pipeline/start` (SoloDrill)** sigue rellenando edad 15 / «CM» / nota 68 por defecto (inv #1/#2) — fuera de este PR. (Sí se añadió en este PR la comprobación de propiedad del jugador: el gate lee su fecha de nacimiento.)
+- [ ] **`pipeline/start` (SoloDrill)** sigue rellenando edad 15 / «CM» / nota 68 por defecto (inv #1/#2) — fuera de este PR. (Sí se añadió en este PR la comprobación de propiedad del jugador —el gate lee su fecha de nacimiento— y, en la ronda 3, que `videoId` sea un GUID de Bunny.)
 - [ ] **Frontera horaria**: la regla compara en UTC. INFERIDO (no verificado): `NOW()` de la base de producción corre en UTC; si no, el día del 14.º cumpleaños podría diferir unas horas.
 - [ ] **`videos.player_id` / `bunny_video_id` los puede reescribir el dueño** (RLS `Users update videos`, 038:118-122; `SupabaseVideoService.pushOne` manda `player_id: null` si el registro local no tiene jugador): un entrenador puede desligar a un jugador de SU vídeo y analizarlo como «de equipo». El gate usa el vínculo tal como está. Cerrarlo exige un guard de servidor (trigger que impida a `authenticated` cambiar esas columnas, o leer el jugador de la declaración guardada) — migración NO escrita: decisión del owner.
 - [ ] **Bloqueo por una fila ajena con el mismo GUID** (efecto del punto 2, falla cerrado a propósito): si otro usuario inserta una fila `videos` con el `bunny_video_id` de tu vídeo, tus análisis de ese vídeo dan 403 hasta borrarla. Requiere conocer el GUID. Mismo arreglo que el punto anterior.

@@ -26,7 +26,7 @@ function chainFor(table: string) {
       updates.push({ table, values });
       return chain;
     },
-    single: async () => ({ data: table === "videos" ? { bunny_video_id: "bunny-1" } : null, error: null }),
+    single: async () => ({ data: table === "videos" ? { bunny_video_id: "1d000000-0000-4000-8000-000000000001" } : null, error: null }),
     maybeSingle: async () => ({ data: null, error: null }),
     then: (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
       Promise.resolve({ data: isUpdate ? [] : null, error: null }).then(resolve, reject),

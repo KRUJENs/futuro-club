@@ -21,10 +21,11 @@ vi.mock("../../_lib/rateLimit", () => ({
 vi.mock("../../_lib/auth", () => ({
   verifyAuth: vi.fn().mockResolvedValue({ userId: "11111111-1111-4111-8111-111111111111", email: null, tenantId: null, error: null }),
 }));
-// El jugador elegido es del usuario (ownership.ts tiene sus propios tests); ownsVideo es el REAL.
+// El jugador elegido (p1) es del usuario, y los que el test registre en db.playerOwners
+// (ownership.ts tiene sus propios tests); ownsVideo es el REAL.
 vi.mock("../../_lib/ownership", async (orig) => ({
   ...(await orig<typeof import("../../_lib/ownership")>()),
-  ownsPlayer: vi.fn(async (pid: string) => pid === "p1"),
+  ownsPlayer: vi.fn(async (pid: string, uid: string | null) => pid === "p1" || (!!uid && db.playerOwners[pid] === uid)),
 }));
 const enqueueMock = vi.fn();
 vi.mock("../../_lib/enqueueAnalysis", () => ({
@@ -68,7 +69,7 @@ beforeEach(() => {
   mock = consentFetch(db, {
     fallback: async (url) => {
       if (url.startsWith("https://video.bunnycdn.com/library/42/videos/")) {
-        return new Response(JSON.stringify({ guid: "g-1", status: 4, length: 60, width: 1920, height: 1080 }), { status: 200 });
+        return new Response(JSON.stringify({ guid: "1a000000-0000-4000-8000-000000000001", status: 4, length: 60, width: 1920, height: 1080 }), { status: 200 });
       }
       throw new Error(`unexpected fetch ${url}`);
     },
@@ -93,10 +94,11 @@ function videoRow(r: { id: string; user_id: string | null; player_id: string | n
 
 describe("finalize · el jugador del VÍDEO cuenta aunque se elija otro al analizar (B1)", () => {
   it("vídeo de un menor de 14 sin consentimiento + playerId de OTRO jugador propio → 403; ni Bunny ni encolar", async () => {
-    videoRow({ id: "g-1", user_id: USER, player_id: "pMinor", bunny_video_id: "g-1" });
+    videoRow({ id: "1a000000-0000-4000-8000-000000000001", user_id: USER, player_id: "pMinor", bunny_video_id: "1a000000-0000-4000-8000-000000000001" });
     db.birthDates.pMinor = MINOR_BIRTH_DATE;
+    db.playerOwners.pMinor = USER; // jugador propio (B5)
     db.birthDates.p1 = null;
-    const res = await post({ videoId: "g-1", bunnyVideoId: "g-1", playerId: "p1", attestation: ATTESTATION });
+    const res = await post({ videoId: "1a000000-0000-4000-8000-000000000001", bunnyVideoId: "1a000000-0000-4000-8000-000000000001", playerId: "p1", attestation: ATTESTATION });
     expect(res.status).toBe(403);
     expect((await res.json()).errorDetail.code).toBe("parental_consent_required");
     expect(bunnyCalls()).toHaveLength(0);
@@ -105,24 +107,25 @@ describe("finalize · el jugador del VÍDEO cuenta aunque se elija otro al anali
   });
 
   it("control: el mismo vídeo con su menor CON consentimiento verificado → se encola para el jugador elegido", async () => {
-    videoRow({ id: "g-1", user_id: USER, player_id: "pMinor", bunny_video_id: "g-1" });
+    videoRow({ id: "1a000000-0000-4000-8000-000000000001", user_id: USER, player_id: "pMinor", bunny_video_id: "1a000000-0000-4000-8000-000000000001" });
     db.birthDates.pMinor = MINOR_BIRTH_DATE;
+    db.playerOwners.pMinor = USER; // jugador propio (B5)
     db.activeConsents.push("pMinor");
     db.birthDates.p1 = null;
-    const res = await post({ videoId: "g-1", bunnyVideoId: "g-1", playerId: "p1", attestation: ATTESTATION });
+    const res = await post({ videoId: "1a000000-0000-4000-8000-000000000001", bunnyVideoId: "1a000000-0000-4000-8000-000000000001", playerId: "p1", attestation: ATTESTATION });
     expect(res.status).toBe(200);
     expect(enqueueMock).toHaveBeenCalledTimes(1);
-    expect(enqueueMock.mock.calls[0][0]).toMatchObject({ videoId: "g-1", playerId: "p1" });
-    expect(mock.inserts[0]).toMatchObject({ resource_type: "videos", resource_id: "g-1", metadata: { player_id: "p1", endpoint: "videos/finalize" } });
+    expect(enqueueMock.mock.calls[0][0]).toMatchObject({ videoId: "1a000000-0000-4000-8000-000000000001", playerId: "p1" });
+    expect(mock.inserts[0]).toMatchObject({ resource_type: "videos", resource_id: "1a000000-0000-4000-8000-000000000001", metadata: { player_id: "p1", endpoint: "videos/finalize" } });
   });
 });
 
 describe("finalize · todas las filas del vídeo de Bunny (B2)", () => {
   it("la fila propia aún sin GUID + otra fila AJENA que ya apunta a ese GUID → 403 (no se siembra un vídeo ajeno)", async () => {
     videoRow({ id: "mine", user_id: USER, player_id: null, bunny_video_id: null });
-    db.videos.push({ id: "vid-v", user_id: OTHER, tenant_id: null, player_id: "pMinor", bunny_video_id: "g-v" });
+    db.videos.push({ id: "vid-v", user_id: OTHER, tenant_id: null, player_id: "pMinor", bunny_video_id: "1a000000-0000-4000-8000-00000000000b" });
     db.birthDates.p1 = null;
-    const res = await post({ videoId: "mine", bunnyVideoId: "g-v", playerId: "p1", attestation: ATTESTATION });
+    const res = await post({ videoId: "mine", bunnyVideoId: "1a000000-0000-4000-8000-00000000000b", playerId: "p1", attestation: ATTESTATION });
     expect(res.status).toBe(403);
     expect((await res.json()).errorDetail.code).toBe("forbidden");
     expect(bunnyCalls()).toHaveLength(0);
@@ -132,9 +135,9 @@ describe("finalize · todas las filas del vídeo de Bunny (B2)", () => {
   it("la fila propia aún sin GUID y nadie más con ese GUID → se siembra y se encola (sin regresión)", async () => {
     videoRow({ id: "mine", user_id: USER, player_id: null, bunny_video_id: null });
     db.birthDates.p1 = null;
-    const res = await post({ videoId: "mine", bunnyVideoId: "g-new", playerId: "p1", attestation: ATTESTATION });
+    const res = await post({ videoId: "mine", bunnyVideoId: "1a000000-0000-4000-8000-000000000010", playerId: "p1", attestation: ATTESTATION });
     expect(res.status).toBe(200);
     expect(enqueueMock).toHaveBeenCalledTimes(1);
-    expect(mock.inserts[0]).toMatchObject({ resource_type: "videos", resource_id: "mine", metadata: { bunny_video_id: "g-new" } });
+    expect(mock.inserts[0]).toMatchObject({ resource_type: "videos", resource_id: "mine", metadata: { bunny_video_id: "1a000000-0000-4000-8000-000000000010" } });
   });
 });

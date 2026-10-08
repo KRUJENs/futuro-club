@@ -92,6 +92,7 @@ export async function enqueueAnalysis(input: EnqueueAnalysisInput): Promise<Enqu
     scope: "player",
     locale,
     ownsVideo: null,
+    ownsPlayer: null,
   });
   if (!consent.allowed) {
     return { status: "blocked", code: consent.code, httpStatus: consent.status, gate_reason: consent.gate_reason };

@@ -152,6 +152,8 @@ export default withHandler(
       scope: playerId ? "player" : "team",
       locale: input.locale,
       ownsVideo: (v, uid) => ownsVideo(v, uid, isServiceCall),
+      // B5: cada jugador del vídeo tiene que ser del usuario antes de leer su fecha de nacimiento.
+      ownsPlayer: isServiceCall ? null : (pid, uid) => ownsPlayer(pid, uid),
     });
     if (!consent.allowed) return clipGateErrorResponse(consent);
 

@@ -24,7 +24,7 @@
 import { withHandler } from "../_lib/withHandler";
 import { isOverBudget, recordSpendUsd, budgetExceededResponse } from "../_lib/budgetGuard";
 import { gateClipAnalysis, clipGateErrorResponse } from "../_lib/analysisConsentGate";
-import { ownsVideo } from "../_lib/ownership";
+import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 
 export const config = {
   runtime: "edge",
@@ -124,6 +124,7 @@ export default withHandler(
       endpoint: "coaching/track-players",
       scope: "team",
       ownsVideo: (video, uid) => ownsVideo(video, uid),
+      ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
     });
     if (!consent.allowed) return clipGateErrorResponse(consent);
   }

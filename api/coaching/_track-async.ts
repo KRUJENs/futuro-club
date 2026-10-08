@@ -33,7 +33,9 @@
  * DESPUÉS de los 503/400/413 de siempre y ANTES del dedup, del insert y del spawn; un
  * bloqueo es 400/403/404/500, nunca 503. Para una llamada permitida el spawn a Modal es
  * BYTE A BYTE el de antes (test en api/coaching/__tests__/track-async-consent.test.ts).
- * Las llamadas de servicio y el rescate (crons/rescue-tracking-jobs) no cambian.
+ * Las llamadas de servicio no pasan por el gate. El rescate (crons/rescue-tracking-jobs)
+ * pasa por el MISMO gate antes de re-spawnear (B3: un cliente puede insertar filas en
+ * tracking_jobs bajo la RLS 052), con la declaración que esta llamada guardó con el vídeo.
  */
 
 import { z } from "zod";
@@ -134,6 +136,7 @@ export default withHandler(
         endpoint: "coaching/track-async",
         scope: body.playerId ? "player" : "team",
         ownsVideo: (video, uid) => ownsVideo(video, uid),
+        ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
       });
       if (!consent.allowed) return clipGateErrorResponse(consent);
     }

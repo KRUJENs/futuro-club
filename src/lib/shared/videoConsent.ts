@@ -278,6 +278,114 @@ export function clipConsentGateReason(locale: unknown, code: ClipConsentCode): s
 /** Para tests de paridad: catálogo por idioma. */
 export const CLIP_CONSENT_GATE_REASONS_FOR_TEST = GATE_REASONS;
 
+// ─── Motivo de un rechazo al RESOLVER el vídeo / la propiedad (7 idiomas) ────
+// Los usa api/_lib/analysisConsentGate.ts cuando no llega a evaluar el consentimiento:
+// la referencia del vídeo no vale, el vídeo no existe o no es de quien pide el análisis,
+// o un jugador del análisis no es suyo. El código HTTP (`errorDetail.code`) lo pone el
+// gate; aquí solo el texto. "forbidden" tiene dos textos (vídeo / jugador) con el MISMO
+// código: un jugador ajeno y uno inexistente dan exactamente la misma respuesta.
+
+export const CLIP_RESOLUTION_MESSAGE_KEYS = [
+  "video_reference_required",
+  "video_id_required",
+  "saved_video_required",
+  "video_not_found",
+  "video_url_mismatch",
+  "invalid_video_reference",
+  "video_forbidden",
+  "player_forbidden",
+  "player_scope_requires_player_video",
+] as const;
+export type ClipResolutionMessageKey = (typeof CLIP_RESOLUTION_MESSAGE_KEYS)[number];
+
+const RESOLUTION_REASONS: Readonly<Record<ReportLocale, Readonly<Record<ClipResolutionMessageKey, string>>>> = {
+  es: {
+    video_reference_required: "Falta la referencia del vídeo: el análisis debe referirse a un vídeo guardado.",
+    video_id_required: "Falta videoId: el análisis debe referirse a un vídeo guardado.",
+    saved_video_required: "Las llamadas de usuario deben analizar un vídeo guardado (videoId + videoUrl), no un fichero en el cuerpo de la petición.",
+    video_not_found: "Vídeo no encontrado: el análisis debe referirse a un vídeo guardado.",
+    video_url_mismatch: "La URL no corresponde a ese vídeo.",
+    invalid_video_reference: "La referencia del vídeo no es válida.",
+    video_forbidden: "No gestionas este vídeo.",
+    player_forbidden: "No gestionas este jugador.",
+    player_scope_requires_player_video: "El análisis por jugador solo se hace sobre un vídeo con jugador asignado.",
+  },
+  "es-419": {
+    video_reference_required: "Falta la referencia del video: el análisis debe referirse a un video guardado.",
+    video_id_required: "Falta videoId: el análisis debe referirse a un video guardado.",
+    saved_video_required: "Las llamadas de usuario deben analizar un video guardado (videoId + videoUrl), no un archivo en el cuerpo de la solicitud.",
+    video_not_found: "Video no encontrado: el análisis debe referirse a un video guardado.",
+    video_url_mismatch: "La URL no corresponde a ese video.",
+    invalid_video_reference: "La referencia del video no es válida.",
+    video_forbidden: "No gestionas este video.",
+    player_forbidden: "No gestionas este jugador.",
+    player_scope_requires_player_video: "El análisis por jugador solo se hace sobre un video con jugador asignado.",
+  },
+  en: {
+    video_reference_required: "The video reference is missing: the analysis must refer to a saved video.",
+    video_id_required: "videoId is missing: the analysis must refer to a saved video.",
+    saved_video_required: "User requests must analyse a saved video (videoId + videoUrl), not a file in the request body.",
+    video_not_found: "Video not found: the analysis must refer to a saved video.",
+    video_url_mismatch: "The URL does not belong to that video.",
+    invalid_video_reference: "The video reference is not valid.",
+    video_forbidden: "You do not manage this video.",
+    player_forbidden: "You do not manage this player.",
+    player_scope_requires_player_video: "A player analysis is only done on a video with an assigned player.",
+  },
+  it: {
+    video_reference_required: "Manca il riferimento al video: l'analisi deve riferirsi a un video salvato.",
+    video_id_required: "Manca videoId: l'analisi deve riferirsi a un video salvato.",
+    saved_video_required: "Le richieste degli utenti devono analizzare un video salvato (videoId + videoUrl), non un file nel corpo della richiesta.",
+    video_not_found: "Video non trovato: l'analisi deve riferirsi a un video salvato.",
+    video_url_mismatch: "L'URL non corrisponde a quel video.",
+    invalid_video_reference: "Il riferimento al video non è valido.",
+    video_forbidden: "Non gestisci questo video.",
+    player_forbidden: "Non gestisci questo giocatore.",
+    player_scope_requires_player_video: "L'analisi di un giocatore si fa solo su un video con un giocatore assegnato.",
+  },
+  fr: {
+    video_reference_required: "La référence de la vidéo est manquante : l'analyse doit porter sur une vidéo enregistrée.",
+    video_id_required: "videoId est manquant : l'analyse doit porter sur une vidéo enregistrée.",
+    saved_video_required: "Les requêtes des utilisateurs doivent analyser une vidéo enregistrée (videoId + videoUrl), pas un fichier dans le corps de la requête.",
+    video_not_found: "Vidéo introuvable : l'analyse doit porter sur une vidéo enregistrée.",
+    video_url_mismatch: "L'URL ne correspond pas à cette vidéo.",
+    invalid_video_reference: "La référence de la vidéo n'est pas valide.",
+    video_forbidden: "Vous ne gérez pas cette vidéo.",
+    player_forbidden: "Vous ne gérez pas ce joueur.",
+    player_scope_requires_player_video: "L'analyse d'un joueur ne se fait que sur une vidéo avec un joueur attribué.",
+  },
+  de: {
+    video_reference_required: "Die Videoreferenz fehlt: Die Analyse muss sich auf ein gespeichertes Video beziehen.",
+    video_id_required: "videoId fehlt: Die Analyse muss sich auf ein gespeichertes Video beziehen.",
+    saved_video_required: "Anfragen von Nutzern müssen ein gespeichertes Video analysieren (videoId + videoUrl), keine Datei im Anfragetext.",
+    video_not_found: "Video nicht gefunden: Die Analyse muss sich auf ein gespeichertes Video beziehen.",
+    video_url_mismatch: "Die URL gehört nicht zu diesem Video.",
+    invalid_video_reference: "Die Videoreferenz ist ungültig.",
+    video_forbidden: "Du verwaltest dieses Video nicht.",
+    player_forbidden: "Du verwaltest diesen Spieler nicht.",
+    player_scope_requires_player_video: "Eine Spieleranalyse erfolgt nur bei einem Video mit zugewiesenem Spieler.",
+  },
+  nl: {
+    video_reference_required: "De videoverwijzing ontbreekt: de analyse moet naar een opgeslagen video verwijzen.",
+    video_id_required: "videoId ontbreekt: de analyse moet naar een opgeslagen video verwijzen.",
+    saved_video_required: "Verzoeken van gebruikers moeten een opgeslagen video analyseren (videoId + videoUrl), geen bestand in de body van het verzoek.",
+    video_not_found: "Video niet gevonden: de analyse moet naar een opgeslagen video verwijzen.",
+    video_url_mismatch: "De URL hoort niet bij die video.",
+    invalid_video_reference: "De videoverwijzing is ongeldig.",
+    video_forbidden: "Je beheert deze video niet.",
+    player_forbidden: "Je beheert deze speler niet.",
+    player_scope_requires_player_video: "Een spelersanalyse gebeurt alleen op een video met een toegewezen speler.",
+  },
+};
+
+/** Motivo de un rechazo al resolver el vídeo / la propiedad, en el idioma pedido (desconocido ⇒ español). */
+export function clipResolutionReason(locale: unknown, key: ClipResolutionMessageKey): string {
+  return RESOLUTION_REASONS[normalizeLocale(locale)][key];
+}
+
+/** Para tests de paridad: catálogo por idioma. */
+export const CLIP_RESOLUTION_REASONS_FOR_TEST = RESOLUTION_REASONS;
+
 // ─── Cliente: leer el bloqueo de una respuesta de la API ─────────────────────
 
 /**

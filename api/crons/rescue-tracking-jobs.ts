@@ -21,6 +21,24 @@
  * Nota Vercel Hobby: crons máx. 1×/día → esto es un BACKSTOP, no el camino
  * primario (el spawn directo en track-async lo es). Con plan Pro, subir a
  * cada 15-30 min en vercel.json.
+ *
+ * CONSENTIMIENTO ANTES DEL RE-SPAWN (hallazgo B3 de la review del PR #308): la RLS de
+ * la 052 (`tracking_jobs_insert`) deja a CUALQUIER usuario con sesión insertar una fila
+ * con su propio user_id; nace 'queued' con modal_call_id NULL y la RPC de claim la
+ * reclama. Así que "un job reclamado" NO prueba que pasara por track-async. Antes de
+ * mandar nada a Modal, cada job pasa por el MISMO gate que track-async
+ * (api/_lib/analysisConsentGate · gateClipAnalysis), en nombre de su user_id:
+ *   - la URL tiene que estar en la allowlist de vídeo (la misma que track-async);
+ *   - el job tiene que tener user_id; ese usuario tiene que gestionar TODAS las filas
+ *     `videos` del vídeo (por el GUID de la URL y el video_id) y a CADA jugador, antes de
+ *     leer ninguna fecha de nacimiento (el job y su `error` los lee quien lo insertó);
+ *   - tiene que haber una declaración del entrenador YA GUARDADA con el vídeo (la que
+ *     guardó track-async; el rescate no acepta declaraciones);
+ *   - menor de 14 conocido ⇒ consentimiento parental verificado.
+ * Bloqueado → el job queda `failed` con el motivo y NO se llama a Modal. Un fallo de la
+ * base al comprobar (consent_check_failed) devuelve el job a 'queued' (reintento; los
+ * intentos ya cuentan). El body del spawn de un job permitido NO cambia (contrato con
+ * Modal intacto: test byte a byte en rescue-tracking-jobs-consent.test.ts).
  */
 
 import { errorResponse, successResponse } from "../_lib/apiResponse";
@@ -32,6 +50,9 @@ import {
   patchTrackingJob,
 } from "../_lib/supabaseRest";
 import { env } from "../_lib/env";
+import { assertAllowedVideoUrl, VideoUrlError } from "../_lib/videoUrlGuard";
+import { gateClipAnalysis } from "../_lib/analysisConsentGate";
+import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 
 export const config = { runtime: "edge" };
 
@@ -39,11 +60,61 @@ const MAX_ATTEMPTS = 3;
 const BATCH_SIZE = 3;
 const STALE_PROCESSING_HOURS = Number(process.env.STALE_PROCESSING_HOURS ?? 2);
 
+/** Fila que devuelve claim_queued_tracking_jobs (RETURNING * de tracking_jobs, 052). */
 interface ClaimedJob {
   id: string;
   video_url: string;
   sample_fps: number;
   attempts: number;
+  video_id?: string | null;
+  player_id?: string | null;
+  user_id?: string | null;
+}
+
+type JobGate =
+  /** `videoUrl` = la URL normalizada que comprobó el gate (la que track-async ya guardó). */
+  | { allowed: true; videoUrl: string }
+  | { allowed: false; code: string; reason: string; retry: boolean };
+
+/**
+ * B3: el MISMO gate que track-async, en nombre del usuario que insertó el job. Nunca
+ * acepta una declaración (solo una guardada con el vídeo). `retry` = fallo de la base al
+ * comprobar (se reintenta en el próximo cron), no una decisión.
+ */
+async function gateRescuedJob(job: ClaimedJob): Promise<JobGate> {
+  let videoUrl: string;
+  try {
+    videoUrl = assertAllowedVideoUrl(job.video_url).href;
+  } catch (err) {
+    // Sin hosts de Bunny configurados es configuración, no una decisión sobre el job:
+    // vuelve a la cola (los intentos ya cuentan). Fuera de la allowlist → failed.
+    if (err instanceof VideoUrlError) {
+      return { allowed: false, code: err.code, reason: err.message, retry: err.code === "VIDEO_HOSTS_NOT_CONFIGURED" };
+    }
+    return { allowed: false, code: "VIDEO_URL_INVALID", reason: "URL de vídeo no válida", retry: false };
+  }
+  if (!job.user_id) {
+    return {
+      allowed: false,
+      code: "no_user",
+      reason: "Job sin usuario: no se puede comprobar la declaración ni la propiedad del vídeo.",
+      retry: false,
+    };
+  }
+  const gate = await gateClipAnalysis({
+    videoId: job.video_id ?? undefined,
+    videoUrl, // Modal descargará ESTA URL → su GUID es el vídeo que se analiza
+    requireVideoRow: true,
+    storedOnly: true,
+    playerId: job.player_id ?? null,
+    actor: { userId: job.user_id, tenantId: null },
+    endpoint: "crons/rescue-tracking-jobs",
+    scope: job.player_id ? "player" : "team",
+    ownsVideo: (video, uid) => ownsVideo(video, uid),
+    ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
+  });
+  if (gate.allowed) return { allowed: true, videoUrl };
+  return { allowed: false, code: gate.code, reason: gate.gate_reason, retry: gate.code === "consent_check_failed" };
 }
 
 export default async function handler(req: Request): Promise<Response> {
@@ -137,6 +208,23 @@ export default async function handler(req: Request): Promise<Response> {
       continue;
     }
 
+    // B3: el gate de consentimiento ANTES de mandar nada a Modal.
+    const gate = await gateRescuedJob(job);
+    if (!gate.allowed) {
+      if (gate.retry) {
+        await patchTrackingJob(job.id, { status: "queued", error: gate.reason.slice(0, 300) }).catch(() => null);
+        details.push({ id: job.id, action: "requeued_consent_check_failed", code: gate.code, attempts: job.attempts });
+      } else {
+        await patchTrackingJob(job.id, {
+          status: "failed",
+          error: gate.reason.slice(0, 300),
+          finished_at: new Date().toISOString(),
+        }).catch(() => null);
+        details.push({ id: job.id, action: "consent_blocked", code: gate.code });
+      }
+      continue;
+    }
+
     let ok = false;
     let detail = "";
     try {
@@ -144,7 +232,9 @@ export default async function handler(req: Request): Promise<Response> {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${modalKey}` },
         body: JSON.stringify({
-          video_url: job.video_url,
+          // La URL que comprobó el gate (normalizada); para un job de track-async es
+          // idéntica a job.video_url, que ya se guardó normalizada.
+          video_url: gate.videoUrl,
           sample_fps: job.sample_fps ?? 5,
           classes: [0, 32],
           job_id: job.id,

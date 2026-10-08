@@ -10,7 +10,10 @@ import {
   CLIP_CONSENT_CODES,
   CLIP_CONSENT_GATE_REASONS_FOR_TEST,
   CLIP_CONSENT_HTTP_STATUS,
+  CLIP_RESOLUTION_MESSAGE_KEYS,
+  CLIP_RESOLUTION_REASONS_FOR_TEST,
   ClipConsentBlockedError,
+  clipResolutionReason,
   PARENTAL_CONSENT_AGE_YEARS,
   buildClipAttestation,
   clipConsentCodeFromResponse,
@@ -141,6 +144,36 @@ describe("motivos en los 7 idiomas del registro", () => {
   it("los motivos no se repiten entre idiomas distintos del español (no es una copia sin traducir)", () => {
     expect(clipConsentGateReason("en", "parental_consent_required")).not.toBe(clipConsentGateReason("es", "parental_consent_required"));
     expect(clipConsentGateReason("de", "attestation_required")).not.toBe(clipConsentGateReason("fr", "attestation_required"));
+  });
+});
+
+describe("motivos de RESOLUCIÓN del vídeo / propiedad (B4/B5) en los 7 idiomas", () => {
+  it("cada idioma del registro tiene todos los textos, no vacíos", () => {
+    const codes = Object.keys(LANGUAGE_REGISTRY);
+    expect(codes.sort()).toEqual(Object.keys(CLIP_RESOLUTION_REASONS_FOR_TEST).sort());
+    for (const loc of codes) {
+      for (const key of CLIP_RESOLUTION_MESSAGE_KEYS) {
+        expect(clipResolutionReason(loc, key).trim().length).toBeGreaterThan(10);
+      }
+    }
+  });
+
+  it("no hay copia sin traducir: en/it/fr/de/nl difieren del español en cada texto", () => {
+    for (const loc of ["en", "it", "fr", "de", "nl"]) {
+      for (const key of CLIP_RESOLUTION_MESSAGE_KEYS) {
+        expect(clipResolutionReason(loc, key)).not.toBe(clipResolutionReason("es", key));
+      }
+    }
+  });
+
+  it("idioma desconocido o regional → normalizado (en-US → en; nada → es)", () => {
+    expect(clipResolutionReason("en-US", "player_forbidden")).toBe(clipResolutionReason("en", "player_forbidden"));
+    expect(clipResolutionReason(undefined, "player_forbidden")).toBe("No gestionas este jugador.");
+  });
+
+  it("un jugador ajeno y uno inexistente comparten texto (no se distingue uno de otro)", () => {
+    // Solo hay UN texto para «jugador»: el gate no tiene forma de distinguirlos.
+    expect(CLIP_RESOLUTION_MESSAGE_KEYS.filter((k) => k.startsWith("player_forbidden"))).toEqual(["player_forbidden"]);
   });
 });
 

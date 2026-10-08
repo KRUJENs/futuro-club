@@ -26,7 +26,7 @@ import { normalizeLocale, languageDirective } from "../../src/lib/shared/locale"
 import { GEMINI_MODEL } from "../../src/lib/shared/geminiModel";
 import { withholdIndividualData } from "../../src/lib/shared/teamReportIdentity";
 import { gateClipAnalysis, clipGateErrorResponse } from "../_lib/analysisConsentGate";
-import { ownsVideo } from "../_lib/ownership";
+import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 
 export const config = { runtime: "nodejs", maxDuration: 120 };
 
@@ -80,6 +80,7 @@ export default withHandler(
         scope: "team",
         locale,
         ownsVideo: (video, uid) => ownsVideo(video, uid),
+        ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
       });
       if (!consent.allowed) return clipGateErrorResponse(consent);
 

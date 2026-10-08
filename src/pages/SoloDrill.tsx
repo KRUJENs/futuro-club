@@ -156,6 +156,8 @@ const SoloDrill = () => {
           videoId,
           playerId,
           analysisMode: selectedCategory ?? "all",
+          // Idioma de los motivos de bloqueo que devuelve el servidor (se muestran tal cual).
+          locale: i18n.language,
         }),
       });
 

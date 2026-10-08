@@ -26,7 +26,7 @@
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
-import { ownsMatch, ownsVideo } from "../_lib/ownership";
+import { ownsMatch, ownsPlayer, ownsVideo } from "../_lib/ownership";
 import { isOverBudget, recordSpendUsd, budgetExceededResponse } from "../_lib/budgetGuard";
 import { gateClipAnalysis, clipGateErrorResponse } from "../_lib/analysisConsentGate";
 
@@ -195,6 +195,7 @@ export default withHandler(
         endpoint: "tactical/compute-from-video",
         scope: "team",
         ownsVideo: (video, uid) => ownsVideo(video, uid),
+        ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
       });
       if (!consent.allowed) return clipGateErrorResponse(consent);
     }

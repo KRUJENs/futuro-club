@@ -23,7 +23,7 @@ import { normalizeLocale, languageDirective } from "../../src/lib/shared/locale"
 import { GEMINI_MODEL } from "../../src/lib/shared/geminiModel";
 import { assertAllowedVideoUrl, fetchAllowedVideo, VideoUrlError } from "../_lib/videoUrlGuard";
 import { enforceUserVideoObservationConsent } from "../_lib/analysisConsentGate";
-import { ownsVideo } from "../_lib/ownership";
+import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 
 export const config = { runtime: "nodejs", maxDuration: 120 };
 
@@ -141,6 +141,7 @@ export default withHandler(
           actor: { userId, tenantId, ip },
           locale,
           ownsVideo: (video, uid) => ownsVideo(video, uid),
+          ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
         });
         if (!gate.allowed) return gate.response;
       }

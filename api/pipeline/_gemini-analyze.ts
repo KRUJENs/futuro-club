@@ -30,6 +30,7 @@ import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { createClient } from "@supabase/supabase-js";
 import { GEMINI_MODEL } from "../../src/lib/shared/geminiModel";
+import { isBunnyGuid } from "../_lib/bunnyGuid";
 import {
   buildGeminiPlayerContext,
   geminiToBiomechanics,
@@ -53,6 +54,12 @@ const geminiAnalyzeSchema = z.object({
   videoId: z.string(),
   playerId: z.string(),
   analysisId: z.string().uuid(),
+  /**
+   * GUID de Bunny que comprobó el gate del cron (B4, review del PR #308). Si la fila
+   * `videos` ya apunta a OTRO GUID (el dueño de la fila lo reescribió entre el gate y este
+   * paso), no se analiza (409). Opcional: el único llamador (el cron) siempre lo manda.
+   */
+  bunnyVideoId: z.string().optional(),
 });
 
 export default withHandler(
@@ -61,7 +68,7 @@ export default withHandler(
   // INTERNAL_TOKEN; nunca un caller anónimo (era abuso de coste + overwrite ajeno).
   { schema: geminiAnalyzeSchema, serviceOnly: true, maxRequests: 20 },
   async ({ body }) => {
-    const { videoId, playerId, analysisId } = body as z.infer<typeof geminiAnalyzeSchema>;
+    const { videoId, playerId, analysisId, bunnyVideoId } = body as z.infer<typeof geminiAnalyzeSchema>;
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
       auth: { persistSession: false },
@@ -78,11 +85,22 @@ export default withHandler(
       return errorResponse({ code: "video_not_found", message: "Video not in DB", status: 404 });
     }
 
+    // B4: el GUID va TAL CUAL en la URL que descarga Gemini → tiene que ser un GUID, y el
+    // MISMO que comprobó el gate del cron (si no, la fila cambió después del gate).
+    const bunnyGuid = String(video.bunny_video_id);
+    if (!isBunnyGuid(bunnyGuid)) {
+      return errorResponse({ code: "invalid_video_reference", message: "bunny_video_id is not a Bunny GUID", status: 422 });
+    }
+    if (bunnyVideoId !== undefined && bunnyVideoId !== bunnyGuid) {
+      return errorResponse({ code: "video_changed", message: "The video row changed after the consent gate", status: 409 });
+    }
+
     const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID ?? "";
     const cdnHost = process.env.BUNNY_CDN_HOSTNAME ?? "";
+    const guidInUrl = encodeURIComponent(bunnyGuid);
     const videoUrl = cdnHost
-      ? `https://${cdnHost}/${video.bunny_video_id}/play_720p.mp4`
-      : `https://video.bunnycdn.com/library/${libraryId}/videos/${video.bunny_video_id}/play.mp4`;
+      ? `https://${cdnHost}/${guidInUrl}/play_720p.mp4`
+      : `https://video.bunnycdn.com/library/${encodeURIComponent(libraryId)}/videos/${guidInUrl}/play.mp4`;
 
     // ── 2. Load player context ──
     const { data: player } = await supabase

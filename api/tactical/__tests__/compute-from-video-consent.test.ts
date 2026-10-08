@@ -30,7 +30,7 @@ vi.mock("../../_lib/ownership", async (orig) => ({
 }));
 
 const MODAL_URL = "https://modal.test/track";
-const VIDEO_URL = "https://cdn.test/g-1/play_720p.mp4";
+const VIDEO_URL = "https://cdn.test/1a000000-0000-4000-8000-000000000001/play_720p.mp4";
 const MODAL_OK = {
   status: "ok", duration_sec: 10, fps_source: 25, sample_fps: 5,
   players: [{ track_id: 1, timestamp_ms: 0, bbox: [0, 0, 10, 10], confidence: 0.9 }],
@@ -55,7 +55,7 @@ beforeEach(() => {
   process.env.SUPABASE_URL = "https://sb.test";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "svc-key";
   db = emptyConsentDb();
-  db.videos.push({ id: "g-1", user_id: USER, tenant_id: null, player_id: null, bunny_video_id: "g-1" });
+  db.videos.push({ id: "1a000000-0000-4000-8000-000000000001", user_id: USER, tenant_id: null, player_id: null, bunny_video_id: "1a000000-0000-4000-8000-000000000001" });
   modalCalls = [];
   mock = consentFetch(db, {
     fallback: async (url, init) => {
@@ -98,13 +98,14 @@ describe("compute-from-video · consentimiento", () => {
   it("usuario declarado → se guarda y Modal recibe el body de siempre", async () => {
     const res = await post({ attestation: ATTESTATION });
     expect(res.status).toBe(200);
-    expect(mock.inserts[0]).toMatchObject({ resource_type: "videos", resource_id: "g-1", metadata: { endpoint: "tactical/compute-from-video" } });
+    expect(mock.inserts[0]).toMatchObject({ resource_type: "videos", resource_id: "1a000000-0000-4000-8000-000000000001", metadata: { endpoint: "tactical/compute-from-video" } });
     expect(modalCalls[0].init.body).toBe(EXPECTED_MODAL_BODY);
   });
 
   it("B1 · vídeo (fila propia) de un menor de 14 sin consentimiento → 403; Modal no se llama", async () => {
     db.videos[0].player_id = "pMinor";
     db.birthDates.pMinor = MINOR_BIRTH_DATE;
+    db.playerOwners.pMinor = USER; // jugador propio (B5)
     const res = await post({ attestation: ATTESTATION });
     expect(res.status).toBe(403);
     expect((await res.json()).errorDetail.code).toBe("parental_consent_required");
@@ -114,7 +115,7 @@ describe("compute-from-video · consentimiento", () => {
   it("B2 · vídeo de OTRO usuario por el GUID de la URL → 403; URL sin fila → 404; Modal no se llama", async () => {
     db.videos[0].user_id = "99999999-9999-4999-8999-999999999999";
     expect((await post({ attestation: ATTESTATION })).status).toBe(403);
-    expect((await post({ attestation: ATTESTATION, videoUrl: "https://cdn.test/sin-fila/play.mp4" })).status).toBe(404);
+    expect((await post({ attestation: ATTESTATION, videoUrl: "https://cdn.test/1c000000-0000-4000-8000-000000000001/play.mp4" })).status).toBe(404);
     expect(modalCalls).toHaveLength(0);
   });
 
