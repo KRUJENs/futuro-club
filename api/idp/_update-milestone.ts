@@ -5,11 +5,16 @@
  * (video IDs, session IDs, metrics snapshot).
  *
  * Auto-sets `completed_at = now` when transitioning to `completed`.
+ *
+ * Autorización (074): solo el DUEÑO del jugador del plan del hito
+ * (ownsIdpPlanItem) o una llamada de servicio. Antes cualquier cuenta pro/club
+ * marcaba hitos (y su evidencia) del plan de cualquier menor conociendo su id.
  */
 
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
+import { ownsIdpPlanItem } from "../_lib/ownership";
 
 export const config = { runtime: "edge" };
 
@@ -38,7 +43,7 @@ export default withHandler(
     requiredPlan: "pro,club",
     maxRequests: 100,
   },
-  async ({ body }) => {
+  async ({ body, userId, isServiceCall }) => {
     const { milestoneId, status, evidence } = body as z.infer<typeof UpdateMilestoneSchema>;
 
     const patch: Record<string, unknown> = { status };
@@ -47,6 +52,11 @@ export default withHandler(
 
     if (!SUPABASE_URL || !SUPABASE_KEY) {
       return successResponse({ milestoneId, ...patch, source: "client_only" });
+    }
+
+    // Solo el dueño del jugador del plan (074). Hito que no existe → 403 (fail-closed).
+    if (!isServiceCall && !(await ownsIdpPlanItem("idp_milestones", milestoneId, userId))) {
+      return errorResponse("No autorizado para este plan", 403, "FORBIDDEN");
     }
 
     try {

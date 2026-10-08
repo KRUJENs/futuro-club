@@ -48,7 +48,10 @@ function serviceHeaders(key: string): Record<string, string> {
  * Espejo en SQL (la base de datos no puede llamar a este código):
  * public.caller_manages_player (migración 073: políticas RLS de behavioral_profiles,
  * attendance_records, engagement_snapshots, wellbeing_questionnaires y
- * dropout_risk_assessments) y public.dsar_caller_manages_player (migración 076).
+ * dropout_risk_assessments; 076: RLS solo-dueño de las tablas de jugador; 074:
+ * guardas RESTRICTIVE de escritura en fatigue_sessions, planes IDP,
+ * tracking_sessions, player_analyses, videos, live_events y scout_insights) y
+ * public.dsar_caller_manages_player (migración 076).
  * Regla: SOLO el dueño (players.user_id = auth.uid()), sin rama por tenant ni por
  * organización (decisión del 30 sep 2026, registrada en las cabeceras de la 073 y
  * la 076). Si cambia esta regla, cambiar también esas funciones con una migración
@@ -171,6 +174,57 @@ export async function ownsMatch(matchId: string | null | undefined, userId: stri
     if (!res.ok) return false;
     const rows = (await res.json()) as Array<{ user_id: string | null; player_id: string | null }>;
     return await ownsRowOrItsPlayer(rows[0], userId);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * ¿El usuario es el DUEÑO del jugador de este plan IDP?
+ * development_plans.player_id → players.user_id (ownsPlayer). Es la misma regla que
+ * las guardas de escritura de la migración 074 (y la RLS solo-dueño de la 076)
+ * para development_plans / idp_goals / idp_milestones / idp_checkins: los
+ * endpoints /api/idp/* escriben con service_role (saltan la RLS), así que el check
+ * va aquí. Ni el coach_id del plan ni el tenant dan acceso. Fail-closed: plan que
+ * no existe, sin Supabase, consulta no-ok o error → false.
+ */
+export async function ownsIdpPlan(planId: string | null | undefined, userId: string | null): Promise<boolean> {
+  if (!planId || !userId) return false;
+  const env = supabaseEnv();
+  if (!env) return false;
+  try {
+    const res = await fetch(
+      `${env.url}/rest/v1/development_plans?id=eq.${encodeURIComponent(planId)}&select=player_id&limit=1`,
+      { headers: serviceHeaders(env.key) },
+    );
+    if (!res.ok) return false;
+    const rows = (await res.json()) as Array<{ player_id: string | null }>;
+    return await ownsPlayer(rows[0]?.player_id, userId);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * ¿El usuario es el DUEÑO del jugador del plan al que pertenece este objetivo o
+ * hito IDP? (idp_goals / idp_milestones .plan_id → ownsIdpPlan). Fail-closed.
+ */
+export async function ownsIdpPlanItem(
+  table: "idp_goals" | "idp_milestones",
+  itemId: string | null | undefined,
+  userId: string | null,
+): Promise<boolean> {
+  if (!itemId || !userId) return false;
+  const env = supabaseEnv();
+  if (!env) return false;
+  try {
+    const res = await fetch(
+      `${env.url}/rest/v1/${table}?id=eq.${encodeURIComponent(itemId)}&select=plan_id&limit=1`,
+      { headers: serviceHeaders(env.key) },
+    );
+    if (!res.ok) return false;
+    const rows = (await res.json()) as Array<{ plan_id: string | null }>;
+    return await ownsIdpPlan(rows[0]?.plan_id, userId);
   } catch {
     return false;
   }
