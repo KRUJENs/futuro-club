@@ -20,6 +20,8 @@
  * crea 003 sus políticas *_tenant_isolation (tenant contra tenant, no es la clase).
  */
 import { splitStatements, firstDollarBody, normIdent, matchParen, type MigrationFile, type Stmt } from "./securityDefinerLint";
+// (La segunda mitad del fichero, «Escrituras de cliente que no exigen ser el dueño
+// del jugador», es el lint de la migración 074.)
 
 export type PolicyCmd = "ALL" | "SELECT" | "INSERT" | "UPDATE" | "DELETE";
 
@@ -295,4 +297,144 @@ export function tenantUidMixes(files: MigrationFile[]): PolicyViolation[] {
     }
   }
   return v;
+}
+
+// ─── Escrituras de cliente que no exigen ser el dueño del jugador (074) ───────
+//
+// Clase de defecto (migración 074): una política PERMISSIVE de ESCRITURA de
+// cliente (INSERT / UPDATE / ALL, no solo service_role) sobre una tabla con datos
+// de un jugador cuya regla para la fila NUEVA (WITH CHECK, o USING si no hay) solo
+// mira la columna del AUTOR (user_id = auth.uid(), coach_id = auth.uid()…) y deja
+// libre player_id. Así 043 (fatiga) o 047 (planes IDP) dejaban a cualquier cuenta
+// escribir filas de CUALQUIER jugador, que el servidor luego lee por player_id.
+// Una ruta así queda CUBIERTA si una política RESTRICTIVE del mismo comando exige
+// el helper solo-dueño (public.caller_manages_player, 073/076).
+// Limitación declarada: es un lint de TEXTO. Una regla que MENCIONA la propiedad
+// del jugador (el helper o una subconsulta a players con user_id = auth.uid())
+// cuenta como «exige propiedad» aunque vaya en un OR con otra rama (p. ej. la
+// rama por organización de 038/039: otra clase, pendiente aparte).
+
+const TABLE_KEYWORD = /\b(CREATE\s+(?:UNLOGGED\s+)?TABLE|ALTER\s+TABLE)\b/i;
+
+/** CREATE TABLE / ALTER TABLE de un script: nivel superior + estáticas dentro de DO. */
+function tableStatements(sql: string): Stmt[] {
+  const res: Stmt[] = [];
+  for (const st of splitStatements(sql)) {
+    if (/^\s*DO\b/i.test(st.masked)) {
+      const body = firstDollarBody(st);
+      if (!body) continue;
+      for (const inner of splitStatements(body)) {
+        const k = TABLE_KEYWORD.exec(inner.masked);
+        if (k) res.push({ text: inner.text.slice(k.index), masked: inner.masked.slice(k.index) });
+      }
+      continue;
+    }
+    res.push(st);
+  }
+  return res;
+}
+
+/** Elementos de una lista separada por comas a profundidad de paréntesis 0. */
+function topLevelItems(masked: string, text: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < masked.length; i++) {
+    const ch = masked[i];
+    if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    else if (ch === "," && depth === 0) {
+      out.push(text.slice(start, i));
+      start = i + 1;
+    }
+  }
+  out.push(text.slice(start));
+  return out.map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * Tablas (esquema.tabla normalizado) que tienen la columna `column` según
+ * CREATE TABLE (…) y ALTER TABLE … ADD COLUMN de las migraciones.
+ */
+export function tablesWithColumn(files: MigrationFile[], column: string): Set<string> {
+  const want = column.toLowerCase();
+  const out = new Set<string>();
+  for (const f of files) {
+    for (const st of tableStatements(f.sql)) {
+      const ct = /^\s*CREATE\s+(?:UNLOGGED\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([\w."$]+)\s*\(/i.exec(st.masked);
+      if (ct) {
+        const open = ct.index + ct[0].length - 1;
+        const close = matchParen(st.masked, open);
+        const items = topLevelItems(st.masked.slice(open + 1, close), st.text.slice(open + 1, close));
+        if (items.some((it) => normName(it.split(/\s+/)[0] ?? "") === want)) out.add(normIdent(ct[1]));
+        continue;
+      }
+      const at = /^\s*ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?([\w."$]+)\s+([\s\S]+)$/i.exec(st.masked);
+      if (at) {
+        const re = /\bADD\s+(?:COLUMN\s+)?(?:IF\s+NOT\s+EXISTS\s+)?("(?:[^"]|"")+"|[A-Za-z_][\w$]*)/gi;
+        for (const m of at[2].matchAll(re)) {
+          if (/^(constraint|primary|unique|check|foreign|exclude)$/i.test(m[1])) continue;
+          if (normName(m[1]) === want) out.add(normIdent(at[1]));
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/** ¿La regla menciona la propiedad del jugador? (helper solo-dueño o players con user_id = auth.uid()) */
+export function mentionsPlayerOwnership(expr: string | null): boolean {
+  if (!expr) return false;
+  const s = simplifiedTokens(expr);
+  if (s.includes("public.caller_manages_player") || s.includes("caller_manages_player")) return true;
+  const fromPlayers = s.some((t, i) => t === "from" && (s[i + 1] === "players" || s[i + 1] === "public.players"));
+  const ownerCmp = s.some(
+    (t, i) =>
+      (/(^|\.)user_id$/.test(t) && s[i + 1] === "=" && s[i + 2] === "auth.uid") ||
+      (t === "auth.uid" && s[i + 1] === "=" && /(^|\.)user_id$/.test(s[i + 2] ?? "")),
+  );
+  return fromPlayers && ownerCmp;
+}
+
+/** ¿La regla solo deja pasar a service_role? (auth.role() / claim role del JWT) */
+export function serviceRoleOnly(expr: string | null): boolean {
+  if (!expr) return false;
+  const s = simplifiedTokens(expr).join(" ");
+  return /^(auth\.role = 'service_role'|auth\.jwt ->> 'role' = 'service_role')$/.test(s.trim());
+}
+
+export interface WriteGap {
+  table: string;
+  cmd: "INSERT" | "UPDATE";
+  policy: string;
+  file: string;
+}
+
+/**
+ * Rutas de ESCRITURA de cliente (por comando) sobre `tables` que no exigen la
+ * propiedad del jugador y que ninguna RESTRICTIVE con el helper cubre.
+ */
+export function unguardedPlayerWrites(files: MigrationFile[], tables: Set<string>): WriteGap[] {
+  const state = buildPolicyState(files);
+  const all = [...state.values()];
+  const clientRole = (roles: string[]) => roles.some((r) => r === "public" || r === "authenticated");
+  const gaps: WriteGap[] = [];
+  for (const p of all) {
+    if (!tables.has(p.table) || !p.permissive || !clientRole(p.roles)) continue;
+    if (p.cmd !== "INSERT" && p.cmd !== "UPDATE" && p.cmd !== "ALL") continue;
+    const rule = p.check ?? p.using; // regla de la fila NUEVA
+    if (mentionsPlayerOwnership(rule) || serviceRoleOnly(rule)) continue;
+    for (const cmd of p.cmd === "ALL" ? (["INSERT", "UPDATE"] as const) : [p.cmd]) {
+      const covered = all.some(
+        (r) =>
+          r.table === p.table &&
+          !r.permissive &&
+          (r.cmd === cmd || r.cmd === "ALL") &&
+          clientRole(r.roles) &&
+          (r.check ?? r.using ?? "").includes("caller_manages_player"),
+      );
+      if (!covered) gaps.push({ table: p.table, cmd, policy: p.name, file: p.definedIn });
+    }
+  }
+  return gaps.sort((a, b) => (`${a.table}|${a.cmd}|${a.policy}` < `${b.table}|${b.cmd}|${b.policy}` ? -1 : 1));
 }
