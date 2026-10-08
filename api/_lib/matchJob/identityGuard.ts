@@ -135,6 +135,24 @@ export interface NameGuard {
 
 export const EMPTY_NAME_GUARD: NameGuard = { phrases: [], singles: new Set() };
 
+const REDACTION_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Cláusula PostgREST `or=(...)` de los jugadores cuyos NOMBRES se quitan del texto
+ * del job (plantilla del creador y de su tenant). NO es una regla de acceso: ningún
+ * dato de esos jugadores llega al usuario; solo amplía la lista de nombres a
+ * descartar (sobre-filtrar es la dirección segura, identidad.md). El acceso a datos
+ * de jugadores es SOLO del dueño (api/_lib/ownership.ts, migración 076).
+ * Solo interpola valores con forma de UUID (defensa ante inyección en el filtro);
+ * sin ninguno válido → UUID nil, que no casa ningún jugador.
+ */
+export function rosterRedactionFilter(userId: string | null | undefined, tenantId: string | null | undefined): string {
+  const clauses: string[] = [];
+  if (userId && REDACTION_UUID_RE.test(userId)) clauses.push(`user_id.eq.${userId}`);
+  if (tenantId && REDACTION_UUID_RE.test(tenantId)) clauses.push(`tenant_id.eq.${tenantId}`);
+  return clauses.length > 0 ? clauses.join(",") : "user_id.eq.00000000-0000-0000-0000-000000000000";
+}
+
 /**
  * Lista dinámica de nombres a filtrar: notas del entrenador + plantilla del tenant.
  * `exclude` = palabras que no son nombres de persona en este job (nombres de equipo,

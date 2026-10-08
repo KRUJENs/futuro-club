@@ -22,7 +22,7 @@ vi.mock("../../_lib/auth", () => ({
 const ownsPlayer = vi.fn(async (..._a: unknown[]) => true);
 vi.mock("../../_lib/ownership", async (orig) => ({
   ...(await orig<typeof import("../../_lib/ownership")>()),
-  ownsPlayerOrTenant: (...a: unknown[]) => ownsPlayer(...a),
+  ownsPlayer: (...a: unknown[]) => ownsPlayer(...a),
 }));
 
 let handler: (req: Request) => Promise<Response>;

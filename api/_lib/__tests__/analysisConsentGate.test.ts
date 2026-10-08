@@ -21,8 +21,8 @@ const USER = "11111111-1111-4111-8111-111111111111";
 const TENANT = "22222222-2222-4222-8222-222222222222";
 const OTHER = "99999999-9999-4999-8999-999999999999";
 /** Mismo predicado que ownership.ownsVideo para filas con user_id/tenant_id (sin fetch). */
-const ownsByUser = async (v: VideoRowLite, uid: string | null, tid: string | null) =>
-  (!!v.user_id && v.user_id === uid) || (!!v.tenant_id && !!tid && v.tenant_id === tid);
+// Solo el dueño (076): quien creó la fila. Sin rama por tenant.
+const ownsByUser = async (v: VideoRowLite, uid: string | null) => !!v.user_id && v.user_id === uid;
 const NOW = new Date("2026-09-30T12:00:00Z");
 const actor = { userId: USER, tenantId: TENANT, ip: "203.0.113.7" };
 
@@ -293,7 +293,7 @@ describe("resolveClipVideo · el vídeo y sus jugadores los resuelve el servidor
 
   it("varias filas propias del mismo vídeo → los jugadores de todas, sin duplicar", async () => {
     db.videos.push({ id: "vid-x", user_id: USER, tenant_id: null, player_id: "p1", bunny_video_id: "g-x" });
-    db.videos.push({ id: "g-x", user_id: null, tenant_id: TENANT, player_id: "p2", bunny_video_id: "g-x" });
+    db.videos.push({ id: "g-x", user_id: USER, tenant_id: TENANT, player_id: "p2", bunny_video_id: "g-x" });
     db.videos.push({ id: "g-x-copy", user_id: USER, tenant_id: null, player_id: "p1", bunny_video_id: "g-x" });
     const r = await resolve({ videoUrl: "https://cdn.test/g-x/play.mp4" });
     expect(r.ok).toBe(true);

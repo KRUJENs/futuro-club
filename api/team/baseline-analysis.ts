@@ -3,7 +3,7 @@
  * POST /api/team/baseline-analysis
  *
  * Análogo a /api/players/baseline-analysis pero a nivel equipo:
- * agrega métricas de TODOS los jugadores del tenant (o un subset
+ * agrega métricas de TODOS los jugadores del usuario (o un subset
  * por jerseyNumbers) y genera 4 reportes Claude:
  *
  *   - team-overview (Sonnet): resumen ejecutivo, fortalezas, áreas
@@ -12,9 +12,10 @@
  *   - opponent-readiness (Haiku): vulnerabilidades genéricas + drills
  *
  * Body: { playerIds?: string[], matchAnalysisId?: uuid }
- *   · si no se pasa, usa todos los players del tenant del usuario
- *   · matchAnalysisId: job de partido (team_baseline, completed) del usuario/tenant; la
- *     observación del equipo foco se carga en servidor (nunca del cliente)
+ *   · si no se pasa, usa todos los players DEL USUARIO (players.user_id; 076: sin
+ *     rama por tenant)
+ *   · matchAnalysisId: job de partido (team_baseline, completed) creado por el usuario;
+ *     la observación del equipo foco se carga en servidor (nunca del cliente)
  * Returns: { reports: {...}, teamSize, vsiPromedio, phvDistribution }
  */
 
@@ -24,7 +25,6 @@ import { MODELS, modelParams } from "../_lib/models";
 import { fetchMessages, responseText } from "../_lib/anthropic";
 import { isOverBudget, recordSpendUsd, budgetExceededResponse } from "../_lib/budgetGuard";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
-import { ownedPlayersOrFilter } from "../_lib/ownership";
 import { avgEvaluatedVsi, byVsiDescNullsLast, formatVsi } from "../_lib/vsiStats";
 import { localeSchema, normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
 import { createClient } from "@supabase/supabase-js";
@@ -318,7 +318,7 @@ type ReportType = keyof typeof TEAM_PROMPTS;
 
 export default withHandler(
   { schema: bodySchema, requireAuth: true, maxRequests: 5 },
-  async ({ body, userId, tenantId }) => {
+  async ({ body, userId }) => {
     if (!ANTHROPIC_API_KEY) {
       return errorResponse({ code: "no_api_key", message: "ANTHROPIC_API_KEY missing", status: 500 });
     }
@@ -339,7 +339,7 @@ export default withHandler(
     let matchTeamName: string | undefined;
     if (input.matchAnalysisId) {
       const job = await getJob(input.matchAnalysisId);
-      if (!job || !ownsMatchAnalysis(job, userId, tenantId)) {
+      if (!job || !ownsMatchAnalysis(job, userId)) {
         return errorResponse({ code: "job_not_found", message: "Análisis de partido no encontrado", status: 404 });
       }
       if (job.purpose !== "team_baseline" || !job.focus_team) {
@@ -370,10 +370,11 @@ export default withHandler(
       // la RPC get_ranked_players de la migración 059). Postgres ordena DESC con
       // NULLS FIRST por defecto.
       .order("vsi", { ascending: false, nullsFirst: false })
-      // Ownership a nivel de fila: restringe a los jugadores del usuario/su academia.
-      // Sin esto, cualquier autenticado leía nombre/edad/VSI/PHV de menores de otro
-      // tenant (pasando sus playerIds, o el top-40 global por defecto).
-      .or(ownedPlayersOrFilter(userId, tenantId))
+      // Ownership a nivel de fila: SOLO los jugadores del usuario (players.user_id,
+      // 076). Sin esto, cualquier autenticado leía nombre/edad/VSI/PHV de menores
+      // ajenos (pasando sus playerIds, o el top-40 global por defecto); con la rama
+      // por tenant, los de cualquier otra cuenta que compartiera el tenant.
+      .eq("user_id", userId)
       .limit(40);
 
     if (input.playerIds && input.playerIds.length > 0) {

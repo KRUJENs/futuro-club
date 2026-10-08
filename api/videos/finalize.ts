@@ -34,7 +34,7 @@ import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { createClient } from "@supabase/supabase-js";
-import { ownsVideo, ownsPlayerOrTenant } from "../_lib/ownership";
+import { ownsVideo, ownsPlayer } from "../_lib/ownership";
 import { enqueueAnalysis } from "../_lib/enqueueAnalysis";
 import { gateClipAnalysis, clipGateErrorResponse } from "../_lib/analysisConsentGate";
 import { BUNNY_API_VIDEO_STATUS, getBunnyVideo } from "../_lib/bunnyStream";
@@ -105,8 +105,9 @@ export default withHandler(
     // tenant_id y encola un análisis). Sin esto, un autenticado A podía finalizar el
     // vídeo de otro tenant B (por id), atribuirlo a un jugador PROPIO y procesar el
     // contenido de Bunny de un menor ajeno. Fail-closed vía ownsVideo (inv #7: el mismo
-    // helper que identify-player/candidates; autoriza por uploader/tenant/jugador del vídeo).
-    if (!(await ownsVideo(vrow, userId, tenantId, isServiceCall))) {
+    // helper que identify-player/candidates; autoriza por uploader o dueño del jugador
+    // del vídeo — nunca por tenant, 076).
+    if (!(await ownsVideo(vrow, userId, isServiceCall))) {
       return errorResponse({ code: "forbidden", message: "No gestionas este vídeo", status: 403 });
     }
 
@@ -121,10 +122,12 @@ export default withHandler(
     const playerId: string | null = input.playerId ?? vrow.player_id ?? null;
 
     // Ownership + tenant SIEMPRE server-side (el cliente no conoce el tenant_id del
-    // jugador). Fail-closed: no gestionas al jugador → 403, sin sembrar ni encolar.
+    // jugador). Fail-closed: no eres el DUEÑO del jugador → 403, sin sembrar ni
+    // encolar (076: nunca por tenant). El tenant_id solo se copia como etiqueta de la
+    // fila (analyses.tenant_id es NOT NULL); ya no da acceso a nadie.
     let resolvedTenantId: string | null = vrow.tenant_id ?? tenantId ?? null;
     if (playerId) {
-      if (!isServiceCall && !(await ownsPlayerOrTenant(playerId, userId, tenantId))) {
+      if (!isServiceCall && !(await ownsPlayer(playerId, userId))) {
         return errorResponse({ code: "forbidden", message: "No gestionas este jugador", status: 403 });
       }
       const { data: player } = await supabase
@@ -148,7 +151,7 @@ export default withHandler(
       endpoint: "videos/finalize",
       scope: playerId ? "player" : "team",
       locale: input.locale,
-      ownsVideo: (v, uid, tid) => ownsVideo(v, uid, tid, isServiceCall),
+      ownsVideo: (v, uid) => ownsVideo(v, uid, isServiceCall),
     });
     if (!consent.allowed) return clipGateErrorResponse(consent);
 

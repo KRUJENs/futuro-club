@@ -6130,7 +6130,7 @@
       "deletionSuccess": "Deletion request recorded",
       "deletionDemo": "Request recorded (demo mode)",
       "deletionError": "Error requesting deletion",
-      "dsarNotAllowed": "No permission for this player: only the user who registered them or their academy can exercise this GDPR right",
+      "dsarNotAllowed": "No permission for this player: only the account that registered them can exercise this GDPR right",
       "consentSuccess": "Consent recorded successfully",
       "consentError": "Error recording consent"
     },

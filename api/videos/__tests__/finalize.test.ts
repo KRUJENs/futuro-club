@@ -14,9 +14,10 @@ vi.mock("../../_lib/rateLimit", () => ({
 vi.mock("../../_lib/auth", () => ({
   verifyAuth: vi.fn().mockResolvedValue({ userId: "user-1", email: null, tenantId: "t1", error: null }),
 }));
+const ownsPlayerMock = vi.fn(async (_playerId: string, _userId: string | null) => true);
 vi.mock("../../_lib/ownership", () => ({
   ownsVideo: vi.fn(async () => true),
-  ownsPlayerOrTenant: vi.fn(async () => true),
+  ownsPlayer: (playerId: string, userId: string | null) => ownsPlayerMock(playerId, userId),
 }));
 const enqueueMock = vi.fn();
 vi.mock("../../_lib/enqueueAnalysis", () => ({
@@ -76,6 +77,8 @@ describe("finalize · gate de clips cortos", () => {
     consentMock.mockResolvedValue(ALLOWED);
     enqueueMock.mockReset();
     enqueueMock.mockResolvedValue({ status: "queued", analysisId: "an-1", triggered: false });
+    ownsPlayerMock.mockReset();
+    ownsPlayerMock.mockResolvedValue(true);
     row.current = { id: "g-1", bunny_video_id: "g-1", player_id: "p1", tenant_id: "t1", user_id: "user-1", duration_sec: null };
   });
   afterEach(() => vi.unstubAllGlobals());
@@ -114,6 +117,16 @@ describe("finalize · gate de clips cortos", () => {
     const res = await handler(post({ videoId: "g-1", bunnyVideoId: "g-1", playerId: "p1" }));
     expect(res.status).toBe(200);
     expect(enqueueMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("076 · el jugador NO es del usuario (p. ej. otra cuenta del mismo tenant) → 403, sin encolar", async () => {
+    ownsPlayerMock.mockResolvedValue(false);
+    vi.stubGlobal("fetch", vi.fn(async () => bunnyVideo(240)));
+    const res = await handler(post({ videoId: "g-1", bunnyVideoId: "g-1", playerId: "p1" }));
+    expect(res.status).toBe(403);
+    // Solo el dueño: se pregunta por (jugador, usuario del JWT); el tenant "t1" del JWT no cuenta.
+    expect(ownsPlayerMock).toHaveBeenCalledWith("p1", "user-1");
+    expect(enqueueMock).not.toHaveBeenCalled();
   });
 
   it("vídeo aún codificando (API status ≠ 4 Finished) → ready:false, sin gate ni encolado", async () => {

@@ -67,7 +67,7 @@ describe("RGPD purge of match jobs", () => {
       vi.fn(async (url: string, init?: RequestInit) => {
         const method = (init?.method ?? "GET").toUpperCase();
         calls.push(`${method} ${url}`);
-        if (url.startsWith("https://sb.test/rest/v1/match_analyses?or=") && method === "GET") {
+        if (url.startsWith("https://sb.test/rest/v1/match_analyses?user_id=eq.") && method === "GET") {
           return new Response(
             JSON.stringify([
               { id: "a", user_id: "u", gemini_file_name: "files/one", gemini_file_deleted_at: null, spend_usd: 0, reservation_usd: 0, estimate_usd: 0 },
@@ -84,17 +84,19 @@ describe("RGPD purge of match jobs", () => {
       }),
     );
     const { purgeMatchAnalysesForOwner } = await import("../retention");
-    const r = await purgeMatchAnalysesForOwner("11111111-1111-4111-8111-111111111111", null);
+    const r = await purgeMatchAnalysesForOwner("11111111-1111-4111-8111-111111111111");
     expect(r).toEqual({ match_analyses_deleted: 3, gemini_files_deleted: 1, gemini_delete_errors: 1 });
     const firstRowDelete = calls.findIndex((c) => c.startsWith("DELETE https://sb.test"));
     const lastGeminiDelete = Math.max(...calls.map((c, i) => (c.includes("generativelanguage") ? i : -1)));
     expect(lastGeminiDelete).toBeLessThan(firstRowDelete);
-    expect(calls.some((c) => c.includes("or=(user_id.eq.11111111-1111-4111-8111-111111111111)"))).toBe(true);
+    // 076: solo los jobs que CREÓ el usuario; nunca por tenant.
+    expect(calls.some((c) => c.includes("match_analyses?user_id=eq.11111111-1111-4111-8111-111111111111"))).toBe(true);
+    expect(calls.some((c) => c.includes("tenant_id"))).toBe(false);
   });
   it("without Supabase configured it is a no-op (never throws into the account deletion)", async () => {
     delete process.env.SUPABASE_URL;
     const { purgeMatchAnalysesForOwner, purgeMatchAnalysesForVideos } = await import("../retention");
-    expect(await purgeMatchAnalysesForOwner("u", null)).toEqual({ match_analyses_deleted: 0, gemini_files_deleted: 0, gemini_delete_errors: 0 });
+    expect(await purgeMatchAnalysesForOwner("u")).toEqual({ match_analyses_deleted: 0, gemini_files_deleted: 0, gemini_delete_errors: 0 });
     expect(await purgeMatchAnalysesForVideos(["v1"])).toEqual({ match_analyses_deleted: 0, gemini_files_deleted: 0, gemini_delete_errors: 0 });
   });
 });

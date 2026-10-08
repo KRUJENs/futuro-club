@@ -21,7 +21,6 @@ import { normalizeLocale } from "../../../src/lib/shared/locale";
 import { GEMINI_MODEL } from "../../../src/lib/shared/geminiModel";
 import { MODELS } from "../models";
 import { recordSpendAmountUsd, wouldExceedBudget } from "../budgetGuard";
-import { ownedPlayersOrFilter } from "../ownership";
 import { getFile } from "../gemini/files";
 import { generateJson, type GenerateFailureKind } from "../gemini/generate";
 import { generateMatchReportV2 } from "../../agents/_teamReportCore";
@@ -38,7 +37,7 @@ import {
   nowIso,
   toSegmentStates,
 } from "./driver";
-import { buildNameGuard, type NameGuard } from "./identityGuard";
+import { buildNameGuard, rosterRedactionFilter, type NameGuard } from "./identityGuard";
 import { gateReason, type SegmentFailureKind } from "./messages";
 import { planSegments } from "./plan";
 import { buildSegmentGenerateRequest } from "./segmentRequest";
@@ -64,7 +63,10 @@ function kitOf(t: MatchJobRow["home"]): TeamKit | null {
 
 /** Nombres a filtrar en el TEXTO (notas del entrenador + plantilla). */
 export async function jobNameGuard(job: MatchJobRow): Promise<NameGuard> {
-  const roster = await repo.loadRosterNames(ownedPlayersOrFilter(job.user_id, job.tenant_id));
+  // Lista de NOMBRES A QUITAR del texto, no un permiso: sobre-filtrar es la dirección
+  // segura (identidad.md). Por eso sigue incluyendo la plantilla del tenant del job,
+  // igual que antes de la 076; ningún nombre llega al usuario por esta vía.
+  const roster = await repo.loadRosterNames(rosterRedactionFilter(job.user_id, job.tenant_id));
   const exclude = [
     job.home?.name,
     job.away?.name,

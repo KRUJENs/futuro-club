@@ -372,7 +372,7 @@ export default withHandler(
         actor: { userId, tenantId, ip },
         endpoint: "live/aggregate",
         locale: reportLocale,
-        ownsVideo: (video, uid, tid) => ownsVideo(video, uid, tid),
+        ownsVideo: (video, uid) => ownsVideo(video, uid),
       });
       if (consent.allowed) {
         videoObs = await analyzeMatchVideo(

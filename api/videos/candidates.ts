@@ -27,7 +27,7 @@ export default withHandler(
   // llamado GET por PlayerIdentifier) daba 405 y el handler (con el guard IDOR) NUNCA
   // corría. Arreglar el método SIN el guard re-expondría el IDOR, así que van juntos.
   { schema: querySchema, method: "GET", requireAuth: true, maxRequests: 200 },
-  async ({ query, userId, tenantId, isServiceCall }) => {
+  async ({ query, userId, isServiceCall }) => {
     const params = querySchema.safeParse(query);
     if (!params.success) {
       return errorResponse({ code: "invalid_params", message: "videoId requerido", status: 400 });
@@ -50,7 +50,7 @@ export default withHandler(
       return errorResponse({ code: "video_not_found", message: "Video no existe", status: 404 });
     }
     const vrow = ownRow as { user_id?: string | null; tenant_id?: string | null; player_id?: string | null; target_player_bbox?: unknown };
-    if (!(await ownsVideo(vrow, userId, tenantId, isServiceCall))) {
+    if (!(await ownsVideo(vrow, userId, isServiceCall))) {
       return errorResponse({ code: "forbidden", message: "No gestionas este vídeo", status: 403 });
     }
 

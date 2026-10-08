@@ -6130,7 +6130,7 @@
       "deletionSuccess": "Solicitud de eliminación registrada",
       "deletionDemo": "Solicitud registrada (modo demo)",
       "deletionError": "Error al solicitar eliminación",
-      "dsarNotAllowed": "Sin permiso sobre este jugador: solo quien lo registró o su academia pueden ejercer este derecho RGPD",
+      "dsarNotAllowed": "Sin permiso sobre este jugador: solo la cuenta que lo registró puede ejercer este derecho RGPD",
       "consentSuccess": "Consentimiento registrado correctamente",
       "consentError": "Error al registrar consentimiento"
     },

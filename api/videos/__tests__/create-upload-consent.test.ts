@@ -20,7 +20,7 @@ vi.mock("../../_lib/auth", () => ({
 }));
 vi.mock("../../_lib/ownership", async (orig) => ({
   ...(await orig<typeof import("../../_lib/ownership")>()),
-  ownsPlayerOrTenant: vi.fn(async () => true),
+  ownsPlayer: vi.fn(async () => true),
 }));
 
 const videoInserts: Array<Record<string, unknown>> = [];

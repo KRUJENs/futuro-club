@@ -12,7 +12,6 @@
  * Sin imports de config/ (JSON): se carga también desde funciones Edge.
  */
 import { deleteFile } from "../gemini/files";
-import { ownedPlayersOrFilter } from "../ownership";
 import { supabaseConfigured } from "../supabaseRest";
 import * as repo from "./repo";
 import type { MatchJobRow } from "./repo";
@@ -46,11 +45,15 @@ async function purgeJobs(jobs: readonly MatchJobRow[]): Promise<MatchPurgeResult
   return out;
 }
 
-/** Jobs del usuario o de su tenant (borrado de cuenta). Best-effort: nunca rompe el borrado del resto. */
-export async function purgeMatchAnalysesForOwner(userId: string, tenantId: string | null): Promise<MatchPurgeResult> {
+/**
+ * Jobs que CREÓ el usuario (borrado de cuenta). Solo por user_id (076): antes también
+ * por tenant, y con un tenant compartido la baja de una cuenta borraba los partidos
+ * de las demás. Best-effort: nunca rompe el borrado del resto.
+ */
+export async function purgeMatchAnalysesForOwner(userId: string): Promise<MatchPurgeResult> {
   if (!supabaseConfigured()) return { ...EMPTY };
   try {
-    return await purgeJobs(await repo.listJobsForOwner(ownedPlayersOrFilter(userId, tenantId)));
+    return await purgeJobs(await repo.listJobsForUser(userId));
   } catch (err) {
     console.error("[match/retention] purga por propietario fallida:", err instanceof Error ? err.message : err);
     return { ...EMPTY, gemini_delete_errors: 1 };

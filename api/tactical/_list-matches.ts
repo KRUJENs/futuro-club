@@ -8,6 +8,7 @@
 
 import { withHandler } from "../_lib/withHandler";
 import { successResponse } from "../_lib/apiResponse";
+import { ownedPlayerIds } from "../_lib/ownership";
 
 export const config = { runtime: "edge" };
 
@@ -20,23 +21,29 @@ interface HeatmapRow {
   phase_type: string;
 }
 
-// Tope de partidos por tenant que listamos (acota la longitud del `in.(...)`).
-// Si un tenant supera esto, se listan los primeros TENANT_MATCH_CAP y se loguea
+// Tope de partidos por usuario que listamos (acota la longitud del `in.(...)`).
+// Si un usuario supera esto, se listan los primeros OWNER_MATCH_CAP y se loguea
 // (nunca truncado en silencio — invariante "No silent caps").
-const TENANT_MATCH_CAP = 500;
+const OWNER_MATCH_CAP = 500;
+
+/** Lista PostgREST `("a","b")` con cada valor entre comillas (ids de jugador son text). */
+const quotedInList = (values: readonly string[]) =>
+  `(${values.map((v) => `"${v.replace(/["\\]/g, "")}"`).join(",")})`;
 
 export default withHandler(
   // Cierra el acceso anónimo: antes devolvía TODOS los match_id existentes a
-  // cualquiera, eliminando la barrera de adivinar UUIDs. Ahora, además, scopea al
-  // tenant del usuario (el service_role salta la RLS 055, así que filtramos aquí).
+  // cualquiera, eliminando la barrera de adivinar UUIDs. Scopea al DUEÑO (076): los
+  // partidos son analyses que creó el usuario o de jugadores suyos (mismo predicado
+  // que ownsMatch). Nunca por tenant: un tenant compartido listaba los partidos de
+  // todas las cuentas de ese tenant. El service_role salta la RLS → filtramos aquí.
   { method: "GET", requireAuth: true, maxRequests: 60 },
-  async ({ tenantId }) => {
+  async ({ userId }) => {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     return successResponse({ matches: [], source: "no_supabase" });
   }
 
-  // Fail-closed: sin tenant en el JWT no podemos scopear → no listamos nada.
-  if (!tenantId) {
+  // Fail-closed: sin usuario no podemos scopear → no listamos nada.
+  if (!userId) {
     return successResponse({ matches: [] });
   }
 
@@ -46,10 +53,14 @@ export default withHandler(
   };
 
   try {
-    // 1. Match ids del tenant: match_id == analyses.id (mismo modelo que ownsMatch
-    //    y la RLS 055). Sin analyses del tenant → no hay nada que listar.
+    // 1. Match ids del usuario: match_id == analyses.id (mismo modelo que ownsMatch).
+    //    Analyses que creó (user_id) + analyses de SUS jugadores (el pipeline de vídeo
+    //    las crea con user_id NULL). Sin ninguna → no hay nada que listar.
+    const ownerClauses = [`user_id.eq.${encodeURIComponent(userId)}`];
+    const playerIds = await ownedPlayerIds(userId);
+    if (playerIds.length > 0) ownerClauses.push(`player_id.in.${encodeURIComponent(quotedInList(playerIds))}`);
     const analysesRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/analyses?tenant_id=eq.${encodeURIComponent(tenantId)}&select=id&limit=${TENANT_MATCH_CAP + 1}`,
+      `${SUPABASE_URL}/rest/v1/analyses?or=(${ownerClauses.join(",")})&select=id&limit=${OWNER_MATCH_CAP + 1}`,
       { headers },
     );
     if (!analysesRes.ok) {
@@ -58,11 +69,11 @@ export default withHandler(
     }
     const analysisRows = (await analysesRes.json()) as Array<{ id: string }>;
     let allowedIds = analysisRows.map((r) => r.id);
-    if (allowedIds.length > TENANT_MATCH_CAP) {
+    if (allowedIds.length > OWNER_MATCH_CAP) {
       console.warn(
-        `[list-matches] tenant ${tenantId} tiene >${TENANT_MATCH_CAP} analyses; listando las primeras ${TENANT_MATCH_CAP}`,
+        `[list-matches] el usuario tiene >${OWNER_MATCH_CAP} analyses; listando las primeras ${OWNER_MATCH_CAP}`,
       );
-      allowedIds = allowedIds.slice(0, TENANT_MATCH_CAP);
+      allowedIds = allowedIds.slice(0, OWNER_MATCH_CAP);
     }
     if (allowedIds.length === 0) {
       return successResponse({ matches: [] });

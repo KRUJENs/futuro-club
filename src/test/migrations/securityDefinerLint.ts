@@ -81,7 +81,7 @@ export interface LintState {
 
 // ─── Lexer ────────────────────────────────────────────────────────────────────
 
-interface Stmt {
+export interface Stmt {
   /** Texto original de la sentencia. */
   text: string;
   /** Mismo largo que `text`; comentarios y contenido de literales ('...' y $tag$...$tag$) en blanco. */
@@ -184,7 +184,7 @@ export function splitStatements(sql: string): Stmt[] {
 }
 
 /** Primer cuerpo $tag$...$tag$ de una sentencia (texto original, sin delimitadores). */
-function firstDollarBody(stmt: Stmt): string | null {
+export function firstDollarBody(stmt: Stmt): string | null {
   const m = /\$([A-Za-z_][A-Za-z0-9_]*)?\$/.exec(stmt.masked);
   if (!m) return null;
   const tag = m[0];
@@ -223,7 +223,7 @@ export function executableStatements(sql: string): Stmt[] {
 
 // ─── Normalización de nombres y firmas ────────────────────────────────────────
 
-function normIdent(raw: string): string {
+export function normIdent(raw: string): string {
   const parts = raw
     .trim()
     .split(".")
@@ -306,7 +306,7 @@ export function argTypes(params: string): string[] {
 }
 
 /** Posición del ')' que cierra el '(' en `open`. */
-function matchParen(s: string, open: number): number {
+export function matchParen(s: string, open: number): number {
   let depth = 0;
   for (let i = open; i < s.length; i++) {
     if (s[i] === "(") depth++;

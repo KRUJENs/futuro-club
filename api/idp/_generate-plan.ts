@@ -17,6 +17,7 @@
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
+import { ownsPlayer } from "../_lib/ownership";
 import { MODELS, modelParams } from "../_lib/models";
 import { fetchMessages, responseText } from "../_lib/anthropic";
 import {
@@ -143,12 +144,23 @@ export default withHandler(
     allowServiceToken: true,
     requiredPlan: "pro,club",
   },
-  async ({ body, userId }) => {
+  async ({ body, userId, tenantId, isServiceCall }) => {
     const input = body as z.infer<typeof GeneratePlanInputSchema>;
     const monthStart = input.monthStart ?? currentMonthStart();
     const { start, end } = monthBounds(monthStart);
     const playerId = input.architectInput.player.id;
-    const coachId = input.coachId ?? userId ?? undefined;
+
+    // Autorización a nivel de objeto (076): el plan (y el aviso "ya existe") de un
+    // menor solo lo pide el DUEÑO del jugador (players.user_id). Antes no había
+    // ningún check: cualquier cuenta con plan pro/club escribía un plan para
+    // CUALQUIER jugador, y el coachId / tenantId del cuerpo decidían quién lo veía por
+    // la RLS de 047. Las llamadas de servicio (token interno) siguen como hasta ahora.
+    if (!isServiceCall && !(await ownsPlayer(playerId, userId))) {
+      return errorResponse("No autorizado para este jugador", 403, "FORBIDDEN");
+    }
+    // Identidad del coach y tenant del JWT, nunca del cuerpo (salvo servicio).
+    const coachId = isServiceCall ? (input.coachId ?? userId ?? undefined) : (userId ?? undefined);
+    const planTenantId = isServiceCall ? input.tenantId : (tenantId ?? undefined);
 
     // 1. Idempotency check — if a draft/active plan exists, return it
     if (SUPABASE_URL && SUPABASE_KEY) {
@@ -224,7 +236,7 @@ export default withHandler(
       id: planId,
       playerId,
       coachId,
-      tenantId: input.tenantId,
+      tenantId: planTenantId,
       monthStart: start,
       monthEnd: end,
       status: "draft",
@@ -256,7 +268,7 @@ export default withHandler(
           id: planId,
           player_id: playerId,
           coach_id: coachId ?? null,
-          tenant_id: input.tenantId ?? null,
+          tenant_id: planTenantId ?? null,
           month_start: start,
           month_end: end,
           status: "draft",

@@ -8,18 +8,29 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const upsertSpy = vi.fn();
-const playerLookup: { found: boolean } = { found: true };
+/** found: la fila existe y la RLS la deja ver · ownerId: su players.user_id. */
+const playerLookup: { found: boolean; ownerId: string } = { found: true, ownerId: "u1" };
+const playerFilters: Array<[string, unknown]> = [];
 
 vi.mock("@/lib/supabase", () => ({
   SUPABASE_CONFIGURED: true,
   supabase: {
     from: (table: string) => {
       if (table === "players") {
-        return {
-          select: () => ({
-            eq: () => ({ maybeSingle: async () => ({ data: playerLookup.found ? { id: "p1" } : null }) }),
-          }),
+        const filters: Array<[string, unknown]> = [];
+        const builder = {
+          eq: (col: string, val: unknown) => {
+            filters.push([col, val]);
+            playerFilters.push([col, val]);
+            return builder;
+          },
+          maybeSingle: async () => {
+            const byOwner = filters.find(([c]) => c === "user_id");
+            const ownerOk = !byOwner || byOwner[1] === playerLookup.ownerId;
+            return { data: playerLookup.found && ownerOk ? { id: "p1" } : null };
+          },
         };
+        return { select: () => builder };
       }
       return {
         upsert: async (row: unknown, opts: unknown) => {
@@ -80,13 +91,23 @@ describe("pushOne · player_id", () => {
   beforeEach(() => {
     upsertSpy.mockReset();
     playerLookup.found = true;
+    playerLookup.ownerId = "u1";
+    playerFilters.length = 0;
   });
 
-  it("jugador visible → lo envía; upsert por id", async () => {
+  it("jugador DEL usuario → lo envía; upsert por id", async () => {
     await SupabaseVideoService.pushOne("u1", stub);
     const [row, opts] = upsertSpy.mock.calls[0];
     expect(row).toMatchObject({ id: "guid-1", user_id: "u1", player_id: "p1" });
     expect(opts).toEqual({ onConflict: "id" });
+    // La comprobación filtra por dueño (076), no solo por lo que deje ver la RLS.
+    expect(playerFilters).toContainEqual(["user_id", "u1"]);
+  });
+
+  it("jugador visible bajo RLS pero de OTRA cuenta (p. ej. mismo tenant) → NO envía player_id", async () => {
+    playerLookup.ownerId = "otra-cuenta";
+    await SupabaseVideoService.pushOne("u1", stub);
+    expect(upsertSpy.mock.calls[0][0]).not.toHaveProperty("player_id");
   });
 
   it("jugador NO encontrado en el cliente → NO envía player_id (no borra el del servidor)", async () => {

@@ -4,7 +4,8 @@
  *    no extiende la caducidad → la ventana debe cubrir la subida de un partido)
  *  - la fila `videos` se inserta con el JWT del USUARIO (anon key + Bearer user), no con
  *    service role (el trigger auto_assign_org_id usa auth.uid()), id = bunny_video_id = guid,
- *    tenant_id del JWT verificado, player_id solo si es visible bajo RLS
+ *    tenant_id del JWT verificado (etiqueta), player_id solo si el usuario es su DUEÑO
+ *    (RLS + players.user_id = usuario del JWT, 076)
  *  - sin Supabase configurado → degrada sin romper
  *  - gate de duración de partido con el límite compartido
  */
@@ -135,6 +136,15 @@ describe("video-init", () => {
     await videoInit(post({ title: "Partido", playerId: "p-ajeno" }));
     const row = JSON.parse(calls.find((c) => c.url === "https://sb.test/rest/v1/videos")!.init.body as string);
     expect(row).not.toHaveProperty("player_id");
+  });
+
+  it("076 · la búsqueda del jugador filtra por DUEÑO (user_id del JWT), no solo por lo que deje ver la RLS", async () => {
+    const calls = setupFetch({ playerVisible: true });
+    await videoInit(post({ title: "Partido", playerId: "p1" }));
+    const lookup = calls.find((c) => c.url.startsWith("https://sb.test/rest/v1/players"))!;
+    expect(lookup.url).toContain("id=eq.p1");
+    expect(lookup.url).toContain("user_id=eq.11111111-1111-4111-8111-111111111111");
+    expect(lookup.url).not.toContain("tenant");
   });
 
   it("sin duración del navegador NO se inventa duration_sec", async () => {

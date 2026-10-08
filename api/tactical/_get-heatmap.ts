@@ -62,14 +62,15 @@ export default withHandler(
   // Cierra el acceso anónimo (IDOR de lectura). El front lee Supabase directo
   // (RLS), así que este endpoint no lo usa la UI — pero estaba expuesto sin auth.
   { method: "GET", requireAuth: true, maxRequests: 60 },
-  async ({ query, tenantId, isServiceCall }) => {
+  async ({ query, userId, isServiceCall }) => {
   const matchId = query.matchId;
   if (!matchId) return errorResponse("matchId required", 400);
 
-  // Autorización a nivel de objeto: el service_role SALTA la RLS de tenant
-  // (055), así que el scoping por tenant se hace aquí en código. Mismo predicado:
-  // el match debe pertenecer a una analysis del tenant del usuario.
-  if (!isServiceCall && !(await ownsMatch(matchId, tenantId))) {
+  // Autorización a nivel de objeto: el service_role SALTA la RLS, así que la
+  // propiedad se comprueba aquí en código. Mismo predicado que las políticas
+  // tácticas de la 076: el match es una analysis creada por el usuario o de un
+  // jugador suyo. Nunca por tenant.
+  if (!isServiceCall && !(await ownsMatch(matchId, userId))) {
     return errorResponse("No autorizado para este partido", 403, "FORBIDDEN");
   }
 

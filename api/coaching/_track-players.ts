@@ -123,7 +123,7 @@ export default withHandler(
       actor: { userId, tenantId, ip },
       endpoint: "coaching/track-players",
       scope: "team",
-      ownsVideo: (video, uid, tid) => ownsVideo(video, uid, tid),
+      ownsVideo: (video, uid) => ownsVideo(video, uid),
     });
     if (!consent.allowed) return clipGateErrorResponse(consent);
   }

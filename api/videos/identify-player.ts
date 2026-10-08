@@ -39,7 +39,7 @@ const identifySchema = z.object({
 
 export default withHandler(
   { schema: identifySchema, requireAuth: true, maxRequests: 30 },
-  async ({ body, userId, tenantId, isServiceCall }) => {
+  async ({ body, userId, isServiceCall }) => {
     const input = body as z.infer<typeof identifySchema>;
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
@@ -61,7 +61,7 @@ export default withHandler(
     // del vídeo de un menor del tenant B (redirigir a quién analiza). Mismo patrón fail-
     // closed que finalize.ts. Ver ownsVideo (ownership.ts).
     const vrow = video as { user_id?: string | null; tenant_id?: string | null; player_id?: string | null };
-    if (!(await ownsVideo(vrow, userId, tenantId, isServiceCall))) {
+    if (!(await ownsVideo(vrow, userId, isServiceCall))) {
       return errorResponse({ code: "forbidden", message: "No gestionas este vídeo", status: 403 });
     }
 

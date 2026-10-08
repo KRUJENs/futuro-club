@@ -38,7 +38,7 @@ vi.mock("../../_lib/budgetGuard", () => ({
 // Propiedad del jugador: aquí se prueba el gate de consentimiento, no ownership.ts.
 vi.mock("../../_lib/ownership", async (orig) => ({
   ...(await orig<typeof import("../../_lib/ownership")>()),
-  ownsPlayerOrTenant: vi.fn(async () => true),
+  ownsPlayer: vi.fn(async () => true),
 }));
 
 process.env.VITE_SUPABASE_URL = "https://sb.test";

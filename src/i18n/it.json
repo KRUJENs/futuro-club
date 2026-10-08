@@ -6129,7 +6129,7 @@
       "deletionSuccess": "Richiesta di eliminazione registrata",
       "deletionDemo": "Richiesta registrata (modalità demo)",
       "deletionError": "Errore nella richiesta di eliminazione",
-      "dsarNotAllowed": "Nessun permesso su questo giocatore: solo chi lo ha registrato o la sua accademia può esercitare questo diritto GDPR",
+      "dsarNotAllowed": "Nessun permesso su questo giocatore: solo l'account che lo ha registrato può esercitare questo diritto GDPR",
       "consentSuccess": "Consenso registrato correttamente",
       "consentError": "Errore nella registrazione del consenso"
     },

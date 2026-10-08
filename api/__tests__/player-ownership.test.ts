@@ -11,13 +11,14 @@
  *      query no-ok, error de red) → false. Nunca "abre por defecto".
  *   2. El predicado consultado es players WHERE id = playerId AND user_id = userId
  *      (la propiedad por usuario del modelo).
+ *   3. (076) SOLO EL DUEÑO: compartir el tenant con el dueño NUNCA da acceso.
  *
  * No necesita Supabase: mockeamos `fetch`. La verificación end-to-end contra la
  * BD real vive en rls-isolation.test.ts (SKIP sin credenciales).
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { ownsPlayer, ownsPlayerOrTenant, ownedPlayersOrFilter, ownsVideo } from "../_lib/ownership";
+import { ownsPlayer, ownsRowOrItsPlayer, ownsVideo, ownsMatchAnalysis, ownedPlayerIds } from "../_lib/ownership";
 
 const USER_A = "aaaaaaaa-1111-1111-1111-aaaaaaaaaaaa";
 const USER_B = "bbbbbbbb-2222-2222-2222-bbbbbbbbbbbb";
@@ -99,7 +100,35 @@ describe("ownsPlayer · autorización por usuario (fail-closed)", () => {
   });
 });
 
-describe("ownsPlayerOrTenant · usuario CON respaldo por tenant (fail-closed)", () => {
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 076 · SOLO EL DUEÑO. El tenant_id compartido de producción (3 jugadores con el
+// MISMO valor) no identifica a nadie: ya NO existe ninguna rama por tenant.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("ownership · ya no existe la rama por tenant (076)", () => {
+  it("el módulo no exporta helpers con tenant (ownsPlayerOrTenant / ownedPlayersOrFilter)", async () => {
+    const mod = (await import("../_lib/ownership")) as Record<string, unknown>;
+    expect(mod.ownsPlayerOrTenant).toBeUndefined();
+    expect(mod.ownedPlayersOrFilter).toBeUndefined();
+  });
+
+  it("ninguna función de ownership.ts acepta un parámetro tenantId", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const src = readFileSync(resolve(__dirname, "../_lib/ownership.ts"), "utf8");
+    const code = src
+      .split(/\r?\n/)
+      .filter((l) => !/^\s*(\*|\/\/|\/\*)/.test(l))
+      .join("\n");
+    // Control positivo: el mismo patrón SÍ encuentra los parámetros userId.
+    expect(code).toMatch(/userId: string \| null/);
+    expect(code).not.toMatch(/tenantId/);
+    expect(code).not.toMatch(/tenant_id/);
+  });
+});
+
+describe("ownsRowOrItsPlayer · creador o dueño del jugador, nunca tenant (fail-closed)", () => {
   beforeEach(() => {
     process.env.SUPABASE_URL = "https://test.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-key";
@@ -109,60 +138,53 @@ describe("ownsPlayerOrTenant · usuario CON respaldo por tenant (fail-closed)", 
     vi.restoreAllMocks();
   });
 
-  it("selecciona user_id,tenant_id y da true si el user_id del jugador coincide", async () => {
+  it("true si la fila la creó el usuario (row.user_id), sin red", async () => {
+    const spy = mockFetchOnce(() => ({ ok: true, json: async () => [] }));
+    expect(await ownsRowOrItsPlayer({ user_id: USER_A, player_id: PLAYER }, USER_A)).toBe(true);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("true si el usuario es el DUEÑO del jugador de la fila (players.user_id)", async () => {
     const spy = mockFetchOnce((url) => {
       expect(url).toContain(`id=eq.${PLAYER}`);
-      expect(url).toContain("select=user_id,tenant_id");
-      return { ok: true, json: async () => [{ user_id: USER_A, tenant_id: TENANT_A }] };
+      expect(url).toContain(`user_id=eq.${USER_A}`);
+      return { ok: true, json: async () => [{ id: PLAYER }] };
     });
-    expect(await ownsPlayerOrTenant(PLAYER, USER_A, TENANT_A)).toBe(true);
+    // Fila del pipeline de vídeo: user_id NULL pero player_id real.
+    expect(await ownsRowOrItsPlayer({ user_id: null, player_id: PLAYER }, USER_A)).toBe(true);
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
-  it("true por RESPALDO de tenant aunque el user_id no coincida (caso multi-seat)", async () => {
-    // El jugador lo creó otro usuario (USER_A) pero mismo tenant → un miembro
-    // (USER_B, tenant A) que generó/compartió el informe puede verlo.
-    mockFetchOnce(() => ({ ok: true, json: async () => [{ user_id: USER_A, tenant_id: TENANT_A }] }));
-    expect(await ownsPlayerOrTenant(PLAYER, USER_B, TENANT_A)).toBe(true);
-  });
-
-  it("false cuando ni user_id ni tenant coinciden (jugador de otra academia)", async () => {
-    mockFetchOnce(() => ({ ok: true, json: async () => [{ user_id: USER_A, tenant_id: TENANT_A }] }));
-    expect(await ownsPlayerOrTenant(PLAYER, USER_B, TENANT_B)).toBe(false);
-  });
-
-  it("no cuenta un tenant nulo del jugador como coincidencia (evita abrir por null==null)", async () => {
-    mockFetchOnce(() => ({ ok: true, json: async () => [{ user_id: USER_A, tenant_id: null }] }));
-    // USER_B con tenant null NO debe pasar por el respaldo (p.tenant_id es null).
-    expect(await ownsPlayerOrTenant(PLAYER, USER_B, null)).toBe(false);
-  });
-
-  it("false sin llamar a la red cuando no hay ni userId ni tenantId", async () => {
-    const spy = mockFetchOnce(() => ({ ok: true, json: async () => [{ user_id: USER_A, tenant_id: TENANT_A }] }));
-    expect(await ownsPlayerOrTenant(PLAYER, null, null)).toBe(false);
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  it("false sin red cuando no hay playerId", async () => {
-    const spy = mockFetchOnce(() => ({ ok: true, json: async () => [{ user_id: USER_A, tenant_id: TENANT_A }] }));
-    expect(await ownsPlayerOrTenant(null, USER_A, TENANT_A)).toBe(false);
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  it("false cuando el jugador no existe (query devuelve [])", async () => {
+  it("false (el caso del P0): otra cuenta del MISMO tenant, que no creó la fila ni es dueña", async () => {
+    // La fila y el jugador llevan TENANT_A y USER_B tendría TENANT_A en su JWT: da igual.
     mockFetchOnce(() => ({ ok: true, json: async () => [] }));
-    expect(await ownsPlayerOrTenant(PLAYER, USER_A, TENANT_A)).toBe(false);
+    const row = { user_id: USER_A, player_id: PLAYER, tenant_id: TENANT_A } as { user_id: string; player_id: string };
+    expect(await ownsRowOrItsPlayer(row, USER_B)).toBe(false);
+  });
+
+  it("false sin userId o sin fila, sin red", async () => {
+    const spy = mockFetchOnce(() => ({ ok: true, json: async () => [{ id: PLAYER }] }));
+    expect(await ownsRowOrItsPlayer({ user_id: USER_A, player_id: PLAYER }, null)).toBe(false);
+    expect(await ownsRowOrItsPlayer(null, USER_A)).toBe(false);
+    expect(await ownsRowOrItsPlayer(undefined, USER_A)).toBe(false);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  it("false sin creador que case y sin jugador (no hay dueño), sin red", async () => {
+    const spy = mockFetchOnce(() => ({ ok: true, json: async () => [{ id: PLAYER }] }));
+    expect(await ownsRowOrItsPlayer({ user_id: USER_B, player_id: null }, USER_A)).toBe(false);
+    expect(spy).not.toHaveBeenCalled();
   });
 
   it("false fail-closed: query no-ok / fetch lanza", async () => {
     mockFetchOnce(() => ({ ok: false }));
-    expect(await ownsPlayerOrTenant(PLAYER, USER_A, TENANT_A)).toBe(false);
+    expect(await ownsRowOrItsPlayer({ player_id: PLAYER }, USER_A)).toBe(false);
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network"); }));
-    expect(await ownsPlayerOrTenant(PLAYER, USER_A, TENANT_A)).toBe(false);
+    expect(await ownsRowOrItsPlayer({ player_id: PLAYER }, USER_A)).toBe(false);
   });
 });
 
-describe("ownsVideo · autorización de VÍDEO (finalize/identify-player/candidates, fail-closed)", () => {
+describe("ownsVideo · autorización de VÍDEO (finalize/identify-player/candidates/match start, fail-closed)", () => {
   beforeEach(() => {
     process.env.SUPABASE_URL = "https://test.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service-key";
@@ -172,61 +194,85 @@ describe("ownsVideo · autorización de VÍDEO (finalize/identify-player/candida
     vi.restoreAllMocks();
   });
 
-  it("true para service-call, sin tocar la red", async () => {
+  it("true para service-call (Modal / crons / webhook), sin tocar la red", async () => {
     const spy = mockFetchOnce(() => ({ ok: true, json: async () => [] }));
-    expect(await ownsVideo({ player_id: PLAYER }, null, null, true)).toBe(true);
+    expect(await ownsVideo({ player_id: PLAYER }, null, true)).toBe(true);
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("true si el uploader (videos.user_id) coincide, sin red", async () => {
+  it("true si el uploader (videos.user_id) coincide, sin red (vídeo de equipo, player_id NULL)", async () => {
     const spy = mockFetchOnce(() => ({ ok: true, json: async () => [] }));
-    expect(await ownsVideo({ user_id: USER_A, player_id: PLAYER }, USER_A, null)).toBe(true);
+    expect(await ownsVideo({ user_id: USER_A, player_id: null }, USER_A)).toBe(true);
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it("true si el tenant del vídeo coincide, sin red", async () => {
+  it("cae al DUEÑO del jugador del vídeo si el uploader no coincide", async () => {
+    mockFetchOnce((url) => {
+      expect(url).toContain(`user_id=eq.${USER_A}`);
+      return { ok: true, json: async () => [{ id: PLAYER }] };
+    });
+    expect(await ownsVideo({ player_id: PLAYER }, USER_A)).toBe(true);
+  });
+
+  it("false (P0): mismo tenant del vídeo ya NO basta", async () => {
+    mockFetchOnce(() => ({ ok: true, json: async () => [] }));
+    const video = { tenant_id: TENANT_A, player_id: PLAYER } as { player_id: string };
+    expect(await ownsVideo(video, USER_B)).toBe(false);
+  });
+
+  it("false sin player_id y sin coincidencia de uploader (fail-closed, sin red)", async () => {
     const spy = mockFetchOnce(() => ({ ok: true, json: async () => [] }));
-    expect(await ownsVideo({ tenant_id: TENANT_A, player_id: PLAYER }, USER_B, TENANT_A)).toBe(true);
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  it("cae al jugador del vídeo (ownsPlayerOrTenant) si no casan user/tenant del vídeo", async () => {
-    mockFetchOnce(() => ({ ok: true, json: async () => [{ user_id: USER_A, tenant_id: TENANT_A }] }));
-    // El vídeo no tiene user_id/tenant propios, pero su player_id pertenece a USER_A.
-    expect(await ownsVideo({ player_id: PLAYER }, USER_A, null)).toBe(true);
-  });
-
-  it("false (IDOR) si el vídeo es de otro tenant y su jugador es de otra academia", async () => {
-    mockFetchOnce(() => ({ ok: true, json: async () => [{ user_id: USER_A, tenant_id: TENANT_A }] }));
-    expect(await ownsVideo({ tenant_id: TENANT_A, player_id: PLAYER }, USER_B, TENANT_B)).toBe(false);
-  });
-
-  it("false sin player_id y sin coincidencia de user/tenant (fail-closed, sin red)", async () => {
-    const spy = mockFetchOnce(() => ({ ok: true, json: async () => [] }));
-    expect(await ownsVideo({ tenant_id: TENANT_A }, USER_B, TENANT_B)).toBe(false);
+    const video = { user_id: USER_A, tenant_id: TENANT_A } as { user_id: string };
+    expect(await ownsVideo(video, USER_B)).toBe(false);
     expect(spy).not.toHaveBeenCalled();
   });
 });
 
-describe("ownedPlayersOrFilter · scoping multi-fila (query .or)", () => {
-  it("con tenant: incluye ambas cláusulas user_id + tenant_id", () => {
-    expect(ownedPlayersOrFilter(USER_A, TENANT_A)).toBe(
-      `user_id.eq.${USER_A},tenant_id.eq.${TENANT_A}`,
-    );
+describe("ownsMatchAnalysis · job de partido: solo quien lo creó", () => {
+  it("true para el creador (user_id)", () => {
+    expect(ownsMatchAnalysis({ user_id: USER_A }, USER_A)).toBe(true);
+  });
+  it("false (P0) para otra cuenta aunque comparta el tenant del job", () => {
+    const job = { user_id: USER_A, tenant_id: TENANT_A } as { user_id: string };
+    expect(ownsMatchAnalysis(job, USER_B)).toBe(false);
+  });
+  it("false sin job, sin userId o sin creador", () => {
+    expect(ownsMatchAnalysis(null, USER_A)).toBe(false);
+    expect(ownsMatchAnalysis(undefined, USER_A)).toBe(false);
+    expect(ownsMatchAnalysis({ user_id: USER_A }, null)).toBe(false);
+    expect(ownsMatchAnalysis({ user_id: null }, USER_A)).toBe(false);
+  });
+});
+
+describe("ownedPlayerIds · ids de los jugadores DEL usuario (multi-fila)", () => {
+  beforeEach(() => {
+    process.env.SUPABASE_URL = "https://test.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-key";
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
-  it("sin tenant (null): solo user_id (no abre a otros tenants)", () => {
-    expect(ownedPlayersOrFilter(USER_A, null)).toBe(`user_id.eq.${USER_A}`);
-    expect(ownedPlayersOrFilter(USER_A, "")).toBe(`user_id.eq.${USER_A}`);
+  it("consulta SOLO por user_id (nunca tenant_id) y devuelve los ids", async () => {
+    mockFetchOnce((url) => {
+      expect(url).toContain(`user_id=eq.${USER_A}`);
+      expect(url).not.toContain("tenant_id");
+      return { ok: true, json: async () => [{ id: "p1" }, { id: "p2" }, { id: null }] };
+    });
+    expect(await ownedPlayerIds(USER_A)).toEqual(["p1", "p2"]);
   });
 
-  it("valida UUID: un valor no-UUID no se interpola (no inyección en .or)", () => {
-    // userId no-UUID (p. ej. intento de inyección) → cláusula descartada →
-    // fail-closed a UUID nil que no casa ningún jugador.
-    expect(ownedPlayersOrFilter("evil,tenant_id.eq.x", null)).toBe(
-      "user_id.eq.00000000-0000-0000-0000-000000000000",
-    );
-    // tenant no-UUID se ignora, user_id válido se mantiene.
-    expect(ownedPlayersOrFilter(USER_A, "x,or,injection")).toBe(`user_id.eq.${USER_A}`);
+  it("fail-closed: sin userId, sin Supabase, no-ok o error → []", async () => {
+    const spy = mockFetchOnce(() => ({ ok: true, json: async () => [{ id: "p1" }] }));
+    expect(await ownedPlayerIds(null)).toEqual([]);
+    expect(spy).not.toHaveBeenCalled();
+    mockFetchOnce(() => ({ ok: false }));
+    expect(await ownedPlayerIds(USER_A)).toEqual([]);
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network"); }));
+    expect(await ownedPlayerIds(USER_A)).toEqual([]);
+    delete process.env.SUPABASE_URL;
+    delete process.env.VITE_SUPABASE_URL;
+    expect(await ownedPlayerIds(USER_A)).toEqual([]);
   });
 });

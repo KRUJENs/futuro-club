@@ -77,7 +77,7 @@ export default withHandler(
     }
     const input = body as z.infer<typeof CreateListingSchema>;
 
-    // El listing debe ser sobre un jugador que GESTIONAS (tu user/tenant): no se
+    // El listing debe ser sobre un jugador del que eres DUEÑO (players.user_id): no se
     // publica en el mercado a un menor ajeno (integridad + identidad, invariante #6).
     // Solo con Supabase + auth (en offline/client_only no hay BD que consultar).
     // PHV del snapshot: NUNCA el que mande el cliente, y tampoco la columna
@@ -93,21 +93,26 @@ export default withHandler(
 
     if (SUPABASE_URL && SUPABASE_KEY && userId) {
       const pr = await fetch(
-        `${SUPABASE_URL}/rest/v1/players?id=eq.${encodeURIComponent(input.playerId)}&select=user_id,tenant_id`,
+        `${SUPABASE_URL}/rest/v1/players?id=eq.${encodeURIComponent(input.playerId)}&select=user_id`,
         { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } },
       );
+      // Fail-closed (076): si no se puede comprobar el dueño (respuesta no-ok), NO se
+      // publica. Antes un error de la consulta se leía como «jugador local-only» y el
+      // listing se insertaba igual, aunque el jugador existiera y fuera de otra cuenta.
+      if (!pr.ok) {
+        return errorResponse("No se pudo comprobar el dueño del jugador. Intenta de nuevo.", 503);
+      }
       const rows = (await pr.json().catch(() => [])) as Array<{
         user_id: string | null;
-        tenant_id: string | null;
       }>;
       const player = Array.isArray(rows) ? rows[0] : undefined;
       // Solo bloquea si el jugador EXISTE en Supabase y es de OTRO. Jugadores
       // local-only (onboarding/demo, aún no persistidos en BD) → el snapshot lo
       // aporta el caller, no hay fila que validar → se permite (no rompe el alta).
+      // Solo el DUEÑO (players.user_id, 076): nunca por tenant — con un tenant
+      // compartido, otra cuenta podía publicar en el mercado a un menor ajeno.
       if (player) {
-        const ownsPlayer =
-          (!!player.user_id && player.user_id === userId) ||
-          (!!player.tenant_id && !!tenantId && player.tenant_id === tenantId);
+        const ownsPlayer = !!player.user_id && player.user_id === userId;
         if (!ownsPlayer) return errorResponse("Forbidden: no gestionas este jugador", 403);
         Object.assign(snapshot, await trustedListingPhv(input.playerId));
       }

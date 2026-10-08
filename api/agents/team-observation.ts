@@ -79,7 +79,7 @@ export default withHandler(
         endpoint: "agents/team-observation",
         scope: "team",
         locale,
-        ownsVideo: (video, uid, tid) => ownsVideo(video, uid, tid),
+        ownsVideo: (video, uid) => ownsVideo(video, uid),
       });
       if (!consent.allowed) return clipGateErrorResponse(consent);
 

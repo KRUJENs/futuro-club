@@ -2,8 +2,8 @@
  * VITAS · GET /api/match/status?jobId= — SOLO LECTURA (CWE-650)
  *
  * Nunca despacha, nunca llama a Gemini ni a Claude, nunca escribe (lección del demo
- * decide: un GET no muta ni gasta). Solo el dueño o su tenant (ownsMatchAnalysis; el
- * service role salta RLS). Puede LEER la API de Bunny para el estado del encode (dato
+ * decide: un GET no muta ni gasta). Solo el dueño, quien creó el job (ownsMatchAnalysis;
+ * el service role salta RLS; nunca por tenant, 076). Puede LEER la API de Bunny para el estado del encode (dato
  * operativo, no métrica) — sustituye el sondeo de api/videos/_status.ts, que no
  * comprueba propiedad.
  */
@@ -17,13 +17,13 @@ import * as repo from "../_lib/matchJob/repo";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export default withHandler({ method: "GET", requireAuth: true, maxRequests: 120 }, async ({ query, userId, tenantId }) => {
+export default withHandler({ method: "GET", requireAuth: true, maxRequests: 120 }, async ({ query, userId }) => {
   const jobId = query.jobId ?? "";
   if (!UUID_RE.test(jobId)) return errorResponse({ message: "jobId inválido", status: 400, code: "invalid_input" });
 
   const job = await repo.getJob(jobId);
   // 404 también para jobs ajenos: no se revela su existencia.
-  if (!job || !ownsMatchAnalysis(job, userId, tenantId)) {
+  if (!job || !ownsMatchAnalysis(job, userId)) {
     return errorResponse({ message: "Análisis no encontrado", status: 404, code: "job_not_found" });
   }
 

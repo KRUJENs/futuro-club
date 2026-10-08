@@ -49,7 +49,7 @@ import { env } from "../_lib/env";
 import { isOverBudget, recordSpendUsd, budgetExceededResponse } from "../_lib/budgetGuard";
 import { assertAllowedVideoUrl, VideoUrlError } from "../_lib/videoUrlGuard";
 import { gateClipAnalysis, clipGateErrorResponse } from "../_lib/analysisConsentGate";
-import { ownsPlayerOrTenant, ownsVideo } from "../_lib/ownership";
+import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 
 export const config = { runtime: "edge" };
 
@@ -121,7 +121,7 @@ export default withHandler(
 
     // Consentimiento de las llamadas de USUARIO: antes del dedup, del insert y del spawn.
     if (!isServiceCall) {
-      if (body.playerId && !(await ownsPlayerOrTenant(body.playerId, userId, tenantId))) {
+      if (body.playerId && !(await ownsPlayer(body.playerId, userId))) {
         return errorResponse({ code: "forbidden", message: "No gestionas este jugador", status: 403 });
       }
       const consent = await gateClipAnalysis({
@@ -133,7 +133,7 @@ export default withHandler(
         actor: { userId, tenantId, ip },
         endpoint: "coaching/track-async",
         scope: body.playerId ? "player" : "team",
-        ownsVideo: (video, uid, tid) => ownsVideo(video, uid, tid),
+        ownsVideo: (video, uid) => ownsVideo(video, uid),
       });
       if (!consent.allowed) return clipGateErrorResponse(consent);
     }

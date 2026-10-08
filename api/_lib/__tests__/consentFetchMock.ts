@@ -14,12 +14,17 @@ export interface ConsentDbState {
   activeConsents: string[];
   /** Filas de videos (por id y bunny_video_id). */
   videos: Array<{ id: string; user_id: string | null; tenant_id: string | null; player_id: string | null; bunny_video_id: string | null }>;
+  /**
+   * players.user_id por id (dueño, 076). Lo usa ownership.ownsPlayer
+   * (`players?id=eq.X&user_id=eq.U&select=id`): sin entrada → el jugador no es de nadie.
+   */
+  playerOwners: Record<string, string>;
   /** Errores forzados por tabla ("gdpr_audit_log", "players", "parental_consents", "videos", "gdpr_insert"). */
   failures: Record<string, { status: number; body: string }>;
 }
 
 export function emptyConsentDb(): ConsentDbState {
-  return { storedAttestations: [], birthDates: {}, activeConsents: [], videos: [], failures: {} };
+  return { storedAttestations: [], birthDates: {}, activeConsents: [], videos: [], playerOwners: {}, failures: {} };
 }
 
 export type Call = { url: string; init: RequestInit };
@@ -108,6 +113,11 @@ export function consentFetch(
       }
       if (table === "players") {
         const id = param(u, "id") ?? "";
+        const owner = param(u, "user_id");
+        if (owner !== null) {
+          // Consulta de propiedad (ownership.ownsPlayer): solo el id, y solo si es SU dueño.
+          return new Response(JSON.stringify(db.playerOwners[id] === owner ? [{ id }] : []), { status: 200 });
+        }
         if (!(id in db.birthDates)) return new Response("[]", { status: 200 });
         return new Response(JSON.stringify([{ birth_date: db.birthDates[id] }]), { status: 200 });
       }

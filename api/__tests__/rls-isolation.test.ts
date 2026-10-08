@@ -174,7 +174,10 @@ describe.skipIf(SKIP)("RLS · Aislamiento multi-tenant (parental_consents)", () 
 
   // ─── Tests ───────────────────────────────────────────────────────
 
-  it("Tenant A puede leer SU propio consent", async () => {
+  // 076 (solo el dueño): parental_consents deja de tener política de cliente — el
+  // navegador nunca la lee ni la escribe (solo api/ con service_role). Antes de la 076
+  // lo que se comprobaba aquí era el aislamiento POR TENANT, que la 076 retira.
+  it("076 · con sesión NO se lee parental_consents (ni el propio): solo service_role", async () => {
     const clientA = createClient(SUPABASE_URL!, SERVICE_KEY!, {
       global: { headers: { Authorization: `Bearer ${userAToken}` } },
     });
@@ -183,8 +186,7 @@ describe.skipIf(SKIP)("RLS · Aislamiento multi-tenant (parental_consents)", () 
       .select("*")
       .eq("id", consentAId);
     expect(error).toBeNull();
-    expect(data).toHaveLength(1);
-    expect(data![0].tenant_id).toBe(TENANT_A);
+    expect(data).toHaveLength(0);
   });
 
   it("Tenant A NO PUEDE leer consent de Tenant B (RLS filtra)", async () => {
@@ -231,7 +233,7 @@ describe.skipIf(SKIP)("RLS · Aislamiento multi-tenant (parental_consents)", () 
     expect(data).not.toBeNull();
   });
 
-  it("Tenant B puede leer SU consent (validación cruzada)", async () => {
+  it("076 · B tampoco lee SU consent con sesión (validación cruzada: solo service_role)", async () => {
     const clientB = createClient(SUPABASE_URL!, SERVICE_KEY!, {
       global: { headers: { Authorization: `Bearer ${userBToken}` } },
     });
@@ -239,8 +241,10 @@ describe.skipIf(SKIP)("RLS · Aislamiento multi-tenant (parental_consents)", () 
       .from("parental_consents")
       .select("*")
       .eq("id", consentBId);
-    expect(data).toHaveLength(1);
-    expect(data![0].tenant_id).toBe(TENANT_B);
+    expect(data).toHaveLength(0);
+    // …y el backend (service_role) sí la ve.
+    const { data: admin } = await adminClient.from("parental_consents").select("id").eq("id", consentBId);
+    expect(admin).toHaveLength(1);
   });
 
   it("audit log: Tenant A no ve registros de Tenant B", async () => {
@@ -279,13 +283,13 @@ describe.skipIf(SKIP)("RLS · Edge cases", () => {
 // RLS · Aislamiento de las tablas tácticas (tactical_phases / phase_heatmaps /
 // tactical_insights) — cierra el IDOR de LECTURA DIRECTA entre tenants.
 //
-// Propiedad derivada del `analyses` dueño del match_id (migración 055):
-//   EXISTS analyses WHERE id = match_id AND tenant_id = public.tenant_id()
+// Propiedad derivada del `analyses` del match_id. Desde la migración 076 (solo el
+// dueño): quien creó la analysis o el DUEÑO de su jugador (players.user_id), sin
+// rama por tenant (la 055 usaba analyses.tenant_id = public.tenant_id()).
 //
-// DIAGNÓSTICO: si "Tenant A lee SUS propias fases" FALLA, casi seguro el JWT de
-// este entorno NO trae el claim tenant_id de nivel raíz que consume
-// public.tenant_id() (no hay custom access token hook configurado). Ese es el
-// aviso a accionar antes de confiar en la RLS por tenant.
+// DIAGNÓSTICO: si "Tenant A lee SUS propias fases" FALLA con la 076 aplicada,
+// revisar que el jugador del análisis tenga user_id = el usuario A (ya no depende
+// del hook 057 ni del claim tenant_id).
 //
 // La autorización a nivel de código (endpoints api/tactical/ vía ownsMatch) se
 // cubre además, sin BD, en api/__tests__/tactical-ownership.test.ts.

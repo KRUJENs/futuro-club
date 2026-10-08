@@ -262,9 +262,13 @@ async function saveAttendanceApi(input: AttendanceInput): Promise<{ status?: str
  * A diferencia del resto de flujos de bienestar, engagement NO tiene endpoint
  * de servidor: se escribe directo con `WellbeingService.saveEngagement`, que usa
  * el cliente Supabase autenticado. La propiedad del jugador la garantiza la RLS
- * `engagement_owner_all` (owner-only) a nivel de BD; sin Supabase, cae a la caché
- * local. NO existe pipeline de tracking que atribuya engagement a un jugador con
- * nombre (identidad por dorsal sin construir → pistas anónimas), así que la
+ * de la migración 073 (`engagement_snapshots_*_owner`: SOLO el dueño por
+ * players.user_id, vía public.caller_manages_player, sin rama por tenant). La
+ * 050 comparaba players.tenant_id con auth.uid() y no dejaba escribir a nadie:
+ * hasta aplicar la 073 el upsert falla (42501) y el dato queda en la caché
+ * local, igual que sin Supabase. NO existe pipeline de tracking que atribuya
+ * engagement a un jugador con nombre (identidad por dorsal sin construir →
+ * pistas anónimas), así que la
  * valoración del entrenador es hoy la única fuente honesta por jugador.
  */
 async function saveEngagementService(input: EngagementInput): Promise<{ id: string }> {

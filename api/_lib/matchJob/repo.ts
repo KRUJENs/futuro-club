@@ -234,10 +234,10 @@ export async function getJobsByIds(ids: readonly string[]): Promise<MatchJobRow[
   return (await rows<MatchJobRow>(res, "getJobsByIds")).map(normalizeJob);
 }
 
-/** Jobs de un usuario o de su tenant (borrado RGPD). */
-export async function listJobsForOwner(orFilter: string): Promise<MatchJobRow[]> {
-  const res = await sb(`${JOBS}?or=(${enc(orFilter)})&select=*`);
-  return (await rows<MatchJobRow>(res, "listJobsForOwner")).map(normalizeJob);
+/** Jobs que creó un usuario (borrado RGPD). Solo por user_id, nunca por tenant (076). */
+export async function listJobsForUser(userId: string): Promise<MatchJobRow[]> {
+  const res = await sb(`${JOBS}?user_id=eq.${enc(userId)}&select=*`);
+  return (await rows<MatchJobRow>(res, "listJobsForUser")).map(normalizeJob);
 }
 
 export async function listJobsForVideos(videoIds: readonly string[]): Promise<MatchJobRow[]> {

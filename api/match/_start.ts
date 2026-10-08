@@ -96,7 +96,7 @@ export default withHandler(
     if (!video || !video.bunny_video_id) {
       return errorResponse({ message: "Vídeo no encontrado", status: 404, code: "video_not_found" });
     }
-    if (!(await ownsVideo(video, userId, tenantId))) {
+    if (!(await ownsVideo(video, userId))) {
       return errorResponse({ message: "No autorizado para este vídeo", status: 403, code: "not_owner" });
     }
 

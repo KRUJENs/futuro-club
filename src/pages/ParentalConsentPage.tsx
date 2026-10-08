@@ -6,7 +6,7 @@
  *   - players (parental_consent_* columns)
  *   - consent_audit_log
  *   - RPC dsar_export_player_data / dsar_request_deletion (reescritas en 072:
- *     firma TEXT y solo para el dueño del jugador o su tenant)
+ *     firma TEXT; desde la 076, solo para el dueño del jugador, sin rama por tenant)
  * (La vista v_players_ai_blocked de 036 NO se usa aquí; 072 la cierra a clientes.)
  *
  * Funciona con Supabase o con datos mock cuando no está configurado.

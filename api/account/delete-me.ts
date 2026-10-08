@@ -17,10 +17,8 @@ import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { createClient } from "@supabase/supabase-js";
 import { randomHex } from "../_lib/edgeCrypto";
-import { deleteBunnyVideos } from "../_lib/bunnyCleanup";
 import { RESEND_FROM } from "../_lib/email";
-import { ownedPlayersOrFilter } from "../_lib/ownership";
-import { purgeMatchAnalysesForOwner } from "../_lib/matchJob/retention";
+import { deleteUserDataCompletely } from "../_lib/accountErasure";
 
 export const config = { runtime: "edge" };
 
@@ -68,81 +66,9 @@ async function sendDeletionEmail(to: string, cancellationLink: string, scheduled
   return res.ok;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function deleteUserDataCompletely(supabase: any, userId: string, tenantId: string | null) {
-  const summary: Record<string, number> = {};
-
-  // 0. Capturar bunny_video_id ANTES de borrar players (el cascade elimina
-  //    la fila videos y perderíamos la referencia al fichero en Bunny).
-  //    Por tenant O por usuario: un vídeo de partido/equipo tiene player_id NULL (no cae
-  //    en la cascada de players) y, en la ruta video-init antigua, tenant_id NULL.
-  const ownerFilter = ownedPlayersOrFilter(userId, tenantId);
-  const { data: ownVideos } = await supabase
-    .from("videos")
-    .select("id, bunny_video_id")
-    .or(ownerFilter);
-  const bunnyVideoIds: Array<string | null> = (ownVideos ?? []).map(
-    (v: { bunny_video_id: string | null }) => v.bunny_video_id,
-  );
-
-  // 0-bis. Jobs de partido completo (+ su fichero en Gemini) ANTES de borrar vídeos:
-  //        la cascada borra la fila, pero NO el proxy del partido en Google.
-  const matchPurge = await purgeMatchAnalysesForOwner(userId, tenantId);
-  summary.match_analyses_deleted = matchPurge.match_analyses_deleted;
-  summary.gemini_files_deleted = matchPurge.gemini_files_deleted;
-  summary.gemini_delete_errors = matchPurge.gemini_delete_errors;
-
-  // 1. Players (cascade a videos, analyses, reports via FK ON DELETE CASCADE)
-  const { count: playersCount } = await supabase
-    .from("players")
-    .delete({ count: "exact" })
-    .eq("tenant_id", tenantId);
-  summary.players_deleted = playersCount ?? 0;
-
-  // 1-bis. Vídeos que la cascada de players NO cubre (partido/equipo, player_id NULL).
-  const { count: videosCount } = await supabase
-    .from("videos")
-    .delete({ count: "exact" })
-    .or(ownerFilter);
-  summary.videos_deleted = videosCount ?? 0;
-
-  // 2. Embeddings de la knowledge_base que pertenezcan al user
-  const { count: embedCount } = await supabase
-    .from("knowledge_base")
-    .delete({ count: "exact" })
-    .eq("metadata->>user_id", userId);
-  summary.embeddings_deleted = embedCount ?? 0;
-
-  // 3. Suscripciones
-  const { count: subCount } = await supabase
-    .from("subscriptions")
-    .delete({ count: "exact" })
-    .eq("user_id", userId);
-  summary.subscriptions_deleted = subCount ?? 0;
-
-  // 4. Consentimientos (mantener solo el audit log)
-  const { count: consentCount } = await supabase
-    .from("parental_consents")
-    .delete({ count: "exact" })
-    .eq("tenant_id", tenantId);
-  summary.consents_deleted = consentCount ?? 0;
-
-  // 5. Bunny Stream cleanup (vídeos) — borrado real del library
-  const bunnyResult = await deleteBunnyVideos(bunnyVideoIds);
-  summary.bunny_deleted = bunnyResult.deleted;
-  summary.bunny_failed = bunnyResult.failed;
-  if (!bunnyResult.configured && bunnyVideoIds.length > 0) {
-    console.warn(
-      `[delete-me] Bunny sin configurar: ${bunnyVideoIds.length} vídeos NO borrados del CDN para tenant ${tenantId}`,
-    );
-  }
-
-  // 6. Auth user (último paso)
-  await supabase.auth.admin.deleteUser(userId);
-  summary.auth_user_deleted = 1;
-
-  return summary;
-}
+// Borrado RGPD de UNA cuenta: implementación única en api/_lib/accountErasure.ts
+// (la comparte el cron api/crons/data-retention.ts). Solo datos del DUEÑO (076).
+export { deleteUserDataCompletely };
 
 export default withHandler(
   { schema: deleteSchema, requireAuth: true, maxRequests: 3 },
@@ -153,7 +79,8 @@ export default withHandler(
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
-    // Obtener tenant del usuario
+    // Perfil del usuario (email del aviso; tenant_id solo como etiqueta del registro
+    // RGPD: el borrado es por DUEÑO, nunca por tenant — 076)
     const { data: profile } = await supabase
       .from("user_profiles")
       .select("tenant_id, email")
@@ -168,7 +95,7 @@ export default withHandler(
 
     // ── Modo borrado inmediato (admin only) ──────────────────────
     if (isAdminImmediateDelete) {
-      const summary = await deleteUserDataCompletely(supabase, userId, profile.tenant_id);
+      const summary = await deleteUserDataCompletely(supabase, userId);
 
       await supabase.rpc("log_gdpr_action", {
         p_user_id: userId,

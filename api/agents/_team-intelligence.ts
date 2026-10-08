@@ -67,7 +67,7 @@ export default withHandler(
       endpoint: "agents/team-intelligence",
       scope: "team",
       locale: preBody.locale ?? preBody.teamContext?.locale,
-      ownsVideo: (video, uid, tid) => ownsVideo(video, uid, tid),
+      ownsVideo: (video, uid) => ownsVideo(video, uid),
     });
     if (!consent.allowed) return clipGateErrorResponse(consent);
 

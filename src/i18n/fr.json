@@ -6129,7 +6129,7 @@
       "deletionSuccess": "Demande de suppression enregistrée",
       "deletionDemo": "Demande enregistrée (mode démo)",
       "deletionError": "Erreur lors de la demande de suppression",
-      "dsarNotAllowed": "Aucune autorisation sur ce joueur : seule la personne qui l'a enregistré ou son académie peut exercer ce droit RGPD",
+      "dsarNotAllowed": "Aucune autorisation sur ce joueur : seul le compte qui l'a enregistré peut exercer ce droit RGPD",
       "consentSuccess": "Consentement enregistré avec succès",
       "consentError": "Erreur lors de l'enregistrement du consentement"
     },

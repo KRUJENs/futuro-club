@@ -29,6 +29,8 @@ describe("migration 067 · RLS", () => {
     expect(CODE).toMatch(/ALTER TABLE match_analyses ENABLE ROW LEVEL SECURITY/);
     expect(CODE).toMatch(/ALTER TABLE match_analysis_segments ENABLE ROW LEVEL SECURITY/);
   });
+  // Fija el TEXTO histórico de 067 (ya aplicada). La rama por tenant la retira la 076
+  // (match_analyses_select_owner_076, solo user_id): ver migration076 en src/test/migrations.
   it("has exactly one client policy: SELECT on match_analyses for the owner or the same tenant", () => {
     expect(policies).toHaveLength(1);
     const [p] = policies;

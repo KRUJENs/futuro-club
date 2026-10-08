@@ -11,8 +11,8 @@
  *     user_id = auth.uid() → con service role el org_id quedaría NULL.
  *   - id = bunny_video_id = GUID de Bunny (misma convención que el cliente:
  *     useVideoUpload usa el GUID como id del VideoRecord y pushOne hace upsert por id).
- *   - tenant_id del JWT verificado; player_id SOLO si el jugador es visible para este
- *     usuario bajo RLS (mismo predicado que SupabaseVideoService.pushOne).
+ *   - tenant_id del JWT verificado (etiqueta, no da acceso); player_id SOLO si el
+ *     usuario es el DUEÑO del jugador (RLS + players.user_id = usuario, 076).
  *   - duration_sec SOLO si el navegador la leyó de los metadatos (nunca un default).
  *   Así el webhook de Bunny encuentra la fila por bunny_video_id aunque el cliente
  *   cierre la pestaña antes de su upsert. Sin Supabase configurado → se omite (no rompe).
@@ -68,16 +68,23 @@ function userRest(userJwt: string | null): { sbUrl: string; authHeaders: Record<
 }
 
 /**
- * player_id solo si ESTE usuario ve al jugador bajo RLS (no se adjuntan vídeos a menores
- * ajenos). La FK a players no aplica RLS → este check es obligatorio. Se resuelve ANTES de
- * crear nada: el gate de consentimiento necesita saber qué jugador lleva el vídeo.
+ * player_id solo si ESTE usuario es el DUEÑO del jugador (no se adjuntan vídeos a menores
+ * ajenos). La FK a players no aplica RLS → este check es obligatorio. Además de la RLS, se
+ * filtra por user_id = el usuario del JWT verificado (076): así vale aunque la RLS de
+ * players de la base aún tenga una rama por tenant u organización (players_tenant_isolation
+ * de 003 / 038) que dejaría «ver» al jugador de otra cuenta. Se resuelve ANTES de crear
+ * nada: el gate de consentimiento necesita saber qué jugador lleva el vídeo.
  */
-async function resolveVisiblePlayerId(userJwt: string | null, playerId: string | undefined): Promise<string | null> {
+async function resolveVisiblePlayerId(
+  userJwt: string | null,
+  userId: string | null,
+  playerId: string | undefined,
+): Promise<string | null> {
   const rest = userRest(userJwt);
-  if (!rest || !playerId) return null;
+  if (!rest || !playerId || !userId) return null;
   try {
     const pRes = await fetch(
-      `${rest.sbUrl}/rest/v1/players?id=eq.${encodeURIComponent(playerId)}&select=id&limit=1`,
+      `${rest.sbUrl}/rest/v1/players?id=eq.${encodeURIComponent(playerId)}&user_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
       { headers: rest.authHeaders },
     );
     if (!pRes.ok) return null;
@@ -99,7 +106,7 @@ async function insertVideoRow(opts: {
   tenantId: string | null;
   guid: string;
   title: string;
-  /** Ya comprobado como visible bajo RLS (resolveVisiblePlayerId). */
+  /** Ya comprobado: el usuario es su dueño (resolveVisiblePlayerId). */
   safePlayerId: string | null;
   durationSec: number | null;
 }): Promise<VideoRowResult> {
@@ -191,7 +198,7 @@ export default withHandler(
     // subida). La declaración se GUARDA tras crear el vídeo (su id es el GUID de Bunny).
     const authHeader = req.headers.get("Authorization") ?? "";
     const userJwt = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() || null : null;
-    const safePlayerId = await resolveVisiblePlayerId(userJwt, playerId);
+    const safePlayerId = await resolveVisiblePlayerId(userJwt, userId, playerId);
     const actor = { userId, tenantId, ip };
     const consent = await enforceClipConsent({
       attestation: body.attestation,

@@ -140,7 +140,7 @@ export default withHandler(
           scope: analysisScope,
           actor: { userId, tenantId, ip },
           locale,
-          ownsVideo: (video, uid, tid) => ownsVideo(video, uid, tid),
+          ownsVideo: (video, uid) => ownsVideo(video, uid),
         });
         if (!gate.allowed) return gate.response;
       }

@@ -68,13 +68,13 @@ export default withHandler(
     requireAuth: true,
     maxRequests: 15,
   },
-  async ({ body, tenantId, isServiceCall }) => {
+  async ({ body, userId, isServiceCall }) => {
     const { matchId, team, matchInfo, locale, phvDistribution } = body as z.infer<typeof GenerateInsightsSchema>;
 
     // Autorización a nivel de objeto (lectura de fases + escritura de insights +
-    // gasto LLM): el service_role SALTA la RLS de tenant (055) → scoping en código.
-    // El match debe pertenecer a una analysis del tenant del usuario.
-    if (!isServiceCall && !(await ownsMatch(matchId, tenantId))) {
+    // gasto LLM): el service_role SALTA la RLS → propiedad en código. El match es
+    // una analysis creada por el usuario o de un jugador suyo (076, nunca por tenant).
+    if (!isServiceCall && !(await ownsMatch(matchId, userId))) {
       return errorResponse("No autorizado para este partido", 403, "FORBIDDEN");
     }
 

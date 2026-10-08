@@ -24,7 +24,7 @@ import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { MODELS } from "../_lib/models";
 import { gateClipAnalysis, clipGateErrorResponse } from "../_lib/analysisConsentGate";
-import { ownsPlayerOrTenant, ownsVideo } from "../_lib/ownership";
+import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 
 export const config = { runtime: "edge" };
 
@@ -49,7 +49,7 @@ export default withHandler(
     const { videoId, playerId, analysisMode } = body;
 
     const actor = { userId, tenantId, ip };
-    if (playerId && !(await ownsPlayerOrTenant(playerId, userId, tenantId))) {
+    if (playerId && !(await ownsPlayer(playerId, userId))) {
       return errorResponse({ code: "forbidden", message: "No gestionas este jugador", status: 403 });
     }
     // videoId = GUID de Bunny de la miniatura que se manda a Claude (abajo).
@@ -62,7 +62,7 @@ export default withHandler(
       actor,
       endpoint: "pipeline/start",
       scope: playerId ? "player" : "team",
-      ownsVideo: (video, uid, tid) => ownsVideo(video, uid, tid),
+      ownsVideo: (video, uid) => ownsVideo(video, uid),
     });
     if (!consent.allowed) return clipGateErrorResponse(consent);
 

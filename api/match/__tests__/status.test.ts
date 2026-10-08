@@ -1,6 +1,7 @@
 /**
  * GET /api/match/status es SOLO LECTURA (CWE-650: un GET no muta ni gasta), solo para el
- * dueño o su tenant (ajeno = 404, no se revela), y re-valida lo almacenado con el
+ * dueño — quien creó el job; un mismo tenant NO basta desde la 076 (ajeno = 404, no se
+ * revela), y re-valida lo almacenado con el
  * contrato. Se usa el repo REAL con fetch simulado: cualquier escritura en Supabase o
  * cualquier llamada a Gemini / Anthropic / Modal haría fallar el test.
  * También: list (solo del usuario), availability («En validación») y cancel.
@@ -155,11 +156,12 @@ describe("GET /api/match/status", () => {
     expect(data.encode).toEqual({ bunnyStatus: 3, encodeProgressPct: 57 });
     expect(methodsCalled().every((m) => m === "GET")).toBe(true);
   });
-  it("someone else's job is a 404 (existence not revealed); same tenant can read it", async () => {
+  it("someone else's job is a 404 (existence not revealed), EVEN from the same tenant (076: owner only)", async () => {
     auth.userId = "99999999-9999-4999-8999-999999999999";
     expect((await get(`/api/match/status?jobId=${JOB_ID}`)).status).toBe(404);
+    // Same tenant_id as the job (a shared tenant) no longer grants access.
     auth.tenantId = "33333333-3333-4333-8333-333333333333";
-    expect((await get(`/api/match/status?jobId=${JOB_ID}`)).status).toBe(200);
+    expect((await get(`/api/match/status?jobId=${JOB_ID}`)).status).toBe(404);
   });
   it("a stored blob that breaks the contract is returned as null, never patched", async () => {
     current = jobRow({ observation: { schema_version: "hacked" }, report: { overall_rating: 9 } });

@@ -2,8 +2,9 @@
  * VITAS · DSAR (RGPD art. 15 / 17) — qué mensaje mostrar en /admin/consent.
  *
  * Tras la migración 072, dsar_export_player_data / dsar_request_deletion solo
- * aceptan al dueño del jugador (players.user_id = auth.uid()) o a su tenant del JWT,
- * y en cualquier otro caso responden SQLSTATE 42501 («jugador no encontrado o sin
+ * aceptan al dueño del jugador (players.user_id = auth.uid()); la 072 aceptaba
+ * también su tenant del JWT, rama que la 076 retira (solo el dueño, 30 sep 2026).
+ * En cualquier otro caso responden SQLSTATE 42501 («jugador no encontrado o sin
  * permiso»; mismo error para «no existe» y «no es tuyo»). PostgREST devuelve ese
  * SQLSTATE en `error.code` de supabase-js.
  *

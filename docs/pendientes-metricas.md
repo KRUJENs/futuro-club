@@ -4,7 +4,7 @@
 > una métrica bloqueada con `gate_reason` honesto es un estado de entrega aceptable, pero
 > **no** es lo mismo que resuelta. Este fichero distingue las dos y se mantiene al día.
 >
-> **Última actualización:** 2026-09-30 (digest del director sin hash, P0) · **Rama de creación:** `docs/pendientes-metricas`
+> **Última actualización:** 2026-10-01 (§5-D, migración 073 solo dueño) · 2026-09-30 (digest del director sin hash, P0) · **Rama de creación:** `docs/pendientes-metricas`
 >
 > Estado del arnés a fecha de hoy: el **GATE real** (pre-commit → `audit_metrics.py
 > --baseline`) sale **exit 0** (deuda baselined). El audit CRUDO `audit_metrics.py` →
@@ -22,8 +22,10 @@
 
 - **🟢 SEGURO + DESPLEGADO (cerrable HOY):** todo el **§C** son toggles/claves en dashboards
   (Supabase, Vercel, Modal, Anthropic) — acción del usuario, sin código, ejecutable desde el
-  móvil. Cerrar §C entero deja la plataforma **segura y operativa al 100%**. Empezar por **C1**
-  (el hook JWT — sin él la seguridad multi-tenant de menores está inerte).
+  móvil. Cerrar §C entero deja la plataforma **segura y operativa al 100%**. Empezar por **C9**
+  (solo el dueño, 076: con un tenant compartido la regla antigua «dueño o su tenant» abría los
+  datos de todos los menores a todas las cuentas de ese tenant). C1 (hook JWT) ya no protege
+  datos de jugador tras la 076: la RLS de jugador es solo por dueño (`players.user_id`).
 - **🔴 CIFRAS VALIDADAS (NO cerrable "hoy" ejecutando pasos):** el **§A** exige **datos humanos**:
   clips anotados a mano (identidad), calibración medida y golden (físicas/duelos), datos reales
   introducidos (bienestar). Es trabajo humano/físico, no un toggle. **Hasta que existan esos
@@ -175,6 +177,14 @@ Tipo de desbloqueo: **CÓDIGO** (implementable) · **DATOS_HUMANOS** (antropomet
 - [ ] **Partido completo · ruta HLS de Bunny y token auth del CDN** «pendiente de validar» (`hlsVariantPathTemplate` en `config/matchVideo.json`; spike (h)). Si el pull zone usa token auth, falta firmar `sourceUrl` en `api/_lib/matchJob/bunnySource.ts`.
 - [x] **Seguridad CS-01 · `ADMIN_SECRET` deja de ser token de servicio** — HECHO en código (#304, rama `fix/retire-admin-secret-service-token`, 30 sep). Se filtró en bundles antiguos como `VITE_ADMIN_SECRET` y seguía aceptándose en `hasValidServiceToken` (`api/_lib/withHandler.ts`: `serviceOnly` + `allowServiceToken` → exportar datasets etiquetados de menores, informes de padres, saltarse propiedad y rate limit) y en `api/rag/_embed.ts` / `_ingest.ts` (comparación propia con `===`). Ahora solo valen `CRON_SECRET` / `INTERNAL_API_TOKEN` / `SUPABASE_SERVICE_ROLE_KEY`, en tiempo constante; embed/ingest delegan en `withHandler` (una sola implementación, inv #7); `env.adminSecret` y la línea de `.env.example` retirados; `scripts/seed-rag.sh` usa `INTERNAL_API_TOKEN`/`CRON_SECRET`. Tests: `api/_lib/__tests__/serviceToken.test.ts` (incluye guard de repo: nadie lee `ADMIN_SECRET`) y `api/rag/__tests__/serviceTokenAuth.test.ts`. El panel admin NO cambia: ya usaba el JWT del admin (`useAdminOrgs.ts` → `getAuthHeaders`, `adminOnly` + `ADMIN_EMAILS`). **Falta la parte del operador → C3.**
 - [~] **Seguridad CS-12 · seed del RAG en CI** — HECHO: el job `rag-seed` sale de `ci.yml` (corría en cada push a main contra PRODUCCIÓN, borraba y reinsertaba la base de conocimiento y se tragaba los errores con `|| echo skipped`). Ahora es manual: `.github/workflows/rag-seed.yml` (solo `workflow_dispatch`, confirmación literal `BORRAR-Y-RESEMBRAR`, destino limitado a `https://futuro-club*.vercel.app`) y `scripts/seed-rag.sh` sale en rojo si una siembra no devuelve `success` con `indexed == total`. Ya no usa la `SUPABASE_SERVICE_ROLE_KEY` de GitHub como Bearer. Verificado en los logs de los runs de push a `main` 36730070797 (30 sep, cabeza `0c3a438`) y 35224355502 (17 sep): la cabecera salía como `Bearer ` VACÍA (ese secret no existe en el repo), los dos `curl` fallaron y el job imprimió «skipped» y terminó en verde; el código HTTP no quedó en el log (`curl -s`), así que «respondió 403» es deducido, no verificado. Es decir, en esos runs el job no resembró nada pero decía que todo iba bien; los runs anteriores no se revisaron. **PENDIENTE (no hecho):** seed idempotente por upsert SIN `DELETE` previo (`api/rag/_seed.ts`, `_seed-knowledge.ts`) y fallar si quedan filas sin embedding (`_ingest.ts` inserta la fila aunque el embedding sea `null`). Cuántas filas hay hoy sin embedding: **no verificado** (consulta de solo lectura: `select count(*) filter (where embedding is null) as sin_embedding, count(*) as total from knowledge_base;`).
+- [ ] **Acceso solo del dueño · 076 (P0, acceso cruzado entre cuentas por un tenant compartido)** — código hecho en la rama `fix/owner-only-player-access-076` (PR «owner-only access to player data … (076)», abierto y SIN fusionar: NO resuelto en producción hasta fusionar y aplicar la 076); migración `supabase/migrations/076_owner_only_player_access.sql` + `supabase/checks/076_previa.sql` / `076_posterior.sql` pendientes del operador (§C9).
+  - **Decisión:** la tomó el asistente el **30 sep 2026** por delegación expresa del dueño («la que veas tú mejor»): **SOLO EL DUEÑO**. Los datos de un jugador los ven y cambian solo `players.user_id` y `service_role` (backend, Modal, crons). **Sin rama por tenant y sin rama nueva por organización.** Una fila atada a un jugador la LEE además quien la creó (su `user_id` / `coach_id` / `seller_user_id`); ESCRIBIR exige ser el dueño del jugador. Lo que no está atado a un jugador (vídeo de equipo, job de partido completo) es solo de quien lo creó.
+  - **Por qué:** datos de menores; el único `players.tenant_id` de producción (los 3 jugadores tienen el MISMO valor) no es ni un usuario ni una organización (VERIFICADO 29-30 sep), así que no se sabe qué agrupa; la vía por organización ya está rota en producción (`user_org_ids`/`user_in_org` usan `team_members.org_owner_id`); invariante #3 (abstenerse es válido).
+  - **Qué se cerró (código, sin depender de la migración):** `ownsPlayerOrTenant` y `ownedPlayersOrFilter` eliminados; `ownsVideo`, `ownsMatch`, `ownsMatchAnalysis` sin tenant; reports / share / generate-reports / sign-consent / create-upload / finalize / identify-player / candidates / match start-status-cancel / team baseline + compare-rival / transfer create-listing + list-inquiries / tactical ×5 / video-init / IDP generate-plan (no tenía NINGÚN check de propiedad y aceptaba `coachId`/`tenantId` del cuerpo). **Borrado RGPD**: el cron `data-retention` y `delete-me` borraban `players`, `videos`, `analyses`, `reports`, `subscriptions` y `parental_consents` **WHERE tenant_id = el del solicitante** → con un tenant compartido, la baja de UNA cuenta borraba los datos de TODAS; ahora una sola implementación (`api/_lib/accountErasure.ts`) borra solo lo del dueño. `transfer/create-listing`: si la consulta del dueño falla (no-ok) ahora responde 503 y no publica (antes se leía como «jugador local» y publicaba igual). Lint `api/__tests__/no-tenant-access.test.ts` (control negativo: 36 coincidencias en origin/main 8de81fb, 1 permitida en la rama). Tests por endpoint `api/__tests__/owner-only-endpoints.test.ts` (create-listing, list-inquiries, IDP generate-plan, generate-reports: otra cuenta del MISMO tenant → 403 sin escribir nada; control negativo: 9 de sus 11 tests fallan con los handlers anteriores).
+  - **Cambio de comportamiento declarado:** `idp/generate-plan` exige ahora que el jugador exista en la base y sea del usuario (mismo criterio que ya tenía `idp/get-plan`); un jugador aún sin sincronizar (local / en cola) recibe 403 hasta que se sincronice. Antes no había ningún check.
+  - **Qué se cerró (base de datos, 076):** `public.caller_manages_player(text)` solo-dueño (si la 073 del PR #303 la creó con tenant, la sustituye) y `public.dsar_caller_manages_player(text)` (072 APLICADA en producción — VERIFICADO; por su código, 072:254-296, acepta el tenant del JWT, también de `app_metadata`, con o sin hook → cualquier cuenta con ese mismo tenant puede exportar el expediente RGPD de un menor y pedir su borrado — DEDUCIDO del código y reproducido en simulación; si hoy alguna cuenta comparte ese tenant NO está verificado: lo cuenta la previa); se corrige también el texto de los comentarios de `dsar_export_player_data` / `dsar_request_deletion` (decían «dueño/tenant»; cuerpo y permisos sin cambios); políticas *_076 en 16 tablas (players, videos, analyses, reports, parental_consents, player_anthropometrics, development_plans + idp_goals/milestones/checkins, transfer_listings/inquiries, tactical_phases/phase_heatmaps/tactical_insights, match_analyses). También retira las tácticas de 048 abiertas a CUALQUIER usuario con sesión (si la 055 no se aplicó). Simulación PGlite (NO es la base real): 484 comprobaciones, antes = acceso cruzado, después = ninguno, dueños conservan lo suyo, service_role igual; la 076 no cambia el cuerpo de ninguna otra función.
+  - **Cómo revisarla:** compartir con un club se reactivará más adelante, de forma EXPLÍCITA, con el diseño del alta de cuentas (directores + aprobación de acceso; ver `onboarding-account-flow-spec`). Ese cambio toca a la vez `api/_lib/ownership.ts` y `public.caller_manages_player` (migración nueva + simulación + comprobación previa que cuente quién entra).
+  - **NO hecho / pendiente (fuera de este P0, con evidencia):** (1) **PR #303 (073)** define el mismo helper con rama por tenant y guarda de «no dueños que entrarían»: debe revisarse a solo-dueño (misma función que la 076); si se aplicara DESPUÉS de la 076 tal cual, volver a ejecutar la 076 (la posterior lo detecta). (2) **Ramas por ORGANIZACIÓN** que siguen vivas: RLS de 027/038/039/052 (`org_id IN (SELECT user_org_ids())` / `organizations.owner_id` en players, videos, player_analyses, tracking_sessions, consent_audit_log, player_knowledge, evaluation_history, tracking_jobs) y el roster por `team_members.org_owner_id` de `api/players/_crud.ts` (miembros aprobados por el director). La decisión del 30 sep dice «sin rama por organización»; esta PR NO las retira (su alcance es el tenant) → queda **pendiente y abierto**: la cabecera de la 073 da por verificado que `user_org_ids`/`user_in_org` de producción usan `team_members.org_owner_id` (un id de USUARIO), así que un MIEMBRO de club no casaría ningún `org_id`; el DUEÑO de una organización sí vería los jugadores con ese `org_id` (DEDUCIDO de esos cuerpos y de 027/038; NO verificado: ni los `players.org_id` ni las filas de `organizations` de producción se han consultado). Requiere migración propia + simulación + comprobación previa. (3) **IDOR nuevo (no por tenant):** `api/idp/_approve-plan.ts`, `_checkin.ts`, `_update-goal.ts`, `_update-milestone.ts` no comprueban propiedad del plan (cualquier cuenta pro/club modifica el plan IDP de cualquier menor por id). (4) `subscriptions_tenant_isolation` (003) sigue por tenant: no es dato de jugador. (5) Residuo de LECTURA por creador: filas de jugador creadas en el pasado por otra cuenta vía tenant (la previa fila 12 las cuenta). (6) Las políticas de dueño de 000/038 permiten crear una fila `videos` apuntando al jugador de otro (su dueño la vería): no es por tenant; el navegador ya solo adjunta jugadores propios (`supabaseVideoService`). (7) `api/__tests__/rls-isolation.test.ts` (BD real) actualizado a la regla nueva pero NO ejecutado (sin credenciales).
 
 ### C) OPERATIVO / DEPLOY — acción del USUARIO (dashboards/claves, sin código)
 
@@ -188,6 +198,7 @@ Tipo de desbloqueo: **CÓDIGO** (implementable) · **DATOS_HUMANOS** (antropomet
   2. **Paso 1 — activar:** Authentication → Hooks → *"Customize Access Token (JWT) Claims"* → función `public.custom_access_token_hook` → **Enable**.
   3. **Paso 2 — verificar** con el script recreado: `node --env-file=.env.production.local scripts/diag-jwt-tenant.mjs` (solo lectura; comprueba la precondición 8/8 usuarios). Para la confirmación DEFINITIVA del claim raíz añade `DIAG_TEST_EMAIL=… DIAG_TEST_PASSWORD=…` de una cuenta tuya → debe salir `[OK]`. Alternativa manual: re-loguear en la app y en consola `JSON.parse(atob((await window.supabase.auth.getSession()).data.session.access_token.split('.')[1])).tenant_id`.
   4. **Rollback:** desactivar el hook → RLS vuelve a fallar-cerrada (estado actual), sin romper la app.
+  - **Nota 30 sep (076, solo el dueño):** la RLS de datos de jugador deja de usar el tenant; tras aplicar la 076 este hook ya no abre ni cierra nada de jugadores (sigue usándolo `subscriptions_tenant_isolation`, que no es dato de jugador). Que los 8 usuarios compartan o no el mismo `tenant_id` NO está verificado: lo cuenta `supabase/checks/076_previa.sql`.
   - ⚠ Al activarlo, un usuario real SIN `app_metadata.tenant_id` dejaría de ver sus datos por lectura directa (la migración dice 9/9 usuarios lo tienen, verificado 20 ago) → hazlo mirando la app justo después.
 - [x] **C2 · Verificar/aplicar migraciones 052–059** — ✅ **HECHO (28 ago): las 8 aplicadas vía SQL consolidado en el SQL Editor** (054 ledger, 055 RLS táctica, 056/058 género sin default, 057 hook JWT, 059 VSI nullable).
 - [ ] **C3 · Rotar 8 credenciales + retirar `ADMIN_SECRET`** (Anthropic, Voyage, Bunny, Supabase service_role, Modal AUTH, Bunny webhook secret, `CRON_SECRET`, `INTERNAL_API_TOKEN`) → regenerar en cada dashboard, actualizar env Vercel + secrets Modal, borrar `.env` locales. **Bloquea antes de:** firma de academia / demo con datos reales.
@@ -205,13 +216,127 @@ Tipo de desbloqueo: **CÓDIGO** (implementable) · **DATOS_HUMANOS** (antropomet
 
 - [ ] **C8 · Partido completo por vídeo — activación (NO antes de validar)**: tras mergear PR-A/B/C, aplicar la migración **067** en Supabase; en Vercel `MODAL_MATCH_START_URL`, `GLOBAL_MONTHLY_BUDGET_USD=20`, clave Gemini de pago en `GEMINI_API_KEY`; Modal con tarjeta + límite de gasto $10/mes + `VITAS_MATCH_STEP_URL` en el secret `vitas-api-key`; rotar C3 antes de footage real; spike (a)–(i) en Modal con resultados literales aquí. **`MATCH_VIDEO_ENABLED=true` SOLO** cuando `scripts/validate-match-observation.mjs` apruebe varios partidos anotados (GT10) y el owner lo decida. En `vitas-demo`, sin definir.
 
-- [ ] **C9 · Gate de consentimiento de clips — comprobación ANTES DE FUSIONAR** (PR #308 `feat/clip-consent-gate`, ver §D; fusionar a main = desplegar en Vercel, así que NO vale hacerla después): el owner ejecuta en el SQL Editor de producción `supabase/checks/clip_consent_previa.sql` (solo lectura, una fila) y pasa el resultado. Para fusionar hace falta `audit_table_exists=true`, `audit_columns=8`, `audit_open_insert_policy=0`, `auth_can_insert_audit=false` (y `auth_can_update_audit=false`). Sin `public.gdpr_audit_log` (migración 003) el gate falla cerrado (500): **ninguna** subida ni análisis de clip funcionaría (VideoUpload en 8 páginas incluido el selector del partido completo, VideoUploader, finalize, generate-reports, pipeline/start, team-*, video-observation, la cola). Que la 003 esté aplicada en producción **no está verificado** (la 072 la toca con `to_regclass`, así que aplicar la 072 no lo prueba). La consulta se volvió a probar en PGlite el 1 oct (SIMULACIÓN, no la base real): base vacía → `audit_table_exists=false` sin error; todas las migraciones → `true/8/0/false`; hasta la 071 sin la 072 (control positivo) → `audit_open_insert_policy=1`, `auth_can_insert_audit=true`. NO verificado: si la Supabase de `vitas-demo` necesita la misma comprobación (solo si allí se suben vídeos).
+- [ ] **C9 · Solo el dueño (076) — orden estricto, una consulta cada vez (runbook 12b):**
+  1. **Primero, sin esperar a la 076:** ejecutar `supabase/checks/076_previa.sql` y mirar la fila **6 · URGENTE**. Si hay una baja pendiente cuyo tenant tiene jugadores de OTRAS cuentas, el cron desplegado hoy los borraría a las 03:00 UTC: cancelar la solicitud o desplegar el código del PR antes.
+  2. Fusionar el PR (el código se despliega ANTES de la migración y no depende de ella: el dueño entra por `players.user_id` con service_role).
+  3. Mandar el resultado COMPLETO de la previa. Filas **BLOQUEA** con `ok = false` → no aplicar. Las filas 20-32 dan, por recurso, cuántos usuarios NO dueños entran hoy por tenant (el dato que pidió el dueño).
+  4. Solo después: `supabase/migrations/076_owner_only_player_access.sql` (aborta sola si queda algo por tenant en esas tablas).
+  5. `supabase/checks/076_posterior.sql`: `resultado = esperado` y `ok = true` en todas.
+  6. Si la 073 se aplica más tarde con rama por tenant, repetir 4-5.
+- [ ] **C10 · Gate de consentimiento de clips — comprobación ANTES DE FUSIONAR** (PR #308 `feat/clip-consent-gate`, ver §E; fusionar a main = desplegar en Vercel, así que NO vale hacerla después): el owner ejecuta en el SQL Editor de producción `supabase/checks/clip_consent_previa.sql` (solo lectura, una fila) y pasa el resultado. Para fusionar hace falta `audit_table_exists=true`, `audit_columns=8`, `audit_open_insert_policy=0`, `auth_can_insert_audit=false` (y `auth_can_update_audit=false`). Sin `public.gdpr_audit_log` (migración 003) el gate falla cerrado (500): **ninguna** subida ni análisis de clip funcionaría (VideoUpload en 8 páginas incluido el selector del partido completo, VideoUploader, finalize, generate-reports, pipeline/start, team-*, video-observation, la cola). Que la 003 esté aplicada en producción **no está verificado** (la 072 la toca con `to_regclass`, así que aplicar la 072 no lo prueba). La consulta se volvió a probar en PGlite el 1 oct (SIMULACIÓN, no la base real): base vacía → `audit_table_exists=false` sin error; todas las migraciones → `true/8/0/false`; hasta la 071 sin la 072 (control positivo) → `audit_open_insert_policy=1`, `auth_can_insert_audit=true`. NO verificado: si la Supabase de `vitas-demo` necesita la misma comprobación (solo si allí se suben vídeos).
 
 > **Verificación automática:** `scripts/diag-jwt-tenant.mjs` (recreado) confirma la precondición
 > (usuarios con `app_metadata.tenant_id`) y, con `DIAG_TEST_EMAIL/PASSWORD`, el claim raíz del token.
 > Solo lectura, nunca imprime la key ni PII. Probado en prod: **8/8 usuarios con tenant_id**.
 
-### D) CONSENTIMIENTO PARA ANALIZAR CLIPS (decisión del owner, 30 sep · PR `feat/clip-consent-gate`)
+### D) SEGURIDAD / RLS — pendiente tras la 073 (verificado vs deducido)
+
+> La 073 sustituye las 10 políticas que comparaban `players.tenant_id` con `auth.uid()`
+> (044/050) por una regla única **solo dueño**, `public.caller_manages_player`
+> (`players.user_id = auth.uid()`, espejo de `ownsPlayer`), en las 5 tablas de bienestar y
+> perfil conductual. Lo de abajo NO lo resuelve la 073.
+
+- [x] **Alcance de la 073: SOLO DUEÑO — DECIDIDO (registro de la decisión)**
+  - **Qué:** por RLS y por funciones de base de datos, a los datos de un jugador solo accede su
+    dueño (`players.user_id = auth.uid()`) y `service_role`. Sin rama por tenant y sin rama por
+    organización / membresía de club.
+  - **Quién y cuándo:** el dueño del producto delegó la elección el **30 sep 2026** («la que
+    veas tú mejor») y el asistente (Claude) eligió **solo dueño**.
+  - **Por qué:** (1) datos de menores; (2) **VERIFICADO** en producción (consultas de solo
+    lectura del dueño, 29-30 sep): los 3 jugadores comparten un único `players.tenant_id` que no
+    es un `auth.users.id` ni un `organizations.id`, y no se sabe qué representa; (3) la vía por
+    organización ya está rota (ver «miembros de club» abajo); (4) invariante #3: abstenerse es
+    un resultado válido. Coincide con las rutas de servidor de esas tablas, que usan `ownsPlayer`
+    (`api/behavioral/[action].ts:59`, `api/wellbeing/[action].ts:73,132`,
+    `api/wellbeing/_dropout-risk.ts:51`, `api/injuries/_list.ts:31`, `_save.ts:46`; VERIFICADO
+    por grep).
+  - **Cómo se revisa:** compartir con club/academia se reactivará de forma **explícita** en una
+    migración posterior, junto con el diseño del alta de cuentas (directores + aprobación de
+    acceso) y con su propia comprobación previa. No editando la 073.
+  - **Lo evitado** se puede medir antes de aplicar: filas 13 y 17 de
+    `supabase/checks/073_previa.sql` (usuarios no dueños y filas por tabla que una rama por
+    tenant habría expuesto; resuelven el tenant como el hook 057 + `public.tenant_id()`, con
+    comparación uuid). **SIMULADO** (PGlite, PostgreSQL 18.3 y 16.4): coinciden con lo que lee
+    de verdad cada usuario con la versión anterior «dueño O tenant» en 11 escrituras del uuid y
+    en un conjunto mixto.
+- [ ] **Compartir con club/academia (reactivar, explícito)** — pendiente del diseño del alta de
+  cuentas (directores + aprobación de acceso + acceso limitado al club; diferido). Requiere una
+  migración nueva con su previa; hasta entonces, solo dueño.
+- [ ] **Rama por tenant que la 073 NO cierra** — la cubre la **076**, en curso en el **PR #307**
+  (`fix/owner-only-player-access-076`; abierto y **sin mergear** el 1 oct 2026, comprobado con
+  `gh pr list --head` y `git branch -r`; su cabecera está leída, su contenido **no** está
+  revisado aquí). La 073 y la 076 se pueden aplicar en cualquier orden (**SIMULADO**): las dos
+  dejan el mismo helper solo dueño y la 073 conserva el de la 076 si ya está:
+  (a) **DSAR de la 072**: `public.dsar_caller_manages_player` compara `players.tenant_id::text`
+  con el tenant del JWT, del claim raíz o de `app_metadata` (`072:264,285`). **SIMULADO**: un
+  usuario no dueño con el mismo `app_metadata.tenant_id` (texto igual) exporta los datos del
+  menor y marca su borrado; en MAYÚSCULAS no. Fila 19 de la previa: cuántos usuarios no dueños
+  pasan hoy (comparación de texto, la misma de la 072).
+  (b) **RLS de `players`**: `players_tenant_isolation` (`003:239-247`, `FOR ALL TO authenticated`
+  por tenant; en producción **no verificado**, filas 6 y 20 de la previa). **SIMULADO**: con el
+  claim raíz `tenant_id`, un compañero de tenant hace `UPDATE players SET user_id = él mismo`
+  (1 fila; sin el claim, 0) y desde ese momento es «dueño» para la 073 y para `ownsPlayer`.
+  Ya pasaba antes de la 073.
+  (c) **Servidor con `ownsPlayerOrTenant`** (VERIFICADO por grep): `api/auth/sign-consent.ts:100`,
+  `api/analyses/reports.ts:73`, `api/videos/create-upload.ts:106`, `api/videos/finalize.ts:114` y
+  `ownsVideo` (`api/_lib/ownership.ts:134`).
+- [ ] **Lectura de `player_metric_snapshots` desde el navegador — RETENIDA en la 073** —
+  **VERIFICADO leyendo el código**: su único lector (`useMetricSnapshots.ts:40-47` →
+  `SnapshotHistoryChart.tsx:40,93`, montado en `PlayerEvolutionPage.tsx:517`) dibuja
+  `phv_offset` tal cual, sin gate PHV ni procedencia; su escritor,
+  `POST /api/agents/progression-tracker`, no comprueba propiedad (`_progression-tracker.ts:46`
+  `requireAuth + allowServiceToken`; ningún `owns*`/`isServiceCall` en el fichero) y guarda el
+  PHV que manda el cliente (`:64-65`) con la service key. **VERIFICADO en producción**: ningún
+  jugador tiene fecha de nacimiento, así que ningún PHV de snapshot es fiable hoy. La 073 retira
+  la política rota (`snapshots_read_own`) y **no crea otra**: el gráfico de evolución sigue
+  vacío, como hoy. Para reabrirla: (1) progression-tracker con `ownsPlayer` en llamadas que no
+  son de servicio y sin aceptar PHV del cliente; (2) el gráfico por el gate PHV y con la
+  procedencia; (3) una migración con su previa. La fila 22 de la previa cuenta los snapshots con
+  PHV que no respalda ninguna fila fiable de `player_anthropometrics` (criterio de `069:298-313`).
+- [ ] **044 aplicada DESPUÉS de la 072** (hipótesis; si la 044 está aplicada en producción y
+  cuándo: **no verificado**) — dejaría vivas `snapshots_insert_own` / `valuations_insert_own`
+  (`WITH CHECK (true)` para todos, `044:85-86,121-122`) y los privilegios de cliente que la 072
+  retira (`072:590-607`). La previa lo bloquea (filas 10 y 21) y la 073 aborta (su guarda).
+  Remedio: re-ejecutar el bloque «044 · player_metric_snapshots / player_valuations» de la 072.
+  **SIMULADO**: bloquea, aborta sin cambiar nada y, tras el remedio, aplica.
+- [ ] **Acceso de miembros de club por organización (`team_members`)** — **VERIFICADO**
+  (consulta de solo lectura del dueño, 29-30 sep): en producción `public.user_org_ids()` y
+  `public.user_in_org(uuid)` **no son las del repo** (038:37-64): usan
+  `team_members.org_owner_id`, que según el repo es el id del **usuario** dueño
+  (`007_team_members.sql:5`, `references auth.users`), no el de la organización.
+  **DEDUCIDO, no verificado con datos:** las políticas que hacen
+  `org_id IN (SELECT user_org_ids())` comparan un id de organización con un id de usuario ⇒
+  los miembros de un club que no son dueños probablemente **no** ven por esa vía los
+  jugadores de su organización. La 073 **no usa ni toca** estas funciones. Pendiente:
+  decidir el modelo de membresía, leer los cuerpos reales línea a línea (runbook #5) y una
+  migración propia con su comprobación previa.
+- [ ] **Escrituras del navegador que siguen fallando tras la 073 (no es RLS)** — **SIMULADO**
+  (PGlite con el esquema del repo; columnas reales de producción **no verificadas**): por
+  columna, `attendance_records.notes` (`wellbeingService.ts:154` cuando hay notas;
+  `localStorageMigrationService.ts:209`), `wellbeing_questionnaires.date`
+  (`localStorageMigrationService.ts:261`) y `dropout_risk_assessments.date/primary_factor`
+  (`:291`, `:294`) → 42703; `source: 'auto_detected'` (`useWellbeing.ts:250`) viola el CHECK de
+  `046:12` → 23514; una segunda asistencia del mismo jugador y día → 23505 (`046:15`
+  `UNIQUE (player_id, date)`, y el upsert del navegador va por `onConflict: "id"` sin id,
+  `wellbeingService.ts:147-157`). Además, **reportado por la revisión 2 del PR #303** (SIMULADO
+  por el revisor con la forma de PostgREST; no re-simulado aquí): la subida única de la caché
+  local pone `id: undefined` en ids que no son uuid (`localStorageMigrationService.ts:165,204,258,289`,
+  VERIFICADO leyendo) y postgrest-js incluye `id` en `columns=` ⇒ NULL ⇒ 23502 para todo el lote;
+  la marca de «ya migrado» se pone igual (`:372-373`). El fallo es silencioso y el dato queda en la
+  caché local, como hoy.
+- [ ] **Seguimientos del audit de la 073 (fuera de su alcance)** — **VERIFICADO leyendo el
+  código**, no probado contra producción:
+  (a) `POST /api/agents/progression-tracker` sin comprobación de propiedad (ver «lectura de
+  snapshots retenida»): cualquier usuario con sesión puede escribir snapshots (incl.
+  `phv_offset`/`phv_category`) de cualquier jugador cuyo id sea uuid (`zod` `:26`);
+  (b) `api/injuries/_save.ts:62` guarda el id del usuario como `tenant_id` (`?? userId`; igual en
+  `api/live/matches.ts:69` y `api/telegram/connect.ts:56`) y su insert usa columnas/valores que
+  044 no tiene (`tenant_id`, `reported_by` `:76`, severidad `'mild'` `:18`);
+  (c) respaldo a la clave anon en `api/injuries/_list.ts:18` y `_save.ts:36`;
+  (d) `api/behavioral/_compute-profile.ts:45-53` devuelve puntuaciones `Math.random`
+  (invariantes #1 y #2).
+
+### E) CONSENTIMIENTO PARA ANALIZAR CLIPS (decisión del owner, 30 sep · PR `feat/clip-consent-gate`)
 
 **Regla** (única, `src/lib/shared/videoConsent.ts`; servidor `api/_lib/analysisConsentGate.ts`, inv #7):
 (1) SIEMPRE la declaración versionada del entrenador (`2026-09-28.v1`, mismo texto que el job de

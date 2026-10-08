@@ -2,8 +2,8 @@
  * VITAS · GET /api/transfer/list-inquiries?listingId=...|buyerUserId=...
  *
  * Datos de MENORES + PII de negociación. Requiere AUTH y ownership:
- *   - listingId → solo el VENDEDOR dueño del listing (seller_user_id / tenant_id)
- *     ve su buzón de inquiries.
+ *   - listingId → solo el VENDEDOR dueño del listing (seller_user_id; sin rama por
+ *     tenant desde la 076) ve su buzón de inquiries.
  *   - buyerUserId → solo puedes listar TUS propias inquiries (=== tu userId).
  * Nunca acceso anónimo con service_role (era un IDOR: cualquiera leía el buzón
  * de ofertas de cualquier listing o enumeraba la actividad de compra ajena).
@@ -20,7 +20,7 @@ const sbHeaders = { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}
 
 export default withHandler(
   { method: "GET", requireAuth: true, maxRequests: 60 },
-  async ({ req, userId, tenantId }) => {
+  async ({ req, userId }) => {
     const url = new URL(req.url);
     const listingId = url.searchParams.get("listingId");
     const buyerUserId = url.searchParams.get("buyerUserId");
@@ -40,18 +40,16 @@ export default withHandler(
     // ── Como VENDEDOR: solo el dueño del listing ve su buzón ──
     if (listingId) {
       const lr = await fetch(
-        `${SUPABASE_URL}/rest/v1/transfer_listings?id=eq.${encodeURIComponent(listingId)}&select=seller_user_id,tenant_id`,
+        `${SUPABASE_URL}/rest/v1/transfer_listings?id=eq.${encodeURIComponent(listingId)}&select=seller_user_id`,
         { headers: sbHeaders },
       );
       const rows = (await lr.json().catch(() => [])) as Array<{
         seller_user_id: string | null;
-        tenant_id: string | null;
       }>;
       const listing = Array.isArray(rows) ? rows[0] : undefined;
       if (!listing) return errorResponse("Listing not found", 404);
-      const owns =
-        (!!listing.seller_user_id && listing.seller_user_id === userId) ||
-        (!!listing.tenant_id && !!tenantId && listing.tenant_id === tenantId);
+      // Solo el vendedor que lo publicó (076): nunca por tenant.
+      const owns = !!listing.seller_user_id && listing.seller_user_id === userId;
       if (!owns) return errorResponse("Forbidden", 403);
     }
 

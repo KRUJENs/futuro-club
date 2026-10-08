@@ -25,6 +25,8 @@ vi.mock("../../_lib/usageGuard", () => ({
   usageExceededResponse: vi.fn(),
 }));
 
+/** Análisis que existen por id (lo que lee generate-reports con analysisId). */
+const ANALYSES: Record<string, { player_id: string }> = { [AN_ID]: { player_id: "p1" } };
 /** Updates de `analyses` (valores + filtros .eq) para comprobar QUÉ fila se toca. */
 const analysisUpdates: Array<{ values: Record<string, unknown>; filters: Array<[string, unknown]> }> = [];
 const analysisInserts: Array<Record<string, unknown>> = [];
@@ -37,12 +39,15 @@ vi.mock("@supabase/supabase-js", () => ({
       }
       if (table === "analyses") {
         const c: Record<string, unknown> = {};
+        let byId: unknown = null;
         Object.assign(c, {
           select: () => c,
-          eq: () => c,
+          eq: (k: string, v: unknown) => { if (k === "id") byId = v; return c; },
           order: () => c,
           limit: () => c,
-          maybeSingle: async () => ({ data: null, error: null }), // sin análisis previo
+          // Por id (analysisId del navegador): el análisis existe y es de p1 (ANALYSES).
+          // Búsqueda por (vídeo, jugador): sin análisis previo.
+          maybeSingle: async () => ({ data: byId !== null ? (ANALYSES[String(byId)] ?? null) : null, error: null }),
           single: async () => ({ data: { player_id: "p1" }, error: null }),
           update: (values: Record<string, unknown>) => {
             const entry = { values, filters: [] as Array<[string, unknown]> };
@@ -83,6 +88,7 @@ beforeEach(() => {
   analysisInserts.length = 0;
   db = emptyConsentDb();
   db.birthDates.p1 = null;
+  db.playerOwners.p1 = USER; // ownership.ownsPlayer (solo el dueño, 076)
   mock = consentFetch(db, {
     fallback: async (url) => {
       if (url.includes("/api/agents/pipeline-orchestrator")) return new Response("{}", { status: 200 });

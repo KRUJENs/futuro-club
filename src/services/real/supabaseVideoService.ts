@@ -116,13 +116,16 @@ export const SupabaseVideoService = {
     const videos = VideoService.getAll();
     if (!videos.length) return;
     try {
-      // Check which players exist in Supabase to avoid FK violations
+      // Check which players exist in Supabase to avoid FK violations. Solo jugadores
+      // DEL usuario (user_id, 076): la RLS de players puede tener aún una rama por
+      // tenant u organización que dejaría «ver» (y adjuntar vídeos a) un menor ajeno.
       const playerIds = [...new Set(videos.map(v => v.playerId).filter(Boolean))];
       const existingPlayerIds = new Set<string>();
       if (playerIds.length) {
         const { data } = await supabase
           .from("players")
           .select("id")
+          .eq("user_id", userId)
           .in("id", playerIds as string[]);
         (data ?? []).forEach(r => existingPlayerIds.add(r.id));
       }
@@ -150,8 +153,8 @@ export const SupabaseVideoService = {
     try {
       // Verify player exists in Supabase if video has playerId.
       // - sin jugador en el registro → player_id: null explícito (desasignar es legítimo)
-      // - con jugador visible bajo RLS → se envía
-      // - con jugador NO encontrado (local, o fallo transitorio) → NO se envía la columna:
+      // - con jugador DEL usuario (user_id, 076; no basta con que la RLS lo deje ver) → se envía
+      // - con jugador NO encontrado (local, ajeno o fallo transitorio) → NO se envía la columna:
       //   así el upsert no borra el player_id que ya sembró el servidor (video-init/finalize).
       let playerColumn: { player_id: string | null } | Record<string, never> = { player_id: null };
       if (video.playerId) {
@@ -159,6 +162,7 @@ export const SupabaseVideoService = {
           .from("players")
           .select("id")
           .eq("id", video.playerId)
+          .eq("user_id", userId)
           .maybeSingle();
         playerColumn = data ? { player_id: video.playerId } : {};
       }

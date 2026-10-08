@@ -29,7 +29,6 @@ import { withHandler } from "../_lib/withHandler";
 import { MODELS, modelParams } from "../_lib/models";
 import { fetchMessages, responseText } from "../_lib/anthropic";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
-import { ownedPlayersOrFilter } from "../_lib/ownership";
 import { avgEvaluatedVsi, byVsiDescNullsLast, formatVsi } from "../_lib/vsiStats";
 import { createClient } from "@supabase/supabase-js";
 import { localeSchema, normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
@@ -248,7 +247,7 @@ async function callClaude(system: string, user: string): Promise<Record<string, 
 
 export default withHandler(
   { schema: bodySchema, requireAuth: true, maxRequests: 10 },
-  async ({ body, userId, tenantId }) => {
+  async ({ body, userId }) => {
     if (!ANTHROPIC_API_KEY) {
       return errorResponse({ code: "no_api_key", message: "missing", status: 500 });
     }
@@ -269,10 +268,10 @@ export default withHandler(
     const { data: players, error } = await supabase
       .from("players")
       .select("name, age, position, secondary_positions, vsi, phv_category")
-      // Ownership a nivel de fila: "nuestro equipo" son los jugadores del usuario/su
-      // academia, no el top-40 GLOBAL (que filtraba nombres de menores de otros
-      // tenants al plan y al ourTeamSize).
-      .or(ownedPlayersOrFilter(userId, tenantId))
+      // Ownership a nivel de fila: "nuestro equipo" son SOLO los jugadores del usuario
+      // (players.user_id, 076), no el top-40 GLOBAL (que filtraba nombres de menores
+      // ajenos al plan y al ourTeamSize) ni los de otras cuentas del mismo tenant.
+      .eq("user_id", userId)
       // nulls last: los NO evaluados (vsi null) no deben truncar a los evaluados
       // con el limit (invariante #2; Postgres ordena DESC con NULLS FIRST).
       .order("vsi", { ascending: false, nullsFirst: false })

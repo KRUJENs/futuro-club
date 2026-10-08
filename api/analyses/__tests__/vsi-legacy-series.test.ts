@@ -22,7 +22,12 @@ vi.mock("../../_lib/rateLimit", () => ({
 }));
 const mockVerifyAuth = vi.fn();
 vi.mock("../../_lib/auth", () => ({ verifyAuth: (...a: unknown[]) => mockVerifyAuth(...a) }));
-vi.mock("../../_lib/ownership", () => ({ ownsPlayerOrTenant: vi.fn().mockResolvedValue(false) }));
+// Propiedad por creador (la fila la creó user-coach-1); el jugador no se consulta.
+vi.mock("../../_lib/ownership", () => ({
+  ownsRowOrItsPlayer: vi.fn(async (row: { user_id?: string | null } | null, userId: string | null) =>
+    !!row?.user_id && row.user_id === userId,
+  ),
+}));
 
 const ANALYSIS_ID = "11111111-2222-4333-8444-555555555555";
 // Forma real de una fila baseline-v1.0 de Samu.

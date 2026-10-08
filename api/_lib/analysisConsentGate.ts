@@ -425,7 +425,7 @@ export interface VideoRowLite {
 }
 
 /** Predicado de propiedad (api/_lib/ownership.ownsVideo); null = ruta automática sin usuario. */
-export type OwnsVideoFn = (video: VideoRowLite, userId: string | null, tenantId: string | null) => Promise<boolean>;
+export type OwnsVideoFn = (video: VideoRowLite, userId: string | null) => Promise<boolean>;
 
 /**
  * GUID de Bunny de una URL de vídeo de Bunny: el segmento tras `/videos/` en
@@ -568,7 +568,7 @@ export async function resolveClipVideo(input: {
   // Propiedad ANTES de comparar GUIDs (a quien no gestiona el vídeo no se le cuenta nada más).
   if (input.ownsVideo) {
     for (const row of rows) {
-      if (!(await input.ownsVideo(row, input.actor.userId, input.actor.tenantId))) {
+      if (!(await input.ownsVideo(row, input.actor.userId))) {
         console.warn(`[consent-gate] ${input.endpoint}: la fila videos ${row.id} no es de quien pide el análisis`);
         return resolutionFailure(403, "forbidden");
       }

@@ -6129,7 +6129,7 @@
       "deletionSuccess": "Löschanfrage registriert",
       "deletionDemo": "Anfrage registriert (Demo-Modus)",
       "deletionError": "Fehler beim Anfragen der Löschung",
-      "dsarNotAllowed": "Keine Berechtigung für diesen Spieler: Nur wer ihn angelegt hat oder seine Akademie kann dieses DSGVO-Recht ausüben",
+      "dsarNotAllowed": "Keine Berechtigung für diesen Spieler: Nur das Konto, das ihn angelegt hat, kann dieses DSGVO-Recht ausüben",
       "consentSuccess": "Einwilligung erfolgreich registriert",
       "consentError": "Fehler beim Registrieren der Einwilligung"
     },

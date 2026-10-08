@@ -12,11 +12,11 @@ import { matchCancelRequestSchema, matchCancelResponseSchema } from "../../src/l
 import { cancelJob } from "../_lib/matchJob/driver";
 import * as repo from "../_lib/matchJob/repo";
 
-export default withHandler({ method: "POST", requireAuth: true, maxRequests: 20 }, async ({ body, userId, tenantId }) => {
+export default withHandler({ method: "POST", requireAuth: true, maxRequests: 20 }, async ({ body, userId }) => {
   const parsed = matchCancelRequestSchema.safeParse(body ?? {});
   if (!parsed.success) return errorResponse({ message: "jobId inválido", status: 400, code: "invalid_input" });
   const job = await repo.getJob(parsed.data.jobId);
-  if (!job || !ownsMatchAnalysis(job, userId, tenantId)) {
+  if (!job || !ownsMatchAnalysis(job, userId)) {
     return errorResponse({ message: "Análisis no encontrado", status: 404, code: "job_not_found" });
   }
   const after = await cancelJob(job);

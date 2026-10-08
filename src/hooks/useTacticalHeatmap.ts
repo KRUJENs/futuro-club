@@ -120,7 +120,7 @@ export function useGenerateTacticalInsights() {
   return useMutation<TacticalInsights, Error, GenerateInsightsInput>({
     mutationFn: async (input) => {
       // Los match demo (seed local) no tienen fila en `analyses` → el endpoint
-      // devolvería 403 (ownsMatch por tenant). Sus insights ya vienen
+      // devolvería 403 (ownsMatch: sin analysis no hay dueño). Sus insights ya vienen
       // sintetizados por el seeder, así que los servimos desde cache sin llamar a
       // la API (ni disparar gasto LLM). Mantiene vivo el botón "Regenerar" en demo.
       if (isDemoMatchId(input.matchId)) {

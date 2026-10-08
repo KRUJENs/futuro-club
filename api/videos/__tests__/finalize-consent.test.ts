@@ -24,7 +24,7 @@ vi.mock("../../_lib/auth", () => ({
 // El jugador elegido es del usuario (ownership.ts tiene sus propios tests); ownsVideo es el REAL.
 vi.mock("../../_lib/ownership", async (orig) => ({
   ...(await orig<typeof import("../../_lib/ownership")>()),
-  ownsPlayerOrTenant: vi.fn(async (pid: string) => pid === "p1"),
+  ownsPlayer: vi.fn(async (pid: string) => pid === "p1"),
 }));
 const enqueueMock = vi.fn();
 vi.mock("../../_lib/enqueueAnalysis", () => ({

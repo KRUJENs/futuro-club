@@ -36,7 +36,8 @@ export const SECURITY_DEFINER_ALLOWLIST: Allowlist = {
     category: "client-callable",
     justification:
       "La llama /admin/consent (ParentalConsentPage) desde el navegador con sesión. 072 la limita al dueño del " +
-      "jugador (players.user_id = auth.uid()) o a su tenant del JWT (espejo de ownsPlayerOrTenant) y la revoca a anon.",
+      "jugador (players.user_id = auth.uid()) y la revoca a anon; 076 retira la rama por tenant del JWT (espejo de " +
+      "ownsPlayer, api/_lib/ownership.ts).",
   },
   "public.dsar_request_deletion(text,text)": {
     category: "client-callable",

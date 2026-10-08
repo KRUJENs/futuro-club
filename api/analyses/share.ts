@@ -13,6 +13,7 @@
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { hmacSha256Hex, timingSafeEqual } from "../_lib/edgeCrypto";
+import { ownsRowOrItsPlayer } from "../_lib/ownership";
 import { createClient } from "@supabase/supabase-js";
 import { withoutUndatedVsiSeries } from "../../src/lib/scoring/vsiDelta";
 
@@ -51,7 +52,7 @@ export default withHandler(
     optionalAuth: true,
     maxRequests: 60,
   },
-  async ({ method, query, userId, tenantId }) => {
+  async ({ method, query, userId }) => {
     if (!SHARE_SECRET) {
       return errorResponse({ code: "share_disabled", message: "Share tokens disabled — no secret configured", status: 503 });
     }
@@ -84,17 +85,10 @@ export default withHandler(
       // comparte y un tercero (que no gestiona al jugador) recibe 403. Antes, un
       // análisis con user_id null dejaba mintear token a cualquier autenticado (IDOR
       // de PII de un menor). Fail-closed: sin propiedad demostrable ⇒ 403.
-      let owns = !!a.user_id && a.user_id === userId;
-      if (!owns && a.player_id) {
-        const { data: p } = await supabase
-          .from("players")
-          .select("user_id, tenant_id")
-          .eq("id", a.player_id)
-          .single();
-        owns =
-          (!!p?.user_id && p.user_id === userId) ||
-          (!!p?.tenant_id && !!tenantId && p.tenant_id === tenantId);
-      }
+      // Solo el dueño (076): quien creó el análisis o el dueño de su jugador. Nunca
+      // por tenant (un tenant compartido dejaba mintear un enlace PÚBLICO del informe
+      // de cualquier menor de ese tenant).
+      const owns = await ownsRowOrItsPlayer(a, userId);
       if (!owns) {
         return errorResponse({ code: "forbidden", message: "No es tu análisis", status: 403 });
       }

@@ -1,7 +1,8 @@
 /**
  * /api/team/baseline-analysis con matchAnalysisId: la observación del equipo foco se
- * carga EN SERVIDOR desde el job (nunca del cliente) y solo si el job es del usuario o de
- * su tenant, es un baseline de equipo y está completado. Ajeno = 404 antes de gastar.
+ * carga EN SERVIDOR desde el job (nunca del cliente) y solo si el job lo creó el usuario
+ * (076: compartir el tenant NO basta), es un baseline de equipo y está completado. Ajeno =
+ * 404 antes de gastar.
  */
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -29,6 +30,8 @@ const createClient = vi.fn(() => {
 });
 vi.mock("@supabase/supabase-js", () => ({ createClient: (...a: unknown[]) => createClient(...(a as [])) }));
 
+import { verifyAuth } from "../../_lib/auth";
+
 const JOB_ID = "8f6d2c1e-3b4a-4c5d-9e8f-0a1b2c3d4e5f";
 let handler: (req: Request) => Promise<Response>;
 beforeAll(async () => {
@@ -48,6 +51,13 @@ describe("baseline-analysis · matchAnalysisId", () => {
     expect(mod.config).toEqual({ runtime: "nodejs", maxDuration: 300 });
   });
   it("someone else's job → 404 before loading players or calling Claude", async () => {
+    getJob.mockResolvedValueOnce({ id: JOB_ID, user_id: "99999999-9999-4999-8999-999999999999", tenant_id: "t-x", purpose: "team_baseline", focus_team: "home", status: "completed" });
+    const res = await post({ matchAnalysisId: JOB_ID });
+    expect(res.status).toBe(404);
+    expect(createClient).not.toHaveBeenCalled();
+  });
+  it("someone else's job in the SAME tenant → still 404 (076: owner only, no tenant branch)", async () => {
+    vi.mocked(verifyAuth).mockResolvedValueOnce({ userId: "11111111-1111-4111-8111-111111111111", email: null, tenantId: "t-x", error: null });
     getJob.mockResolvedValueOnce({ id: JOB_ID, user_id: "99999999-9999-4999-8999-999999999999", tenant_id: "t-x", purpose: "team_baseline", focus_team: "home", status: "completed" });
     const res = await post({ matchAnalysisId: JOB_ID });
     expect(res.status).toBe(404);

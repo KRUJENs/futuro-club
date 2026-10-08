@@ -23,12 +23,8 @@ import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { timingSafeEqual } from "../_lib/edgeCrypto";
 import { createClient } from "@supabase/supabase-js";
 import { deleteBunnyVideos } from "../_lib/bunnyCleanup";
-import { ownedPlayersOrFilter } from "../_lib/ownership";
-import {
-  purgeMatchAnalysesForOwner,
-  purgeMatchAnalysesForVideos,
-  sweepTerminalGeminiFiles,
-} from "../_lib/matchJob/retention";
+import { deleteUserDataCompletely } from "../_lib/accountErasure";
+import { purgeMatchAnalysesForVideos, sweepTerminalGeminiFiles } from "../_lib/matchJob/retention";
 
 /** Ficheros Gemini de jobs terminales barridos por ejecución (respaldo del tick de Modal). */
 const GEMINI_SWEEP_LIMIT = 20;
@@ -114,49 +110,12 @@ async function executePendingDeletions(supabase: any) {
         .update({ status: "processing" })
         .eq("id", req.id);
 
-      // Borrar todo (cascade vía RLS + manual)
-      const summary: Record<string, number> = {};
-
-      // Capturar bunny_video_id ANTES de borrar (el delete pierde la referencia).
-      // Por tenant O por usuario: los vídeos de partido/equipo (player_id NULL) y los de la
-      // ruta video-init antigua (tenant_id NULL) también son del usuario.
-      const ownerFilter = ownedPlayersOrFilter(req.user_id, req.tenant_id ?? null);
-      const { data: reqVideos } = await supabase
-        .from("videos")
-        .select("bunny_video_id")
-        .or(ownerFilter);
-      const reqBunnyIds: Array<string | null> = (reqVideos ?? []).map(
-        (v: { bunny_video_id: string | null }) => v.bunny_video_id,
-      );
-
-      // Jobs de partido (+ proxy en Gemini) antes de borrar los vídeos.
-      const matchPurge = await purgeMatchAnalysesForOwner(req.user_id, req.tenant_id ?? null);
-      summary.match_analyses_deleted = matchPurge.match_analyses_deleted;
-      summary.gemini_files_deleted = matchPurge.gemini_files_deleted;
-
-      const tables = ["players", "videos", "analyses", "reports", "subscriptions", "parental_consents"];
-      for (const t of tables) {
-        const { count } = await supabase
-          .from(t)
-          .delete({ count: "exact" })
-          .eq("tenant_id", req.tenant_id);
-        summary[`${t}_deleted`] = count ?? 0;
-      }
-      // Vídeos del usuario que no llevan tenant_id (no los cubre el bucle por tenant).
-      const { count: userVideos } = await supabase
-        .from("videos")
-        .delete({ count: "exact" })
-        .or(ownerFilter);
-      summary.videos_deleted = (summary.videos_deleted ?? 0) + (userVideos ?? 0);
-
-      // Bunny Stream cleanup (borrado real del CDN)
-      const bunnyRes = await deleteBunnyVideos(reqBunnyIds);
-      summary.bunny_deleted = bunnyRes.deleted;
-      summary.bunny_failed = bunnyRes.failed;
-
-      // Auth user
-      await supabase.auth.admin.deleteUser(req.user_id);
-      summary.auth_user_deleted = 1;
+      // Borrar SOLO los datos de la cuenta que lo pidió (076): la misma implementación
+      // que el borrado inmediato (api/_lib/accountErasure.ts, inv #7). Antes este bucle
+      // borraba players, videos, analyses, reports, subscriptions y parental_consents
+      // WHERE tenant_id = req.tenant_id: con un tenant compartido, la baja de UNA cuenta
+      // borraba los datos de todas las demás cuentas de ese tenant.
+      const summary = await deleteUserDataCompletely(supabase, req.user_id);
 
       // Marcar request como completed
       await supabase
