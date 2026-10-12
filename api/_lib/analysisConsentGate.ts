@@ -20,7 +20,9 @@
  * body nunca sustituye al jugador que el servidor liga al vídeo. Ronda 3 de la review:
  * los ids que el servidor mete en una URL tienen forma estricta (B4, api/_lib/bunnyGuid.ts)
  * y, en rutas de usuario, cada jugador tiene que ser del usuario ANTES de leer su fecha de
- * nacimiento o su consentimiento (B5).
+ * nacimiento o su consentimiento (B5). Ronda 5 (B7): el vídeo de una URL solo se identifica si
+ * la URL es de la allowlist y de la pull zone de Stream, y Modal recibe la misma URL
+ * normalizada que comprobó el gate (userPixelVideoUrl).
  *
  * DÓNDE SE GUARDA LA DECLARACIÓN (sin migración nueva): una fila append-only, escrita
  * SOLO por el servidor con service_role, en public.gdpr_audit_log (migración 003):
@@ -65,6 +67,7 @@ import {
 } from "../../src/lib/shared/videoConsent";
 import { isMissingBirthDateColumnError } from "../../src/lib/shared/birthDate";
 import { isBunnyGuid, isSafeVideoRef } from "./bunnyGuid";
+import { VideoUrlError, assertAllowedVideoUrl, streamVideoFromUrl } from "./videoUrlGuard";
 import { findActiveParentalConsent } from "./parentalConsent";
 import { ownsPlayer as ownsPlayerByOwner, ownsVideoAsCreatorOrItsPlayer, playerOwnerId } from "./ownership";
 
@@ -277,10 +280,11 @@ async function readPlayerBirthDate(playerId: string): Promise<{ found: boolean; 
 /**
  * ¿Consentimiento parental CONCEDIDO? Fuente canónica única (api/_lib/parentalConsent.ts):
  * fila de parental_consents con email_verified = true AND withdrawn_at IS NULL (predicado
- * de idx_consents_active, 003) MÁS la evidencia que escribe api/auth/verify-consent.ts con
- * service_role cuando el TUTOR usa el token de su email (gdpr_audit_log
- * 'consent_email_verified' con ese id y ese jugador), y sin retirada auditada (B6). Un
- * UPDATE de cliente sobre parental_consents no crea esa evidencia. Nunca
+ * de idx_consents_active, 003) MÁS la emisión del enlace que escribe sign-consent
+ * ('consent_token_issued': jugador, email del tutor, hash del token) y la verificación del
+ * TUTOR que escribe verify-consent con ESE token y ESE jugador ('consent_email_verified'),
+ * ambas con service_role, y sin retirada auditada (B6, ronda 5). Nada que un cliente pueda
+ * cambiar en la fila (marcado, hash del token, jugador, email) crea esas dos filas. Nunca
  * players.parental_consent_status. Un fallo de la base lanza (el gate falla cerrado).
  */
 export async function hasActiveParentalConsent(playerId: string): Promise<boolean> {
@@ -419,6 +423,11 @@ export function clipConsentErrorResponse(result: BlockedGateResult): Response {
 //      invalid_video_reference. Así el gate busca EXACTAMENTE el id que el servidor pone
 //      en la URL: antes `a/../<GUID ajeno>` encontraba una fila propia y `fetch` resolvía
 //      los puntos y leía el vídeo ajeno.
+//      (B7, ronda 5) Si los píxeles se leen por URL, el GUID solo sale de una URL de la
+//      allowlist de hosts y de la pull zone de STREAM (videoUrlGuard.streamVideoFromUrl):
+//      host ajeno, pull zone de Storage o host extra → 400 invalid_video_reference; sin hosts
+//      configurados → 500 consent_check_failed. Las rutas de usuario que mandan la URL a
+//      Modal pasan la MISMA cadena normalizada al gate y a Modal (userPixelVideoUrl).
 //   1. Se buscan TODAS las filas `videos` del vídeo: por id o por bunny_video_id = la
 //      referencia del cliente, y por el GUID de Bunny cuyos píxeles va a leer el servidor
 //      (URL o GUID directo). bunny_video_id no es UNIQUE (060) y la RLS 038 deja al dueño
@@ -452,22 +461,44 @@ export type OwnsVideoFn = (video: VideoRowLite, userId: string | null) => Promis
 export type OwnsPlayerFn = (playerId: string, userId: string | null) => Promise<boolean>;
 
 /**
- * GUID de Bunny de una URL de vídeo de Bunny: el segmento tras `/videos/` en
- * video.bunnycdn.com, o el PRIMER segmento de la ruta en una pull zone (`/<guid>/play_720p.mp4`).
- * Es el vídeo que el CDN sirve; un GUID en un segmento posterior NO lo identifica. Se
- * devuelve tal cual (sin decodificar): `a%2F..%2F<guid>` no es un GUID y el gate lo rechaza.
+ * GUID de Bunny Stream de una URL de vídeo: el segmento tras `/videos/` en
+ * video.bunnycdn.com/library/<id>/videos/, o el PRIMER segmento de la ruta en la pull zone de
+ * Stream (`/<guid>/play_720p.mp4`). Es el vídeo que el CDN sirve; un GUID en un segmento
+ * posterior NO lo identifica. Se devuelve tal cual (sin decodificar): `a%2F..%2F<guid>` no es un
+ * GUID y el gate lo rechaza.
+ *
+ * Ronda 5 de la review del PR #308 (B7): SOLO para URLs de la allowlist de hosts
+ * (api/_lib/videoUrlGuard.streamVideoFromUrl, una sola implementación). Antes devolvía el primer
+ * segmento de CUALQUIER host, así que `https://atacante/<GUID propio declarado>/otro.mp4` pasaba
+ * el gate como si fuera el vídeo declarado. Host ajeno, pull zone de Storage o
+ * VIDEO_URL_EXTRA_HOSTS (el primer segmento es una carpeta, no un vídeo) → null.
  */
-export function bunnyGuidFromVideoUrl(videoUrl: string): string | null {
+export function bunnyGuidFromVideoUrl(videoUrl: string, env: Record<string, string | undefined> = process.env): string | null {
   try {
-    const u = new URL(videoUrl);
-    const segs = u.pathname.split("/").filter(Boolean);
-    if (u.hostname.toLowerCase() === "video.bunnycdn.com") {
-      const i = segs.indexOf("videos");
-      return i >= 0 && segs[i + 1] ? segs[i + 1] : null;
-    }
-    return segs[0] ?? null;
+    return streamVideoFromUrl(videoUrl, env).guid;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Ronda 5 (B7): URL de vídeo de una llamada de USUARIO que el servidor va a mandar a un lector
+ * de píxeles por URL (Modal). Devuelve la URL NORMALIZADA de la allowlist (`href`): el llamador
+ * pasa ESA cadena al gate (gateClipAnalysis · videoUrl) y a Modal, así que la declaración y el
+ * menor que se comprueban son los del vídeo que Modal descarga. Errores:
+ *   - host fuera de la allowlist / URL inválida → 400 con el código de videoUrlGuard;
+ *   - sin hosts configurados (VIDEO_HOSTS_NOT_CONFIGURED) → 500, NUNCA 503: el cliente de
+ *     track-players trata 503 como «inferencia apagada → mock» (videoTrackingService).
+ * Las llamadas de SERVICIO no pasan por aquí (su contrato con Modal no cambia).
+ */
+export function userPixelVideoUrl(raw: unknown): { ok: true; href: string } | { ok: false; response: Response } {
+  try {
+    return { ok: true, href: assertAllowedVideoUrl(raw).href };
+  } catch (err) {
+    if (!(err instanceof VideoUrlError)) throw err;
+    const status = err.code === "VIDEO_HOSTS_NOT_CONFIGURED" ? 500 : err.status;
+    if (status >= 500) console.error(`[consent-gate] ${err.code}: ${err.message} (falla cerrado)`);
+    return { ok: false, response: errorResponse({ code: err.code, message: err.message, status }) };
   }
 }
 
@@ -575,8 +606,22 @@ export async function resolveClipVideo(input: {
   }
   let pixelGuid = typeof input.bunnyGuid === "string" && input.bunnyGuid.trim() !== "" ? input.bunnyGuid : null;
   if (!pixelGuid && typeof input.videoUrl === "string" && input.videoUrl !== "") {
-    pixelGuid = bunnyGuidFromVideoUrl(input.videoUrl);
-    if (!pixelGuid) return resolutionFailure(404, "video_not_found", locale);
+    // B7 (ronda 5): el GUID solo sale de una URL de la allowlist y de un host de Stream; antes
+    // salía del primer segmento de CUALQUIER host (la declaración no quedaba ligada a los píxeles).
+    try {
+      pixelGuid = streamVideoFromUrl(input.videoUrl).guid;
+    } catch (err) {
+      if (err instanceof VideoUrlError && err.code === "VIDEO_HOSTS_NOT_CONFIGURED") {
+        console.error(`[consent-gate] ${input.endpoint}: hosts de vídeo sin configurar → no se sabe qué vídeo es (falla cerrado)`);
+        return resolutionFailure(500, "consent_check_failed", locale);
+      }
+      console.warn(`[consent-gate] ${input.endpoint}: URL de vídeo fuera de la allowlist → 400`);
+      return resolutionFailure(400, "invalid_video_reference", locale);
+    }
+    if (!pixelGuid) {
+      console.warn(`[consent-gate] ${input.endpoint}: la URL no es de un vídeo de Bunny Stream → 400`);
+      return resolutionFailure(400, "invalid_video_reference", locale);
+    }
   }
   // B4: el GUID cuyos píxeles se leen es el que va en la URL → tiene que ser un GUID.
   if (pixelGuid !== null && !isBunnyGuid(pixelGuid)) {

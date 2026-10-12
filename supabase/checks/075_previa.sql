@@ -14,13 +14,17 @@
 --   · filas 4-6: permisos de cliente sobre parental_consents HOY (el 9 oct salió
 --     auth_can_update_consents = true). La 075 los deja todos en false.
 --   · fila 9: consentimientos verificados que el código NUEVO deja de aceptar porque no
---     tienen la evidencia que escribe verify-consent (p. ej. marcados por un cliente con
---     UPDATE). Si sale > 0, mándalo antes de fusionar: esos menores quedarían sin análisis
---     hasta que su tutor vuelva a verificar.
+--     tienen la EMISIÓN del enlace ('consent_token_issued', la escribe sign-consent) y la
+--     VERIFICACIÓN del tutor ('consent_email_verified', verify-consent) del mismo token y
+--     jugador (ronda 5). La emisión es nueva en este PR: antes de desplegarlo no existe
+--     ninguna, así que TODO consentimiento verificado anterior deja de contar. Si sale > 0,
+--     mándalo antes de fusionar: esos menores quedarían sin análisis hasta que su tutor
+--     vuelva a firmar y verificar.
 --   · fila 10: enlaces de verificación PENDIENTES con el token en claro: con el código
---     nuevo (token hasheado) ya no funcionan; el tutor tiene que pedir uno nuevo.
---   · fila 11: evidencias 'consent_email_verified' que ya existen. Antes de la 072 un
---     cliente podía insertar filas en gdpr_audit_log: si sale > 0, mándalo.
+--     nuevo (token hasheado y ligado en la emisión) ya no funcionan; el tutor pide uno nuevo.
+--   · fila 11: filas de auditoría de consentimientos que ya existen. Antes de la 072 un
+--     cliente podía insertar filas en gdpr_audit_log: si la primera o la segunda cifra
+--     sale > 0 ANTES de desplegar este PR, mándalo.
 --   · fila 12: menores de 14 conocidos y cuántos tienen un consentimiento que cuenta con
 --     el código nuevo / con la regla anterior.
 -- =====================================================================
@@ -132,10 +136,10 @@ filas(n, comprobacion, resultado, esperado, ok) AS (
          'informativo (esperado: true · 0 · false · false · true · true)', NULL::boolean
     FROM h
   UNION ALL
-  -- 9 · INFO (B6). Consentimientos: total · verificados y no retirados · de ellos con la
-  --     evidencia del servidor y sin retirada auditada (CUENTAN con el código nuevo) ·
-  --     verificados SIN esa evidencia (DEJAN de contar).
-  SELECT 9, 'consentimientos: total · verificados no retirados · con evidencia de verify-consent · SIN evidencia (dejan de contar)',
+  -- 9 · INFO (B6, regla de la ronda 5). Consentimientos: total · verificados y no retirados ·
+  --     de ellos con emisión + verificación del servidor (mismo token y jugador) y sin
+  --     retirada auditada (CUENTAN con el código nuevo) · verificados SIN eso (DEJAN de contar).
+  SELECT 9, 'consentimientos: total · verificados no retirados · con emisión y verificación del servidor · SIN ellas (dejan de contar)',
          CASE WHEN NOT (h.pc AND h.pc_cols AND h.al AND h.al_cols) THEN '-'
               ELSE coalesce(substring(query_to_xml(
                 'select (count(*))::text || '' · ''
@@ -144,9 +148,14 @@ filas(n, comprobacion, resultado, esperado, ok) AS (
                      || (count(*) filter (where c.email_verified and c.withdrawn_at is null and not (ev.ok and not wd.ok)))::text as c
                    from public.parental_consents c
                    cross join lateral (select exists (
-                       select 1 from public.gdpr_audit_log a
-                        where a.action = ''consent_email_verified'' and a.resource_type = ''parental_consents''
-                          and a.resource_id = c.id::text and a.metadata ->> ''player_id'' = c.player_id::text) as ok) ev
+                       select 1 from public.gdpr_audit_log i
+                         join public.gdpr_audit_log v
+                           on v.action = ''consent_email_verified'' and v.resource_type = ''parental_consents''
+                          and v.resource_id = i.resource_id and v.metadata ->> ''player_id'' = c.player_id::text
+                          and v.metadata ->> ''token_hash'' = i.metadata ->> ''token_hash''
+                        where i.action = ''consent_token_issued'' and i.resource_type = ''parental_consents''
+                          and i.resource_id = c.id::text and i.metadata ->> ''player_id'' = c.player_id::text
+                          and i.metadata ->> ''token_hash'' like ''sha256:%'') as ok) ev
                    cross join lateral (select exists (
                        select 1 from public.gdpr_audit_log a
                         where a.action = ''consent_withdrawn'' and a.resource_type = ''parental_consents''
@@ -170,16 +179,18 @@ filas(n, comprobacion, resultado, esperado, ok) AS (
          'informativo', NULL::boolean
     FROM h
   UNION ALL
-  -- 11 · INFO. Filas de auditoría de consentimientos que ya existen.
-  SELECT 11, 'gdpr_audit_log sobre parental_consents: consent_email_verified · consent_withdrawn',
+  -- 11 · INFO. Filas de auditoría de consentimientos que ya existen (la emisión
+  --      'consent_token_issued' es nueva en este PR: antes de desplegarlo debería ser 0).
+  SELECT 11, 'gdpr_audit_log sobre parental_consents: consent_token_issued · consent_email_verified · consent_withdrawn',
          CASE WHEN NOT (h.al AND h.al_cols) THEN '-'
               ELSE coalesce(substring(query_to_xml(
-                'select (count(*) filter (where action = ''consent_email_verified''))::text || '' · ''
+                'select (count(*) filter (where action = ''consent_token_issued''))::text || '' · ''
+                     || (count(*) filter (where action = ''consent_email_verified''))::text || '' · ''
                      || (count(*) filter (where action = ''consent_withdrawn''))::text as c
                    from public.gdpr_audit_log
                   where resource_type = ''parental_consents''',
                 false, true, '')::text FROM '<c>([^<]*)</c>'), '-') END,
-         'informativo (si la primera cifra > 0, mándalo)', NULL::boolean
+         'informativo (antes de desplegar: si la primera o la segunda cifra > 0, mándalo)', NULL::boolean
     FROM h
   UNION ALL
   -- 12 · INFO. Menores de 14 conocidos (regla 036) · con consentimiento que cuenta con el
@@ -192,11 +203,18 @@ filas(n, comprobacion, resultado, esperado, ok) AS (
                    from (select
                            exists (select 1 from public.parental_consents c
                                     where c.player_id::text = p.id::text and c.email_verified and c.withdrawn_at is null
-                                      and exists (select 1 from public.gdpr_audit_log a
-                                                   where a.action = ''consent_email_verified''
-                                                     and a.resource_type = ''parental_consents''
-                                                     and a.resource_id = c.id::text
-                                                     and a.metadata ->> ''player_id'' = c.player_id::text)
+                                      and exists (select 1 from public.gdpr_audit_log i
+                                                   join public.gdpr_audit_log v
+                                                     on v.action = ''consent_email_verified''
+                                                    and v.resource_type = ''parental_consents''
+                                                    and v.resource_id = i.resource_id
+                                                    and v.metadata ->> ''player_id'' = c.player_id::text
+                                                    and v.metadata ->> ''token_hash'' = i.metadata ->> ''token_hash''
+                                                   where i.action = ''consent_token_issued''
+                                                     and i.resource_type = ''parental_consents''
+                                                     and i.resource_id = c.id::text
+                                                     and i.metadata ->> ''player_id'' = c.player_id::text
+                                                     and i.metadata ->> ''token_hash'' like ''sha256:%'')
                                       and not exists (select 1 from public.gdpr_audit_log a
                                                        where a.action = ''consent_withdrawn''
                                                          and a.resource_type = ''parental_consents''

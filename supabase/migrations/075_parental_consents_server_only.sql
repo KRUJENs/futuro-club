@@ -31,14 +31,25 @@
 -- vídeo es un registro firmado por el tutor y verificado con el token de su email
 -- (api/auth/verify-consent) que el entrenador no puede crear ni cambiar; NUNCA
 -- players.parental_consent_status. Fuente única en el código: api/_lib/parentalConsent.ts
--- (fila verificada + evidencia 'consent_email_verified' en gdpr_audit_log escrita por
--- verify-consent con service_role + sin retirada auditada).
+-- (fila verificada + EMISIÓN del enlace 'consent_token_issued' escrita por sign-consent +
+-- VERIFICACIÓN 'consent_email_verified' del mismo token y jugador escrita por
+-- verify-consent, ambas en gdpr_audit_log con service_role + sin retirada auditada).
 --
--- ORDEN DE DESPLIEGUE (el código NO depende de esta migración)
---   · El código del PR se despliega ANTES (al fusionar). Ya no acepta una fila marcada
---     por un cliente (le falta la evidencia del servidor) y sigue aceptando un
---     consentimiento verificado de verdad, con o sin la 075. Esta migración no crea
---     columnas ni funciones que el código use: nadie se queda bloqueado por aplicarla
+-- CORRECCIÓN (ronda 5 de la review): en la ronda 4 este apartado decía que el código «ya no
+-- acepta una fila marcada por un cliente … con o sin la 075». Era FALSO: verify-consent
+-- buscaba el token en parental_consents.verification_token y escribía la evidencia con el
+-- player_id de la propia fila; un cliente que reescribía el hash del token (y la caducidad)
+-- o reapuntaba una fila hacía que el SERVIDOR escribiera la evidencia para un menor que no
+-- es suyo (SIMULACIÓN PGlite del revisor, no la base real: forma sin 073/075/076 → 1 fila
+-- forjada que contaba; con la 076 → 0). Desde la ronda 5 el token, el jugador y el email del
+-- tutor salen de la EMISIÓN que escribe el servidor, que un cliente no puede escribir ni
+-- cambiar (gdpr_audit_log sin escritura de cliente desde la 072).
+--
+-- ORDEN DE DESPLIEGUE (el código NO depende de esta migración — cierto desde la ronda 5)
+--   · El código del PR se despliega ANTES (al fusionar). No acepta nada que salga de la
+--     fila mutable (marcada, token reescrito, reapuntada) y sigue aceptando un
+--     consentimiento firmado y verificado de verdad, con o sin la 075. Esta migración no
+--     crea columnas ni funciones que el código use: nadie se queda bloqueado por aplicarla
 --     tarde, y aplicarla no rompe nada del servidor (todo va con service_role).
 --   · Operador: 1) supabase/checks/075_previa.sql (solo lectura) y mandar el resultado
 --     completo; 2) esta migración; 3) supabase/checks/075_posterior.sql: ok = true en

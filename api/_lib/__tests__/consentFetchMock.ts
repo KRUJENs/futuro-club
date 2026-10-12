@@ -1,7 +1,7 @@
 /**
  * Helper de tests (no es un test): simula la parte de Supabase REST que usa
- * api/_lib/analysisConsentGate — gdpr_audit_log (declaraciones y evidencia del
- * consentimiento parental, api/_lib/parentalConsent), players.birth_date,
+ * api/_lib/analysisConsentGate — gdpr_audit_log (declaraciones, y emisión / verificación /
+ * retirada del consentimiento parental, api/_lib/parentalConsent), players.birth_date,
  * parental_consents y videos — y deja pasar el resto a `fallback`.
  */
 import { vi } from "vitest";
@@ -13,14 +13,15 @@ export interface ConsentDbState {
   birthDates: Record<string, string | null>;
   /**
    * player_id con consentimiento parental activo DE VERDAD: fila verificada y no retirada
-   * MÁS la evidencia que escribe verify-consent (gdpr_audit_log 'consent_email_verified').
+   * MÁS la emisión del enlace que escribe sign-consent ('consent_token_issued') y la
+   * verificación de verify-consent ('consent_email_verified') con el mismo token (ronda 5).
    * Para filas sin evidencia, reapuntadas o retiradas, usar `consentRows` / `consentAudit`.
    */
   activeConsents: string[];
   /** Filas extra de parental_consents (p. ej. marcadas como verificadas por un cliente, B6). */
   consentRows?: Array<{ id: string; player_id: string; email_verified: boolean; withdrawn_at: string | null; parent_email?: string | null }>;
-  /** Filas extra de gdpr_audit_log sobre parental_consents (evidencia / retirada). */
-  consentAudit?: Array<{ action: string; resource_id: string; metadata: Record<string, unknown> | null }>;
+  /** Filas extra de gdpr_audit_log sobre parental_consents (emisión / evidencia / retirada). */
+  consentAudit?: Array<{ action: string; resource_id: string; metadata: Record<string, unknown> | null; tenant_id?: string | null }>;
   /** Filas de videos (por id y bunny_video_id). */
   videos: Array<{ id: string; user_id: string | null; tenant_id: string | null; player_id: string | null; bunny_video_id: string | null }>;
   /**
@@ -105,18 +106,38 @@ export function consentFetch(
         ...db.activeConsents.map((pid) => ({ id: `consent-${pid}`, player_id: pid, email_verified: true, withdrawn_at: null, parent_email: `tutor-${pid}@x.test` })),
         ...(db.consentRows ?? []),
       ];
-      const consentAudit = [
-        ...db.activeConsents.map((pid) => ({ action: "consent_email_verified", resource_id: `consent-${pid}`, metadata: { player_id: pid } as Record<string, unknown> | null })),
+      const activeMeta = (pid: string): Record<string, unknown> => ({
+        player_id: pid,
+        parent_email: `tutor-${pid}@x.test`,
+        token_hash: `sha256:active-${pid}`,
+      });
+      const consentAudit: Array<{ action: string; resource_id: string; metadata: Record<string, unknown> | null; tenant_id?: string | null }> = [
+        ...db.activeConsents.flatMap((pid) => [
+          { action: "consent_token_issued", resource_id: `consent-${pid}`, metadata: { ...activeMeta(pid), expires_at: "2099-01-01T00:00:00.000Z" } },
+          { action: "consent_email_verified", resource_id: `consent-${pid}`, metadata: activeMeta(pid) },
+        ]),
         ...(db.consentAudit ?? []),
-        // Evidencia escrita por el servidor en ESTE test (verify-consent → POST gdpr_audit_log).
+        // Filas escritas por el servidor en ESTE test (sign-consent / verify-consent → POST gdpr_audit_log).
         ...inserts
           .filter((r) => r.resource_type === "parental_consents")
-          .map((r) => ({ action: String(r.action), resource_id: String(r.resource_id), metadata: (r.metadata as Record<string, unknown> | null) ?? null })),
+          .map((r) => ({
+            action: String(r.action),
+            resource_id: String(r.resource_id),
+            metadata: (r.metadata as Record<string, unknown> | null) ?? null,
+            tenant_id: (r.tenant_id as string | null | undefined) ?? null,
+          })),
       ];
       if (table === "gdpr_audit_log" && param(u, "resource_type") === "parental_consents") {
         const actions = filterValues(u, "action") ?? [];
-        const ids = filterValues(u, "resource_id") ?? [];
-        const hits = consentAudit.filter((a) => actions.includes(a.action) && ids.includes(a.resource_id));
+        // Sin filtro de resource_id (búsqueda de la emisión por el hash del token) = todos.
+        const ids = filterValues(u, "resource_id");
+        const tokenHash = u.searchParams.has("metadata->>token_hash") ? param(u, "metadata->>token_hash") : null;
+        const hits = consentAudit.filter(
+          (a) =>
+            actions.includes(a.action) &&
+            (ids === null || ids.includes(a.resource_id)) &&
+            (tokenHash === null || (a.metadata as Record<string, unknown> | null)?.token_hash === tokenHash),
+        );
         return new Response(JSON.stringify(hits), { status: 200 });
       }
       if (table === "gdpr_audit_log") {

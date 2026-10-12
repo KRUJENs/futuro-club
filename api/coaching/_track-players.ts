@@ -19,11 +19,17 @@
  * y de Modal. Un bloqueo es 400/403/404/500, NUNCA 503 (el cliente trata 503 como
  * «inferencia apagada → mock»). Las llamadas de servicio no cambian. El contrato con
  * Modal (payload, Bearer MODAL_API_KEY) no cambia.
+ *
+ * Ronda 5 de la review (B7): en las llamadas de USUARIO la `videoUrl` pasa antes la allowlist
+ * de hosts (api/_lib/videoUrlGuard, la misma de track-async) y Modal recibe la URL NORMALIZADA
+ * que comprobó el gate (misma cadena). Fuera de la allowlist → 400; sin hosts configurados →
+ * 500 VIDEO_HOSTS_NOT_CONFIGURED (nunca 503). Antes, `https://atacante/<GUID propio
+ * declarado>/otro.mp4` pasaba el gate y Modal analizaba otro contenido.
  */
 
 import { withHandler } from "../_lib/withHandler";
 import { isOverBudget, recordSpendUsd, budgetExceededResponse } from "../_lib/budgetGuard";
-import { gateClipAnalysis, clipGateErrorResponse } from "../_lib/analysisConsentGate";
+import { gateClipAnalysis, clipGateErrorResponse, userPixelVideoUrl } from "../_lib/analysisConsentGate";
 import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 
 export const config = {
@@ -113,10 +119,18 @@ export default withHandler(
     return json({ error: "missing_fields", required: ["videoUrl"] }, 400);
   }
 
+  // URL que recibe Modal: la del body en llamadas de SERVICIO (contrato sin cambios); en las
+  // de USUARIO, la URL normalizada de la allowlist que comprueba el gate (B7, ronda 5: antes
+  // el gate sacaba el GUID de cualquier host y Modal recibía la URL cruda del body).
+  let modalVideoUrl: string = body.videoUrl;
+
   // Consentimiento de las llamadas de USUARIO: tras los 503/400, antes de gastar.
   if (!isServiceCall) {
+    const allowed = userPixelVideoUrl(body.videoUrl); // fuera de la allowlist → 400; sin hosts → 500 (nunca 503)
+    if (!allowed.ok) return allowed.response;
+    modalVideoUrl = allowed.href;
     const consent = await gateClipAnalysis({
-      videoUrl: String(body.videoUrl), // Modal descargará ESTA URL
+      videoUrl: modalVideoUrl, // Modal descargará ESTA URL (la misma cadena)
       requireVideoRow: true,
       attestation: body.attestation,
       playerId: null, // el body no identifica jugador; el de cada fila del vídeo sí cuenta
@@ -157,7 +171,7 @@ export default withHandler(
         Authorization: `Bearer ${modalKey}`,
       },
       body: JSON.stringify({
-        video_url: body.videoUrl,
+        video_url: modalVideoUrl,
         sample_fps: body.sampleFps ?? 5,
         classes: body.classes ?? [0, 32],
       }),

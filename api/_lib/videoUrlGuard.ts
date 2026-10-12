@@ -189,6 +189,42 @@ export function assertAllowedVideoUrl(raw: unknown, env: Env = process.env): URL
   throw new VideoUrlError("VIDEO_URL_NOT_ALLOWED", `Host de vídeo no permitido: ${host}`);
 }
 
+/** URL de la allowlist + el vídeo de Bunny STREAM que sirve (null si el host no es de Stream). */
+export interface StreamVideoUrl {
+  /** URL normalizada (assertAllowedVideoUrl): usar SIEMPRE `url.href` para el fetch/Modal. */
+  url: URL;
+  /** GUID del vídeo de Stream cuyos píxeles sirve la URL; null = la URL no identifica un vídeo. */
+  guid: string | null;
+}
+
+/**
+ * Qué vídeo de Bunny STREAM sirve una URL (ronda 5 de la review del PR #308, B7). Lanza
+ * VideoUrlError si la URL no pasa la allowlist (host ajeno, sin BUNNY_CDN_HOSTNAME…).
+ *   - pull zone de Stream (BUNNY_CDN_HOSTNAME / VITE_BUNNY_CDN_HOSTNAME): el PRIMER segmento
+ *     de la ruta es el GUID del vídeo (`/<guid>/play_720p.mp4`);
+ *   - video.bunnycdn.com/library/<BUNNY_STREAM_LIBRARY_ID>/videos/<guid>/…: el segmento tras
+ *     `/videos/`;
+ *   - los DEMÁS hosts de la allowlist (pull zone de Storage, VIDEO_URL_EXTRA_HOSTS) → guid null:
+ *     ahí el primer segmento es una carpeta cualquiera (api/upload/image escribe en Storage en
+ *     la ruta que manda el cliente), no un vídeo, así que no sirve para ligar la declaración
+ *     del entrenador a los píxeles.
+ * El GUID se devuelve tal cual (sin decodificar); quien lo use comprueba su forma (bunnyGuid).
+ */
+export function streamVideoFromUrl(raw: unknown, env: Env = process.env): StreamVideoUrl {
+  const url = assertAllowedVideoUrl(raw, env);
+  const host = url.hostname.replace(/\.$/, "").toLowerCase();
+  const segs = url.pathname.split("/").filter(Boolean);
+  const streamHosts = new Set(
+    [env.BUNNY_CDN_HOSTNAME, env.VITE_BUNNY_CDN_HOSTNAME].map(hostFromEnvValue).filter((h): h is string => !!h),
+  );
+  if (streamHosts.has(host)) return { url, guid: segs[0] ?? null };
+  if (host === BUNNY_LIBRARY_API_HOST) {
+    const i = segs.indexOf("videos");
+    return { url, guid: i >= 0 && segs[i + 1] ? segs[i + 1] : null };
+  }
+  return { url, guid: null };
+}
+
 /** Variante booleana (sin lanzar) para pre-checks baratos. */
 export function isAllowedVideoUrl(raw: unknown, env: Env = process.env): boolean {
   try {

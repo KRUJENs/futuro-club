@@ -136,6 +136,22 @@ describe("track-async · gate de consentimiento (llamadas de usuario)", () => {
     expect((await res.json()).errorDetail.code).toBe("consent_check_failed");
     expect(modalCalls).toHaveLength(0);
   });
+
+  it("ronda 5 (B7) · pull zone de STORAGE (en la allowlist) con el GUID propio declarado como carpeta → 400 invalid_video_reference; sin Modal", async () => {
+    // El host pasa la allowlist, pero en Storage el primer segmento es una carpeta que el
+    // cliente elige (api/upload/image), no el vídeo de Stream cuya declaración se guardó.
+    process.env.BUNNY_STORAGE_CDN_URL = "https://storage.test";
+    try {
+      db.storedAttestations.push({ resource_type: "videos", resource_id: "1b000000-0000-4000-8000-000000000001" });
+      const res = await trackAsync(post({ videoUrl: "https://storage.test/1b000000-0000-4000-8000-000000000001/x.mp4", attestation: ATTESTATION }));
+      expect(res.status).toBe(400);
+      expect((await res.json()).errorDetail.code).toBe("invalid_video_reference");
+      expect(touchedTrackingJobs()).toBe(false);
+      expect(modalCalls).toHaveLength(0);
+    } finally {
+      delete process.env.BUNNY_STORAGE_CDN_URL;
+    }
+  });
 });
 
 describe("track-async · B1/B2: el vídeo y su jugador los resuelve el SERVIDOR (no el body)", () => {

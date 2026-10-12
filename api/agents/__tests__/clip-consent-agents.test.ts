@@ -202,6 +202,22 @@ describe("video-observation · llamadas de USUARIO", () => {
     expect(mock.calls.some((c) => c.url.includes("/rest/v1/"))).toBe(false);
     expect(geminiCalls()).toHaveLength(1);
   });
+
+  it("ronda 5 (B7) · pull zone de STORAGE (en la allowlist) con el GUID propio declarado como carpeta → 400 invalid_video_reference; ni descarga ni Gemini", async () => {
+    process.env.BUNNY_STORAGE_CDN_URL = "https://storage.test";
+    try {
+      db.storedAttestations.push({ resource_type: "videos", resource_id: GUID });
+      const res = await videoObservation(
+        post("video-observation", teamObsBody({ videoId: GUID, attestation: ATTESTATION, videoUrl: `https://storage.test/${GUID}/x.mp4` })),
+      );
+      expect(res.status).toBe(400);
+      expect((await res.json()).errorDetail.code).toBe("invalid_video_reference");
+      expect(mock.calls.some((c) => c.url.startsWith("https://storage.test/"))).toBe(false);
+      expect(geminiCalls()).toHaveLength(0);
+    } finally {
+      delete process.env.BUNNY_STORAGE_CDN_URL;
+    }
+  });
 });
 
 describe("team-observation (vídeo de equipo del navegador)", () => {

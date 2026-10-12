@@ -27,13 +27,18 @@
 --     no es la que asume el código (no verificado contra la documentación de Bunny, que solo
 --     dice «The GUID of the video», string).
 --   - auth_can_update_consents=true → informativo: ver docs/pendientes-metricas.md §E
---     (un authenticated con claim tenant_id puede marcar como verificado un consentimiento
---     pendiente de su tenant; simulación PGlite). VERIFICADO en producción el 9 oct: true.
---     Desde la ronda 4 (B6) el código ya no acepta una fila marcada así (le falta la
---     evidencia de verify-consent) y la migración 075 retira esos permisos
---     (supabase/checks/075_previa.sql / 075_posterior.sql).
---   - minors_blocked_without_consent cuenta, desde B6, con la regla del código nuevo:
---     consentimiento verificado CON la evidencia de verify-consent y sin retirada auditada.
+--     (un authenticated con claim tenant_id puede cambiar filas de parental_consents de su
+--     tenant; simulación PGlite). La ronda 4 registró true en la previa del dueño del 9 oct.
+--     Desde la ronda 5 (B6) el código no acepta nada que salga de esas filas: ni una marcada
+--     como verificada, ni un hash de token reescrito, ni un jugador o email reapuntado (el
+--     token, el jugador y el email salen de la EMISIÓN que escribe sign-consent con
+--     service_role). La ronda 4 decía lo mismo y era FALSO para el token reescrito y la fila
+--     reapuntada (simulación PGlite del revisor). La migración 075 retira además esos
+--     permisos (supabase/checks/075_previa.sql / 075_posterior.sql).
+--   - minors_blocked_without_consent cuenta, desde la ronda 5, con la regla del código nuevo:
+--     consentimiento verificado CON la emisión del enlace ('consent_token_issued') y la
+--     verificación del tutor ('consent_email_verified') del MISMO token y jugador, y sin
+--     retirada auditada.
 select
   to_regclass('public.gdpr_audit_log') is not null                                   as audit_table_exists,          -- esperado: true
   (select count(*)::int from information_schema.columns
@@ -72,18 +77,26 @@ select
         and (select count(*) from information_schema.columns
                where table_schema = 'public' and table_name = 'gdpr_audit_log'
                  and column_name in ('action','resource_type','resource_id','metadata')) = 4
-       -- B6: cuenta solo un consentimiento verificado CON la evidencia de verify-consent y sin
-       -- retirada auditada (api/_lib/parentalConsent.ts); uno marcado por un cliente no cuenta.
+       -- B6 (ronda 5): cuenta solo un consentimiento verificado CON la emisión del enlace y la
+       -- verificación del tutor del MISMO token y jugador, y sin retirada auditada
+       -- (api/_lib/parentalConsent.ts); nada que salga de la fila mutable cuenta.
        then (xpath('/row/c/text()', query_to_xml(
               'select count(*)::int as c from public.players p
                  where p.birth_date is not null and extract(year from age(now(), p.birth_date)) < 14
                    and not exists (select 1 from public.parental_consents c
                                     where c.player_id::text = p.id::text and c.email_verified = true and c.withdrawn_at is null
-                                      and exists (select 1 from public.gdpr_audit_log a
-                                                   where a.action = ''consent_email_verified''
-                                                     and a.resource_type = ''parental_consents''
-                                                     and a.resource_id = c.id::text
-                                                     and a.metadata ->> ''player_id'' = c.player_id::text)
+                                      and exists (select 1 from public.gdpr_audit_log i
+                                                   join public.gdpr_audit_log v
+                                                     on v.action = ''consent_email_verified''
+                                                    and v.resource_type = ''parental_consents''
+                                                    and v.resource_id = i.resource_id
+                                                    and v.metadata ->> ''player_id'' = c.player_id::text
+                                                    and v.metadata ->> ''token_hash'' = i.metadata ->> ''token_hash''
+                                                   where i.action = ''consent_token_issued''
+                                                     and i.resource_type = ''parental_consents''
+                                                     and i.resource_id = c.id::text
+                                                     and i.metadata ->> ''player_id'' = c.player_id::text
+                                                     and i.metadata ->> ''token_hash'' like ''sha256:%'')
                                       and not exists (select 1 from public.gdpr_audit_log a
                                                        where a.action = ''consent_withdrawn''
                                                          and a.resource_type = ''parental_consents''

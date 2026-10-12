@@ -4,7 +4,7 @@
 > una métrica bloqueada con `gate_reason` honesto es un estado de entrega aceptable, pero
 > **no** es lo mismo que resuelta. Este fichero distingue las dos y se mantiene al día.
 >
-> **Última actualización:** 2026-10-12 (§5-E ronda 4 del PR #308, B6: consentimiento parental solo del tutor + migración 075; C11) · 2026-10-01 (§5-D, migración 073 solo dueño) · 2026-09-30 (digest del director sin hash, P0) · **Rama de creación:** `docs/pendientes-metricas`
+> **Última actualización:** 2026-10-12 (§5-E ronda 5 del PR #308: B6 seguía abierto → token ligado en el servidor; B7: la URL que analiza Modal es la que comprueba el gate) · 2026-10-12 (§5-E ronda 4 del PR #308, B6: consentimiento parental solo del tutor + migración 075; C11) · 2026-10-01 (§5-D, migración 073 solo dueño) · 2026-09-30 (digest del director sin hash, P0) · **Rama de creación:** `docs/pendientes-metricas`
 >
 > Estado del arnés a fecha de hoy: el **GATE real** (pre-commit → `audit_metrics.py
 > --baseline`) sale **exit 0** (deuda baselined). El audit CRUDO `audit_metrics.py` →
@@ -223,9 +223,9 @@ Tipo de desbloqueo: **CÓDIGO** (implementable) · **DATOS_HUMANOS** (antropomet
   4. Solo después: `supabase/migrations/076_owner_only_player_access.sql` (aborta sola si queda algo por tenant en esas tablas).
   5. `supabase/checks/076_posterior.sql`: `resultado = esperado` y `ok = true` en todas.
   6. Si la 073 se aplica más tarde con rama por tenant, repetir 4-5.
-- [ ] **C10 · Gate de consentimiento de clips — comprobación ANTES DE FUSIONAR** (PR #308 `feat/clip-consent-gate`, ver §E; fusionar a main = desplegar en Vercel, así que NO vale hacerla después): el owner ejecuta en el SQL Editor de producción `supabase/checks/clip_consent_previa.sql` (solo lectura, una fila) y pasa el resultado. Para fusionar hace falta `audit_table_exists=true`, `audit_columns=8`, `audit_open_insert_policy=0`, `auth_can_insert_audit=false` (y `auth_can_update_audit=false`); desde la ronda 3 también `service_can_select_audit=true` y `service_can_insert_audit=true` (el gate solo usa service_role y ningún otro código usa esa tabla, así que producción no prueba que el privilegio exista) y, por B4, `videos_bunny_id_not_uuid=0` y `videos_id_unsafe=0` (si salen >0, esos vídeos ya no se pueden analizar: 400 `invalid_video_reference`; revisar antes de fusionar). Simulación PGlite del 9 oct de la versión ampliada (NO la base real): base vacía → todo `null`/`false` sin error; todas las migraciones → `true/8/0/false/false/true/true` y `0/0`; con un vídeo `a/../x` + bunny `g-1` (control positivo) → `1/1`; con `REVOKE SELECT, INSERT … FROM service_role` (control positivo) → `false/false`; hasta la 071 sin la 072 → `audit_open_insert_policy=1`. Sin `public.gdpr_audit_log` (migración 003) el gate falla cerrado (500): **ninguna** subida ni análisis de clip funcionaría (VideoUpload en 8 páginas incluido el selector del partido completo, VideoUploader, finalize, generate-reports, pipeline/start, team-*, video-observation, la cola). Que la 003 esté aplicada en producción **no está verificado** (la 072 la toca con `to_regclass`, así que aplicar la 072 no lo prueba). La consulta se volvió a probar en PGlite el 1 oct (SIMULACIÓN, no la base real): base vacía → `audit_table_exists=false` sin error; todas las migraciones → `true/8/0/false`; hasta la 071 sin la 072 (control positivo) → `audit_open_insert_policy=1`, `auth_can_insert_audit=true`. NO verificado: si la Supabase de `vitas-demo` necesita la misma comprobación (solo si allí se suben vídeos). Desde la ronda 4 (B6), `minors_blocked_without_consent` cuenta con la regla del código nuevo (consentimiento verificado CON la evidencia de `verify-consent`); re-simulada en PGlite el 12 oct (base vacía sin error; con un consentimiento insertado sin evidencia, ese menor cuenta como bloqueado).
-- [ ] **C11 · Migración 075 · `parental_consents` solo del servidor (B6, PR #308)** — independiente del orden de fusión: el código del PR NO depende de ella (ya no acepta una fila marcada por un cliente) y aplicarla no cambia nada del servidor (todo va con service_role). Pasos, uno cada vez:
-  1. `supabase/checks/075_previa.sql` (solo lectura, una consulta) → mandar el resultado COMPLETO. Fila 1 (BLOQUEA) tiene que salir `ok = true`. Mirar además las filas 9 (verificados sin evidencia: dejan de contar), 10 (enlaces pendientes con token en claro: dejan de valer), 11 (evidencias que ya existen: si > 0, mandarlo) y 12 (menores de 14 conocidos).
+- [ ] **C10 · Gate de consentimiento de clips — comprobación ANTES DE FUSIONAR** (PR #308 `feat/clip-consent-gate`, ver §E; fusionar a main = desplegar en Vercel, así que NO vale hacerla después): el owner ejecuta en el SQL Editor de producción `supabase/checks/clip_consent_previa.sql` (solo lectura, una fila) y pasa el resultado. Para fusionar hace falta `audit_table_exists=true`, `audit_columns=8`, `audit_open_insert_policy=0`, `auth_can_insert_audit=false` (y `auth_can_update_audit=false`); desde la ronda 3 también `service_can_select_audit=true` y `service_can_insert_audit=true` (el gate solo usa service_role y ningún otro código usa esa tabla, así que producción no prueba que el privilegio exista) y, por B4, `videos_bunny_id_not_uuid=0` y `videos_id_unsafe=0` (si salen >0, esos vídeos ya no se pueden analizar: 400 `invalid_video_reference`; revisar antes de fusionar). Simulación PGlite del 9 oct de la versión ampliada (NO la base real): base vacía → todo `null`/`false` sin error; todas las migraciones → `true/8/0/false/false/true/true` y `0/0`; con un vídeo `a/../x` + bunny `g-1` (control positivo) → `1/1`; con `REVOKE SELECT, INSERT … FROM service_role` (control positivo) → `false/false`; hasta la 071 sin la 072 → `audit_open_insert_policy=1`. Sin `public.gdpr_audit_log` (migración 003) el gate falla cerrado (500): **ninguna** subida ni análisis de clip funcionaría (VideoUpload en 8 páginas incluido el selector del partido completo, VideoUploader, finalize, generate-reports, pipeline/start, team-*, video-observation, la cola). Que la 003 esté aplicada en producción **no está verificado** (la 072 la toca con `to_regclass`, así que aplicar la 072 no lo prueba). La consulta se volvió a probar en PGlite el 1 oct (SIMULACIÓN, no la base real): base vacía → `audit_table_exists=false` sin error; todas las migraciones → `true/8/0/false`; hasta la 071 sin la 072 (control positivo) → `audit_open_insert_policy=1`, `auth_can_insert_audit=true`. NO verificado: si la Supabase de `vitas-demo` necesita la misma comprobación (solo si allí se suben vídeos). Desde la ronda 4 (B6), `minors_blocked_without_consent` cuenta con la regla del código nuevo (consentimiento verificado CON la evidencia de `verify-consent`); re-simulada en PGlite el 12 oct (base vacía sin error; con un consentimiento insertado sin evidencia, ese menor cuenta como bloqueado). **Ronda 5:** la regla exige además la EMISIÓN del enlace (`consent_token_issued`, escrita por `sign-consent`) y que la verificación sea del MISMO token y jugador; re-simulada en PGlite el 12 oct (SIMULACIÓN, no la base real): corre sin error en base vacía y en las formas sin 073/075/076, con 073/076 y con todas; ningún consentimiento forjado cuenta como concedido y uno verificado de verdad sí. Los valores esperados para fusionar NO cambian. Con el código de la ronda 4, `auth_can_update_consents=true` NO era solo informativo (permitía forjar un consentimiento que contaba, ver §E ronda 5); con el de la ronda 5 vuelve a ser informativo (un cliente puede leer o cambiar filas, pero no crear un consentimiento que cuente).
+- [ ] **C11 · Migración 075 · `parental_consents` solo del servidor (B6, PR #308)** — independiente del orden de fusión: el código del PR NO depende de ella (**cierto desde la ronda 5**: no acepta nada que salga de la fila mutable —marcado, hash del token, jugador, email—; en la ronda 4 este punto decía lo mismo y era FALSO: un token reescrito o una fila reapuntada sí contaban, ver §E) y aplicarla no cambia nada del servidor (todo va con service_role). La 075 sigue siendo necesaria para que un cliente no LEA ni cambie esas filas (email y hash del DNI del tutor). Pasos, uno cada vez:
+  1. `supabase/checks/075_previa.sql` (solo lectura, una consulta) → mandar el resultado COMPLETO. Fila 1 (BLOQUEA) tiene que salir `ok = true`. Mirar además las filas 9 (verificados sin emisión + verificación del servidor: dejan de contar; antes de desplegar la ronda 5 son TODOS los verificados, porque la emisión es nueva), 10 (enlaces pendientes con token en claro: dejan de valer), 11 (emisiones · verificaciones · retiradas que ya existen: antes de desplegar, si la primera o la segunda > 0, mandarlo) y 12 (menores de 14 conocidos).
   2. `supabase/migrations/075_parental_consents_server_only.sql` (transacción; aborta sola si queda algo de cliente).
   3. `supabase/checks/075_posterior.sql` → `ok = true` en las filas 1-8 (las 9-10 son informativas).
   En `vitas-demo`: lo mismo si su Supabase tiene `parental_consents` (NO verificado).
@@ -352,11 +352,15 @@ de `videos` las sobrescribe el navegador: `data`, `analysis_result`; `target_pla
 identidad). (2) ADEMÁS, si el jugador del vídeo es menor de 14 **conocido** (`players.birth_date`
 y `EXTRACT(YEAR FROM AGE(NOW(), birth_date)) < 14`, regla de la 036; paridad del espejo TS
 comprobada en PGlite: 23 016 casos, 0 discrepancias, control positivo 19), consentimiento
-parental de **una** fuente (`api/_lib/parentalConsent.ts`, ronda 4 · B6): una fila de
+parental de **una** fuente (`api/_lib/parentalConsent.ts`, rondas 4 y 5 · B6): una fila de
 `public.parental_consents` con `email_verified = true AND withdrawn_at IS NULL` **y** la
-evidencia que escribe `api/auth/verify-consent` con service_role cuando el TUTOR usa el token
-de su email (`gdpr_audit_log` `consent_email_verified` con ese id y ese jugador) **y** sin
-retirada auditada. **Nunca** `players.parental_consent_status` (lo pone el entrenador desde
+EMISIÓN del enlace que escribe `api/auth/sign-consent` con service_role ANTES de crear la fila
+(`gdpr_audit_log` `consent_token_issued`: id de la fila, jugador cuyo dueño firma, email del
+tutor, hash del token, caducidad) **y** la verificación que escribe `api/auth/verify-consent`
+con service_role cuando el TUTOR usa el token de su email (`consent_email_verified` con ese
+id, ese jugador y el MISMO hash de token; verify-consent busca el token en la emisión, nunca en
+la fila) **y** sin retirada auditada. El email del tutor al que el orquestador manda el
+resultado sale de la emisión, no de la fila. **Nunca** `players.parental_consent_status` (lo pone el entrenador desde
 `/admin/consent` sin verificación del tutor). Fecha desconocida ⇒ basta la declaración (no se
 infiere la edad). Vídeo de equipo ⇒ la comprobación por jugador no aplica. Falla cerrado (500),
 nunca 503.
@@ -439,12 +443,14 @@ el TUTOR; el entrenador no puede crearlo ni cambiarlo:**
   menor de OTRA cuenta del mismo tenant, reapunta un consentimiento verificado y lo borra. Con la
   regla anterior, la fila marcada por el cliente contaba como consentimiento (control positivo:
   1); con la nueva, no (0). El INSERT directo ya fallaba (42501 en `log_gdpr_action`, 072).
-- **Código (no depende de ninguna migración):** fuente única `api/_lib/parentalConsent.ts`
+- **Código (no depende de ninguna migración) — ⚠ CORREGIDO en la ronda 5:** fuente única `api/_lib/parentalConsent.ts`
   (inv #7): fila verificada y no retirada **+ evidencia `consent_email_verified` en
   `gdpr_audit_log` con ese id y ese jugador + sin `consent_withdrawn`**. La evidencia solo la
   escribe `verify-consent` (service_role); `gdpr_audit_log` no admite escritura de cliente desde la
-  072 (aplicada en producción, VERIFICADO; la previa del PR lo mide). Un UPDATE de cliente no la
-  crea, así que no desbloquea nada aunque la 075 no esté aplicada. Además: `sign-consent` guarda
+  072 (aplicada en producción, VERIFICADO; la previa del PR lo mide). ~~Un UPDATE de cliente no la
+  crea, así que no desbloquea nada aunque la 075 no esté aplicada.~~ **FALSO** (ronda 5, abajo):
+  verify-consent tomaba el token y el jugador de la propia fila, así que un UPDATE del hash del
+  token o del jugador hacía que el SERVIDOR escribiera la evidencia. Además: `sign-consent` guarda
   el **hash** del token (`sha256:…`), no el token (leer la fila ya no permite verificarla);
   `verify-consent` busca por hash, escribe la evidencia **antes** de marcar (si no puede: 500 y
   no marca, el mismo enlace sirve para reintentar; antes marcaba y el registro se intentaba
@@ -481,6 +487,99 @@ el TUTOR; el entrenador no puede crearlo ni cambiarlo:**
   jugador es menor de 14 CONOCIDO, así que nadie queda bloqueado por esto; cuántas filas de
   `parental_consents` hay en producción: NO verificado (lo cuentan las filas 9-11 de la previa).
 
+**Ronda 5 de la review (12 oct) · B6 seguía abierto + B7 (la URL que analiza Modal):**
+- **B6 · el token, el jugador y el email del tutor los liga el SERVIDOR al emitir el enlace.**
+  - **Hallazgo (del revisor; VERIFICADO por él en una SIMULACIÓN PGlite, no la base real,
+    forma sin 073/075/076):** `verify-consent` buscaba la fila por
+    `parental_consents.verification_token = hash(token)` y escribía la evidencia con el
+    `player_id` de la fila. Un `authenticated` con el tenant de la fila (antes de la 075/076)
+    reescribía el hash a `sha256(X)` + alargaba la caducidad y llamaba al endpoint PÚBLICO con
+    `X` → el servidor escribía la evidencia para un menor que no es suyo, y contaba. Variante:
+    reapuntar su propia fila pendiente (con un email suyo) a un menor ajeno y verificarla →
+    el orquestador mandaba nombre, VSI y enlace del análisis de ese menor a su email y lo
+    metía en `labeled_datasets`. Con la 076 aplicada (sin política), el UPDATE no toca filas.
+  - **Reproducido aquí ANTES del arreglo** (tests, head `3ff1b70`; total de la ronda más abajo):
+    `verify(X)` tras reescribir el hash daba **200** (debía ser 404); los 5 tests de ataque de la
+    ronda 5 en `parental-consent-flow.test.ts` fallaban.
+  - **Arreglo (opción a del revisor; código, sin migración):** `sign-consent` escribe ANTES de
+    crear la fila la EMISIÓN `consent_token_issued` (service_role; `user_id` = quien firma, que
+    ya tiene que ser el dueño del jugador; `resource_id` = el id de la fila, que ahora pone el
+    servidor; `metadata` = jugador, email del tutor en minúsculas, hash del token, caducidad).
+    Si no se puede escribir → 500, sin fila ni email. `verify-consent` busca el hash del token
+    en la EMISIÓN (nunca en la fila; uno que el servidor no emitió → 404), toma de ella la
+    caducidad, el jugador y el email, exige que la fila siga apuntando a ese jugador y a ese
+    email (si no → **409 `consent_changed`**, sin evidencia: hay que firmar de nuevo) y escribe la
+    verificación con ESOS valores y el hash del token antes de marcar. Si la verificación ya
+    existía (un intento anterior no pudo marcar), no se duplica: solo se marca.
+    `findActiveParentalConsent` exige emisión + verificación del MISMO token y jugador, y
+    devuelve el email de la EMISIÓN (el orquestador ya no puede mandar el análisis a un email
+    puesto por un cliente en la fila).
+  - **Por qué basta sin la 075:** la emisión y la verificación viven en `gdpr_audit_log`, que no
+    admite INSERT/UPDATE/DELETE de cliente desde la 072 (en la lista verificada de migraciones
+    aplicadas del 29-30 sep; la previa del PR lo mide: `auth_can_insert_audit`,
+    `auth_can_update_audit`), y los triggers de la 003 solo escriben `consent_signed` y
+    `consent_withdrawn`. La 075 sigue haciendo falta para que un cliente no LEA ni cambie filas
+    (email y hash del DNI del tutor de otras cuentas del mismo tenant).
+  - **SIMULACIÓN PGlite del arreglo (12 oct, NO la base real; lógica nueva reproducida en SQL con
+    service_role):** control positivo con la lógica de la ronda 4 → el ataque cuenta (`n=1`) y
+    la regla nueva no lo cuenta (`n=0`). Forma sin 073/075/076: el UPDATE del cliente toca la
+    fila (1) pero `verify(X)` → 404; reapuntar + verificar → 409; INSERT o UPDATE de una emisión
+    como `authenticated` → 42501; el token REAL del tutor sigue verificando (`n=1`); reapuntar uno
+    ya verificado no lo traslada (`n=0`). Con 073/076 sin 075 y con todas: ningún consentimiento
+    forjado cuenta (los UPDATE de cliente tocan 0 filas o dan 42501, así que el token propio
+    verifica SU jugador, como debe) y el del tutor real sí (`n=1`). `clip_consent_previa.sql` y
+    `075_previa.sql` corren sin error en base vacía y en las tres formas.
+  - **Cambio de comportamiento declarado:** un consentimiento verificado ANTES de desplegar la
+    ronda 5 no tiene emisión → deja de contar y el tutor tiene que firmar y verificar de nuevo
+    (lo cuenta `075_previa.sql` fila 9). Con el dato verificado del 29-30 sep (ningún jugador de
+    producción tiene fecha de nacimiento) eso no bloquea hoy a nadie; cuántos consentimientos hay
+    en producción: NO verificado.
+  - **Afirmaciones corregidas:** la cabecera de `api/_lib/parentalConsent.ts`, la de
+    `verify-consent.ts`, el apartado «ORDEN DE DESPLIEGUE» de la cabecera de la 075 (solo
+    comentarios: el SQL es idéntico, mismo hash sin comentarios), C11, el punto «Consentimiento
+    falsificable por UPDATE» de abajo y el cuerpo del PR.
+- **B7 · la declaración queda ligada a los PÍXELES que analiza Modal.**
+  - **Hallazgo (del revisor; VERIFICADO por él con tests de vitest fuera del repo):**
+    `coaching/track-players` y la ruta de usuario de `tactical/compute-from-video` no aplicaban
+    la allowlist de hosts; el gate sacaba el GUID del PRIMER segmento de la ruta de CUALQUIER
+    host y Modal recibía la URL cruda del body → `https://atacante/<GUID propio declarado>/otro.mp4`
+    pasaba el gate y Modal analizaba otro contenido, sin declaración ni comprobación de menor.
+  - **Reproducido aquí ANTES del arreglo** (tests de endpoint, head `3ff1b70`; total de la ronda
+    más abajo): track-players 5, compute-from-video 5 y track-async 1 fallaban (p. ej.
+    track-players con el host ajeno daba 200 y Modal recibía la URL ajena). El de track-async es
+    NUEVO de esta ronda: aunque tenía la allowlist, la pull zone de **Storage** (`BUNNY_STORAGE_CDN_URL`) está
+    en ella y `api/upload/image` deja a cualquier usuario con sesión escribir en Storage en la
+    ruta que elija (`?path=`, VERIFICADO leyendo `api/upload/_image.ts`), así que
+    `https://<storage>/<GUID propio declarado>/x.mp4` también pasaba (202 + Modal). Que
+    `BUNNY_STORAGE_CDN_URL` esté configurada en producción: NO verificado.
+  - **Arreglo:** (1) una sola implementación en `api/_lib/videoUrlGuard.streamVideoFromUrl`: el
+    GUID del vídeo solo sale de una URL de la allowlist Y de la pull zone de **Stream**
+    (`BUNNY_CDN_HOSTNAME`/`VITE_`) o de `video.bunnycdn.com/library/<id>/videos/<guid>`; en
+    Storage o en `VIDEO_URL_EXTRA_HOSTS` el primer segmento no identifica un vídeo → el gate
+    responde **400 `invalid_video_reference`**; sin hosts configurados → **500
+    `consent_check_failed`**. Lo usa `resolveClipVideo`, así que vale para TODAS las entradas
+    que leen píxeles por URL (track-players, track-async, compute-from-video, video-observation,
+    live/aggregate, el rescate de tracking). (2) En las rutas de USUARIO de track-players y
+    compute-from-video, `userPixelVideoUrl` aplica la allowlist ANTES del gate (fuera → 400 con
+    el código de `videoUrlGuard`; sin hosts → **500** `VIDEO_HOSTS_NOT_CONFIGURED`, nunca 503,
+    que el cliente de track-players trata como «mock») y pasa la URL NORMALIZADA (`href`) al gate
+    y a Modal: la misma cadena. (3) La ruta de SERVICIO no cambia (sin allowlist ni gate; mismo
+    body a Modal, test byte a byte, también sin `BUNNY_CDN_HOSTNAME`).
+  - **Cambio de comportamiento declarado:** una URL de Storage o de un host extra ya no se puede
+    analizar por estas rutas (400). Las subidas de la app producen URLs de la pull zone de
+    Stream (`api/upload/_video-init.ts`); si hay vídeos guardados con otro host en producción: NO
+    verificado. «URL ilegible» pasa de 404 a 400 `invalid_video_reference`.
+- **Rojo antes, verde después (12 oct):** los tests de esta ronda contra el código de `3ff1b70`
+  (solo se cambiaron los 10 ficheros de código/SQL por los de `3ff1b70`; los tests y el mock,
+  los nuevos): **58 fallan** — `parentalConsent` 22, `parental-consent-flow` 11,
+  `analysisConsentGate` 7, `track-players-consent` 5, `compute-from-video-consent` 5,
+  `videoUrlGuard` 4, `075_parental_consents_server_only` (estático) 2, `track-async-consent` 1,
+  `clip-consent-agents` 1 (video-observation con URL de Storage) —; con el código nuevo pasan los
+  304. Modal sin cambios: `git diff origin/main` sobre `vision-pipeline/`,
+  `api/webhooks/modal-tracking.ts`, `api/webhooks/modal-callback.ts` y `api/match/` vacío (control
+  positivo: el mismo comando sobre `api/coaching/_track-players.ts` no lo está); body de la ruta
+  de servicio a Modal igual byte a byte (tests de track-players y compute-from-video).
+
 **Puntos de control:** `upload/video-init` y `videos/create-upload` (antes de crear nada en
 Bunny), `videos/finalize`, `_lib/enqueueAnalysis` (webhook de Bunny → 200 `{ skipped }`),
 `crons/process-analyses-queue` (defensa en profundidad → `failed` con motivo), llamadas de usuario
@@ -496,12 +595,14 @@ VideoUpload, VideoUploader, VitasLab (también para re-analizar vídeos antiguos
 equipo; nunca se marca sola. Modal sin cambios (test de spawn byte a byte + callback HMAC).
 
 - [ ] **Flujo de consentimiento del tutor sin montar**: `src/components/legal/ParentalConsentForm.tsx` (único llamador de `api/auth/sign-consent`) no se monta en ninguna página. Hasta montarlo, **todo jugador con fecha de nacimiento y menor de 14 queda sin análisis de vídeo** (correcto, pero bloqueado ≠ resuelto). Cuántos hay en producción: `minors_blocked_without_consent` de `supabase/checks/clip_consent_previa.sql` (dato verificado del 29-30 sep: los 3 jugadores de prod no tienen fecha ⇒ hoy 0). Requiere además Resend (C7) y que el jugador tenga `tenant_id` (`parental_consents.tenant_id` es NOT NULL). Antes de montarlo: la 075 (C11) y el botón de confirmación explícito en `VerifyConsentPage` (punto de abajo).
-- [x] **Consentimiento falsificable por UPDATE (B6)** — CÓDIGO cerrado en la ronda 4: una fila marcada por un cliente ya no cuenta (le falta la evidencia de `verify-consent`), con o sin migración. Permisos de cliente: migración **075 escrita, pendiente del operador (C11)**; hasta aplicarla (o la 076), un `authenticated` con el tenant de la fila puede seguir LEYENDO y cambiando filas de `parental_consents` de su tenant (incluidos email y hash del DNI del tutor de menores de otras cuentas: DEDUCIDO + simulado), aunque ya no pueda fabricar un consentimiento que cuente.
+- [x] **Consentimiento falsificable por UPDATE (B6)** — CÓDIGO cerrado en la **ronda 5** (en la ronda 4 este punto se marcó como cerrado y NO lo estaba: un cliente que reescribía el hash del token o reapuntaba una fila hacía que `verify-consent` escribiera la evidencia; ver §E ronda 5). Desde la ronda 5 el token, el jugador y el email del tutor salen de la EMISIÓN que escribe `sign-consent` con service_role; nada que un cliente cambie en la fila (marcado, hash del token, caducidad, jugador, email) crea un consentimiento que cuente, con o sin migración (tests + SIMULACIÓN PGlite, no la base real). Permisos de cliente: migración **075 escrita, pendiente del operador (C11)**; hasta aplicarla (o la 076), un `authenticated` con el tenant de la fila puede seguir LEYENDO y cambiando filas de `parental_consents` de su tenant (incluidos email y hash del DNI del tutor de menores de otras cuentas: DEDUCIDO + simulado) y, al cambiarlas, inutilizar un enlace pendiente (409 `consent_changed`, hay que firmar de nuevo), aunque ya no pueda fabricar un consentimiento que cuente.
 - [x] **El orquestador lee el consentimiento sin `withdrawn_at IS NULL`** — cerrado en la ronda 4: flywheel `labeled_datasets` y email al tutor usan `findActiveParentalConsent` (misma fuente que el gate; lint `parental-consent-single-source.test.ts`). El callback de Modal y su contrato no cambian (solo cambia qué consentimiento cuenta dentro del orquestador; ambas lecturas siguen en su `try/catch` no bloqueante: un fallo de la base = sin muestra / sin email).
 - [ ] **La verificación por email prueba un BUZÓN, no la tutela** (residual de B6, decisión de producto): `sign-consent` lo llama el dueño del jugador (el entrenador) con el email que él escribe; si escribe un email suyo, recibe el enlace él mismo. El código impide que lo fabrique sin email (UPDATE, token leído de la fila), no que use un buzón propio. Cerrarlo exige otra verificación de identidad del tutor (fuera de alcance).
 - [ ] **El enlace del email se verifica al ABRIR la página** (`src/pages/VerifyConsentPage.tsx` hace el POST en el `useEffect`, sin pulsar nada): un escáner de enlaces del correo que ejecute JavaScript podría verificar sin que el tutor actúe (mismo patrón que la lección CWE-650 de la demo). Recomendado ANTES de montar el flujo del tutor: un botón explícito «Confirmo como tutor legal» antes del POST (y textos de la página en los 7 idiomas: hoy están solo en español). No hecho en este PR.
 - [ ] **`api/videos/create-upload.ts` revela si existe un id de jugador** (observado en la ronda 4, fuera de su alcance; ya estaba así en `main`, VERIFICADO con `git show origin/main:api/videos/create-upload.ts`): responde 404 `player_not_found` ANTES de su 403 de propiedad. No revela fecha ni consentimiento (no es B5), solo la existencia del id. Arreglo: comprobar la propiedad antes y responder lo mismo en los dos casos.
-- [ ] **Evidencias anteriores a la 072** (residual): antes de la 072 la política 003 `audit_insert_authenticated` dejaba a un cliente insertar filas en `gdpr_audit_log`, también `consent_email_verified`; no se distinguen de las del servidor. Lo mide `075_previa.sql` fila 11 (si sale > 0, mandarlo y revisar). Que haya alguna en producción: NO verificado.
+- [ ] **Evidencias anteriores a la 072** (residual, acotado en la ronda 5): antes de la 072 la política 003 `audit_insert_authenticated` dejaba a un cliente insertar filas en `gdpr_audit_log`. Desde la ronda 5 una `consent_email_verified` sola ya no cuenta: hace falta además una `consent_token_issued` del mismo consentimiento, jugador y hash de token, una acción que no existía antes de este PR. Queda el caso teórico de que alguien hubiera insertado antes de la 072 las DOS filas con esos valores; lo mide `075_previa.sql` fila 11 (antes de desplegar, si la primera o la segunda cifra > 0, mandarlo y revisar). Que haya alguna en producción: NO verificado.
+- [ ] **`api/upload/image` escribe en Bunny Storage en la ruta que manda el cliente** (observado en la ronda 5, fuera de alcance; VERIFICADO leyendo `api/upload/_image.ts`): cualquier usuario con sesión puede subir hasta 10 MB con el `Content-Type` que quiera a `?path=` arbitrario de la zona de Storage (también sobrescribir ficheros existentes, p. ej. avatares de otros: DEDUCIDO, no probado contra Bunny). Para el análisis de clips queda cerrado por B7 (una URL de Storage ya no identifica un vídeo); el endpoint en sí sigue abierto. Arreglo propuesto: ruta generada por el servidor (o prefijo por usuario) y `Content-Type` de imagen obligatorio.
+- [ ] **El guardado de la emisión del enlace guarda el email del tutor en `gdpr_audit_log`** (ronda 5): igual que ya hacía el trigger de la 003 (`consent_signed` con `parent_email`, 003:301). El borrado RGPD (`api/_lib/accountErasure.ts`) no toca `gdpr_audit_log` (registro de actividades, retención `audit_logs` 2555 días en `data_retention_policies`, 003:63) — sin cambios en este PR; decidir si el email debe guardarse hasheado en el registro (exigiría otra fuente para el email del orquestador).
 - [ ] **El tracking del navegador no se puede impedir desde el servidor** (onnxruntime-web / MediaPipe en VitasLab): la UI exige la declaración antes de la pasada local; el servidor exige declaración + consentimiento parental cuando llegan los resultados (`generate-reports`).
 - [ ] **Análisis pendientes de ANTES del gate**: el cron los cierra `failed` con «falta la declaración…»; el entrenador los relanza desde VitasLab marcando la casilla. Vídeos de partido en directo antiguos (`live_matches.video_url`) sin declaración guardada: el resumen sale solo con eventos y lo dice (no hay forma de declararlos después).
 - [ ] **Sin gate propio** (documentado): `pipeline/gemini-analyze` (serviceOnly; su único llamador, el cron, ya lo comprueba; desde B4 sí valida el GUID y que sea el comprobado), `videos/_bunny-create` (balón parado: no crea fila ni análisis), `roboflow/analyze` (sin llamador). **Corrección:** antes este apartado decía que `crons/rescue-tracking-jobs` «solo reintenta jobs ya admitidos»; era FALSO (B3: un cliente puede insertar jobs bajo la RLS 052). Desde la ronda 3 el rescate pasa por el gate.

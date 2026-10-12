@@ -34,6 +34,12 @@ let mock: ReturnType<typeof consentFetch>;
 beforeEach(() => {
   process.env.SUPABASE_URL = "https://sb.test";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "svc-key";
+  // Allowlist de hosts de vídeo (videoUrlGuard): `cdn.test` es la pull zone de Stream de los tests.
+  process.env.BUNNY_CDN_HOSTNAME = "cdn.test";
+  delete process.env.VITE_BUNNY_CDN_HOSTNAME;
+  delete process.env.BUNNY_STORAGE_CDN_URL;
+  delete process.env.VIDEO_URL_EXTRA_HOSTS;
+  delete process.env.BUNNY_STREAM_LIBRARY_ID;
   db = emptyConsentDb();
   mock = consentFetch(db);
   vi.stubGlobal("fetch", mock.fn);
@@ -42,6 +48,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  delete process.env.BUNNY_CDN_HOSTNAME;
+  delete process.env.BUNNY_STORAGE_CDN_URL;
+  delete process.env.VIDEO_URL_EXTRA_HOSTS;
 });
 
 const base = {
@@ -405,8 +414,50 @@ describe("resolveClipVideo · el vídeo y sus jugadores los resuelve el servidor
     expect(await resolve({ requireVideoRow: false })).toMatchObject({ ok: true, resource: { type: "video_ref", id: null } });
   });
 
-  it("URL que no se puede leer → 404 (nunca se analiza)", async () => {
-    expect(await resolve({ videoUrl: "no es una url" })).toMatchObject({ ok: false, status: 404 });
+  it("URL que no se puede leer → 400 invalid_video_reference (nunca se analiza) · desde la ronda 5 (antes 404)", async () => {
+    expect(await resolve({ videoUrl: "no es una url" })).toMatchObject({ ok: false, status: 400, code: "invalid_video_reference" });
+    expect(mock.calls).toHaveLength(0);
+  });
+
+  describe("B7 (ronda 5) · el GUID solo sale de una URL de la allowlist y de la pull zone de Stream", () => {
+    const OWN = "1a000000-0000-4000-8000-00000000000a";
+    beforeEach(() => {
+      db.videos.push({ id: OWN, user_id: USER, tenant_id: null, player_id: null, bunny_video_id: OWN });
+    });
+
+    it("control positivo: pull zone de Stream → la fila propia", async () => {
+      expect(await resolve({ videoUrl: `https://cdn.test/${OWN}/play_720p.mp4` })).toMatchObject({ ok: true, video: { id: OWN } });
+    });
+
+    it("host AJENO con el GUID propio → 400 invalid_video_reference, sin buscar nada", async () => {
+      expect(await resolve({ videoUrl: `https://attacker.example/${OWN}/other.mp4` })).toMatchObject({ ok: false, status: 400, code: "invalid_video_reference" });
+      expect(mock.calls).toHaveLength(0);
+    });
+
+    it.each([
+      ["pull zone de Storage", { BUNNY_STORAGE_CDN_URL: "https://storage.test" }, "storage.test"],
+      ["host extra (VIDEO_URL_EXTRA_HOSTS)", { VIDEO_URL_EXTRA_HOSTS: "legacy.test" }, "legacy.test"],
+    ])("%s (en la allowlist, pero su primer segmento no identifica un vídeo) → 400", async (_l, env, host) => {
+      Object.assign(process.env, env);
+      expect(await resolve({ videoUrl: `https://${host}/${OWN}/x.mp4` })).toMatchObject({ ok: false, status: 400, code: "invalid_video_reference" });
+      expect(mock.calls).toHaveLength(0);
+    });
+
+    it("sin BUNNY_CDN_HOSTNAME → 500 consent_check_failed (falla cerrado, nunca 503)", async () => {
+      delete process.env.BUNNY_CDN_HOSTNAME;
+      expect(await resolve({ videoUrl: `https://cdn.test/${OWN}/play_720p.mp4` })).toMatchObject({ ok: false, status: 500, code: "consent_check_failed" });
+      expect(mock.calls).toHaveLength(0);
+    });
+
+    it("gateClipAnalysis con host ajeno y declaración YA guardada para el GUID propio → bloqueado, sin guardar nada", async () => {
+      db.storedAttestations.push({ resource_type: "videos", resource_id: OWN });
+      const r = await gateClipAnalysis({
+        videoUrl: `https://attacker.example/${OWN}/other.mp4`, requireVideoRow: true, playerId: null, actor, endpoint: "t",
+        ownsVideo: ownsByUser, ownsPlayer: ownsAnyPlayer,
+      });
+      expect(r).toMatchObject({ allowed: false, status: 400, code: "invalid_video_reference" });
+      expect(mock.inserts).toHaveLength(0);
+    });
   });
 
   it("ruta automática (ownsVideo null) → no comprueba propiedad, sí junta los jugadores", async () => {
@@ -473,13 +524,23 @@ describe("gateClipAnalysis · resolución + consentimiento", () => {
 });
 
 describe("helpers de vídeo", () => {
-  it("bunnyGuidFromVideoUrl: pull zone (primer segmento) y API de librería (tras /videos/)", () => {
-    expect(bunnyGuidFromVideoUrl("https://vz-1.b-cdn.net/abc-guid/play_720p.mp4")).toBe("abc-guid");
-    expect(bunnyGuidFromVideoUrl("https://video.bunnycdn.com/library/42/videos/abc-guid/play.mp4")).toBe("abc-guid");
+  it("bunnyGuidFromVideoUrl: pull zone de Stream (primer segmento) y API de librería (tras /videos/)", () => {
+    const env = { BUNNY_CDN_HOSTNAME: "vz-1.b-cdn.net", BUNNY_STREAM_LIBRARY_ID: "42" };
+    expect(bunnyGuidFromVideoUrl("https://vz-1.b-cdn.net/abc-guid/play_720p.mp4", env)).toBe("abc-guid");
+    expect(bunnyGuidFromVideoUrl("https://video.bunnycdn.com/library/42/videos/abc-guid/play.mp4", env)).toBe("abc-guid");
     // El vídeo que sirve la pull zone es el del PRIMER segmento, aunque otro aparezca después.
-    expect(bunnyGuidFromVideoUrl("https://vz-1.b-cdn.net/1c000000-0000-4000-8000-000000000003/abc-guid/play.mp4")).toBe("1c000000-0000-4000-8000-000000000003");
-    expect(bunnyGuidFromVideoUrl("https://vz-1.b-cdn.net/x/play.mp4?abc-guid")).toBe("x");
-    expect(bunnyGuidFromVideoUrl("not a url")).toBeNull();
+    expect(bunnyGuidFromVideoUrl("https://vz-1.b-cdn.net/1c000000-0000-4000-8000-000000000003/abc-guid/play.mp4", env)).toBe("1c000000-0000-4000-8000-000000000003");
+    expect(bunnyGuidFromVideoUrl("https://vz-1.b-cdn.net/x/play.mp4?abc-guid", env)).toBe("x");
+    expect(bunnyGuidFromVideoUrl("not a url", env)).toBeNull();
+  });
+
+  it("bunnyGuidFromVideoUrl (B7, ronda 5): host ajeno, otra librería, Storage o sin hosts configurados → null", () => {
+    const env = { BUNNY_CDN_HOSTNAME: "vz-1.b-cdn.net", BUNNY_STREAM_LIBRARY_ID: "42", BUNNY_STORAGE_CDN_URL: "https://st.b-cdn.net" };
+    // Antes: el primer segmento de CUALQUIER host.
+    expect(bunnyGuidFromVideoUrl("https://attacker.example/abc-guid/other.mp4", env)).toBeNull();
+    expect(bunnyGuidFromVideoUrl("https://video.bunnycdn.com/library/7/videos/abc-guid/play.mp4", env)).toBeNull();
+    expect(bunnyGuidFromVideoUrl("https://st.b-cdn.net/abc-guid/x.mp4", env)).toBeNull();
+    expect(bunnyGuidFromVideoUrl("https://vz-1.b-cdn.net/abc-guid/play.mp4", {})).toBeNull();
   });
 
   it("enforceStoredConsentForVideoUrl: otra fila AJENA con el mismo GUID → bloqueado (aunque la propia tenga declaración)", async () => {

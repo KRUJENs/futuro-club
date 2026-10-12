@@ -54,6 +54,11 @@ beforeAll(async () => {
 beforeEach(() => {
   process.env.SUPABASE_URL = "https://sb.test";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "svc-key";
+  // Allowlist de hosts de vídeo (api/_lib/videoUrlGuard): la pull zone de Stream de los tests.
+  process.env.BUNNY_CDN_HOSTNAME = "cdn.test";
+  delete process.env.VITE_BUNNY_CDN_HOSTNAME;
+  delete process.env.BUNNY_STORAGE_CDN_URL;
+  delete process.env.VIDEO_URL_EXTRA_HOSTS;
   db = emptyConsentDb();
   db.videos.push({ id: "1a000000-0000-4000-8000-000000000001", user_id: USER, tenant_id: null, player_id: null, bunny_video_id: "1a000000-0000-4000-8000-000000000001" });
   modalCalls = [];
@@ -74,6 +79,9 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals();
   delete process.env.SUPABASE_URL;
+  delete process.env.BUNNY_CDN_HOSTNAME;
+  delete process.env.BUNNY_STORAGE_CDN_URL;
+  delete process.env.VIDEO_URL_EXTRA_HOSTS;
 });
 
 const post = (body: Record<string, unknown>, auth = "Bearer user-jwt") =>
@@ -126,5 +134,54 @@ describe("compute-from-video · consentimiento", () => {
     expect(modalCalls).toHaveLength(1);
     expect(modalCalls[0].init.body).toBe(EXPECTED_MODAL_BODY);
     expect((modalCalls[0].init.headers as Record<string, string>).Authorization).toBe("Bearer modal-key");
+  });
+});
+
+// Ronda 5 de la review del PR #308 (B7): la declaración tiene que quedar ligada a los PÍXELES
+// que analiza Modal (antes: `https://atacante/<GUID propio declarado>/otro.mp4` pasaba el gate
+// y Modal recibía esa URL cruda).
+describe("compute-from-video · ronda 5 (B7): Modal recibe EXACTAMENTE la URL que comprobó el gate", () => {
+  const OWN_GUID = "1a000000-0000-4000-8000-000000000001"; // fila propia de beforeEach
+
+  it.each([
+    ["con la declaración en el body", { attestation: ATTESTATION }],
+    ["con la declaración ya guardada con el vídeo", {}],
+  ])("host AJENO con el GUID de un vídeo propio (%s) → 400 VIDEO_URL_NOT_ALLOWED; ni gate, ni Modal", async (_l, extra) => {
+    db.storedAttestations.push({ resource_type: "videos", resource_id: OWN_GUID });
+    const res = await post({ videoUrl: `https://attacker.example/${OWN_GUID}/other.mp4`, ...extra });
+    expect(res.status).toBe(400);
+    expect((await res.json()).errorDetail.code).toBe("VIDEO_URL_NOT_ALLOWED");
+    expect(mock.calls.some((c) => c.url.includes("/rest/v1/"))).toBe(false);
+    expect(mock.inserts).toHaveLength(0);
+    expect(modalCalls).toHaveLength(0);
+  });
+
+  it("pull zone de STORAGE con el GUID propio como carpeta → 400 invalid_video_reference; ni Modal", async () => {
+    process.env.BUNNY_STORAGE_CDN_URL = "https://storage.test";
+    const res = await post({ videoUrl: `https://storage.test/${OWN_GUID}/x.mp4`, attestation: ATTESTATION });
+    expect(res.status).toBe(400);
+    expect((await res.json()).errorDetail.code).toBe("invalid_video_reference");
+    expect(modalCalls).toHaveLength(0);
+  });
+
+  it("sin BUNNY_CDN_HOSTNAME → 500 VIDEO_HOSTS_NOT_CONFIGURED (nunca 503); ni Modal", async () => {
+    delete process.env.BUNNY_CDN_HOSTNAME;
+    const res = await post({ attestation: ATTESTATION });
+    expect(res.status).toBe(500);
+    expect((await res.json()).errorDetail.code).toBe("VIDEO_HOSTS_NOT_CONFIGURED");
+    expect(modalCalls).toHaveLength(0);
+  });
+
+  it("la URL NORMALIZADA es la que se comprueba y la que recibe Modal (misma cadena)", async () => {
+    const res = await post({ videoUrl: `https://CDN.TEST/./${OWN_GUID}/play_720p.mp4`, attestation: ATTESTATION });
+    expect(res.status).toBe(200);
+    expect(modalCalls[0].init.body).toBe(EXPECTED_MODAL_BODY);
+  });
+
+  it("SERVICIO: sin allowlist ni gate (contrato intacto), también sin BUNNY_CDN_HOSTNAME", async () => {
+    delete process.env.BUNNY_CDN_HOSTNAME;
+    const res = await post({}, "Bearer svc-token");
+    expect(res.status).toBe(200);
+    expect(modalCalls[0].init.body).toBe(EXPECTED_MODAL_BODY);
   });
 });

@@ -127,4 +127,22 @@ describe("075 · comprobaciones previa/posterior (solo lectura, nunca fallan por
     expect(c).not.toMatch(/select[^;]*\bparent_email\b[^;]*from/i);
     expect(c).not.toMatch(/parent_dni_hash/);
   });
+
+  it("previa (ronda 5): la regla de 'cuenta' exige la EMISIÓN del servidor y la verificación del MISMO token", () => {
+    const c = strip(checks["/supabase/checks/075_previa.sql"]);
+    // Filas 9 y 12: emisión ligada al jugador de la fila + verificación con el mismo token.
+    const rule = /i\.action = ''consent_token_issued''[\s\S]*?i\.metadata ->> ''player_id'' = c\.player_id::text[\s\S]*?like ''sha256:%''/g;
+    expect(c.match(rule)?.length).toBe(2);
+    expect(c.match(/v\.metadata ->> ''token_hash'' = i\.metadata ->> ''token_hash''/g)?.length).toBe(2);
+    // Fila 11 cuenta también las emisiones.
+    expect(c).toMatch(/count\(\*\) filter \(where action = ''consent_token_issued''\)/);
+  });
+});
+
+describe("075 · cabecera corregida en la ronda 5 (solo comentarios)", () => {
+  it("registra que la frase de la ronda 4 era falsa y la regla con la emisión", () => {
+    expect(sql).toMatch(/CORRECCIÓN \(ronda 5 de la review\)/);
+    expect(sql).toMatch(/consent_token_issued/);
+    expect(sql).toMatch(/cierto desde la ronda 5/);
+  });
 });

@@ -13,6 +13,7 @@ import {
   videoHostPolicy,
   maxVideoBytes,
   fetchAllowedVideo,
+  streamVideoFromUrl,
   VideoUrlError,
   DEFAULT_MAX_VIDEO_BYTES,
   MAX_VIDEO_REDIRECTS,
@@ -73,6 +74,31 @@ describe("assertAllowedVideoUrl · permitidas", () => {
   it("devuelve la URL normalizada (href) para usar en el fetch", () => {
     expect(assertAllowedVideoUrl(`https://${CDN.toUpperCase()}:443/g/play_720p.mp4`, ENV).href)
       .toBe(`https://${CDN}/g/play_720p.mp4`);
+  });
+});
+
+describe("streamVideoFromUrl · qué vídeo de Bunny STREAM sirve la URL (B7, ronda 5 del PR #308)", () => {
+  it("pull zone de Stream (también el alias VITE_) → primer segmento; librería → tras /videos/", () => {
+    expect(streamVideoFromUrl(`https://${CDN}/g-1/play_720p.mp4`, ENV).guid).toBe("g-1");
+    expect(streamVideoFromUrl(`https://${CDN}/g-1/play_720p.mp4`, { VITE_BUNNY_CDN_HOSTNAME: CDN }).guid).toBe("g-1");
+    expect(streamVideoFromUrl("https://video.bunnycdn.com/library/123456/videos/g-2/play.mp4", ENV).guid).toBe("g-2");
+  });
+
+  it("devuelve la URL normalizada (la que se manda a Modal)", () => {
+    const r = streamVideoFromUrl(`https://${CDN.toUpperCase()}:443/./g-1/play_720p.mp4`, ENV);
+    expect(r.url.href).toBe(`https://${CDN}/g-1/play_720p.mp4`);
+    expect(r.guid).toBe("g-1");
+  });
+
+  it("Storage y hosts extra están en la allowlist pero NO identifican un vídeo → guid null", () => {
+    expect(streamVideoFromUrl("https://vitas-storage.b-cdn.net/g-1/x.mp4", ENV).guid).toBeNull();
+    expect(streamVideoFromUrl("https://legacy.b-cdn.net/g-1/x.mp4", { ...ENV, VIDEO_URL_EXTRA_HOSTS: "legacy.b-cdn.net" }).guid).toBeNull();
+    expect(streamVideoFromUrl(`https://${CDN}/`, ENV).guid).toBeNull();
+  });
+
+  it("fuera de la allowlist o sin hosts configurados → lanza (como assertAllowedVideoUrl)", () => {
+    expect(codeOf(() => streamVideoFromUrl("https://attacker.example/g-1/x.mp4", ENV))).toBe("VIDEO_URL_NOT_ALLOWED");
+    expect(codeOf(() => streamVideoFromUrl(`https://${CDN}/g-1/x.mp4`, {}))).toBe("VIDEO_HOSTS_NOT_CONFIGURED");
   });
 });
 
