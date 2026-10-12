@@ -341,9 +341,15 @@ export default withHandler(
     const playerIds = Array.from(new Set((events ?? []).map((e) => e.player_id).filter(Boolean) as string[]));
     const playerNames = new Map<string, string>();
     if (playerIds.length > 0) {
+      // SOLO jugadores del usuario (players.user_id; misma regla que ownsPlayer,
+      // 074 solo dueño). Sin este filtro, un evento con el player_id de un menor de
+      // OTRA cuenta (colgado por PostgREST antes de la 074; /api/live/events
+      // responde 400 a todo POST, ver su cabecera) devolvía su NOMBRE en
+      // stats_by_player y lo mandaba al prompt del informe. Ajeno → "?".
       const { data: players } = await supabase
         .from("players")
         .select("id, name")
+        .eq("user_id", userId)
         .in("id", playerIds);
       (players ?? []).forEach((p) => playerNames.set(p.id, p.name ?? "?"));
     }

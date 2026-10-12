@@ -16,12 +16,67 @@
  *
  * Idempotencia: clientEventId UUID generado en cliente · UNIQUE
  * sobre (match_id, client_event_id) evita duplicados al sync.
+ *
+ * Propiedad (074, solo el dueño): escribe con service_role, que salta la RLS y las
+ * guardas RESTRICTIVE de la migración 074. Por eso aquí se exige, además de que el
+ * PARTIDO sea del usuario, que cada playerId no nulo sea un jugador SUYO
+ * (players.user_id; ownedPlayerIdsAmong = forma por lote de ownsPlayer, una sola
+ * consulta). Si alguno no lo es → 403 y no se escribe NADA del lote (el cliente
+ * conserva su cola); si no se puede comprobar → 503. Antes el player_id iba tal
+ * cual: cualquier cuenta podía colgar eventos del jugador (menor) de otra cuenta
+ * en su propio partido, y /api/live/aggregate devolvía luego su nombre.
+ *
+ * POST SIGUE INERTE, COMO EN main (a propósito, PR #309): withHandler ya consumió
+ * el cuerpo de los POST y este handler lo vuelve a leer con req.json() → null →
+ * 400 invalid_body a TODO POST, desde que se creó (457e17c). Por eso la
+ * comprobación de propiedad de arriba hoy no se alcanza en producción: está para
+ * que el futuro arreglo de esa doble lectura no reabra el hueco. Ese arreglo NO
+ * va en este PR de seguridad porque encendería por primera vez una superficie que
+ * nunca ha funcionado y que no está lista (docs/pendientes-metricas.md §B, 074):
+ *   - el upsert del lote usa onConflict "match_id,client_event_id", pero el único
+ *     índice único es PARCIAL (032:90-92, WHERE client_event_id IS NOT NULL) y no
+ *     arbitra un ON CONFLICT sin su predicado (42P10, SIMULADO en PGlite; el mismo
+ *     caso que api/webhooks/stripe.ts:154-157) → 500 en el esquema del repo;
+ *   - LiveSummaryPage pinta por jugador una nota del LLM (/10) y el «impacto neto»
+ *     (pesos EVENT_WEIGHTS de aggregate.ts sin fuente) sin MetricResult, sin
+ *     etiqueta de procedencia y sin entrada en config/metrics.json (inv #1).
+ * Encenderlo es decisión del dueño, con esas dos cosas resueltas antes.
  */
 
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { createClient } from "@supabase/supabase-js";
+import { ownedPlayerIdsAmong } from "../_lib/ownership";
+
+/**
+ * 403/503 si algún playerId no nulo no es del usuario (o no se puede comprobar);
+ * null si todos son suyos (o no hay ninguno). Una sola consulta por petición.
+ * Mismo mensaje para «de otra cuenta» y «no existe»: no revela si un id existe.
+ */
+async function rejectForeignPlayers(
+  playerIds: Array<string | null | undefined>,
+  userId: string,
+): Promise<Response | null> {
+  const wanted = playerIds.filter((p): p is string => p !== null && p !== undefined);
+  if (wanted.length === 0) return null;
+  const owned = await ownedPlayerIdsAmong(wanted, userId);
+  if (owned === null) {
+    return errorResponse({
+      code: "ownership_unavailable",
+      message: "No se pudo comprobar la propiedad de los jugadores · no se ha guardado nada",
+      status: 503,
+    });
+  }
+  if (wanted.some((p) => !owned.has(p))) {
+    return errorResponse({
+      code: "player_not_owned",
+      message: "Hay eventos de jugadores que no son tuyos · no se ha guardado nada",
+      status: 403,
+    });
+  }
+  return null;
+}
 
 export const config = { runtime: "edge" };
 
@@ -80,7 +135,7 @@ export default withHandler(
       // Ownership: sin .eq(user_id) cualquier autenticado leía los eventos
       // (player_id de menores, notas, metadata) de un partido ajeno con solo su
       // matchId. POST/DELETE ya gatean por user_id; el GET no lo hacía. Los
-      // live_events se insertan con user_id del creador (:140/:192), así que
+      // live_events se insertan con user_id del creador (POST, abajo), así que
       // filtrar por user_id acota al dueño (igual que el DELETE).
       const { data: events, error } = await supabase
         .from("live_events")
@@ -118,6 +173,12 @@ export default withHandler(
     }
 
     // ── POST · single o batch ───────────────────────────────────
+    // DOBLE LECTURA DEL CUERPO, SIN ARREGLAR A PROPÓSITO (ver cabecera): withHandler
+    // ya leyó el cuerpo, así que esta segunda lectura da null → 400 invalid_body en
+    // TODO POST, igual que en main. No cambiar a ctx.body sin antes arreglar el
+    // upsert del lote frente al índice parcial de la 032 y etiquetar las cifras de
+    // LiveSummaryPage, y con la decisión del dueño (el test
+    // api/live/__tests__/events-ownership.test.ts «sigue inerte» lo vigila).
     const body = (await req.json().catch(() => null)) as unknown;
 
     // Detectar batch vs single
@@ -142,6 +203,10 @@ export default withHandler(
       if (!match || match.user_id !== userId) {
         return errorResponse({ code: "forbidden", message: "Partido no es tuyo", status: 403 });
       }
+
+      // Cada jugador del lote debe ser del usuario (una consulta para todo el lote).
+      const foreignBatch = await rejectForeignPlayers(input.events.map((e) => e.playerId), userId);
+      if (foreignBatch) return foreignBatch;
 
       const inserts = input.events.map((e) => ({
         tenant_id: match.tenant_id,
@@ -192,6 +257,9 @@ export default withHandler(
     if (!match || match.user_id !== userId) {
       return errorResponse({ code: "forbidden", message: "Partido no es tuyo", status: 403 });
     }
+
+    const foreignSingle = await rejectForeignPlayers([input.playerId], userId);
+    if (foreignSingle) return foreignSingle;
 
     const { data: row, error } = await supabase
       .from("live_events")

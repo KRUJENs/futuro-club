@@ -6,11 +6,16 @@
  *
  * Body: partial goal fields + required goalId.
  * Returns the updated row.
+ *
+ * Autorización (074): solo el DUEÑO del jugador del plan del objetivo
+ * (ownsIdpPlanItem) o una llamada de servicio. Antes cualquier cuenta pro/club
+ * editaba objetivos del plan de cualquier menor conociendo su id.
  */
 
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
+import { ownsIdpPlanItem } from "../_lib/ownership";
 
 export const config = { runtime: "edge" };
 
@@ -53,7 +58,7 @@ export default withHandler(
     allowServiceToken: true,
     requiredPlan: "pro,club",
   },
-  async ({ body }) => {
+  async ({ body, userId, isServiceCall }) => {
     const input = body as z.infer<typeof UpdateGoalSchema>;
     const { goalId, ...changes } = input;
 
@@ -63,6 +68,11 @@ export default withHandler(
         status: "client_only",
         changes,
       });
+    }
+
+    // Solo el dueño del jugador del plan (074). Objetivo que no existe → 403 (fail-closed).
+    if (!isServiceCall && !(await ownsIdpPlanItem("idp_goals", goalId, userId))) {
+      return errorResponse("No autorizado para este plan", 403, "FORBIDDEN");
     }
 
     const patch: Record<string, unknown> = {

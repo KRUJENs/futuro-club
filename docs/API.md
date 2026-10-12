@@ -9,8 +9,10 @@ Todos los endpoints son Vercel Edge Functions (excepto los marcados como Node.js
 ## Upload
 
 ### POST `/api/upload/image`
-Sube una imagen a Bunny CDN Storage.
-- **Body:** `multipart/form-data` con archivo + `path` opcional
+Sube una imagen a Bunny CDN Storage. Requiere sesión.
+- **Body:** los bytes de la imagen (no multipart), máx. 10 MB en el servidor. El tipo se decide por el contenido: solo JPEG, PNG, WebP o GIF (otro → 415). Un `Content-Type` que no sea una de esas 4 imágenes (ni `application/octet-stream`) → 415.
+- **Query:** `path` obligatorio. Solo se admite `players/{playerId}/avatar[.ext]` (la extensión se ignora), y solo si el usuario es el dueño del jugador (si no → 403). Sin `path` o con cualquier otra ruta → 400.
+- **Ruta final (la decide el servidor):** `players/{playerId}/avatar-{uuid}.{ext}`, con la extensión del tipo real.
 - **Respuesta:** `{ success: true, data: { url, path, size, contentType } }`
 
 ### POST `/api/upload/video-init`
