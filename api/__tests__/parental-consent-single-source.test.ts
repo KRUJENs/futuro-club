@@ -3,8 +3,9 @@
  * decide en UN solo sitio, api/_lib/parentalConsent.ts (fila verificada + evidencia de
  * verify-consent + sin retirada). Ningún otro código del servidor puede decidirlo leyendo
  * parental_consents.email_verified por su cuenta (así fue como el orquestador lo leía sin
- * `withdrawn_at IS NULL` ni evidencia), y NINGÚN código del servidor usa
- * players.parental_consent_status (lo pone el entrenador sin verificación del tutor).
+ * `withdrawn_at IS NULL` ni evidencia), y
+ * players.parental_consent_status (lo pone el entrenador sin verificación del tutor) nunca
+ * concede: solo parentalConsent.ts lo lee, y solo para quitar ('denied' = revocado).
  * Con controles positivos: el detector SÍ encuentra los casos que existen.
  *
  * Run: npx vitest run --config vitest.api.config.ts api/__tests__/parental-consent-single-source.test.ts
@@ -57,9 +58,12 @@ describe("consentimiento parental · una sola fuente en el servidor", () => {
     expect(orch.src).not.toMatch(/from\("parental_consents"\)/);
   });
 
-  it("ningún código del servidor usa players.parental_consent_status (control positivo en src/)", () => {
+  it("players.parental_consent_status solo se lee en parentalConsent.ts y solo para QUITAR ('denied') (control positivo en src/)", () => {
     const offenders = files.filter((f) => /parental_consent_status/.test(f.src)).map((f) => f.file);
-    expect(offenders).toEqual([]);
+    expect(offenders).toEqual(["api/_lib/parentalConsent.ts"]);
+    const canon = files.find((f) => f.file === "api/_lib/parentalConsent.ts")!.src;
+    expect(canon).toMatch(/parental_consent_status === "denied"\) return null/);
+    expect(canon).not.toMatch(/granted|not_required|"pending"/);
     const page = stripComments(fs.readFileSync(path.join(ROOT, "src/pages/ParentalConsentPage.tsx"), "utf8"));
     expect(/parental_consent_status/.test(page)).toBe(true);
   });

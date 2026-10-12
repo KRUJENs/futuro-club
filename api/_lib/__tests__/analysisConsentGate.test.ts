@@ -233,8 +233,8 @@ describe("B6 · la fuente del consentimiento la firma y la verifica el TUTOR; el
     expect(r).toMatchObject({ allowed: false, code: "parental_consent_required" });
   });
 
-  it("players.parental_consent_status = 'granted' (lo pone el entrenador en /admin/consent) NO desbloquea; ni siquiera se lee", async () => {
-    db.birthDates.p1 = "2013-05-01";
+  /** Todas las filas de players que devuelva la base llevan este parental_consent_status. */
+  const withPlayerConsentStatus = (status: string) => {
     const inner = mock.fn;
     vi.stubGlobal(
       "fetch",
@@ -243,14 +243,32 @@ describe("B6 · la fuente del consentimiento la firma y la verifica el TUTOR; el
         const url = String(input instanceof Request ? input.url : input);
         if (url.includes("/rest/v1/players?") && res.ok) {
           const rows = (await res.json()) as Array<Record<string, unknown>>;
-          return new Response(JSON.stringify(rows.map((r) => ({ ...r, parental_consent_status: "granted" }))), { status: 200 });
+          const out = rows.length ? rows : url.includes("select=parental_consent_status") ? [{}] : rows;
+          return new Response(JSON.stringify(out.map((r) => ({ ...r, parental_consent_status: status }))), { status: 200 });
         }
         return res;
       }),
     );
+  };
+
+  it("players.parental_consent_status = 'granted' (lo pone el entrenador en /admin/consent) NO desbloquea", async () => {
+    db.birthDates.p1 = "2013-05-01";
+    withPlayerConsentStatus("granted");
     const r = await enforceClipConsent({ ...base, attestation: ATTESTATION, playerId: "p1" });
     expect(r).toMatchObject({ allowed: false, code: "parental_consent_required" });
-    expect(mock.calls.some((c) => c.url.includes("parental_consent_status"))).toBe(false);
+  });
+
+  // Ronda 6: «revocar» en /admin/consent solo pone 'denied' (nunca withdrawn_at). Una retirada
+  // tiene que parar el análisis aunque haya un consentimiento verificado por el tutor.
+  it("consentimiento VERIFICADO + el entrenador lo revoca ('denied') → bloqueado", async () => {
+    db.birthDates.p1 = "2013-05-01";
+    db.activeConsents.push("p1");
+    // Control positivo: con el consentimiento verificado y sin revocar, pasa.
+    expect(await enforceClipConsent({ ...base, attestation: ATTESTATION, playerId: "p1", record: false }))
+      .toMatchObject({ allowed: true });
+    withPlayerConsentStatus("denied");
+    const r = await enforceClipConsent({ ...base, attestation: ATTESTATION, playerId: "p1", record: false });
+    expect(r).toMatchObject({ allowed: false, code: "parental_consent_required" });
   });
 
   it("error al leer la evidencia (gdpr_audit_log) de un menor con fila verificada → 500 consent_check_failed, nunca permitido", async () => {
@@ -372,9 +390,9 @@ describe("resolveClipVideo · el vídeo y sus jugadores los resuelve el servidor
     }
   });
 
-  it("URL cuyo PRIMER segmento es otro vídeo (el GUID propio va después) → 400 video_url_mismatch", async () => {
+  it("URL con otro vídeo y el GUID propio en segmentos de más → 400 invalid_video_reference (ronda 6: no identifica un vídeo)", async () => {
     db.videos.push({ id: "1a000000-0000-4000-8000-000000000001", user_id: USER, tenant_id: null, player_id: null, bunny_video_id: "1a000000-0000-4000-8000-000000000001" });
-    expect(await resolve({ videoId: "1a000000-0000-4000-8000-000000000001", videoUrl: "https://cdn.test/1c000000-0000-4000-8000-000000000003/1a000000-0000-4000-8000-000000000001/play.mp4" })).toMatchObject({ ok: false, status: 400, code: "video_url_mismatch" });
+    expect(await resolve({ videoId: "1a000000-0000-4000-8000-000000000001", videoUrl: "https://cdn.test/1c000000-0000-4000-8000-000000000003/1a000000-0000-4000-8000-000000000001/play.mp4" })).toMatchObject({ ok: false, status: 400, code: "invalid_video_reference" });
   });
 
   it("videoId de un vídeo y GUID de otro (ambos propios) → 400 video_url_mismatch", async () => {
@@ -528,8 +546,9 @@ describe("helpers de vídeo", () => {
     const env = { BUNNY_CDN_HOSTNAME: "vz-1.b-cdn.net", BUNNY_STREAM_LIBRARY_ID: "42" };
     expect(bunnyGuidFromVideoUrl("https://vz-1.b-cdn.net/abc-guid/play_720p.mp4", env)).toBe("abc-guid");
     expect(bunnyGuidFromVideoUrl("https://video.bunnycdn.com/library/42/videos/abc-guid/play.mp4", env)).toBe("abc-guid");
-    // El vídeo que sirve la pull zone es el del PRIMER segmento, aunque otro aparezca después.
-    expect(bunnyGuidFromVideoUrl("https://vz-1.b-cdn.net/1c000000-0000-4000-8000-000000000003/abc-guid/play.mp4", env)).toBe("1c000000-0000-4000-8000-000000000003");
+    // Ronda 6: solo la forma exacta /<guid>/<fichero> identifica un vídeo; con segmentos de
+    // más no se sabe qué píxeles sirve el CDN → null (antes: el primer segmento).
+    expect(bunnyGuidFromVideoUrl("https://vz-1.b-cdn.net/1c000000-0000-4000-8000-000000000003/abc-guid/play.mp4", env)).toBeNull();
     expect(bunnyGuidFromVideoUrl("https://vz-1.b-cdn.net/x/play.mp4?abc-guid", env)).toBe("x");
     expect(bunnyGuidFromVideoUrl("not a url", env)).toBeNull();
   });

@@ -205,22 +205,30 @@ export interface StreamVideoUrl {
  *   - video.bunnycdn.com/library/<BUNNY_STREAM_LIBRARY_ID>/videos/<guid>/…: el segmento tras
  *     `/videos/`;
  *   - los DEMÁS hosts de la allowlist (pull zone de Storage, VIDEO_URL_EXTRA_HOSTS) → guid null:
- *     ahí el primer segmento es una carpeta cualquiera (api/upload/image escribe en Storage en
- *     la ruta que manda el cliente), no un vídeo, así que no sirve para ligar la declaración
- *     del entrenador a los píxeles.
+ *     ahí el primer segmento es una carpeta (hasta el PR #310 api/upload/image escribía en
+ *     Storage en la ruta que mandaba el cliente), no un vídeo, así que no sirve para ligar la
+ *     declaración del entrenador a los píxeles.
  * El GUID se devuelve tal cual (sin decodificar); quien lo use comprueba su forma (bunnyGuid).
+ *
+ * Ronda 6 (B7 residual): la ruta tiene que tener la forma EXACTA de un fichero de ese vídeo,
+ * `/<guid>/<fichero>` (o `/library/<id>/videos/<guid>[/<fichero>]`), sin `%` ni segmentos de
+ * más. Antes solo se miraba el PRIMER segmento: `/<guid propio>/..%2F<guid ajeno>%2Fplay.mp4`
+ * pasaba con el GUID declarado y llegaba así a Modal (la URL de WHATWG no resuelve `%2F`), y
+ * si el CDN lo decodifica serviría los píxeles del vídeo ajeno. Cualquier otra forma → guid null
+ * (la URL no identifica un vídeo y el gate la bloquea).
  */
+const STREAM_FILE_PATH = /^\/([A-Za-z0-9_-]{1,128})\/((?!\.+$)[A-Za-z0-9._-]{1,128})$/;
+const LIBRARY_VIDEO_PATH = /^\/library\/\d+\/videos\/([A-Za-z0-9_-]{1,128})(?:\/((?!\.+$)[A-Za-z0-9._-]{1,128}))?$/;
+
 export function streamVideoFromUrl(raw: unknown, env: Env = process.env): StreamVideoUrl {
   const url = assertAllowedVideoUrl(raw, env);
   const host = url.hostname.replace(/\.$/, "").toLowerCase();
-  const segs = url.pathname.split("/").filter(Boolean);
   const streamHosts = new Set(
     [env.BUNNY_CDN_HOSTNAME, env.VITE_BUNNY_CDN_HOSTNAME].map(hostFromEnvValue).filter((h): h is string => !!h),
   );
-  if (streamHosts.has(host)) return { url, guid: segs[0] ?? null };
+  if (streamHosts.has(host)) return { url, guid: STREAM_FILE_PATH.exec(url.pathname)?.[1] ?? null };
   if (host === BUNNY_LIBRARY_API_HOST) {
-    const i = segs.indexOf("videos");
-    return { url, guid: i >= 0 && segs[i + 1] ? segs[i + 1] : null };
+    return { url, guid: LIBRARY_VIDEO_PATH.exec(url.pathname)?.[1] ?? null };
   }
   return { url, guid: null };
 }

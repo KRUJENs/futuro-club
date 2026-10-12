@@ -44,8 +44,9 @@
  * firmar de nuevo. Con el dato verificado del 29-30 sep (ningún jugador de producción tiene
  * fecha de nacimiento) eso no bloquea hoy a nadie; cuántas hay: supabase/checks/075_previa.sql.
  *
- * players.parental_consent_status NUNCA cuenta: lo pone el propio entrenador desde
- * /admin/consent (ParentalConsentPage) sin ninguna verificación del tutor.
+ * players.parental_consent_status NUNCA CONCEDE: lo pone el propio entrenador desde
+ * /admin/consent (ParentalConsentPage) sin ninguna verificación del tutor. Solo puede QUITAR:
+ * 'denied' (la acción «revocar» de esa página) anula cualquier consentimiento verificado.
  *
  * Límite que NO cierra este módulo (documentado en docs/pendientes-metricas.md §E): la
  * verificación por email prueba que alguien controla ESE buzón, no que sea el tutor. Un
@@ -286,6 +287,16 @@ type AuditRow = { action: unknown; resource_id: unknown; metadata: unknown };
  * el llamador NUNCA lo interpreta como «concedido».
  */
 export async function findActiveParentalConsent(playerId: string): Promise<ActiveParentalConsent | null> {
+  // Retirada registrada por el entrenador (ronda 6 de la review del PR #308). La acción
+  // «revocar» de /admin/consent solo pone players.parental_consent_status = 'denied' (nunca
+  // parental_consents.withdrawn_at), y sin esto un consentimiento ya verificado seguía
+  // contando tras retirarlo. 'denied' solo puede QUITAR el consentimiento: ningún valor de esa
+  // columna lo concede (ver cabecera). La columna es de la 036, que la 071 exige.
+  const status = await getRows<{ parental_consent_status: unknown }>(
+    `players?id=eq.${encodeURIComponent(playerId)}&select=parental_consent_status&limit=1`,
+  );
+  if (status[0]?.parental_consent_status === "denied") return null;
+
   const rows = await getRows<{ id: unknown; player_id: unknown }>(
     `parental_consents?player_id=eq.${encodeURIComponent(playerId)}` +
       `&email_verified=is.true&withdrawn_at=is.null` +

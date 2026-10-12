@@ -100,6 +100,38 @@ describe("streamVideoFromUrl · qué vídeo de Bunny STREAM sirve la URL (B7, ro
     expect(codeOf(() => streamVideoFromUrl("https://attacker.example/g-1/x.mp4", ENV))).toBe("VIDEO_URL_NOT_ALLOWED");
     expect(codeOf(() => streamVideoFromUrl(`https://${CDN}/g-1/x.mp4`, {}))).toBe("VIDEO_HOSTS_NOT_CONFIGURED");
   });
+
+  // Ronda 6 (B7 residual): solo la forma EXACTA /<guid>/<fichero> identifica un vídeo.
+  it("la forma real de los ficheros de un vídeo sigue identificándolo", () => {
+    for (const f of ["play_720p.mp4", "play_360p.mp4", "playlist.m3u8", "thumbnail.jpg", "original"]) {
+      expect(streamVideoFromUrl(`https://${CDN}/1a000000-0000-4000-8000-000000000001/${f}`, ENV).guid)
+        .toBe("1a000000-0000-4000-8000-000000000001");
+    }
+    expect(streamVideoFromUrl(`https://${CDN}/g-1/thumbnail.jpg?time=2`, ENV).guid).toBe("g-1");
+    expect(streamVideoFromUrl("https://video.bunnycdn.com/library/123456/videos/g-2", ENV).guid).toBe("g-2");
+  });
+
+  it.each([
+    `https://${CDN}/g-own/..%2Fg-foreign%2Fplay_720p.mp4`,   // el ataque del revisor
+    `https://${CDN}/g-own/%2e%2e%2Fg-foreign/play_720p.mp4`,
+    `https://${CDN}/g-own/play%5F720p.mp4`,                 // cualquier % fuera
+    `https://${CDN}/g-own/g-foreign/play_720p.mp4`,          // segmentos de más
+    `https://${CDN}/g-own//play_720p.mp4`,
+    `https://${CDN}/g-own/play_720p.mp4/`,
+    `https://${CDN}/g-own`,                                  // sin fichero
+    `https://${CDN}/g-own/...`,
+    `https://${CDN}/g%2Down/play_720p.mp4`,
+    `https://${CDN}/g.own/play_720p.mp4`,
+    "https://video.bunnycdn.com/library/123456/videos/g-own/..%2Fg-foreign%2Fplay.mp4",
+    "https://video.bunnycdn.com/library/123456/videos/g-own/g-foreign/play.mp4",
+  ])("%s → guid null (no identifica un vídeo; el gate la bloquea)", (url) => {
+    expect(streamVideoFromUrl(url, ENV).guid).toBeNull();
+  });
+
+  it("una ruta de librería fuera de /library/<id>/videos/ ni siquiera pasa la allowlist", () => {
+    expect(codeOf(() => streamVideoFromUrl("https://video.bunnycdn.com/library/123456/x/videos/g-own/play.mp4", ENV)))
+      .toBe("VIDEO_URL_NOT_ALLOWED");
+  });
 });
 
 describe("assertAllowedVideoUrl · falla cerrado", () => {

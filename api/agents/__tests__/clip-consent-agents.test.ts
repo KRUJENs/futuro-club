@@ -164,13 +164,13 @@ describe("video-observation · llamadas de USUARIO", () => {
     expect(geminiCalls()).toHaveLength(0);
   });
 
-  it("URL de OTRO vídeo que solo CONTIENE el GUID propio en un segmento posterior → 400 video_url_mismatch", async () => {
-    // Pull zone: el vídeo que se descarga es el del PRIMER segmento (`otro`), no el del GUID propio.
+  it("URL de OTRO vídeo que solo CONTIENE el GUID propio en un segmento posterior → 400 invalid_video_reference", async () => {
+    // Ronda 6: con segmentos de más la URL no identifica un vídeo (antes: el del PRIMER segmento).
     const res = await videoObservation(
       post("video-observation", teamObsBody({ videoId: GUID, attestation: ATTESTATION, videoUrl: `https://${CDN}/1c000000-0000-4000-8000-000000000003/${GUID}/play_720p.mp4` })),
     );
     expect(res.status).toBe(400);
-    expect((await res.json()).errorDetail.code).toBe("video_url_mismatch");
+    expect((await res.json()).errorDetail.code).toBe("invalid_video_reference");
     expect(geminiCalls()).toHaveLength(0);
   });
 

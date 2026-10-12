@@ -205,6 +205,21 @@ describe("track-players · ronda 5 (B7): Modal recibe EXACTAMENTE la URL que com
     expect(modalCalls).toHaveLength(0);
   });
 
+  // Ronda 6 (B7 residual): tras el GUID declarado, `..%2F<GUID ajeno>%2F…` llegaba a Modal tal
+  // cual (WHATWG no resuelve %2F). Ahora la ruta tiene que ser exactamente /<guid>/<fichero>.
+  it.each([
+    `https://cdn.test/${OWN_GUID}/..%2F1c000000-0000-4000-8000-000000000009%2Fplay_720p.mp4`,
+    `https://cdn.test/${OWN_GUID}/1c000000-0000-4000-8000-000000000009/play_720p.mp4`,
+  ])("GUID propio declarado + ruta hacia OTRO vídeo (%s) → 400 invalid_video_reference; ni gasto ni Modal", async (videoUrl) => {
+    db.storedAttestations.push({ resource_type: "videos", resource_id: OWN_GUID });
+    const res = await post({ videoUrl, attestation: ATTESTATION });
+    expect(res.status).toBe(400);
+    expect((await res.json()).errorDetail.code).toBe("invalid_video_reference");
+    expect(mock.inserts).toHaveLength(0);
+    expect(recordSpendUsd).not.toHaveBeenCalled();
+    expect(modalCalls).toHaveLength(0);
+  });
+
   it("sin BUNNY_CDN_HOSTNAME → 500 VIDEO_HOSTS_NOT_CONFIGURED (NUNCA 503: el cliente lo trataría como «mock»); ni Modal", async () => {
     delete process.env.BUNNY_CDN_HOSTNAME;
     const res = await post({ videoUrl: VIDEO_URL, attestation: ATTESTATION });
