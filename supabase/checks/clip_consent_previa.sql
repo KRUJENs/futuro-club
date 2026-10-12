@@ -28,7 +28,12 @@
 --     dice «The GUID of the video», string).
 --   - auth_can_update_consents=true → informativo: ver docs/pendientes-metricas.md §E
 --     (un authenticated con claim tenant_id puede marcar como verificado un consentimiento
---     pendiente de su tenant; simulación PGlite).
+--     pendiente de su tenant; simulación PGlite). VERIFICADO en producción el 9 oct: true.
+--     Desde la ronda 4 (B6) el código ya no acepta una fila marcada así (le falta la
+--     evidencia de verify-consent) y la migración 075 retira esos permisos
+--     (supabase/checks/075_previa.sql / 075_posterior.sql).
+--   - minors_blocked_without_consent cuenta, desde B6, con la regla del código nuevo:
+--     consentimiento verificado CON la evidencia de verify-consent y sin retirada auditada.
 select
   to_regclass('public.gdpr_audit_log') is not null                                   as audit_table_exists,          -- esperado: true
   (select count(*)::int from information_schema.columns
@@ -63,12 +68,26 @@ select
                       where table_schema = 'public' and table_name = 'players' and column_name = 'birth_date')
         and (select count(*) from information_schema.columns
                where table_schema = 'public' and table_name = 'parental_consents'
-                 and column_name in ('player_id','email_verified','withdrawn_at')) = 3
+                 and column_name in ('id','player_id','email_verified','withdrawn_at')) = 4
+        and (select count(*) from information_schema.columns
+               where table_schema = 'public' and table_name = 'gdpr_audit_log'
+                 and column_name in ('action','resource_type','resource_id','metadata')) = 4
+       -- B6: cuenta solo un consentimiento verificado CON la evidencia de verify-consent y sin
+       -- retirada auditada (api/_lib/parentalConsent.ts); uno marcado por un cliente no cuenta.
        then (xpath('/row/c/text()', query_to_xml(
               'select count(*)::int as c from public.players p
                  where p.birth_date is not null and extract(year from age(now(), p.birth_date)) < 14
                    and not exists (select 1 from public.parental_consents c
-                                    where c.player_id = p.id and c.email_verified = true and c.withdrawn_at is null)',
+                                    where c.player_id::text = p.id::text and c.email_verified = true and c.withdrawn_at is null
+                                      and exists (select 1 from public.gdpr_audit_log a
+                                                   where a.action = ''consent_email_verified''
+                                                     and a.resource_type = ''parental_consents''
+                                                     and a.resource_id = c.id::text
+                                                     and a.metadata ->> ''player_id'' = c.player_id::text)
+                                      and not exists (select 1 from public.gdpr_audit_log a
+                                                       where a.action = ''consent_withdrawn''
+                                                         and a.resource_type = ''parental_consents''
+                                                         and a.resource_id = c.id::text))',
               false, true, '')))[1]::text::int
   end                                                                                as minors_blocked_without_consent, -- informativo: se bloquearían
   case when to_regclass('public.parental_consents') is null then null

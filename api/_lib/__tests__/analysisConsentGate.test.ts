@@ -197,6 +197,64 @@ describe("menor de 14 conocido → consentimiento parental de parental_consents"
   });
 });
 
+describe("B6 · la fuente del consentimiento la firma y la verifica el TUTOR; el entrenador no la fabrica", () => {
+  const C1 = "c1000000-0000-4000-8000-000000000001";
+
+  it("fila marcada como verificada por un CLIENTE (UPDATE, sin evidencia de verify-consent) → 403 parental_consent_required", async () => {
+    db.birthDates.p1 = "2013-05-01";
+    db.consentRows = [{ id: C1, player_id: "p1", email_verified: true, withdrawn_at: null }];
+    const r = await enforceClipConsent({ ...base, attestation: ATTESTATION, playerId: "p1" });
+    expect(r).toMatchObject({ allowed: false, code: "parental_consent_required", status: 403, minor: "minor" });
+    expect(mock.inserts).toHaveLength(0);
+  });
+
+  it("consentimiento verificado de OTRO jugador reapuntado a este menor → 403", async () => {
+    db.birthDates.p1 = "2013-05-01";
+    db.consentRows = [{ id: C1, player_id: "p1", email_verified: true, withdrawn_at: null }];
+    db.consentAudit = [{ action: "consent_email_verified", resource_id: C1, metadata: { player_id: "pOtro" } }];
+    const r = await enforceClipConsent({ ...base, attestation: ATTESTATION, playerId: "p1" });
+    expect(r).toMatchObject({ allowed: false, code: "parental_consent_required" });
+  });
+
+  it("consentimiento retirado (auditado por el trigger 003) → 403 aunque withdrawn_at se haya vaciado", async () => {
+    db.birthDates.p1 = "2013-05-01";
+    db.activeConsents.push("p1");
+    db.consentAudit = [{ action: "consent_withdrawn", resource_id: "consent-p1", metadata: null }];
+    const r = await enforceClipConsent({ ...base, attestation: ATTESTATION, playerId: "p1" });
+    expect(r).toMatchObject({ allowed: false, code: "parental_consent_required" });
+  });
+
+  it("players.parental_consent_status = 'granted' (lo pone el entrenador en /admin/consent) NO desbloquea; ni siquiera se lee", async () => {
+    db.birthDates.p1 = "2013-05-01";
+    const inner = mock.fn;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const res = await inner(input, init);
+        const url = String(input instanceof Request ? input.url : input);
+        if (url.includes("/rest/v1/players?") && res.ok) {
+          const rows = (await res.json()) as Array<Record<string, unknown>>;
+          return new Response(JSON.stringify(rows.map((r) => ({ ...r, parental_consent_status: "granted" }))), { status: 200 });
+        }
+        return res;
+      }),
+    );
+    const r = await enforceClipConsent({ ...base, attestation: ATTESTATION, playerId: "p1" });
+    expect(r).toMatchObject({ allowed: false, code: "parental_consent_required" });
+    expect(mock.calls.some((c) => c.url.includes("parental_consent_status"))).toBe(false);
+  });
+
+  it("error al leer la evidencia (gdpr_audit_log) de un menor con fila verificada → 500 consent_check_failed, nunca permitido", async () => {
+    db.birthDates.p1 = "2013-05-01";
+    db.activeConsents.push("p1");
+    // La declaración viene en el body (no se busca guardada), así que el único GET de
+    // gdpr_audit_log es el de la evidencia del consentimiento.
+    db.failures.gdpr_audit_log = { status: 500, body: "boom" };
+    const r = await enforceClipConsent({ ...base, attestation: ATTESTATION, playerId: "p1", lookupStored: false, record: false });
+    expect(r).toMatchObject({ allowed: false, code: "consent_check_failed", status: 500 });
+  });
+});
+
 describe("falla cerrado (nunca 503)", () => {
   it.each(["gdpr_audit_log", "parental_consents"])("error de %s → consent_check_failed 500", async (table) => {
     db.birthDates.p1 = "2014-01-01";

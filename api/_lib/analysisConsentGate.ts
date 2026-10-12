@@ -65,6 +65,7 @@ import {
 } from "../../src/lib/shared/videoConsent";
 import { isMissingBirthDateColumnError } from "../../src/lib/shared/birthDate";
 import { isBunnyGuid, isSafeVideoRef } from "./bunnyGuid";
+import { findActiveParentalConsent } from "./parentalConsent";
 import { ownsPlayer as ownsPlayerByOwner, ownsVideoAsCreatorOrItsPlayer, playerOwnerId } from "./ownership";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
@@ -274,17 +275,16 @@ async function readPlayerBirthDate(playerId: string): Promise<{ found: boolean; 
 }
 
 /**
- * ¿Consentimiento parental CONCEDIDO? Fuente canónica única: parental_consents con
- * email_verified = true AND withdrawn_at IS NULL (predicado de idx_consents_active, 003).
- * La fila solo la crea api/auth/sign-consent.ts y solo se verifica cuando el TUTOR pulsa
- * el enlace de api/auth/verify-consent.ts.
+ * ¿Consentimiento parental CONCEDIDO? Fuente canónica única (api/_lib/parentalConsent.ts):
+ * fila de parental_consents con email_verified = true AND withdrawn_at IS NULL (predicado
+ * de idx_consents_active, 003) MÁS la evidencia que escribe api/auth/verify-consent.ts con
+ * service_role cuando el TUTOR usa el token de su email (gdpr_audit_log
+ * 'consent_email_verified' con ese id y ese jugador), y sin retirada auditada (B6). Un
+ * UPDATE de cliente sobre parental_consents no crea esa evidencia. Nunca
+ * players.parental_consent_status. Un fallo de la base lanza (el gate falla cerrado).
  */
 export async function hasActiveParentalConsent(playerId: string): Promise<boolean> {
-  const rows = await getRows<{ id: unknown }>(
-    `parental_consents?player_id=eq.${encodeURIComponent(playerId)}` +
-      `&email_verified=is.true&withdrawn_at=is.null&select=id&limit=1`,
-  );
-  return rows.length > 0;
+  return (await findActiveParentalConsent(playerId)) !== null;
 }
 
 // ─── Gate ────────────────────────────────────────────────────────────────────

@@ -1,16 +1,31 @@
 /**
  * VITAS · Verify Parental Consent
- * GET /api/auth/verify-consent?token=...
+ * POST /api/auth/verify-consent  { token }
  *
- * Endpoint llamado al hacer click en el email de verificación.
- * Marca el consentimiento como email_verified=true si el token es válido.
- * Tras esto, el menor puede usar VITAS.
+ * Lo llama la página pública /auth/verify-consent (src/pages/VerifyConsentPage.tsx) con el
+ * token del email que sign-consent mandó al tutor. Marca el consentimiento como
+ * email_verified=true si el token es válido. Tras esto, el menor puede usar VITAS.
+ *
+ * B6 (review del PR #308) — el consentimiento que cuenta para analizar el vídeo de un
+ * menor de 14 es el que el TUTOR verifica aquí, y el entrenador no puede fabricarlo
+ * (api/_lib/parentalConsent.ts):
+ *   - el token se busca por su HASH (sign-consent guarda solo el hash): quien pueda leer la
+ *     fila no tiene el token;
+ *   - ANTES de marcar la fila se escribe la EVIDENCIA del servidor (gdpr_audit_log
+ *     'consent_email_verified' con el id de la fila y su jugador, service_role). Si no se
+ *     puede escribir → 500 y la fila NO se marca (el token sigue valiendo para reintentar).
+ *     Antes se marcaba y el registro de auditoría se intentaba después sin mirar el error;
+ *   - el marcado es condicional (aún sin verificar y sin retirar): dos clics no hacen dos
+ *     verificaciones distintas.
+ * Un UPDATE directo de la fila desde el cliente (posible mientras la 075 no esté aplicada)
+ * no crea la evidencia, así que no desbloquea ningún análisis.
  */
 
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { createClient } from "@supabase/supabase-js";
+import { hashConsentToken, recordParentalConsentVerified } from "../_lib/parentalConsent";
 
 export const config = { runtime: "edge" };
 
@@ -18,12 +33,23 @@ const verifySchema = z.object({
   token: z.string().min(32).max(128),
 });
 
+interface PendingConsentRow {
+  id: string;
+  player_id: string;
+  tenant_id: string | null;
+  email_verified: boolean;
+  verification_expires_at: string | null;
+  withdrawn_at: string | null;
+}
+
 export default withHandler(
   { schema: verifySchema, requireAuth: false, maxRequests: 30 },
   async ({ body }) => {
     const { token } = body as z.infer<typeof verifySchema>;
 
-    const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+    // Misma precedencia que api/_lib/env.ts (SUPABASE_URL primero), la que usan la
+    // evidencia (parentalConsent.ts) y el gate: la fila y su evidencia van al MISMO proyecto.
+    const supabaseUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
     if (!supabaseUrl || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
       return errorResponse({ code: "config_missing", message: "DB not configured", status: 500 });
     }
@@ -34,14 +60,22 @@ export default withHandler(
       { auth: { persistSession: false } }
     );
 
-    // ── Buscar consentimiento por token ───────────────────────────
-    const { data: consent, error } = await supabase
+    // ── Buscar consentimiento por el HASH del token ───────────────
+    const { data, error } = await supabase
       .from("parental_consents")
-      .select("*")
-      .eq("verification_token", token)
-      .single();
+      .select("id, player_id, tenant_id, email_verified, verification_expires_at, withdrawn_at")
+      .eq("verification_token", await hashConsentToken(token))
+      .maybeSingle();
 
-    if (error || !consent) {
+    if (error) {
+      return errorResponse({
+        code: "verify_failed",
+        message: "No se pudo comprobar el enlace. Inténtalo de nuevo más tarde.",
+        status: 500,
+      });
+    }
+    const consent = data as PendingConsentRow | null;
+    if (!consent || consent.withdrawn_at) {
       return errorResponse({
         code: "invalid_token",
         message: "Token de verificación inválido o ya usado",
@@ -68,8 +102,24 @@ export default withHandler(
       });
     }
 
-    // ── Marcar como verificado ────────────────────────────────────
-    const { error: updateError } = await supabase
+    // ── 1 · Evidencia del servidor ANTES de marcar (si falla, no se marca) ──
+    try {
+      await recordParentalConsentVerified({
+        consentId: consent.id,
+        playerId: consent.player_id,
+        tenantId: consent.tenant_id,
+      });
+    } catch (err) {
+      console.error("[verify-consent] no se pudo registrar la evidencia (no se marca):", err instanceof Error ? err.message : err);
+      return errorResponse({
+        code: "verify_failed",
+        message: "No se pudo registrar la verificación. Inténtalo de nuevo desde el enlace del email.",
+        status: 500,
+      });
+    }
+
+    // ── 2 · Marcar como verificado (condicional: pendiente y sin retirar) ──
+    const { data: updated, error: updateError } = await supabase
       .from("parental_consents")
       .update({
         email_verified: true,
@@ -77,26 +127,27 @@ export default withHandler(
         verification_token: null, // invalidar token tras uso
         verification_expires_at: null,
       })
-      .eq("id", consent.id);
+      .eq("id", consent.id)
+      .eq("email_verified", false)
+      .is("withdrawn_at", null)
+      .select("id");
 
     if (updateError) {
       return errorResponse({
         code: "verify_failed",
-        message: updateError.message,
+        message: "No se pudo registrar la verificación. Inténtalo de nuevo desde el enlace del email.",
         status: 500,
       });
     }
-
-    // Audit log
-    await supabase.rpc("log_gdpr_action", {
-      p_user_id: null,
-      p_tenant_id: consent.tenant_id,
-      p_action: "consent_email_verified",
-      p_resource_type: "parental_consents",
-      p_resource_id: consent.id,
-      p_metadata: { player_id: consent.player_id },
-      p_ip: null,
-    });
+    if (!Array.isArray(updated) || updated.length === 0) {
+      // Otra petición la marcó entre la lectura y el UPDATE (doble clic).
+      return successResponse({
+        consentId: consent.id,
+        playerId: consent.player_id,
+        alreadyVerified: true,
+        message: "Este consentimiento ya estaba verificado.",
+      });
+    }
 
     return successResponse({
       consentId: consent.id,

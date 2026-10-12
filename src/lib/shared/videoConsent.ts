@@ -9,10 +9,13 @@
  *   2. ADEMÁS, si el jugador del vídeo es CONOCIDO y menor de 14 años
  *      (players.birth_date presente y edad < 14, misma regla que
  *      is_minor_requiring_consent de la migración 036), hace falta un consentimiento
- *      parental CONCEDIDO. Fuente canónica: public.parental_consents con
- *      email_verified = true AND withdrawn_at IS NULL (predicado del índice
- *      idx_consents_active, migración 003). players.parental_consent_status NO cuenta:
- *      lo pone el propio entrenador desde /admin/consent sin verificación del tutor.
+ *      parental CONCEDIDO. Fuente canónica (servidor, api/_lib/parentalConsent.ts):
+ *      public.parental_consents con email_verified = true AND withdrawn_at IS NULL
+ *      (predicado del índice idx_consents_active, migración 003) Y la evidencia que
+ *      escribe api/auth/verify-consent con service_role cuando el TUTOR usa el token de
+ *      su email (B6: un UPDATE del cliente sobre la fila no la crea).
+ *      players.parental_consent_status NO cuenta: lo pone el propio entrenador desde
+ *      /admin/consent sin verificación del tutor.
  *   3. Fecha de nacimiento desconocida ⇒ basta la declaración. La edad NUNCA se infiere
  *      de otro campo (ni de `age`, ni de la categoría) ni se rellena con un valor por
  *      defecto.
@@ -163,7 +166,8 @@ export interface ClipConsentPlayer {
   /** players.birth_date (YYYY-MM-DD) o null si no consta. */
   birthDate: string | null;
   /**
-   * ¿Hay un parental_consents con email_verified = true y withdrawn_at IS NULL?
+   * ¿Hay un parental_consents con email_verified = true y withdrawn_at IS NULL, verificado
+   * por el tutor con el token de su email (evidencia del servidor, api/_lib/parentalConsent)?
    * null = no se consultó (solo hace falta si el jugador es menor de 14 conocido).
    */
   parentalConsentGranted: boolean | null;

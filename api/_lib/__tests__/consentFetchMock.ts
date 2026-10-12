@@ -1,6 +1,7 @@
 /**
  * Helper de tests (no es un test): simula la parte de Supabase REST que usa
- * api/_lib/analysisConsentGate — gdpr_audit_log (declaraciones), players.birth_date,
+ * api/_lib/analysisConsentGate — gdpr_audit_log (declaraciones y evidencia del
+ * consentimiento parental, api/_lib/parentalConsent), players.birth_date,
  * parental_consents y videos — y deja pasar el resto a `fallback`.
  */
 import { vi } from "vitest";
@@ -10,8 +11,16 @@ export interface ConsentDbState {
   storedAttestations: Array<{ resource_type: string; resource_id: string | null; user_id?: string; version?: string }>;
   /** players.birth_date por id. undefined = el jugador no existe. */
   birthDates: Record<string, string | null>;
-  /** player_id con consentimiento parental activo (email_verified + no retirado). */
+  /**
+   * player_id con consentimiento parental activo DE VERDAD: fila verificada y no retirada
+   * MÁS la evidencia que escribe verify-consent (gdpr_audit_log 'consent_email_verified').
+   * Para filas sin evidencia, reapuntadas o retiradas, usar `consentRows` / `consentAudit`.
+   */
   activeConsents: string[];
+  /** Filas extra de parental_consents (p. ej. marcadas como verificadas por un cliente, B6). */
+  consentRows?: Array<{ id: string; player_id: string; email_verified: boolean; withdrawn_at: string | null; parent_email?: string | null }>;
+  /** Filas extra de gdpr_audit_log sobre parental_consents (evidencia / retirada). */
+  consentAudit?: Array<{ action: string; resource_id: string; metadata: Record<string, unknown> | null }>;
   /** Filas de videos (por id y bunny_video_id). */
   videos: Array<{ id: string; user_id: string | null; tenant_id: string | null; player_id: string | null; bunny_video_id: string | null }>;
   /**
@@ -91,6 +100,25 @@ export function consentFetch(
       }
       const fail = db.failures[table];
       if (fail) return new Response(fail.body, { status: fail.status });
+      // Consentimiento parental (api/_lib/parentalConsent): filas + evidencia del servidor.
+      const consentRows = [
+        ...db.activeConsents.map((pid) => ({ id: `consent-${pid}`, player_id: pid, email_verified: true, withdrawn_at: null, parent_email: `tutor-${pid}@x.test` })),
+        ...(db.consentRows ?? []),
+      ];
+      const consentAudit = [
+        ...db.activeConsents.map((pid) => ({ action: "consent_email_verified", resource_id: `consent-${pid}`, metadata: { player_id: pid } as Record<string, unknown> | null })),
+        ...(db.consentAudit ?? []),
+        // Evidencia escrita por el servidor en ESTE test (verify-consent → POST gdpr_audit_log).
+        ...inserts
+          .filter((r) => r.resource_type === "parental_consents")
+          .map((r) => ({ action: String(r.action), resource_id: String(r.resource_id), metadata: (r.metadata as Record<string, unknown> | null) ?? null })),
+      ];
+      if (table === "gdpr_audit_log" && param(u, "resource_type") === "parental_consents") {
+        const actions = filterValues(u, "action") ?? [];
+        const ids = filterValues(u, "resource_id") ?? [];
+        const hits = consentAudit.filter((a) => actions.includes(a.action) && ids.includes(a.resource_id));
+        return new Response(JSON.stringify(hits), { status: 200 });
+      }
       if (table === "gdpr_audit_log") {
         const type = param(u, "resource_type");
         const idRaw = u.searchParams.get("resource_id");
@@ -129,7 +157,12 @@ export function consentFetch(
       if (table === "parental_consents") {
         const pid = param(u, "player_id") ?? "";
         const ok = u.searchParams.get("email_verified") === "is.true" && u.searchParams.get("withdrawn_at") === "is.null";
-        return new Response(JSON.stringify(ok && db.activeConsents.includes(pid) ? [{ id: "c1" }] : []), { status: 200 });
+        const rows = ok
+          ? consentRows
+              .filter((r) => r.player_id === pid && r.email_verified && r.withdrawn_at === null)
+              .map((r) => ({ id: r.id, player_id: r.player_id, parent_email: r.parent_email ?? null }))
+          : [];
+        return new Response(JSON.stringify(rows), { status: 200 });
       }
       if (table === "videos") {
         // TODAS las filas que casan (no solo la primera): bunny_video_id no es UNIQUE (060).

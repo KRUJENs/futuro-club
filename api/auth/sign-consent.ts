@@ -12,6 +12,11 @@
  *   4. Se envía email Resend con link de verificación (24h validez)
  *   5. Al hacer click → /api/auth/verify-consent marca email_verified=true
  *   6. Solo entonces el menor puede usar VITAS
+ *
+ * B6 (review del PR #308): en la base se guarda el HASH del token (hashConsentToken), no
+ * el token: el que llega en el email es el único que verifica. La fila nace pendiente y
+ * solo cuenta para el gate de análisis cuando verify-consent escribe su evidencia
+ * (api/_lib/parentalConsent.ts).
  */
 
 import { z } from "zod";
@@ -21,6 +26,7 @@ import { ownsPlayer } from "../_lib/ownership";
 import { RESEND_FROM } from "../_lib/email";
 import { createClient } from "@supabase/supabase-js";
 import { sha256Hex, randomHex } from "../_lib/edgeCrypto";
+import { hashConsentToken } from "../_lib/parentalConsent";
 
 export const config = { runtime: "edge" };
 
@@ -102,7 +108,9 @@ export default withHandler(
       return errorResponse({ code: "forbidden", message: "No autorizado para este jugador", status: 403 });
     }
 
-    const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+    // Misma precedencia que api/_lib/env.ts (SUPABASE_URL primero), la que usan
+    // verify-consent, la evidencia (parentalConsent.ts) y el gate de análisis.
+    const supabaseUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
     if (!supabaseUrl || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
       return errorResponse({ code: "config_missing", message: "DB not configured", status: 500 });
     }
@@ -128,7 +136,11 @@ export default withHandler(
     const signatureHash = await sha256Hex(signaturePayload);
 
     // ── Token de verificación (24h validez) ───────────────────────
+    // El token en claro SOLO viaja en el email del tutor; en la base se guarda su hash
+    // (B6, api/_lib/parentalConsent.ts): quien pueda leer la fila no puede verificar el
+    // consentimiento él mismo.
     const verificationToken = randomHex(32);
+    const verificationTokenHash = await hashConsentToken(verificationToken);
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     // ── Buscar tenant del player ──────────────────────────────────
@@ -154,11 +166,11 @@ export default withHandler(
         child_birthdate: input.childBirthdate,
         signed_ip: ip,
         signature_hash: signatureHash,
-        verification_token: verificationToken,
+        verification_token: verificationTokenHash,
         verification_expires_at: verificationExpires,
         consent_version: input.consentVersion,
       })
-      .select()
+      .select("id")
       .single();
 
     if (error) {
