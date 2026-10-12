@@ -9,10 +9,20 @@
 -- conteos de datos se hacen con query_to_xml SOLO cuando la tabla y sus columnas
 -- existen.
 -- Filas 20-31 (por tabla): qué políticas de ESCRITURA de cliente hay hoy, cuántas
--- filas y cuántas las escribió alguien que NO es el dueño del jugador (residuo que
--- la 074 no borra; limpiar es decisión del dueño). evaluation_history y
--- player_knowledge no tienen columna de autor: se cuentan las filas con un org_id
--- cuya organización NO es del dueño del jugador (pudieron entrar por esa rama).
+-- filas y cuántas tienen un AUTOR (user_id / coach_id) que NO es el dueño del
+-- jugador: residuo que la 074 no borra (limpiar es decisión del dueño). Donde la
+-- fila dice «MÍNIMO» NO es un recuento exacto de lo escrito por otras cuentas:
+--   · idp_goals / idp_milestones / idp_checkins NO tienen columna de autor: se
+--     cuentan las filas de planes cuyo coach_id no es el dueño; lo que otra cuenta
+--     AÑADIÓ al plan del PROPIO dueño (posible con las políticas de la 047, rama
+--     por tenant) no se puede contar. En idp_checkins, un reviewer_id distinto del
+--     dueño es una señal débil (reviewer_id lo pone quien escribe).
+--   · development_plans.coach_id y videos.user_id los pudo poner OTRA cuenta con
+--     las políticas por tenant / organización de antes de la 076 (047, 003, 038).
+--   · evaluation_history y player_knowledge no tienen columna de autor: se cuentan
+--     las filas con un org_id cuya organización NO es del dueño del jugador.
+-- Fila 32: partidos en directo con informe guardado que incluyen eventos de un
+-- jugador de OTRA cuenta (su nombre pudo quedar guardado en ese informe).
 -- Probada en SIMULACIÓN PGlite (NO en tu base), PostgreSQL 18.3 y 16.4: base
 -- vacía, cadena completa y forma verificada de producción (con 073 y 076, solo
 -- con 073, sin ninguna), antes y después de la 074.
@@ -33,6 +43,16 @@ tablas(n, tabla, autor, via) AS (
          (29, 'scout_insights', 'user_id', 'player'),
          (30, 'evaluation_history', NULL, 'org'),
          (31, 'player_knowledge', NULL, 'org')
+),
+-- Por qué el recuento de algunas tablas es solo un MÍNIMO (ver cabecera).
+notas(tabla, nota) AS (
+  VALUES ('development_plans', 'MÍNIMO: coach_id lo pone quien escribe; con idp_plans_coach_write de la 047 (rama por tenant) otra cuenta del mismo tenant pudo crear un plan con coach_id = el dueño o cambiar el plan del dueño, y eso no se distingue'),
+         ('idp_goals', 'MÍNIMO: sin columna de autor; lo que otra cuenta añadió o cambió en el plan del PROPIO dueño (posible con idp_goals_via_plan de la 047, rama por tenant) NO se puede contar'),
+         ('idp_milestones', 'MÍNIMO: sin columna de autor; lo que otra cuenta añadió o cambió en el plan del PROPIO dueño (posible con idp_milestones_via_plan de la 047, rama por tenant) NO se puede contar'),
+         ('idp_checkins', 'MÍNIMO: sin columna de autor; lo que otra cuenta añadió o cambió en el plan del PROPIO dueño (posible con idp_checkins_via_plan de la 047, rama por tenant) NO se puede contar'),
+         ('videos', 'MÍNIMO: con videos_tenant_isolation (003, por tenant) o la política de cambio de vídeos de la 038 (rama por organización, sin comprobación de la fila nueva) otra cuenta pudo dejar user_id = el dueño, y eso no se distingue'),
+         ('evaluation_history', 'MÍNIMO: sin columna de autor; una fila que otra cuenta escribió con una organización del propio dueño (si user_org_ids() se la devolvía) no se distingue'),
+         ('player_knowledge', 'MÍNIMO: sin columna de autor; una fila que otra cuenta escribió con una organización del propio dueño (si user_org_ids() se la devolvía) no se distingue')
 ),
 -- Columnas que usan las guardas (solo se exigen si la tabla existe).
 necesarias(tabla, columna) AS (
@@ -82,8 +102,11 @@ por_tabla AS (
              THEN 'sin player_id o sin ' || t.autor
            WHEN t.via = 'player' THEN substring(query_to_xml(format(
              'select count(*)::text || '' fila(s) · '' ||
-                     count(*) filter (where x.player_id is not null and p.id is not null
-                                        and x.%1$I is distinct from p.user_id)::text || '' de autor que NO es el dueño · '' ||
+                     count(*) filter (where x.player_id is not null and p.id is not null and p.user_id is not null
+                                        and x.%1$I is not null and x.%1$I::text <> p.user_id::text)::text
+                     || '' cuyo autor (%1$s) NO es el dueño · '' ||
+                     count(*) filter (where x.player_id is not null and p.id is not null and p.user_id is not null
+                                        and x.%1$I is null)::text || '' sin %1$s · '' ||
                      count(*) filter (where x.player_id is not null and (p.id is null or p.user_id is null))::text
                      || '' de un jugador que no existe o sin dueño'' as c
                 from public.%2$I x left join public.players p on p.id::text = x.player_id::text',
@@ -98,7 +121,7 @@ por_tabla AS (
              'select count(*)::text || '' fila(s) · '' ||
                      count(*) filter (where x.player_id is not null and p.id is not null and x.org_id is not null
                                         and o.owner_id is distinct from p.user_id)::text
-                     || '' con org_id de una organización cuyo dueño NO es el dueño del jugador (sin columna de autor: no se sabe quién las escribió) · '' ||
+                     || '' con org_id de una organización cuyo dueño NO es el dueño del jugador · '' ||
                      count(*) filter (where x.player_id is not null and (p.id is null or p.user_id is null))::text
                      || '' de un jugador que no existe o sin dueño'' as c
                 from public.%1$I x
@@ -110,15 +133,25 @@ por_tabla AS (
                 OR NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = 'development_plans' AND col.columna = 'coach_id')
                 OR NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = 'development_plans' AND col.columna = 'player_id')
              THEN 'sin plan_id o development_plans(coach_id, player_id)'
+           -- Sin columna de autor: se cuenta por el coach_id del PLAN. En idp_checkins se
+           -- añade reviewer_id distinto del dueño como señal débil (lo pone quien escribe).
            ELSE substring(query_to_xml(format(
              'select count(*)::text || '' fila(s) · '' ||
-                     count(*) filter (where d.id is not null and p.id is not null
-                                        and d.coach_id is distinct from p.user_id)::text
-                     || '' en planes cuyo autor (coach_id) NO es el dueño del jugador'' as c
+                     count(*) filter (where d.id is not null and p.id is not null and p.user_id is not null
+                                        and (d.coach_id is null or d.coach_id::text <> p.user_id::text))::text
+                     || '' en planes cuyo coach_id NO es el dueño del jugador o está vacío'' %2$s || '' · '' ||
+                     count(*) filter (where d.id is not null and (p.id is null or p.user_id is null))::text
+                     || '' en planes de un jugador que no existe o sin dueño'' as c
                 from public.%1$I x
                 left join public.development_plans d on d.id = x.plan_id
                 left join public.players p on p.id::text = d.player_id::text',
-             t.tabla), false, true, '')::text FROM '<c>([^<]*)</c>')
+             t.tabla,
+             CASE WHEN t.tabla = 'idp_checkins'
+                       AND EXISTS (SELECT 1 FROM col WHERE col.tabla = 'idp_checkins' AND col.columna = 'reviewer_id')
+                  THEN ' || '' · '' || count(*) filter (where d.id is not null and p.id is not null and p.user_id is not null
+                                                          and x.reviewer_id is not null and x.reviewer_id::text <> p.user_id::text)::text
+                        || '' con reviewer_id que NO es el dueño del jugador (señal débil: reviewer_id lo pone quien escribe)'''
+                  ELSE '' END), false, true, '')::text FROM '<c>([^<]*)</c>')
          END AS datos,
          coalesce((SELECT string_agg(e.policyname || ':' || e.cmd, ', ' ORDER BY e.policyname)
                      FROM escr e WHERE e.tablename = t.tabla), 'ninguna') AS escrituras
@@ -225,11 +258,41 @@ filas(n, comprobacion, resultado, esperado, ok) AS (
      AND (e.w NOT LIKE '%players%' OR e.w ~ '(user_org_ids|user_in_org|tenant)')
      AND e.w NOT LIKE '%service_role%'
   UNION ALL
-  -- 20-31 · INFO por tabla.
+  -- 20-31 · INFO por tabla (+ por qué es solo un MÍNIMO donde lo es).
   SELECT pt.n, 'INFO · ' || pt.tabla || ': escrituras de cliente hoy (política:cmd) | datos',
-         pt.escrituras || ' | ' || coalesce(pt.datos, 'sin datos'),
+         pt.escrituras || ' | ' || coalesce(pt.datos, 'sin datos') || coalesce(' | ' || nt.nota, ''),
          'informativo (la 074 no borra ni cambia filas)', NULL::boolean
-    FROM por_tabla pt
+    FROM por_tabla pt LEFT JOIN notas nt ON nt.tabla = pt.tabla
+  UNION ALL
+  -- 32 · INFO. /api/live/aggregate buscaba los nombres de los jugadores de los
+  --      eventos SIN filtrar por dueño y guarda el informe en
+  --      live_matches.analysis_result (lo devuelve después tal cual). Un partido con
+  --      un evento de un jugador de OTRA cuenta pudo guardar el NOMBRE de ese menor
+  --      (en stats_by_player y en el texto del informe). Borrarlos o recalcularlos
+  --      es decisión del dueño.
+  SELECT 32, 'INFO · live_matches: partidos con informe guardado (analysis_result) y algún evento de un jugador cuyo dueño NO es el autor del partido',
+         CASE
+           WHEN to_regclass('public.live_matches') IS NULL OR to_regclass('public.live_events') IS NULL
+             THEN 'live_matches o live_events no existe'
+           WHEN NOT b.players_ok OR NOT b.owner_ok THEN 'players(id, user_id) no existe'
+           WHEN NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = 'live_matches' AND col.columna = 'id')
+                OR NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = 'live_matches' AND col.columna = 'user_id')
+                OR NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = 'live_matches' AND col.columna = 'analysis_result')
+                OR NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = 'live_events' AND col.columna = 'match_id')
+                OR NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = 'live_events' AND col.columna = 'player_id')
+             THEN 'sin live_matches(id, user_id, analysis_result) o live_events(match_id, player_id)'
+           ELSE substring(query_to_xml(
+             'select count(*)::text || '' partido(s) con informe guardado y algún evento de un jugador cuyo dueño NO es el autor del partido o que no tiene dueño: ese informe pudo guardar el NOMBRE del jugador'' as c
+                from public.live_matches m
+               where m.analysis_result is not null
+                 and exists (select 1 from public.live_events e
+                               join public.players p on p.id::text = e.player_id::text
+                              where e.match_id::text = m.id::text
+                                and (p.user_id is null or p.user_id::text <> m.user_id::text))',
+             false, true, '')::text FROM '<c>([^<]*)</c>')
+         END,
+         'informativo (la 074 no borra ni cambia filas; limpiar esos informes es decisión del dueño)', NULL::boolean
+    FROM base b
 )
 SELECT n, comprobacion, resultado, esperado, ok
   FROM filas

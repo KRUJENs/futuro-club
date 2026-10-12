@@ -52,7 +52,8 @@ function serviceHeaders(key: string): Record<string, string> {
  * guardas RESTRICTIVE de escritura en fatigue_sessions, planes IDP,
  * tracking_sessions, player_analyses, videos, live_events, scout_insights,
  * evaluation_history y player_knowledge) y
- * public.dsar_caller_manages_player (migración 076).
+ * public.dsar_caller_manages_player (migración 076). Su forma por lote es
+ * ownedPlayerIdsAmong (abajo).
  * Regla: SOLO el dueño (players.user_id = auth.uid()), sin rama por tenant ni por
  * organización (decisión del 30 sep 2026, registrada en las cabeceras de la 073 y
  * la 076). Si cambia esta regla, cambiar también esas funciones con una migración
@@ -177,6 +178,43 @@ export async function ownsMatch(matchId: string | null | undefined, userId: stri
     return await ownsRowOrItsPlayer(rows[0], userId);
   } catch {
     return false;
+  }
+}
+
+/**
+ * De estos ids de jugador, ¿cuáles son del usuario `userId`? (players.user_id)
+ * Forma por LOTE de la MISMA regla que ownsPlayer (una sola consulta `id IN (…)`
+ * filtrada por user_id), para endpoints que reciben varios player_id a la vez
+ * (p. ej. el lote de eventos en directo de /api/live/events). No distingue «no
+ * existe» de «es de otro»: los dos quedan fuera del conjunto.
+ * Devuelve:
+ *   · Set con los ids propios (vacío si no pide ninguno o no es dueño de ninguno);
+ *   · null si NO se pudo comprobar (sin Supabase, consulta no-ok o error). El
+ *     llamador debe tratar null como «no autorizado / no disponible» (fail-closed).
+ */
+export async function ownedPlayerIdsAmong(
+  playerIds: ReadonlyArray<string>,
+  userId: string | null,
+): Promise<Set<string> | null> {
+  if (!userId) return null;
+  const wanted = Array.from(new Set(playerIds));
+  if (wanted.length === 0) return new Set();
+  const env = supabaseEnv();
+  if (!env) return null;
+  // PostgREST: cada valor entre comillas dobles (admite comas, paréntesis, puntos),
+  // escapando \ y " con barra invertida; la lista entera va codificada en la URL.
+  const list = wanted.map((id) => `"${id.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`).join(",");
+  try {
+    const res = await fetch(
+      `${env.url}/rest/v1/players?user_id=eq.${encodeURIComponent(userId)}&id=in.${encodeURIComponent(`(${list})`)}&select=id`,
+      { headers: serviceHeaders(env.key) },
+    );
+    if (!res.ok) return null;
+    const rows = (await res.json()) as Array<{ id: string | null }>;
+    const wantedSet = new Set(wanted);
+    return new Set(rows.map((r) => r.id).filter((id): id is string => !!id && wantedSet.has(id)));
+  } catch {
+    return null;
   }
 }
 

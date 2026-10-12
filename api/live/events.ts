@@ -16,12 +16,51 @@
  *
  * Idempotencia: clientEventId UUID generado en cliente · UNIQUE
  * sobre (match_id, client_event_id) evita duplicados al sync.
+ *
+ * Propiedad (074, solo el dueño): escribe con service_role, que salta la RLS y las
+ * guardas RESTRICTIVE de la migración 074. Por eso aquí se exige, además de que el
+ * PARTIDO sea del usuario, que cada playerId no nulo sea un jugador SUYO
+ * (players.user_id; ownedPlayerIdsAmong = forma por lote de ownsPlayer, una sola
+ * consulta). Si alguno no lo es → 403 y no se escribe NADA del lote (el cliente
+ * conserva su cola); si no se puede comprobar → 503. Antes el player_id iba tal
+ * cual: cualquier cuenta podía colgar eventos del jugador (menor) de otra cuenta
+ * en su propio partido, y /api/live/aggregate devolvía luego su nombre.
  */
 
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { createClient } from "@supabase/supabase-js";
+import { ownedPlayerIdsAmong } from "../_lib/ownership";
+
+/**
+ * 403/503 si algún playerId no nulo no es del usuario (o no se puede comprobar);
+ * null si todos son suyos (o no hay ninguno). Una sola consulta por petición.
+ * Mismo mensaje para «de otra cuenta» y «no existe»: no revela si un id existe.
+ */
+async function rejectForeignPlayers(
+  playerIds: Array<string | null | undefined>,
+  userId: string,
+): Promise<Response | null> {
+  const wanted = playerIds.filter((p): p is string => p !== null && p !== undefined);
+  if (wanted.length === 0) return null;
+  const owned = await ownedPlayerIdsAmong(wanted, userId);
+  if (owned === null) {
+    return errorResponse({
+      code: "ownership_unavailable",
+      message: "No se pudo comprobar la propiedad de los jugadores · no se ha guardado nada",
+      status: 503,
+    });
+  }
+  if (wanted.some((p) => !owned.has(p))) {
+    return errorResponse({
+      code: "player_not_owned",
+      message: "Hay eventos de jugadores que no son tuyos · no se ha guardado nada",
+      status: 403,
+    });
+  }
+  return null;
+}
 
 export const config = { runtime: "edge" };
 
@@ -62,7 +101,7 @@ export default withHandler(
     requireAuth: true,
     maxRequests: 200,
   },
-  async ({ req, userId, method, query }) => {
+  async ({ body: ctxBody, userId, method, query }) => {
     if (!userId) {
       return errorResponse({ code: "unauthorized", message: "Login requerido", status: 401 });
     }
@@ -80,7 +119,7 @@ export default withHandler(
       // Ownership: sin .eq(user_id) cualquier autenticado leía los eventos
       // (player_id de menores, notas, metadata) de un partido ajeno con solo su
       // matchId. POST/DELETE ya gatean por user_id; el GET no lo hacía. Los
-      // live_events se insertan con user_id del creador (:140/:192), así que
+      // live_events se insertan con user_id del creador (POST, abajo), así que
       // filtrar por user_id acota al dueño (igual que el DELETE).
       const { data: events, error } = await supabase
         .from("live_events")
@@ -118,7 +157,10 @@ export default withHandler(
     }
 
     // ── POST · single o batch ───────────────────────────────────
-    const body = (await req.json().catch(() => null)) as unknown;
+    // withHandler YA leyó y parseó el cuerpo de los POST (ctx.body); la segunda
+    // lectura (req.json()) fallaba ("Body is unusable") → null → 400 invalid_body
+    // en TODO POST (mismo fallo que #288 arregló en live/matches).
+    const body = ctxBody as unknown;
 
     // Detectar batch vs single
     const isBatch = !!(body && typeof body === "object" && "events" in (body as Record<string, unknown>));
@@ -142,6 +184,10 @@ export default withHandler(
       if (!match || match.user_id !== userId) {
         return errorResponse({ code: "forbidden", message: "Partido no es tuyo", status: 403 });
       }
+
+      // Cada jugador del lote debe ser del usuario (una consulta para todo el lote).
+      const foreignBatch = await rejectForeignPlayers(input.events.map((e) => e.playerId), userId);
+      if (foreignBatch) return foreignBatch;
 
       const inserts = input.events.map((e) => ({
         tenant_id: match.tenant_id,
@@ -192,6 +238,9 @@ export default withHandler(
     if (!match || match.user_id !== userId) {
       return errorResponse({ code: "forbidden", message: "Partido no es tuyo", status: 403 });
     }
+
+    const foreignSingle = await rejectForeignPlayers([input.playerId], userId);
+    if (foreignSingle) return foreignSingle;
 
     const { data: row, error } = await supabase
       .from("live_events")

@@ -316,4 +316,25 @@ describe("074 · contrato del SQL", () => {
       expect(pre).toContain(r);
     }
   });
+
+  it("la previa no presenta como exacto lo que no puede contar (filas 21-24, 27, 30-31 = MÍNIMO) y cuenta los informes en directo con nombres ajenos (fila 32)", () => {
+    const pre = checks["/supabase/checks/074_previa.sql"] ?? "";
+    // Notas por tabla: sin columna de autor (idp_*, RAG) o autor que pudo poner otra
+    // cuenta por las políticas por tenant / organización de antes de la 076.
+    const notas = pre.slice(pre.indexOf("notas(tabla, nota) AS ("), pre.indexOf("necesarias(tabla, columna)"));
+    const conNota = [...notas.matchAll(/\('(\w+)', 'MÍNIMO: ([^']+)'\)/g)].map((m) => [m[1], m[2]] as const);
+    expect(conNota.map(([t]) => t).sort()).toEqual(
+      ["development_plans", "evaluation_history", "idp_checkins", "idp_goals", "idp_milestones", "player_knowledge", "videos"]);
+    for (const [t, nota] of conNota) {
+      if (/^idp_/.test(t)) expect(nota, t).toMatch(/sin columna de autor.*plan del PROPIO dueño.*NO se puede contar/);
+    }
+    expect(pre).toMatch(/LEFT JOIN notas nt ON nt\.tabla = pt\.tabla/);
+    // idp_checkins: reviewer_id como señal débil, solo si la columna existe.
+    expect(pre).toMatch(/col\.tabla = 'idp_checkins' AND col\.columna = 'reviewer_id'/);
+    expect(pre).toMatch(/con reviewer_id que NO es el dueño del jugador \(señal débil/);
+    // Ya no se rotula «en planes cuyo autor (coach_id)…» como si fuera quién escribió la fila hija.
+    expect(pre).not.toMatch(/en planes cuyo autor \(coach_id\)/);
+    // Fila 32: informes guardados de partidos en directo con eventos de un jugador ajeno.
+    expect(pre).toMatch(/SELECT 32, 'INFO · live_matches: partidos con informe guardado/);
+  });
 });

@@ -62,7 +62,14 @@
 --     vídeo ajeno colgado de su jugador (videos_select_owner_076, 076:236-239) y la
 --     DSAR lo exporta (072:331). Ya anotado como residuo (6) de la 076.
 --   · live_events: FOR ALL auth.uid() = user_id (032:114-115), player_id con FK a
---     players (032:60).
+--     players (032:60). OJO: la app NO escribe live_events por PostgREST sino por
+--     /api/live/events (src/hooks/useLiveMatch.ts:185) con service_role, que salta
+--     estas guardas; ese endpoint solo miraba que el PARTIDO fuera del usuario y
+--     tomaba player_id del cuerpo, y /api/live/aggregate buscaba los nombres de
+--     esos player_id sin filtrar por dueño (devolvía el NOMBRE de un menor ajeno y
+--     lo mandaba al prompt del informe). Lo cierra el CÓDIGO de este mismo PR
+--     (ownedPlayerIdsAmong en api/live/events.ts; filtro por user_id en
+--     api/live/aggregate.ts), no esta migración.
 --   · scout_insights: UPDATE USING (user_id = auth.uid()) sin WITH CHECK
 --     (016:46-48): el autor puede re-apuntar su insight a cualquier player_id.
 --   · evaluation_history y player_knowledge (RAG, 039): INSERT WITH CHECK
@@ -138,10 +145,23 @@
 --   · Si esas tablas tienen RLS activada. Si alguna existe SIN RLS, esta migración
 --     ABORTA (no la activa: activarla cambiaría también las LECTURAS); la
 --     comprobación previa lo cuenta (fila 5).
---   · Cuántas filas «de autor no dueño» hay (residuo de antes): lo cuenta la
---     previa, filas 20-31 (en las 2 del RAG, sin columna de autor: filas con una
---     organización que no es del dueño del jugador). Esta migración NO toca
---     datos; limpiar es decisión del dueño.
+--   · Cuántas filas escribió alguien que NO es el dueño (residuo de antes). La
+--     previa (filas 20-31) cuenta las filas cuyo AUTOR (user_id / coach_id) no es
+--     el dueño del jugador, y donde eso no basta lo dice («MÍNIMO»):
+--     idp_goals / idp_milestones / idp_checkins NO tienen columna de autor (se
+--     cuentan las de planes cuyo coach_id no es el dueño; lo que otra cuenta
+--     añadió al plan del PROPIO dueño con la 047 viva NO se puede contar;
+--     idp_checkins.reviewer_id distinto del dueño es solo una señal débil);
+--     development_plans.coach_id y videos.user_id los pudo poner otra cuenta con
+--     las políticas por tenant / organización de antes de la 076 (047, 003, 038);
+--     evaluation_history / player_knowledge no tienen autor (se cuentan las filas
+--     con una organización que no es del dueño del jugador). La fila 32 cuenta los
+--     partidos en directo con informe guardado y eventos de un jugador ajeno (su
+--     nombre pudo quedar en el informe). SIMULADO (PGlite 18.3 y 16.4): con la 047
+--     viva, otra cuenta del mismo tenant añade objetivo / hito / revisión al plan
+--     del dueño, crea un plan de su jugador con coach_id = el dueño y un vídeo con
+--     user_id = el dueño; la versión anterior de la previa daba 0 en esas filas.
+--     Esta migración NO toca datos; limpiar es decisión del dueño.
 -- SIMULACIÓN PGlite (NO es la base real; script y salida en el PR): 215
 -- comprobaciones, todas OK, en PostgreSQL 18.3 (PGlite 0.5.8) y en 16.4 (PGlite
 -- 0.2.17), con la forma verificada de producción (3 jugadores del dueño A con un
@@ -154,7 +174,9 @@
 --     cualquier cuenta puede crear); el dueño A lee por RLS la fila plantada. Sin
 --     la 076, B también crea un plan IDP para el jugador de A y escribe objetivos /
 --     hitos / revisiones en el plan de A; C (otro tenant) crea el plan.
---   · DESPUÉS: 42501 (o 0 filas) en todas, para B y para C. El dueño A hace las
+--   · DESPUÉS: 42501 (o 0 filas) en todas, para B y para C, en las escrituras de
+--     CLIENTE (PostgREST con su JWT); las de service_role (endpoints de la API) no
+--     pasan por aquí: ver /api/idp/* y /api/live/events abajo. El dueño A hace las
 --     MISMAS 20 operaciones del navegador y de video-init (upsert con RETURNING,
 --     update, delete, upsert de vídeo sin la columna player_id, RAG con y sin su
 --     organización) con el mismo resultado que antes; B sigue escribiendo lo suyo
@@ -173,8 +195,10 @@
 --
 -- ORDEN DE DESPLIEGUE Y DEL OPERADOR
 --   · El código del PR (comprobación de propiedad en /api/idp/approve-plan,
---     checkin, update-goal y update-milestone) se despliega al fusionar y NO
---     depende de esta migración (usa service_role + ownsPlayer).
+--     checkin, update-goal y update-milestone; en /api/live/events cada player_id
+--     del lote debe ser del usuario; /api/live/aggregate solo nombra a jugadores
+--     del usuario) se despliega al fusionar y NO depende de esta migración (usa
+--     service_role + ownsPlayer / ownedPlayerIdsAmong).
 --   · 1) Antes, la 076 (o la 073) aplicada y su comprobación posterior en verde.
 --     2) supabase/checks/074_previa.sql (solo lectura): ninguna fila «BLOQUEA» con
 --     ok = false; mandar el resultado COMPLETO. 3) esta migración. 4)
