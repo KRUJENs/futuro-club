@@ -20,6 +20,8 @@
  * crea 003 sus políticas *_tenant_isolation (tenant contra tenant, no es la clase).
  */
 import { splitStatements, firstDollarBody, normIdent, matchParen, type MigrationFile, type Stmt } from "./securityDefinerLint";
+// (La segunda mitad del fichero, «Escrituras de cliente que no exigen ser el dueño
+// del jugador», es el lint de la migración 074.)
 
 export type PolicyCmd = "ALL" | "SELECT" | "INSERT" | "UPDATE" | "DELETE";
 
@@ -223,11 +225,10 @@ function stripComments(text: string): string {
 
 const TOKEN_RE = /'(?:[^']|'')*'|"(?:[^"]|"")+"|[A-Za-z_][A-Za-z0-9_$]*|::|->>|->|<>|!=|>=|<=|[=(),.]|\S/g;
 
-/** Tokens simplificados: identificadores con punto unidos, sin paréntesis ni SELECT ni casts. */
-export function simplifiedTokens(expr: string): string[] {
+/** Tokens con los identificadores con punto unidos (a.b.c) y en minúsculas; conserva paréntesis. */
+function joinedTokens(expr: string): string[] {
   const raw = stripComments(expr).match(TOKEN_RE) ?? [];
   const ident = (t: string) => (t.startsWith('"') ? t.slice(1, -1).replace(/""/g, '"') : t.toLowerCase());
-  // 1) une a.b.c
   const joined: string[] = [];
   for (let i = 0; i < raw.length; i++) {
     const t = raw[i];
@@ -240,6 +241,13 @@ export function simplifiedTokens(expr: string): string[] {
       joined.push(name);
     } else joined.push(t.startsWith("'") ? t.toLowerCase() : t);
   }
+  return joined;
+}
+
+/** Tokens simplificados: identificadores con punto unidos, sin paréntesis ni SELECT ni casts. */
+export function simplifiedTokens(expr: string): string[] {
+  // 1) une a.b.c
+  const joined = joinedTokens(expr);
   // 2) quita paréntesis, SELECT, casts y el alias «AS uid» de (SELECT auth.uid() AS uid)
   const out: string[] = [];
   for (let i = 0; i < joined.length; i++) {
@@ -295,4 +303,222 @@ export function tenantUidMixes(files: MigrationFile[]): PolicyViolation[] {
     }
   }
   return v;
+}
+
+// ─── Escrituras de cliente que no exigen ser el dueño del jugador (074) ───────
+//
+// Clase de defecto (migración 074): una política PERMISSIVE de ESCRITURA de
+// cliente (INSERT / UPDATE / ALL, no solo service_role) sobre una tabla con datos
+// de un jugador cuya regla para la fila NUEVA (WITH CHECK, o USING si no hay) solo
+// mira la columna del AUTOR (user_id = auth.uid(), coach_id = auth.uid()…) y deja
+// libre player_id. Así 043 (fatiga) o 047 (planes IDP) dejaban a cualquier cuenta
+// escribir filas de CUALQUIER jugador, que el servidor luego lee por player_id.
+// Una ruta así queda CUBIERTA si una política RESTRICTIVE del mismo comando exige
+// el helper solo-dueño (public.caller_manages_player, 073/076).
+// «Exige propiedad» se decide sobre la ESTRUCTURA de la regla (requiresPlayerOwnership):
+// en un OR, TODAS las ramas deben exigirla (o ser solo service_role, o
+// «player_id IS NULL», fila sin jugador); en un AND, basta una. Así una rama por
+// ORGANIZACIÓN en OR con la del dueño (039: evaluation_history / player_knowledge,
+// «… OR org_id IN (SELECT user_org_ids())») NO cuenta como propiedad: cualquier
+// cuenta crea su propia organización (026: org_owner_all) y escribe filas de
+// cualquier jugador por esa rama. Antes (texto: «menciona players + user_id =
+// auth.uid()») ese OR se daba por bueno; el test de la 074 fija el caso.
+// Limitación declarada: no interpreta CASE, NOT ni funciones distintas del helper.
+
+const TABLE_KEYWORD = /\b(CREATE\s+(?:UNLOGGED\s+)?TABLE|ALTER\s+TABLE)\b/i;
+
+/** CREATE TABLE / ALTER TABLE de un script: nivel superior + estáticas dentro de DO. */
+function tableStatements(sql: string): Stmt[] {
+  const res: Stmt[] = [];
+  for (const st of splitStatements(sql)) {
+    if (/^\s*DO\b/i.test(st.masked)) {
+      const body = firstDollarBody(st);
+      if (!body) continue;
+      for (const inner of splitStatements(body)) {
+        const k = TABLE_KEYWORD.exec(inner.masked);
+        if (k) res.push({ text: inner.text.slice(k.index), masked: inner.masked.slice(k.index) });
+      }
+      continue;
+    }
+    res.push(st);
+  }
+  return res;
+}
+
+/** Elementos de una lista separada por comas a profundidad de paréntesis 0. */
+function topLevelItems(masked: string, text: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < masked.length; i++) {
+    const ch = masked[i];
+    if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    else if (ch === "," && depth === 0) {
+      out.push(text.slice(start, i));
+      start = i + 1;
+    }
+  }
+  out.push(text.slice(start));
+  return out.map((s) => s.trim()).filter(Boolean);
+}
+
+/**
+ * Tablas (esquema.tabla normalizado) que tienen la columna `column` según
+ * CREATE TABLE (…) y ALTER TABLE … ADD COLUMN de las migraciones.
+ */
+export function tablesWithColumn(files: MigrationFile[], column: string): Set<string> {
+  const want = column.toLowerCase();
+  const out = new Set<string>();
+  for (const f of files) {
+    for (const st of tableStatements(f.sql)) {
+      const ct = /^\s*CREATE\s+(?:UNLOGGED\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([\w."$]+)\s*\(/i.exec(st.masked);
+      if (ct) {
+        const open = ct.index + ct[0].length - 1;
+        const close = matchParen(st.masked, open);
+        const items = topLevelItems(st.masked.slice(open + 1, close), st.text.slice(open + 1, close));
+        if (items.some((it) => normName(it.split(/\s+/)[0] ?? "") === want)) out.add(normIdent(ct[1]));
+        continue;
+      }
+      const at = /^\s*ALTER\s+TABLE\s+(?:IF\s+EXISTS\s+)?(?:ONLY\s+)?([\w."$]+)\s+([\s\S]+)$/i.exec(st.masked);
+      if (at) {
+        const re = /\bADD\s+(?:COLUMN\s+)?(?:IF\s+NOT\s+EXISTS\s+)?("(?:[^"]|"")+"|[A-Za-z_][\w$]*)/gi;
+        for (const m of at[2].matchAll(re)) {
+          if (/^(constraint|primary|unique|check|foreign|exclude)$/i.test(m[1])) continue;
+          if (normName(m[1]) === want) out.add(normIdent(at[1]));
+        }
+      }
+    }
+  }
+  return out;
+}
+
+/** ¿La regla solo deja pasar a service_role? (auth.role() / claim role del JWT) */
+export function serviceRoleOnly(expr: string | null): boolean {
+  if (!expr) return false;
+  const s = simplifiedTokens(expr).join(" ");
+  return /^(auth\.role = 'service_role'|auth\.jwt ->> 'role' = 'service_role')$/.test(s.trim());
+}
+
+/** Índice del ')' que cierra el '(' de `open` en una lista de tokens; -1 si no cierra. */
+function closeOf(t: string[], open: number): number {
+  let depth = 0;
+  for (let i = open; i < t.length; i++) {
+    if (t[i] === "(") depth++;
+    else if (t[i] === ")" && --depth === 0) return i;
+  }
+  return -1;
+}
+
+/** Trozos de `t` separados por la palabra `kw` (or / and) a profundidad 0. */
+function splitTopTokens(t: string[], kw: string): string[][] {
+  const out: string[][] = [];
+  let depth = 0;
+  let cur: string[] = [];
+  for (const x of t) {
+    if (x === "(") depth++;
+    else if (x === ")") depth--;
+    if (depth === 0 && x === kw) {
+      out.push(cur);
+      cur = [];
+    } else cur.push(x);
+  }
+  out.push(cur);
+  return out;
+}
+
+const topIndexOf = (t: string[], kw: string): number => {
+  let depth = 0;
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] === "(") depth++;
+    else if (t[i] === ")") depth--;
+    else if (depth === 0 && t[i] === kw) return i;
+  }
+  return -1;
+};
+
+const isHelper = (x: string | undefined) => x === "caller_manages_player" || x === "public.caller_manages_player";
+
+/**
+ * ¿La regla (tokens) EXIGE que el llamador sea el dueño del jugador?
+ *   · OR  → todas las ramas la exigen (o son solo service_role, o «player_id IS NULL»).
+ *   · AND → basta una rama.
+ *   · átomo → el helper solo-dueño; «player_id IS NULL» (fila sin jugador); dentro
+ *     de una subconsulta a players, user_id = auth.uid(); o una subconsulta
+ *     (IN / EXISTS) cuyo WHERE la exige (se analiza igual, recursivo).
+ */
+function ownerRule(tokens: string[], inPlayers: boolean): boolean {
+  let t = tokens;
+  while (t.length >= 2 && t[0] === "(" && closeOf(t, 0) === t.length - 1) t = t.slice(1, -1);
+  if (t.length === 0) return false;
+  const ors = splitTopTokens(t, "or");
+  if (ors.length > 1) return ors.every((p) => ownerRule(p, inPlayers) || serviceRoleOnly(p.join(" ")));
+  const ands = splitTopTokens(t, "and");
+  if (ands.length > 1) return ands.some((p) => ownerRule(p, inPlayers));
+  // átomo
+  if (isHelper(t[0]) && t[1] === "(" && closeOf(t, 1) === t.length - 1) return true;
+  if (t.length === 3 && /(^|\.)player_id$/.test(t[0]) && t[1] === "is" && t[2] === "null") return true;
+  if (inPlayers) {
+    const s = simplifiedTokens(t.join(" "));
+    const uid = (x: string | undefined) => !!x && /(^|\.)user_id$/.test(x);
+    if (s.length === 3 && s[1] === "=" && ((uid(s[0]) && s[2] === "auth.uid") || (s[0] === "auth.uid" && uid(s[2])))) return true;
+  }
+  // Subconsultas a profundidad 0 del átomo: x IN (SELECT … WHERE …) / EXISTS (SELECT … WHERE …)
+  for (let i = 0; i < t.length; i++) {
+    if (t[i] !== "(") continue;
+    const end = closeOf(t, i);
+    if (end === -1) break;
+    const g = t.slice(i + 1, end);
+    i = end;
+    if (g[0] !== "select") continue;
+    const from = topIndexOf(g, "from");
+    const where = topIndexOf(g, "where");
+    if (from === -1 || where === -1) continue;
+    const table = g[from + 1];
+    if (ownerRule(g.slice(where + 1), table === "players" || table === "public.players")) return true;
+  }
+  return false;
+}
+
+/** ¿La regla exige ser el DUEÑO del jugador de la fila? (ver ownerRule) */
+export function requiresPlayerOwnership(expr: string | null): boolean {
+  if (!expr) return false;
+  return ownerRule(joinedTokens(expr), false);
+}
+
+export interface WriteGap {
+  table: string;
+  cmd: "INSERT" | "UPDATE";
+  policy: string;
+  file: string;
+}
+
+/**
+ * Rutas de ESCRITURA de cliente (por comando) sobre `tables` que no exigen la
+ * propiedad del jugador y que ninguna RESTRICTIVE con el helper cubre.
+ */
+export function unguardedPlayerWrites(files: MigrationFile[], tables: Set<string>): WriteGap[] {
+  const state = buildPolicyState(files);
+  const all = [...state.values()];
+  const clientRole = (roles: string[]) => roles.some((r) => r === "public" || r === "authenticated");
+  const gaps: WriteGap[] = [];
+  for (const p of all) {
+    if (!tables.has(p.table) || !p.permissive || !clientRole(p.roles)) continue;
+    if (p.cmd !== "INSERT" && p.cmd !== "UPDATE" && p.cmd !== "ALL") continue;
+    const rule = p.check ?? p.using; // regla de la fila NUEVA
+    if (requiresPlayerOwnership(rule) || serviceRoleOnly(rule)) continue;
+    for (const cmd of p.cmd === "ALL" ? (["INSERT", "UPDATE"] as const) : [p.cmd]) {
+      const covered = all.some(
+        (r) =>
+          r.table === p.table &&
+          !r.permissive &&
+          (r.cmd === cmd || r.cmd === "ALL") &&
+          clientRole(r.roles) &&
+          (r.check ?? r.using ?? "").includes("caller_manages_player") &&
+          requiresPlayerOwnership(r.check ?? r.using),
+      );
+      if (!covered) gaps.push({ table: p.table, cmd, policy: p.name, file: p.definedIn });
+    }
+  }
+  return gaps.sort((a, b) => (`${a.table}|${a.cmd}|${a.policy}` < `${b.table}|${b.cmd}|${b.policy}` ? -1 : 1));
 }
