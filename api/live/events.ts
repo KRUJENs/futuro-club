@@ -25,6 +25,22 @@
  * conserva su cola); si no se puede comprobar → 503. Antes el player_id iba tal
  * cual: cualquier cuenta podía colgar eventos del jugador (menor) de otra cuenta
  * en su propio partido, y /api/live/aggregate devolvía luego su nombre.
+ *
+ * POST SIGUE INERTE, COMO EN main (a propósito, PR #309): withHandler ya consumió
+ * el cuerpo de los POST y este handler lo vuelve a leer con req.json() → null →
+ * 400 invalid_body a TODO POST, desde que se creó (457e17c). Por eso la
+ * comprobación de propiedad de arriba hoy no se alcanza en producción: está para
+ * que el futuro arreglo de esa doble lectura no reabra el hueco. Ese arreglo NO
+ * va en este PR de seguridad porque encendería por primera vez una superficie que
+ * nunca ha funcionado y que no está lista (docs/pendientes-metricas.md §B, 074):
+ *   - el upsert del lote usa onConflict "match_id,client_event_id", pero el único
+ *     índice único es PARCIAL (032:90-92, WHERE client_event_id IS NOT NULL) y no
+ *     arbitra un ON CONFLICT sin su predicado (42P10, SIMULADO en PGlite; el mismo
+ *     caso que api/webhooks/stripe.ts:154-157) → 500 en el esquema del repo;
+ *   - LiveSummaryPage pinta por jugador una nota del LLM (/10) y el «impacto neto»
+ *     (pesos EVENT_WEIGHTS de aggregate.ts sin fuente) sin MetricResult, sin
+ *     etiqueta de procedencia y sin entrada en config/metrics.json (inv #1).
+ * Encenderlo es decisión del dueño, con esas dos cosas resueltas antes.
  */
 
 import { z } from "zod";
@@ -101,7 +117,7 @@ export default withHandler(
     requireAuth: true,
     maxRequests: 200,
   },
-  async ({ body: ctxBody, userId, method, query }) => {
+  async ({ req, userId, method, query }) => {
     if (!userId) {
       return errorResponse({ code: "unauthorized", message: "Login requerido", status: 401 });
     }
@@ -157,10 +173,13 @@ export default withHandler(
     }
 
     // ── POST · single o batch ───────────────────────────────────
-    // withHandler YA leyó y parseó el cuerpo de los POST (ctx.body); la segunda
-    // lectura (req.json()) fallaba ("Body is unusable") → null → 400 invalid_body
-    // en TODO POST (mismo fallo que #288 arregló en live/matches).
-    const body = ctxBody as unknown;
+    // DOBLE LECTURA DEL CUERPO, SIN ARREGLAR A PROPÓSITO (ver cabecera): withHandler
+    // ya leyó el cuerpo, así que esta segunda lectura da null → 400 invalid_body en
+    // TODO POST, igual que en main. No cambiar a ctx.body sin antes arreglar el
+    // upsert del lote frente al índice parcial de la 032 y etiquetar las cifras de
+    // LiveSummaryPage, y con la decisión del dueño (el test
+    // api/live/__tests__/events-ownership.test.ts «sigue inerte» lo vigila).
+    const body = (await req.json().catch(() => null)) as unknown;
 
     // Detectar batch vs single
     const isBatch = !!(body && typeof body === "object" && "events" in (body as Record<string, unknown>));

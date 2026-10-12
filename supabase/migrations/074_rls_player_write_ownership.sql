@@ -69,7 +69,10 @@
 --     esos player_id sin filtrar por dueño (devolvía el NOMBRE de un menor ajeno y
 --     lo mandaba al prompt del informe). Lo cierra el CÓDIGO de este mismo PR
 --     (ownedPlayerIdsAmong en api/live/events.ts; filtro por user_id en
---     api/live/aggregate.ts), no esta migración.
+--     api/live/aggregate.ts), no esta migración. Ese POST responde 400 a TODO
+--     desde que se creó (doble lectura del cuerpo) y este PR NO lo arregla: hoy
+--     no escribe nada; su comprobación queda para cuando se arregle (ver la
+--     cabecera de api/live/events.ts y docs/pendientes-metricas.md §B).
 --   · scout_insights: UPDATE USING (user_id = auth.uid()) sin WITH CHECK
 --     (016:46-48): el autor puede re-apuntar su insight a cualquier player_id.
 --   · evaluation_history y player_knowledge (RAG, 039): INSERT WITH CHECK

@@ -4,8 +4,8 @@
  * El agregado busca con service_role los nombres de los player_id que aparecen en
  * los eventos del partido del usuario. Antes la búsqueda no filtraba por dueño:
  * si el partido de la cuenta B tenía un evento con el player_id de un jugador de la
- * cuenta A (colgado por PostgREST antes de aplicar la 074, o por /api/live/events
- * antes de su comprobación de propiedad), B recibía el NOMBRE de ese menor en
+ * cuenta A (colgado por PostgREST antes de aplicar la 074; /api/live/events responde
+ * 400 a todo POST desde que se creó y este PR no lo cambia), B recibía el NOMBRE de ese menor en
  * stats_by_player.playerName y el nombre iba también al prompt del informe (LLM).
  * Ahora la búsqueda se limita a players.user_id = el usuario (misma regla que
  * ownsPlayer): un jugador ajeno sale como "?" y su nombre no llega ni a la

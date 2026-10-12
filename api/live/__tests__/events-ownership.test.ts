@@ -14,12 +14,25 @@
  *     oráculo de existencia) → 403 player_not_owned y NO se escribe NADA del lote;
  *   - si la comprobación no se puede hacer → 503 y no se escribe nada;
  *   - eventos sin jugador (playerId null: «equipo») → como antes.
- * Además el handler ya no vuelve a leer el cuerpo (withHandler ya lo consumió):
- * con la segunda lectura TODO POST respondía 400 (mismo fallo que #288 arregló en
- * live/matches).
+ *
+ * POST SIGUE INERTE, COMO EN main (a propósito): withHandler ya consumió el cuerpo
+ * y el handler lo vuelve a leer con req.json() → 400 invalid_body a TODO POST desde
+ * 457e17c. Este PR de seguridad NO arregla esa doble lectura: hacerlo encendería por
+ * primera vez el registro en directo, cuyo upsert del lote choca con el índice
+ * parcial de la 032 (42P10, SIMULADO) y cuyo resumen (LiveSummaryPage) pinta cifras
+ * sin procedencia (ver la cabecera de events.ts y docs/pendientes-metricas.md §B).
+ * Por eso hay DOS bloques:
+ *   1) «sigue inerte»: con un Request de verdad (semántica Web, la de producción)
+ *      todo POST da 400 y no se escribe ni se consulta nada. Si un día se arregla la
+ *      doble lectura, este bloque falla A PROPÓSITO: antes hay que arreglar el
+ *      upsert y etiquetar LiveSummaryPage, con la decisión del dueño.
+ *   2) propiedad: con un cuerpo que se puede volver a leer (lo que verá el handler
+ *      cuando se arregle la doble lectura) se prueba la comprobación por jugador,
+ *      para que ese arreglo futuro no reabra el hueco.
  *
  * Supabase simulado: createClient (live_matches / live_events) en memoria y
- * `fetch` para la consulta de propiedad (players), sin red real.
+ * `fetch` para la consulta de propiedad (players), sin red real. El upsert simulado
+ * siempre «funciona»: estos tests NO prueban la escritura en una base real.
  *
  * Run: npx vitest run --config vitest.api.config.ts api/live/__tests__/events-ownership.test.ts
  */
@@ -117,31 +130,59 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-async function post(body: unknown): Promise<Response> {
+function makeRequest(body: unknown): Request {
+  return new Request("https://x.test/api/live/events", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer user-jwt" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Request de verdad (semántica Web, la de producción): el cuerpo solo se lee una vez. */
+async function postReal(body: unknown): Promise<Response> {
   const { default: handler } = await import("../events");
-  return handler(
-    new Request("https://x.test/api/live/events", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: "Bearer user-jwt" },
-      body: JSON.stringify(body),
-    }),
-  );
+  return handler(makeRequest(body));
+}
+
+/**
+ * Cuerpo que se puede volver a leer: lo que verá el handler cuando se arregle la
+ * doble lectura (hoy NO arreglada a propósito). Solo para probar la comprobación de
+ * propiedad, que hoy no se alcanza en producción.
+ */
+async function postReReadable(body: unknown): Promise<Response> {
+  const { default: handler } = await import("../events");
+  const req = makeRequest(body);
+  Object.defineProperty(req, "json", { value: async () => body });
+  return handler(req);
 }
 
 const ev = (playerId: string | null, extra: Record<string, unknown> = {}) => ({
   playerId, eventType: "gol", timestampSeconds: 10, clientEventId: `c-${playerId ?? "team"}-${Math.random()}`, ...extra,
 });
 
-describe("POST /api/live/events · lote (sync de la cola offline)", () => {
-  it("regresión: un lote válido NO se rechaza como invalid_body (el handler ya no relee el cuerpo que consumió withHandler)", async () => {
-    const res = await post({ matchId: MATCH_B, events: [ev(null)] });
-    const body = await res.json();
-    expect(body.errorDetail?.code).toBeUndefined();
-    expect(res.status).toBe(200);
-  });
+describe("POST /api/live/events · sigue inerte, como en main (doble lectura del cuerpo NO arreglada en este PR)", () => {
+  const INERT =
+    "Si esto falla porque se arregló la doble lectura del cuerpo: ANTES arreglar el upsert del lote frente al índice " +
+    "parcial de la 032 (42P10) y etiquetar las cifras de LiveSummaryPage, con la decisión del dueño " +
+    "(docs/pendientes-metricas.md §B, 074).";
 
+  it.each([
+    ["lote del dueño con SUS jugadores", () => ({ matchId: MATCH_B, events: [ev("pB1"), ev(null)] })],
+    ["lote solo de equipo", () => ({ matchId: MATCH_B, events: [ev(null)] })],
+    ["lote con un jugador AJENO", () => ({ matchId: MATCH_B, events: [ev("pA1")] })],
+    ["evento suelto del dueño", () => ({ matchId: MATCH_B, ...ev("pB1") })],
+  ])("%s → 400 invalid_body, sin escribir ni consultar jugadores", async (_label, mk) => {
+    const res = await postReal(mk());
+    expect(res.status, INERT).toBe(400);
+    expect((await res.json()).errorDetail?.code, INERT).toBe("invalid_body");
+    expect(written, INERT).toHaveLength(0);
+    expect(playerQueries).toHaveLength(0);
+  });
+});
+
+describe("POST /api/live/events · lote (sync de la cola offline) · comprobación de propiedad (cuerpo re-legible)", () => {
   it("el dueño sincroniza eventos de SUS jugadores y de equipo (sin jugador): 200 y se escriben, con UNA consulta de propiedad", async () => {
-    const res = await post({ matchId: MATCH_B, events: [ev("pB1"), ev("pB2"), ev("pB1"), ev(null)] });
+    const res = await postReReadable({ matchId: MATCH_B, events: [ev("pB1"), ev("pB2"), ev("pB1"), ev(null)] });
     expect(res.status).toBe(200);
     expect((await res.json()).data.inserted).toBe(4);
     expect(written.map((r) => r.player_id)).toEqual(["pB1", "pB2", "pB1", null]);
@@ -153,7 +194,7 @@ describe("POST /api/live/events · lote (sync de la cola offline)", () => {
   });
 
   it("otra cuenta mete UN evento de un jugador AJENO en su partido → 403 player_not_owned y NO se escribe nada del lote", async () => {
-    const res = await post({ matchId: MATCH_B, events: [ev("pB1"), ev("pA1"), ev(null)] });
+    const res = await postReReadable({ matchId: MATCH_B, events: [ev("pB1"), ev("pA1"), ev(null)] });
     expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.errorDetail.code).toBe("player_not_owned");
@@ -162,58 +203,58 @@ describe("POST /api/live/events · lote (sync de la cola offline)", () => {
   });
 
   it("un id que NO existe da la MISMA respuesta que uno de otra cuenta (sin oráculo de existencia) y no escribe", async () => {
-    const foreign = await (await post({ matchId: MATCH_B, events: [ev("pA1")] })).json();
-    const missing = await (await post({ matchId: MATCH_B, events: [ev("p1700000000000_1")] })).json();
+    const foreign = await (await postReReadable({ matchId: MATCH_B, events: [ev("pA1")] })).json();
+    const missing = await (await postReReadable({ matchId: MATCH_B, events: [ev("p1700000000000_1")] })).json();
     expect(missing).toEqual(foreign);
     expect(written).toHaveLength(0);
   });
 
   it("si la comprobación de propiedad no se puede hacer → 503 y no se escribe nada", async () => {
     playersStatus = 500;
-    const res = await post({ matchId: MATCH_B, events: [ev("pB1")] });
+    const res = await postReReadable({ matchId: MATCH_B, events: [ev("pB1")] });
     expect(res.status).toBe(503);
     expect(written).toHaveLength(0);
   });
 
   it("partido de otra cuenta → 403 forbidden (como antes), sin consultar jugadores ni escribir", async () => {
-    const res = await post({ matchId: MATCH_A, events: [ev("pB1")] });
+    const res = await postReReadable({ matchId: MATCH_A, events: [ev("pB1")] });
     expect(res.status).toBe(403);
     expect((await res.json()).errorDetail.code).toBe("forbidden");
     expect(written).toHaveLength(0);
   });
 
   it("lote solo de equipo (sin jugadores) → 200 sin consultar jugadores", async () => {
-    const res = await post({ matchId: MATCH_B, events: [ev(null), ev(null)] });
+    const res = await postReReadable({ matchId: MATCH_B, events: [ev(null), ev(null)] });
     expect(res.status).toBe(200);
     expect(written).toHaveLength(2);
     expect(playerQueries).toHaveLength(0);
   });
 
   it("ids con comas, comillas y paréntesis van entrecomillados (no rompen ni amplían el IN)", async () => {
-    const res = await post({ matchId: MATCH_B, events: [ev('p,"(x)')] });
+    const res = await postReReadable({ matchId: MATCH_B, events: [ev('p,"(x)')] });
     expect(res.status).toBe(200);
     expect(written.map((r) => r.player_id)).toEqual(['p,"(x)']);
     expect(parseIn(new URL(playerQueries[0]).searchParams.get("id") ?? "")).toEqual(['p,"(x)']);
   });
 });
 
-describe("POST /api/live/events · evento suelto", () => {
+describe("POST /api/live/events · evento suelto · comprobación de propiedad (cuerpo re-legible)", () => {
   it("jugador AJENO → 403 player_not_owned y no se escribe", async () => {
-    const res = await post({ matchId: MATCH_B, ...ev("pA1") });
+    const res = await postReReadable({ matchId: MATCH_B, ...ev("pA1") });
     expect(res.status).toBe(403);
     expect((await res.json()).errorDetail.code).toBe("player_not_owned");
     expect(written).toHaveLength(0);
   });
 
   it("jugador PROPIO → 200 y se escribe con el usuario como autor", async () => {
-    const res = await post({ matchId: MATCH_B, ...ev("pB1") });
+    const res = await postReReadable({ matchId: MATCH_B, ...ev("pB1") });
     expect(res.status).toBe(200);
     expect(written).toHaveLength(1);
     expect(written[0]).toMatchObject({ player_id: "pB1", user_id: UB, match_id: MATCH_B });
   });
 
   it("sin jugador (evento de equipo) → 200 sin consultar jugadores", async () => {
-    const res = await post({ matchId: MATCH_B, ...ev(null) });
+    const res = await postReReadable({ matchId: MATCH_B, ...ev(null) });
     expect(res.status).toBe(200);
     expect(written).toHaveLength(1);
     expect(playerQueries).toHaveLength(0);
