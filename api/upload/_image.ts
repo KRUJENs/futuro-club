@@ -1,8 +1,8 @@
 /**
  * VITAS Phase 2 — Bunny Storage Image Upload
- * POST /api/upload/image
+ * POST /api/upload/image?path=players/{playerId}/avatar
  *
- * Cuerpo: los bytes de la imagen (no multipart). Query opcional `path`.
+ * Cuerpo: los bytes de la imagen (no multipart).
  * Sube a Bunny Storage y devuelve la URL pública del CDN.
  *
  * CERRADO (oct 2026). Antes cualquier cuenta con sesión podía escribir
@@ -10,16 +10,17 @@
  * pisar la foto de un menor ajeno, alojar HTML/SVG en el CDN, o subir un vídeo
  * a un host que está en la allowlist de vídeo (videoUrlGuard añade
  * BUNNY_STORAGE_CDN_URL). Ahora:
- *   · TIPO: se decide por los bytes (cabecera mágica), no por el Content-Type
- *     del cliente. Solo JPEG, PNG, WebP y GIF. SVG/HTML/vídeo → 415. Si el
- *     cliente declara otro tipo de imagen distinto del real → 415.
+ *   · TIPO: se decide por los bytes (cabecera mágica). Solo JPEG, PNG, WebP y
+ *     GIF; SVG/HTML/vídeo → 415. El Content-Type del cliente no decide nada: solo
+ *     se rechaza si declara algo que no es una de esas 4 imágenes.
  *   · RUTA: la construye el servidor. El cliente solo puede pedir
- *       - nada                         → uploads/{uuid}.{ext}
- *       - players/{playerId}/avatar[.ext] → players/{playerId}/avatar-{uuid}.{ext}
- *         y SOLO si el usuario es el DUEÑO del jugador (ownsPlayer, 076).
- *     Cualquier otra ruta → 400. La extensión sale del tipo real, no del cliente.
- *     El uuid hace que la URL de la foto de un menor no se pueda adivinar (los
- *     ids de jugador llevan un timestamp) y que nadie pise un fichero existente.
+ *     players/{playerId}/avatar[.ext], y SOLO si es el DUEÑO del jugador
+ *     (ownsPlayer, 076) → se guarda en players/{playerId}/avatar-{uuid}.{ext}.
+ *     Sin `path` o con cualquier otra ruta → 400: no hay subidas sin dueño
+ *     (quedarían sin atribuir a nadie y sin forma de borrarlas).
+ *     La extensión sale del tipo real, no del cliente. El uuid hace que la URL
+ *     de la foto de un menor no se pueda adivinar (los ids de jugador llevan un
+ *     timestamp) y que nadie pise un fichero existente.
  *
  * Env vars needed:
  *   BUNNY_STORAGE_ZONE        — storage zone name (e.g. "vitas-images")
@@ -39,9 +40,11 @@ const QuerySchema = z.object({
 const BUNNY_STORAGE_BASE = "https://storage.bunnycdn.com";
 const MAX_BYTES = 10 * 1024 * 1024;
 
-/** Única forma de ruta que puede pedir el cliente (además de ninguna). */
-const PLAYER_AVATAR_PATH = /^players\/([A-Za-z0-9_-]{1,64})\/avatar(?:\.(?:jpe?g|png|webp|gif))?$/;
+/** Única ruta que puede pedir el cliente. La extensión, si viene, se ignora. */
+const PLAYER_AVATAR_PATH = /^players\/([A-Za-z0-9_-]{1,64})\/avatar(?:\.([A-Za-z]{3,4}))?$/;
+const AVATAR_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
 
+const ALLOWED_MIMES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 type ImageType = { mime: "image/jpeg" | "image/png" | "image/webp" | "image/gif"; ext: string };
 
 /** Tipo real por la cabecera mágica. null = no es una imagen permitida. */
@@ -99,27 +102,23 @@ export default withHandler(
 
     const url = new URL(req.url);
     const parsed = QuerySchema.safeParse(Object.fromEntries(url.searchParams));
-    if (!parsed.success) {
-      return errorResponse("Ruta de imagen no permitida", 400, "INVALID_PATH");
+    const m = parsed.success && parsed.data.path !== undefined
+      ? PLAYER_AVATAR_PATH.exec(parsed.data.path)
+      : null;
+    if (!m || (m[2] !== undefined && !AVATAR_EXTENSIONS.has(m[2].toLowerCase()))) {
+      return errorResponse(
+        "Ruta de imagen no permitida. Solo se admite players/{id}/avatar.",
+        400,
+        "INVALID_PATH",
+      );
     }
-    const requestedPath = parsed.data.path;
+    const playerId = m[1];
 
-    // La ruta se valida ANTES de leer el cuerpo: una ruta prohibida no gasta nada.
-    let playerId: string | null = null;
-    if (requestedPath !== undefined) {
-      const m = PLAYER_AVATAR_PATH.exec(requestedPath);
-      if (!m) {
-        return errorResponse(
-          "Ruta de imagen no permitida. Solo se admite players/{id}/avatar.",
-          400,
-          "INVALID_PATH",
-        );
-      }
-      playerId = m[1];
-      // Mismo 403 para un jugador ajeno y para uno que no existe.
-      if (!(await ownsPlayer(playerId, userId))) {
-        return errorResponse("No autorizado para este jugador", 403, "FORBIDDEN");
-      }
+    // Ruta y propiedad se comprueban antes de mirar los bytes (withHandler ya ha
+    // leído el cuerpo entero por rawBody: esto no ahorra la lectura, solo el
+    // análisis y la subida). Mismo 403 para un jugador ajeno y para uno que no existe.
+    if (!(await ownsPlayer(playerId, userId))) {
+      return errorResponse("No autorizado para este jugador", 403, "FORBIDDEN");
     }
 
     const fileBuffer = await req.arrayBuffer();
@@ -131,6 +130,14 @@ export default withHandler(
       return errorResponse("File too large (max 10 MB)", 413);
     }
 
+    const declared = declaredMime(req.headers.get("Content-Type"));
+    if (declared && declared !== "application/octet-stream" && !ALLOWED_MIMES.has(declared)) {
+      return errorResponse(
+        "Tipo de archivo no permitido. Usa JPG, PNG, WebP o GIF.",
+        415,
+        "UNSUPPORTED_MEDIA_TYPE",
+      );
+    }
     const type = sniffImageType(new Uint8Array(fileBuffer, 0, Math.min(16, fileBuffer.byteLength)));
     if (!type) {
       return errorResponse(
@@ -139,20 +146,8 @@ export default withHandler(
         "UNSUPPORTED_MEDIA_TYPE",
       );
     }
-    const declared = declaredMime(req.headers.get("Content-Type"));
-    if (declared && declared !== "application/octet-stream" && declared !== type.mime) {
-      return errorResponse(
-        "El contenido del archivo no coincide con su tipo declarado.",
-        415,
-        "UNSUPPORTED_MEDIA_TYPE",
-      );
-    }
 
-    const name = crypto.randomUUID();
-    const uploadPath = playerId
-      ? `players/${playerId}/avatar-${name}.${type.ext}`
-      : `uploads/${name}.${type.ext}`;
-
+    const uploadPath = `players/${playerId}/avatar-${crypto.randomUUID()}.${type.ext}`;
     const uploadUrl = `${BUNNY_STORAGE_BASE}/${encodeURIComponent(storageZone)}/${uploadPath}`;
 
     const uploadRes = await fetch(uploadUrl, {
@@ -170,6 +165,9 @@ export default withHandler(
       console.error(`[upload/image] Bunny Storage ${uploadRes.status}: ${errText.slice(0, 300)}`);
       return errorResponse("No se pudo subir la imagen", 502, "UPLOAD_FAILED");
     }
+
+    // Traza: qué cuenta subió qué fichero (para poder atribuirlo y borrarlo).
+    console.info(`[upload/image] user=${userId} path=${uploadPath} bytes=${fileBuffer.byteLength}`);
 
     const publicUrl = `${cdnUrl.replace(/\/+$/, "")}/${uploadPath}`;
 

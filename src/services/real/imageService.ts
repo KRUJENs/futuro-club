@@ -18,15 +18,16 @@ export const ImageService = {
   /**
    * Upload a File/Blob to Bunny Storage.
    * @param file   - the image file
-   * @param path   - storage path (e.g. "players/abc123/avatar.jpg")
+   * @param path   - requested path; the server only accepts "players/{playerId}/avatar"
+   *                 for a player the user owns, and builds the final path itself
    * @returns public CDN URL
    */
   async upload(
     file: File | Blob,
-    path?: string
+    path: string
   ): Promise<{ success: true; data: ImageUploadResult } | { success: false; error: string; phase2Pending?: boolean }> {
     try {
-      const qs = path ? `?path=${encodeURIComponent(path)}` : "";
+      const qs = `?path=${encodeURIComponent(path)}`;
       const headers: Record<string, string> = { "Content-Type": file.type || "image/jpeg" };
       try {
         const { data } = await supabase.auth.getSession();
@@ -65,16 +66,15 @@ export const ImageService = {
   },
 
   /**
-   * Upload a player avatar.
-   * Path convention: players/{playerId}/avatar.{ext}
+   * Upload a player avatar (only the player's owner may).
+   * The server stores it as players/{playerId}/avatar-{uuid}.{ext}, with the
+   * extension taken from the file's real type, and returns that URL.
    */
   async uploadPlayerAvatar(
     playerId: string,
     file: File
   ): Promise<{ success: true; url: string } | { success: false; error: string }> {
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const path = `players/${playerId}/avatar.${ext}`;
-    const result = await this.upload(file, path);
+    const result = await this.upload(file, `players/${playerId}/avatar`);
     if (!result.success) return result;
     return { success: true, url: result.data.url };
   },

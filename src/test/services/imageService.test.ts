@@ -58,9 +58,9 @@ describe("ImageService", () => {
       ok: true,
       json: () => Promise.resolve({ success: true, url: "https://cdn.test/img.jpg", path: "img.jpg" }),
     });
-    const result = await ImageService.upload(makeFile("photo.jpg", "image/jpeg"));
+    const result = await ImageService.upload(makeFile("photo.jpg", "image/jpeg"), "players/p1/avatar");
     expect(mockFetch).toHaveBeenCalledWith(
-      "/api/upload/image",
+      "/api/upload/image?path=players%2Fp1%2Favatar",
       expect.objectContaining({ method: "POST" }),
     );
     expect(result.success).toBe(true);
@@ -68,7 +68,7 @@ describe("ImageService", () => {
 
   it("upload() maneja error de red", async () => {
     mockFetch.mockRejectedValueOnce(new Error("network"));
-    const result = await ImageService.upload(makeFile("photo.jpg", "image/jpeg"));
+    const result = await ImageService.upload(makeFile("photo.jpg", "image/jpeg"), "players/p1/avatar");
     expect(result.success).toBe(false);
   });
 
@@ -77,7 +77,12 @@ describe("ImageService", () => {
       ok: true,
       json: () => Promise.resolve({ success: true, data: { url: "https://cdn.test/avatar.jpg", path: "avatars/p1.jpg", size: 1000, contentType: "image/jpeg" } }),
     });
-    const result = await ImageService.uploadPlayerAvatar("p1", makeFile("avatar.jpg", "image/jpeg"));
+    // El servidor ignora la extensión del nombre: IMG_0001.JPG no debe dar 400.
+    const result = await ImageService.uploadPlayerAvatar("p1", makeFile("IMG_0001.JPG", "image/jpeg"));
+    expect(mockFetch).toHaveBeenCalledWith(
+      "/api/upload/image?path=players%2Fp1%2Favatar",
+      expect.objectContaining({ method: "POST" }),
+    );
     expect(result.success).toBe(true);
     if (result.success) expect(result.url).toContain("avatar");
   });
@@ -99,7 +104,7 @@ describe("ImageService", () => {
       status: 500,
       json: () => Promise.resolve({ error: "server error" }),
     });
-    const result = await ImageService.upload(makeFile("photo.jpg", "image/jpeg"));
+    const result = await ImageService.upload(makeFile("photo.jpg", "image/jpeg"), "players/p1/avatar");
     expect(result.success).toBe(false);
   });
 });
