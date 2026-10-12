@@ -50,7 +50,8 @@ function serviceHeaders(key: string): Record<string, string> {
  * attendance_records, engagement_snapshots, wellbeing_questionnaires y
  * dropout_risk_assessments; 076: RLS solo-dueño de las tablas de jugador; 074:
  * guardas RESTRICTIVE de escritura en fatigue_sessions, planes IDP,
- * tracking_sessions, player_analyses, videos, live_events y scout_insights) y
+ * tracking_sessions, player_analyses, videos, live_events, scout_insights,
+ * evaluation_history y player_knowledge) y
  * public.dsar_caller_manages_player (migración 076).
  * Regla: SOLO el dueño (players.user_id = auth.uid()), sin rama por tenant ni por
  * organización (decisión del 30 sep 2026, registrada en las cabeceras de la 073 y

@@ -1,6 +1,6 @@
 -- =====================================================================
 -- 074 · ESCRIBIR datos de un jugador exige ser su DUEÑO
---        · guardas RESTRICTIVE de INSERT y UPDATE (TO authenticated) en 10 tablas
+--        · guardas RESTRICTIVE de INSERT y UPDATE (TO authenticated) en 12 tablas
 --        · regla única: public.caller_manages_player(text) de la 073 / 076
 --          (players.user_id = auth.uid()); esta migración NO la redefine
 -- =====================================================================
@@ -65,10 +65,25 @@
 --     players (032:60).
 --   · scout_insights: UPDATE USING (user_id = auth.uid()) sin WITH CHECK
 --     (016:46-48): el autor puede re-apuntar su insight a cualquier player_id.
+--   · evaluation_history y player_knowledge (RAG, 039): INSERT WITH CHECK
+--     («jugador propio» OR org_id IN (SELECT user_org_ids())) (039:177-183 y
+--     039:67-73). La rama por ORGANIZACIÓN no mira al jugador, y cualquier cuenta
+--     puede crear su PROPIA organización: org_owner_all es FOR ALL USING
+--     (owner_id = auth.uid()) sin WITH CHECK (026:27-28), y la primera rama de
+--     user_org_ids() devuelve las organizaciones de las que el llamador es dueño
+--     (038:41-42). Así cualquier cuenta escribe historial de evaluación (VSI) y
+--     «notas» de CUALQUIER jugador, que su dueño lee por RLS (039:59-65, 169-175)
+--     y get_player_timeline / get_player_context (039:77-134, SECURITY INVOKER).
+--     Hoy ningún código de la app los lee ni escribe: el único que lo hace,
+--     src/lib/rag/playerContextEngine.ts, no lo importa nadie (VERIFICADO con
+--     búsqueda en el repo y control positivo); la vía es PostgREST directo.
+--     Es el mismo arreglo (decisión de abajo: sin rama por organización).
 --   Control positivo de la búsqueda: el lint del repositorio
 --   (src/test/migrations/074_rls_player_write_ownership.test.ts) encuentra estas
---   10 tablas sin la 074 y sin la 076; con la 076 y sin la 074, las 6 que no son
---   de planes IDP; con la 074, ninguna (solo quedan las EXCLUIDAS de abajo).
+--   12 tablas sin la 074 y sin la 076; con la 076 y sin la 074, las 8 que no son
+--   de planes IDP; con la 074, ninguna (solo quedan las EXCLUIDAS de abajo). El
+--   lint decide «exige ser el dueño» por la ESTRUCTURA de la regla (en un OR, todas
+--   las ramas), no por mencionar players: así encontró las 2 tablas del RAG.
 --
 -- MISMA CLASE, NO INCLUIDAS (el arreglo no es el mismo; quedan en docs §B):
 --   · tracking_jobs (tracking_jobs_insert, 052:85-87): lo arregla el PR #308
@@ -82,14 +97,16 @@
 --   · player_session_metrics («Access via session ownership», 044:99-106): la
 --     propiedad es de la SESIÓN (training_sessions.coach_id); player_id sin FK y el
 --     navegador lo escribe con jugadores de la sesión (coachingSessionService.ts:253).
---   · Ramas por ORGANIZACIÓN (players, videos, player_analyses, tracking_sessions,
---     evaluation_history, player_knowledge: 027/038/039): otra clase (pendiente
---     de la 076, residuo (2)). Las guardas de la 074 sí limitan sus ESCRITURAS a
---     filas de jugadores del propio llamador en las 10 tablas de aquí.
+--   · Ramas por ORGANIZACIÓN que quedan: LECTURA (SELECT de players, videos,
+--     player_analyses, tracking_sessions, consent_audit_log, evaluation_history,
+--     player_knowledge, tracking_jobs: 038/039/052) y el UPDATE de la propia tabla
+--     players (038:90-94, sin player_id: es la raíz de la propiedad). Otra clase
+--     (pendiente de la 076, residuo (2)). Las guardas de la 074 sí limitan las
+--     ESCRITURAS a jugadores del propio llamador en las 12 tablas de aquí.
 --
 -- POR QUÉ RESTRICTIVE (y no reescribir las PERMISSIVE)
 --   · PostgreSQL combina las RESTRICTIVE con AND: da igual qué PERMISSIVE haya
---     (las de 043/047/000/038, las *_076, una creada a mano o re-creada por un
+--     (las de 043/047/000/038/039, las *_076, una creada a mano o re-creada por un
 --     script de supabase/pending/): ninguna escritura de cliente deja una fila de
 --     un jugador que el llamador no gestiona. SIMULADO (PGlite, 18.3 y 16.4).
 --   · No duplica ni pisa la 076 (no se redefine ninguna PERMISSIVE): la 074 y la
@@ -115,33 +132,40 @@
 -- NO VERIFICADO (no se ha consultado la base de producción para esto):
 --   · Si la 073 o la 076 están aplicadas (el dueño no ha mandado sus salidas).
 --     Sin el helper, esta migración ABORTA sin cambiar nada (sección 0).
---   · Si existen y cómo están 000/001/009/016/032/038/043 (fatigue_sessions,
---     tracking_sessions, scout_insights, live_events…): todo va con to_regclass.
+--   · Si existen y cómo están 000/001/009/016/026/032/038/039/043 (fatigue_sessions,
+--     tracking_sessions, scout_insights, live_events, organizations,
+--     evaluation_history, player_knowledge…): todo va con to_regclass.
 --   · Si esas tablas tienen RLS activada. Si alguna existe SIN RLS, esta migración
 --     ABORTA (no la activa: activarla cambiaría también las LECTURAS); la
 --     comprobación previa lo cuenta (fila 5).
 --   · Cuántas filas «de autor no dueño» hay (residuo de antes): lo cuenta la
---     previa, filas 20-29. Esta migración NO toca datos; limpiar es decisión del dueño.
--- SIMULACIÓN PGlite (NO es la base real; script y salida en el PR): 188
+--     previa, filas 20-31 (en las 2 del RAG, sin columna de autor: filas con una
+--     organización que no es del dueño del jugador). Esta migración NO toca
+--     datos; limpiar es decisión del dueño.
+-- SIMULACIÓN PGlite (NO es la base real; script y salida en el PR): 215
 -- comprobaciones, todas OK, en PostgreSQL 18.3 (PGlite 0.5.8) y en 16.4 (PGlite
 -- 0.2.17), con la forma verificada de producción (3 jugadores del dueño A con un
--- tenant compartido, + 1 jugador de otra cuenta B para las pruebas):
+-- tenant compartido, + 1 jugador de otra cuenta B para las pruebas; cada cuenta
+-- con SU organización):
 --   · ANTES, con 073 + 076: B (mismo tenant) inserta o re-apunta filas de un
 --     jugador de A en fatiga, tracking, análisis, vídeos, eventos en directo e
---     insights; sin la 076, también crea un plan IDP para el jugador de A y escribe
---     objetivos / hitos / revisiones en el plan de A; C (otro tenant) crea el plan.
+--     insights, y B y C (otro tenant, sin jugadores) escriben historial de
+--     evaluación y conocimiento RAG del jugador de A por SU organización (que
+--     cualquier cuenta puede crear); el dueño A lee por RLS la fila plantada. Sin
+--     la 076, B también crea un plan IDP para el jugador de A y escribe objetivos /
+--     hitos / revisiones en el plan de A; C (otro tenant) crea el plan.
 --   · DESPUÉS: 42501 (o 0 filas) en todas, para B y para C. El dueño A hace las
---     MISMAS 16 operaciones del navegador y de video-init (upsert con RETURNING,
---     update, delete, upsert de vídeo sin la columna player_id) con el mismo
---     resultado que antes; B sigue escribiendo lo suyo y puede desligar su fila
---     antigua; service_role igual; anon no escribe.
---   · La 074 solo añade las 20 guardas (instantánea de funciones, permisos, vistas
+--     MISMAS 20 operaciones del navegador y de video-init (upsert con RETURNING,
+--     update, delete, upsert de vídeo sin la columna player_id, RAG con y sin su
+--     organización) con el mismo resultado que antes; B sigue escribiendo lo suyo
+--     y puede desligar su fila antigua; service_role igual; anon no escribe.
+--   · La 074 solo añade las 24 guardas (instantánea de funciones, permisos, vistas
 --     y políticas: ningún otro cambio). 073_comprobacion y 076_posterior siguen
 --     en verde. Orden 073 → 076 → 074, 073 → 074 → 076 y la cadena completa del
 --     repo: mismo resultado. Dos veces: mismo estado. Sin helper, con helper por
 --     tenant o con una de las tablas sin RLS: aborta y la base queda igual. Base
 --     vacía: aborta; las comprobaciones no fallan. Tablas que no existen: se saltan.
---   · Control negativo: la misma migración con las guardas PERMISSIVE da 48 fallos.
+--   · Control negativo: la misma migración con las guardas PERMISSIVE da 58 fallos.
 --
 -- QUÉ NO TOCA: PHV ni bio-banding (invariante #4); ninguna función (tampoco el
 -- helper), vista, dato, permiso de tabla ni política PERMISSIVE existente; no
@@ -200,7 +224,8 @@ BEGIN
   -- nada y activarla cambiaría también las LECTURAS. No se activa aquí.
   SELECT string_agg(t, ', ' ORDER BY t) INTO v_bad
     FROM unnest(ARRAY['fatigue_sessions', 'development_plans', 'idp_goals', 'idp_milestones', 'idp_checkins',
-                      'tracking_sessions', 'player_analyses', 'videos', 'live_events', 'scout_insights']) t
+                      'tracking_sessions', 'player_analyses', 'videos', 'live_events', 'scout_insights',
+                      'evaluation_history', 'player_knowledge']) t
     JOIN pg_class c ON c.oid = to_regclass('public.' || t)
    WHERE NOT c.relrowsecurity;
   IF v_bad IS NOT NULL THEN
@@ -212,7 +237,8 @@ BEGIN
     FROM (VALUES ('fatigue_sessions', 'player_id'), ('development_plans', 'id'), ('development_plans', 'player_id'),
                  ('idp_goals', 'plan_id'), ('idp_milestones', 'plan_id'), ('idp_checkins', 'plan_id'),
                  ('tracking_sessions', 'player_id'), ('player_analyses', 'player_id'), ('videos', 'player_id'),
-                 ('live_events', 'player_id'), ('scout_insights', 'player_id')) x(t, c)
+                 ('live_events', 'player_id'), ('scout_insights', 'player_id'),
+                 ('evaluation_history', 'player_id'), ('player_knowledge', 'player_id')) x(t, c)
    WHERE to_regclass('public.' || x.t) IS NOT NULL
      AND NOT EXISTS (SELECT 1 FROM pg_attribute a
                       WHERE a.attrelid = to_regclass('public.' || x.t) AND a.attname = x.c AND NOT a.attisdropped);
@@ -386,6 +412,36 @@ BEGIN
   ELSE
     RAISE NOTICE '074: scout_insights no existe: se salta';
   END IF;
+
+  -- ── evaluation_history / player_knowledge (039, RAG) ───────────────────
+  --    Cierra la rama «org_id IN (SELECT user_org_ids())» de su INSERT para
+  --    filas de un jugador ajeno (la de «jugador propio» sigue igual). Hoy no
+  --    tienen UPDATE de cliente; la guarda de UPDATE cubre una futura.
+  IF to_regclass('public.evaluation_history') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "evaluation_history_insert_requires_owner_074" ON public.evaluation_history;
+    DROP POLICY IF EXISTS "evaluation_history_update_requires_owner_074" ON public.evaluation_history;
+    CREATE POLICY "evaluation_history_insert_requires_owner_074" ON public.evaluation_history
+      AS RESTRICTIVE FOR INSERT TO authenticated
+      WITH CHECK (player_id IS NULL OR public.caller_manages_player(player_id::text));
+    CREATE POLICY "evaluation_history_update_requires_owner_074" ON public.evaluation_history
+      AS RESTRICTIVE FOR UPDATE TO authenticated
+      WITH CHECK (player_id IS NULL OR public.caller_manages_player(player_id::text));
+  ELSE
+    RAISE NOTICE '074: evaluation_history no existe: se salta';
+  END IF;
+
+  IF to_regclass('public.player_knowledge') IS NOT NULL THEN
+    DROP POLICY IF EXISTS "player_knowledge_insert_requires_owner_074" ON public.player_knowledge;
+    DROP POLICY IF EXISTS "player_knowledge_update_requires_owner_074" ON public.player_knowledge;
+    CREATE POLICY "player_knowledge_insert_requires_owner_074" ON public.player_knowledge
+      AS RESTRICTIVE FOR INSERT TO authenticated
+      WITH CHECK (player_id IS NULL OR public.caller_manages_player(player_id::text));
+    CREATE POLICY "player_knowledge_update_requires_owner_074" ON public.player_knowledge
+      AS RESTRICTIVE FOR UPDATE TO authenticated
+      WITH CHECK (player_id IS NULL OR public.caller_manages_player(player_id::text));
+  ELSE
+    RAISE NOTICE '074: player_knowledge no existe: se salta';
+  END IF;
 END $pol$;
 
 -- =====================================================================
@@ -400,7 +456,8 @@ DECLARE
 BEGIN
   SELECT string_agg(e.t || '.' || c.cmd, ', ' ORDER BY e.t, c.cmd) INTO v_bad
     FROM unnest(ARRAY['fatigue_sessions', 'development_plans', 'idp_goals', 'idp_milestones', 'idp_checkins',
-                      'tracking_sessions', 'player_analyses', 'videos', 'live_events', 'scout_insights']) e(t)
+                      'tracking_sessions', 'player_analyses', 'videos', 'live_events', 'scout_insights',
+                      'evaluation_history', 'player_knowledge']) e(t)
    CROSS JOIN (VALUES ('insert'), ('update')) c(cmd)
    WHERE to_regclass('public.' || e.t) IS NOT NULL
      AND NOT EXISTS (

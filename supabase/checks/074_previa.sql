@@ -8,15 +8,18 @@
 -- columnas o funciones: usa to_regclass / to_regprocedure / pg_attribute, y los
 -- conteos de datos se hacen con query_to_xml SOLO cuando la tabla y sus columnas
 -- existen.
--- Filas 20-29 (por tabla): qué políticas de ESCRITURA de cliente hay hoy, cuántas
+-- Filas 20-31 (por tabla): qué políticas de ESCRITURA de cliente hay hoy, cuántas
 -- filas y cuántas las escribió alguien que NO es el dueño del jugador (residuo que
--- la 074 no borra; limpiar es decisión del dueño).
+-- la 074 no borra; limpiar es decisión del dueño). evaluation_history y
+-- player_knowledge no tienen columna de autor: se cuentan las filas con un org_id
+-- cuya organización NO es del dueño del jugador (pudieron entrar por esa rama).
 -- Probada en SIMULACIÓN PGlite (NO en tu base), PostgreSQL 18.3 y 16.4: base
 -- vacía, cadena completa y forma verificada de producción (con 073 y 076, solo
 -- con 073, sin ninguna), antes y después de la 074.
 -- =====================================================================
 WITH
--- Las 10 tablas de la 074: autor (columna de quien escribe) y vía al jugador.
+-- Las 12 tablas de la 074: autor (columna de quien escribe) y vía al jugador
+-- ('org': sin autor; se mira la organización de la fila).
 tablas(n, tabla, autor, via) AS (
   VALUES (20, 'fatigue_sessions', 'user_id', 'player'),
          (21, 'development_plans', 'coach_id', 'player'),
@@ -27,14 +30,17 @@ tablas(n, tabla, autor, via) AS (
          (26, 'player_analyses', 'user_id', 'player'),
          (27, 'videos', 'user_id', 'player'),
          (28, 'live_events', 'user_id', 'player'),
-         (29, 'scout_insights', 'user_id', 'player')
+         (29, 'scout_insights', 'user_id', 'player'),
+         (30, 'evaluation_history', NULL, 'org'),
+         (31, 'player_knowledge', NULL, 'org')
 ),
 -- Columnas que usan las guardas (solo se exigen si la tabla existe).
 necesarias(tabla, columna) AS (
   VALUES ('fatigue_sessions', 'player_id'), ('development_plans', 'id'), ('development_plans', 'player_id'),
          ('idp_goals', 'plan_id'), ('idp_milestones', 'plan_id'), ('idp_checkins', 'plan_id'),
          ('tracking_sessions', 'player_id'), ('player_analyses', 'player_id'), ('videos', 'player_id'),
-         ('live_events', 'player_id'), ('scout_insights', 'player_id')
+         ('live_events', 'player_id'), ('scout_insights', 'player_id'),
+         ('evaluation_history', 'player_id'), ('player_knowledge', 'player_id')
 ),
 col AS (
   SELECT c.relname AS tabla, a.attname AS columna
@@ -82,6 +88,23 @@ por_tabla AS (
                      || '' de un jugador que no existe o sin dueño'' as c
                 from public.%2$I x left join public.players p on p.id::text = x.player_id::text',
              t.autor, t.tabla), false, true, '')::text FROM '<c>([^<]*)</c>')
+           WHEN t.via = 'org'
+                AND (NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = t.tabla AND col.columna = 'player_id')
+                     OR NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = t.tabla AND col.columna = 'org_id')
+                     OR NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = 'organizations' AND col.columna = 'id')
+                     OR NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = 'organizations' AND col.columna = 'owner_id'))
+             THEN 'sin player_id / org_id u organizations(id, owner_id)'
+           WHEN t.via = 'org' THEN substring(query_to_xml(format(
+             'select count(*)::text || '' fila(s) · '' ||
+                     count(*) filter (where x.player_id is not null and p.id is not null and x.org_id is not null
+                                        and o.owner_id is distinct from p.user_id)::text
+                     || '' con org_id de una organización cuyo dueño NO es el dueño del jugador (sin columna de autor: no se sabe quién las escribió) · '' ||
+                     count(*) filter (where x.player_id is not null and (p.id is null or p.user_id is null))::text
+                     || '' de un jugador que no existe o sin dueño'' as c
+                from public.%1$I x
+                left join public.players p on p.id::text = x.player_id::text
+                left join public.organizations o on o.id = x.org_id',
+             t.tabla), false, true, '')::text FROM '<c>([^<]*)</c>')
            WHEN to_regclass('public.development_plans') IS NULL
                 OR NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = t.tabla AND col.columna = 'plan_id')
                 OR NOT EXISTS (SELECT 1 FROM col WHERE col.tabla = 'development_plans' AND col.columna = 'coach_id')
@@ -190,7 +213,8 @@ filas(n, comprobacion, resultado, esperado, ok) AS (
   -- 11 · INFO. OTRAS tablas con player_id cuyas escrituras de cliente no miran al
   --      dueño del jugador y que la 074 NO cubre (en el repositorio: tracking_jobs,
   --      que arregla el PR #308; match_events y player_session_metrics, con otra
-  --      regla; ver docs/pendientes-metricas.md).
+  --      regla; ver docs/pendientes-metricas.md). Una regla que menciona players
+  --      pero lleva una rama por organización o tenant también sale aquí.
   SELECT 11, 'INFO · OTRAS tablas con player_id y escrituras de cliente que no miran al dueño del jugador (la 074 NO las cubre)',
          coalesce(string_agg(e.tablename || ':' || e.policyname, ', ' ORDER BY e.tablename, e.policyname), 'ninguna'),
          'informativo', NULL::boolean
@@ -198,10 +222,10 @@ filas(n, comprobacion, resultado, esperado, ok) AS (
    WHERE EXISTS (SELECT 1 FROM col WHERE col.tabla = e.tablename AND col.columna = 'player_id')
      AND e.tablename NOT IN (SELECT tabla FROM tablas)
      AND e.w NOT LIKE '%caller_manages_player%'
-     AND e.w NOT LIKE '%players%'
+     AND (e.w NOT LIKE '%players%' OR e.w ~ '(user_org_ids|user_in_org|tenant)')
      AND e.w NOT LIKE '%service_role%'
   UNION ALL
-  -- 20-29 · INFO por tabla.
+  -- 20-31 · INFO por tabla.
   SELECT pt.n, 'INFO · ' || pt.tabla || ': escrituras de cliente hoy (política:cmd) | datos',
          pt.escrituras || ' | ' || coalesce(pt.datos, 'sin datos'),
          'informativo (la 074 no borra ni cambia filas)', NULL::boolean

@@ -11,7 +11,8 @@
 WITH
 tablas(tabla) AS (
   VALUES ('fatigue_sessions'), ('development_plans'), ('idp_goals'), ('idp_milestones'), ('idp_checkins'),
-         ('tracking_sessions'), ('player_analyses'), ('videos'), ('live_events'), ('scout_insights')
+         ('tracking_sessions'), ('player_analyses'), ('videos'), ('live_events'), ('scout_insights'),
+         ('evaluation_history'), ('player_knowledge')
 ),
 cmds(cmd) AS (VALUES ('INSERT'), ('UPDATE')),
 col AS (
@@ -90,6 +91,8 @@ filas(n, comprobacion, resultado, esperado, ok) AS (
   UNION ALL
   -- 7 · INFO. OTRAS tablas con player_id cuyas escrituras de cliente no miran al
   --     dueño del jugador (la 074 no las cubre; ver docs/pendientes-metricas.md).
+  --     Una regla que menciona players pero lleva una rama por organización o
+  --     tenant también sale aquí.
   SELECT 7, 'INFO · OTRAS tablas con player_id y escrituras de cliente que no miran al dueño del jugador (la 074 NO las cubre)',
          coalesce(string_agg(p.tablename || ':' || p.policyname, ', ' ORDER BY p.tablename, p.policyname), 'ninguna'),
          'informativo', NULL::boolean
@@ -99,7 +102,7 @@ filas(n, comprobacion, resultado, esperado, ok) AS (
      AND EXISTS (SELECT 1 FROM col WHERE col.tabla = p.tablename AND col.columna = 'player_id')
      AND p.tablename NOT IN (SELECT tabla FROM tablas)
      AND p.w NOT LIKE '%caller_manages_player%'
-     AND p.w NOT LIKE '%players%'
+     AND (p.w NOT LIKE '%players%' OR p.w ~ '(user_org_ids|user_in_org|tenant)')
      AND p.w NOT LIKE '%service_role%'
   UNION ALL
   -- 8 · INFO. Las guardas son TO authenticated; aquí se ve si anon tiene permiso de

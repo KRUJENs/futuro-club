@@ -7,8 +7,10 @@
  * PGlite fuera del repo (PostgreSQL 18.3 y 16.4), descrita en el PR.
  *
  *  - lint del repositorio (rlsPolicyLint · unguardedPlayerWrites) con control
- *    positivo: SIN la 074 encuentra las 10 tablas; CON ella solo quedan las
- *    EXCLUIDAS documentadas (otra regla o de otro PR);
+ *    positivo: SIN la 074 encuentra las 12 tablas; CON ella solo quedan las
+ *    EXCLUIDAS documentadas (otra regla o de otro PR). «Exige ser el dueño» se
+ *    decide por la estructura de la regla (en un OR, todas las ramas): así cae la
+ *    rama por organización del RAG (039), que antes se daba por buena;
  *  - las guardas son RESTRICTIVE, TO authenticated, solo WITH CHECK con el helper
  *    solo-dueño de la 073/076 (que la 074 NO redefine);
  *  - transaccional, guardas que abortan, idempotente, sin tocar datos, PHV,
@@ -16,7 +18,7 @@
  *  - comprobaciones previa/posterior: una sola consulta de solo lectura.
  */
 import { describe, it, expect } from "vitest";
-import { buildPolicyState, tablesWithColumn, unguardedPlayerWrites, mentionsPlayerOwnership, serviceRoleOnly } from "./rlsPolicyLint";
+import { buildPolicyState, tablesWithColumn, unguardedPlayerWrites, requiresPlayerOwnership, serviceRoleOnly } from "./rlsPolicyLint";
 import { buildState, splitStatements, type MigrationFile } from "./securityDefinerLint";
 
 const raw = import.meta.glob("/supabase/migrations/*.sql", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
@@ -31,10 +33,11 @@ const code = sql.replace(/--.*$/gm, "");
 const WITHOUT_074 = ALL.filter((f) => f.name !== FILE);
 const BEFORE_076 = WITHOUT_074.filter((f) => f.name < "076_");
 
-/** Las 10 tablas de la 074 (mismo orden que en la migración y las comprobaciones). */
+/** Las 12 tablas de la 074 (mismo orden que en la migración y las comprobaciones). */
 const TABLES = [
   "fatigue_sessions", "development_plans", "idp_goals", "idp_milestones", "idp_checkins",
   "tracking_sessions", "player_analyses", "videos", "live_events", "scout_insights",
+  "evaluation_history", "player_knowledge",
 ];
 /**
  * MISMA CLASE, NO INCLUIDAS en la 074 (documentadas en su cabecera y en
@@ -97,8 +100,56 @@ describe("rlsPolicyLint · escrituras de cliente sin propiedad del jugador", () 
     ]) {
       expect(unguardedPlayerWrites(one(`${t} ${ok}`), tables), ok).toEqual([]);
     }
-    expect(mentionsPlayerOwnership("coach_id = auth.uid() OR tenant_id = (auth.jwt() ->> 'tenant_id')::uuid")).toBe(false);
+    expect(requiresPlayerOwnership("coach_id = auth.uid() OR tenant_id = (auth.jwt() ->> 'tenant_id')::uuid")).toBe(false);
     expect(serviceRoleOnly("auth.uid() = user_id OR auth.role() = 'service_role'")).toBe(false);
+  });
+
+  it("requiresPlayerOwnership: en un OR TODAS las ramas; en un AND basta una (rama por organización = no es dueño)", () => {
+    const own = "player_id IN (SELECT id FROM players WHERE user_id = auth.uid())";
+    // Sí exige ser el dueño
+    for (const ok of [
+      own,
+      `(${own})`,
+      "public.caller_manages_player(player_id::text)",
+      "player_id IS NULL OR public.caller_manages_player(player_id::text)",
+      `user_id = auth.uid() AND ${own}`,
+      "EXISTS (SELECT 1 FROM public.players p WHERE p.id = t.player_id AND p.user_id = (SELECT auth.uid()))",
+      "EXISTS (SELECT 1 FROM public.development_plans d WHERE d.id = t.plan_id AND public.caller_manages_player(d.player_id::text))",
+      `${own} OR auth.role() = 'service_role'`,
+    ]) {
+      expect(requiresPlayerOwnership(ok), ok).toBe(true);
+    }
+    // NO exige ser el dueño
+    for (const bad of [
+      // 039: evaluation_history / player_knowledge (la rama por organización no mira al jugador)
+      `${own} OR org_id IN (SELECT user_org_ids())`,
+      `(${own}) OR (org_id IN (SELECT user_org_ids()))`,
+      // subconsulta a players con rama por organización DENTRO
+      "player_id IN (SELECT id FROM players WHERE user_id = auth.uid() OR org_id IN (SELECT user_org_ids()))",
+      // user_id = auth.uid() FUERA de players es el AUTOR, no el dueño del jugador
+      "user_id = auth.uid()",
+      "user_id = auth.uid() AND (org_id IS NULL OR user_in_org(org_id))",
+      "EXISTS (SELECT 1 FROM development_plans p WHERE p.id = plan_id AND (p.coach_id = auth.uid() OR p.tenant_id = public.tenant_id()))",
+      "player_id IS NULL OR org_id IN (SELECT user_org_ids())",
+      "caller_manages_player(player_id::text) OR true",
+      "auth.uid() IS NOT NULL",
+    ]) {
+      expect(requiresPlayerOwnership(bad), bad).toBe(false);
+    }
+    expect(requiresPlayerOwnership(null)).toBe(false);
+    // Comentarios y mayúsculas no cambian nada
+    expect(requiresPlayerOwnership(`-- dueño\n PLAYER_ID IN (SELECT id FROM public.players WHERE USER_ID = AUTH.UID()) /* o org */ OR ORG_ID IN (SELECT user_org_ids())`)).toBe(false);
+  });
+
+  it("marca la rama por organización en OR (039) y la cubre una RESTRICTIVE con el helper", () => {
+    const tables = new Set(["public.t"]);
+    const org = `${t} CREATE POLICY ins ON t FOR INSERT WITH CHECK (player_id IN (SELECT id FROM players WHERE user_id = auth.uid()) OR org_id IN (SELECT user_org_ids()));`;
+    expect(unguardedPlayerWrites(one(org), tables).map((g) => `${g.cmd}:${g.policy}`)).toEqual(["INSERT:ins"]);
+    const guarded = `${org} CREATE POLICY gi ON t AS RESTRICTIVE FOR INSERT TO authenticated WITH CHECK (player_id IS NULL OR public.caller_manages_player(player_id::text));`;
+    expect(unguardedPlayerWrites(one(guarded), tables)).toEqual([]);
+    // Una RESTRICTIVE que menciona el helper pero no lo exige (OR true) no cubre nada
+    const fake = `${org} CREATE POLICY gi ON t AS RESTRICTIVE FOR INSERT TO authenticated WITH CHECK (public.caller_manages_player(player_id::text) OR true);`;
+    expect(unguardedPlayerWrites(one(fake), tables).map((g) => g.policy)).toEqual(["ins"]);
   });
 });
 
@@ -109,15 +160,15 @@ describe("074 · lint del repositorio (control positivo y negativo)", () => {
     expect(ALL.filter((f) => f.name.startsWith("074_")).map((f) => f.name)).toEqual([FILE]);
   });
 
-  it("ROJO sin la 074: encuentra las 10 tablas del defecto (más las excluidas) — control positivo", () => {
+  it("ROJO sin la 074: encuentra las 12 tablas del defecto (más las excluidas) — control positivo", () => {
     // Antes de la 076 también caen los planes IDP (047: coach_id = auth.uid() / tenant) y
     // las tablas cuya escritura iba por TENANT o por «cualquier usuario con sesión»
     // (003-005 / 048 / 049 / 055), que retira la 076 (otra clase, no de la 074).
     const TENANT_CLOSED_BY_076 = ["analyses", "parental_consents", "phase_heatmaps", "player_anthropometrics", "reports", "transfer_listings"];
     expect(gapTables(BEFORE_076)).toEqual(
-      ["development_plans", "fatigue_sessions", "idp_checkins", "idp_goals", "idp_milestones", "live_events",
-       "match_events", "player_analyses", "player_session_metrics", "scout_insights", "tracking_jobs",
-       "tracking_sessions", "videos", ...TENANT_CLOSED_BY_076].sort(),
+      ["development_plans", "evaluation_history", "fatigue_sessions", "idp_checkins", "idp_goals", "idp_milestones",
+       "live_events", "match_events", "player_analyses", "player_knowledge", "player_session_metrics", "scout_insights",
+       "tracking_jobs", "tracking_sessions", "videos", ...TENANT_CLOSED_BY_076].sort(),
     );
     for (const g of unguardedPlayerWrites(BEFORE_076, playerTables(BEFORE_076))) {
       if (TENANT_CLOSED_BY_076.includes(g.table.replace(/^public\./, ""))) {
@@ -126,8 +177,8 @@ describe("074 · lint del repositorio (control positivo y negativo)", () => {
     }
     // Con la 076 (solo dueño en el repositorio) siguen abiertas las demás.
     expect(gapTables(WITHOUT_074)).toEqual(
-      ["fatigue_sessions", "live_events", "match_events", "player_analyses", "player_session_metrics",
-       "scout_insights", "tracking_jobs", "tracking_sessions", "videos"].sort(),
+      ["evaluation_history", "fatigue_sessions", "live_events", "match_events", "player_analyses", "player_knowledge",
+       "player_session_metrics", "scout_insights", "tracking_jobs", "tracking_sessions", "videos"].sort(),
     );
     // Las del audit, con su política y comando exactos.
     expect(gaps(BEFORE_076)).toEqual(expect.arrayContaining([
@@ -139,6 +190,11 @@ describe("074 · lint del repositorio (control positivo y negativo)", () => {
       "public.idp_milestones|UPDATE|idp_milestones_via_plan",
       "public.idp_checkins|INSERT|idp_checkins_via_plan",
       "public.scout_insights|UPDATE|Users update own insights",
+    ]));
+    // La rama por ORGANIZACIÓN del RAG (039): «jugador propio» OR org_id IN user_org_ids().
+    expect(gaps(WITHOUT_074)).toEqual(expect.arrayContaining([
+      "public.evaluation_history|INSERT|Users insert eval history",
+      "public.player_knowledge|INSERT|Users insert knowledge",
     ]));
   });
 
@@ -214,10 +270,10 @@ describe("074 · contrato del SQL", () => {
   it("solo crea/borra SUS políticas (*_074, precedidas de DROP IF EXISTS); no toca datos, PHV, RLS, permisos de tabla ni tracking_jobs", () => {
     const created = [...code.matchAll(/CREATE POLICY "(\w+)" ON public\.(\w+)/g)].map((m) => `${m[2]}.${m[1]}`);
     const dropped = [...code.matchAll(/DROP POLICY IF EXISTS "(\w+)" ON public\.(\w+)/g)].map((m) => `${m[2]}.${m[1]}`);
-    expect(created).toHaveLength(20);
+    expect(created).toHaveLength(24);
     expect(new Set(dropped)).toEqual(new Set(created));
     for (const c of created) expect(c).toMatch(/_074$/);
-    expect(code.match(/AS RESTRICTIVE/g)?.length).toBe(20);
+    expect(code.match(/AS RESTRICTIVE/g)?.length).toBe(24);
     expect(code).not.toMatch(/AS PERMISSIVE/i);
     expect(code).not.toMatch(/\b(INSERT\s+INTO|UPDATE\s+public\.|DELETE\s+FROM|TRUNCATE)\b/i);
     expect(code).not.toMatch(/ENABLE ROW LEVEL SECURITY|DISABLE ROW LEVEL SECURITY|FORCE ROW LEVEL SECURITY/i);
