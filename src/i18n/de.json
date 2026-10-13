@@ -1628,20 +1628,7 @@
     "fatigue_high_label": "Hohe Ermüdung",
     "fatigue_critical_label": "Kritische Ermüdung",
     "injuryRiskLoadHigh": "Die Trainingsbelastung ist sehr hoch. Wir empfehlen aktive Erholung.",
-    "injuryRiskFatigueHigh": "Das Ermüdungsniveau ist erhöht. Es ist gut, wenn es sich heute ausruht.",
-    "consentParental": "Elterliche Einwilligung",
-    "consentGranted": "erteilt",
-    "consentBy": "von {{name}}",
-    "consentDenied": "verweigert",
-    "consentDeniedNote": "· die Daten des Minderjährigen sind anonymisiert",
-    "consentPending": "Elterliche Einwilligung ausstehend",
-    "consentPendingDesc": "{{name}} ist unter 14 Jahre alt. Um seine Daten gemäß DSGVO zu verarbeiten, benötigen wir, dass ein Elternteil/Erziehungsberechtigter die Verarbeitung genehmigt.",
-    "iAmGuardianGrant": "Ich bin der Elternteil/Erziehungsberechtigte · Einwilligung erteilen",
-    "guardianNamePlaceholder": "Vollständiger Name des Erziehungsberechtigten",
-    "guardianEmailPlaceholder": "E-Mail des Erziehungsberechtigten",
-    "cancel": "Abbrechen",
-    "saving": "Speichert…",
-    "grant": "Erteilen"
+    "injuryRiskFatigueHigh": "Das Ermüdungsniveau ist erhöht. Es ist gut, wenn es sich heute ausruht."
   },
   "playerForm": {
     "stepProgress": "Schritt {{current}} von 3",
@@ -6037,67 +6024,10 @@
     "emptyNeedMore": "Mit 2+ Analysen über die Zeit siehst du hier die Verlaufskurve.",
     "seriesRisk": "Verletzungsrisiko"
   },
-  "parentalConsentForm": {
-    "errors": {
-      "mustAccept": "Du musst die Bedingungen und die Datenschutzrichtlinie akzeptieren",
-      "signFailed": "Fehler beim Unterzeichnen",
-      "unknown": "Unbekannter Fehler"
-    },
-    "success": {
-      "title": "E-Mail gesendet",
-      "bodyBefore": "Wir haben eine E-Mail gesendet an",
-      "bodyAfter": "um deine Identität als gesetzlicher Vertreter zu verifizieren. Der Link läuft in 24 Stunden ab.",
-      "footer": "Nach der Verifizierung kann {{name}} VITAS nutzen."
-    },
-    "minorFallback": "der Minderjährige",
-    "header": {
-      "eyebrow": "Elterliche Einwilligung · DSGVO Art. 8",
-      "title": "Nur der Elternteil oder gesetzliche Vertreter kann einen Minderjährigen registrieren",
-      "descBefore": "Diese Einwilligung ist",
-      "descEmphasis": "gesetzlich vorgeschrieben",
-      "descAfter": "zur Verarbeitung von Daten Minderjähriger unter 14 Jahren. Du erhältst nach dem Absenden des Formulars eine Verifizierungs-E-Mail."
-    },
-    "fields": {
-      "parentName": "Vollständiger Name des Erziehungsberechtigten",
-      "parentEmail": "E-Mail des Erziehungsberechtigten",
-      "parentDni": "Ausweisnummer des Erziehungsberechtigten",
-      "childBirthdate": "Geburtsdatum von {{name}}"
-    },
-    "placeholders": {
-      "parentName": "María Pérez García",
-      "parentEmail": "mutter@email.com",
-      "parentDni": "12345678X"
-    },
-    "hints": {
-      "parentEmail": "Du erhältst den Verifizierungslink hier. Er läuft in 24h ab.",
-      "parentDni": "Deine Ausweisnummer wird verschlüsselt gespeichert · wir speichern sie nie im Klartext."
-    },
-    "terms": {
-      "before": "Ich habe die",
-      "link": "Allgemeinen Geschäftsbedingungen",
-      "after": "von VITAS gelesen und akzeptiere sie."
-    },
-    "privacy": {
-      "before": "Ich habe die",
-      "link": "Datenschutzrichtlinie",
-      "after": "gelesen und akzeptiere sie, und willige ausdrücklich in die Verarbeitung der Daten meines Kindes (einschließlich biomechanischer Analyse und Videos) für die beschriebenen Zwecke ein."
-    },
-    "submit": {
-      "sending": "Sendet...",
-      "default": "Einwilligung unterzeichnen und Verifizierung senden"
-    },
-    "footerNote": "Du kannst diese Einwilligung jederzeit über dein Konto widerrufen."
-  },
   "parentalConsentPage": {
     "title": "Elterliche Einwilligung",
     "header": {
       "badge": "DSGVO"
-    },
-    "status": {
-      "pending": "Ausstehend",
-      "granted": "Genehmigt",
-      "denied": "Verweigert",
-      "notRequired": "Nicht erforderlich"
     },
     "action": {
       "consent_requested": "Einwilligung angefragt",
@@ -6108,26 +6038,7 @@
       "deletion_requested": "Löschung angefragt"
     },
     "form": {
-      "legalRef": "DSGVO Art. 8 · LOPD Art. 7 · Verpflichtend für Minderjährige unter 14 Jahren",
-      "playerMeta": "{{age}} Jahre · Geburt: {{date}}",
-      "guardianNameLabel": "Vollständiger Name des gesetzlichen Vertreters",
-      "guardianNamePlaceholder": "María Pérez García",
-      "guardianEmailLabel": "E-Mail des gesetzlichen Vertreters",
-      "guardianEmailPlaceholder": "mutter@email.com",
-      "emailNotice": "Wird so gespeichert, wie du es eingibst: Es wird keine E-Mail gesendet und der Erziehungsberechtigte wird nicht verifiziert.",
-      "clipGateNotice": "Diese Notiz schaltet die Videoanalyse eines Spielers unter 14 NICHT frei: Dafür braucht es die vom Erziehungsberechtigten unterschriebene und per E-Mail bestätigte Einwilligung.",
-      "actionLabel": "Aktion",
-      "authorizeAI": "Genehmigung notieren",
-      "denyAI": "KI verweigern",
-      "includesTitle": "Was die Einwilligung umfasst:",
-      "includes1": "Biomechanische Videoanalyse mit KI (Haltung, Bewegung)",
-      "includes2": "Erstellung taktischer Berichte mit Claude",
-      "includes3": "Berechnung der biologischen Reifung (PHV Mirwald)",
-      "includes4": "Speicherung von Leistungskennzahlen",
-      "revocationNotice": "Die Einwilligung kann jederzeit widerrufen werden. Die Daten werden 30 Tage nach dem Widerruf gelöscht.",
-      "cancel": "Abbrechen",
-      "registerAuthorization": "Genehmigung registrieren",
-      "registerDenial": "Verweigerung registrieren"
+      "legalRef": "DSGVO Art. 8 · LOPD Art. 7 · Verpflichtend für Minderjährige unter 14 Jahren"
     },
     "toast": {
       "exportSuccess": "Daten erfolgreich exportiert",
@@ -6136,10 +6047,7 @@
       "deletionSuccess": "Löschanfrage registriert",
       "deletionDemo": "Anfrage registriert (Demo-Modus)",
       "deletionError": "Fehler beim Anfragen der Löschung",
-      "dsarNotAllowed": "Keine Berechtigung für diesen Spieler: Nur das Konto, das ihn angelegt hat, kann dieses DSGVO-Recht ausüben",
-      "consentSuccess": "Einwilligung erfolgreich registriert",
-      "consentError": "Fehler beim Registrieren der Einwilligung",
-      "withdrawnLabelError": "Einwilligung widerrufen. Die Anzeige auf diesem Bildschirm konnte nicht aktualisiert werden und zeigt eventuell noch den vorherigen Status."
+      "dsarNotAllowed": "Keine Berechtigung für diesen Spieler: Nur das Konto, das ihn angelegt hat, kann dieses DSGVO-Recht ausüben"
     },
     "dsar": {
       "title": "ARCO-Rechte · {{name}}",
@@ -6168,10 +6076,7 @@
       "emptyWithStatus": "Keine Spieler mit Status \"{{status}}\"",
       "ageYears": "{{age}} Jahre",
       "guardian": "Vertreter: {{name}}",
-      "grantedOn": "Genehmigt am {{date}}",
-      "manageConsent": "Einwilligung verwalten",
-      "revoke": "Widerrufen",
-      "requestAgain": "Erneut anfragen"
+      "grantedOn": "Genehmigt am {{date}}"
     },
     "audit": {
       "empty": "Keine Audit-Einträge",
@@ -6503,6 +6408,100 @@
       "useNotes": "Bericht ohne Video (nur Notizen) verwenden",
       "demoPreview": "Ein Beispiel ansehen (Beispieldaten)",
       "baselineSuffix": "Die Analyse des ganzen Spiels wird gerade validiert und noch nicht angeboten: Verwende einen kurzen Clip oder den Textmodus."
+    }
+  },
+  "guardianConsent": {
+    "title": "Einwilligung der/des Erziehungsberechtigten",
+    "loading": "Einwilligung wird geprüft…",
+    "sent": "E-Mail an {{email}} gesendet. Die/der Erziehungsberechtigte hat 24 Stunden Zeit zur Bestätigung.",
+    "sentNoEmail": "Die Anfrage wurde gespeichert, aber die E-Mail konnte nicht gesendet werden. Versuche es später erneut.",
+    "withdrawConfirm": "Einwilligung für {{name}} widerrufen? Die Videos werden nicht mehr analysiert, bis die/der Erziehungsberechtigte erneut bestätigt.",
+    "withdrawn": "Einwilligung widerrufen.",
+    "state": {
+      "verified": "Bestätigt",
+      "pending": "Ausstehend",
+      "expired": "Abgelaufen",
+      "withdrawn": "Widerrufen",
+      "none": "Nicht angefragt",
+      "unavailable": "Nicht verfügbar",
+      "verifiedDesc": "Bestätigt von {{name}} ({{email}}) am {{date}}. Die Videos können analysiert werden.",
+      "pendingDesc": "Unterschrift bei {{email}} angefragt. Die Bestätigung steht noch aus (der Link läuft am {{date}} ab). Bis dahin werden die Videos nicht analysiert.",
+      "expiredDesc": "Der an {{email}} gesendete Link ist ohne Bestätigung abgelaufen. Fordere die Unterschrift erneut an.",
+      "withdrawnDesc": "Widerrufen am {{date}}. Die Videos werden nicht analysiert.",
+      "noneDesc": "{{name}} ist unter 14: Für die Analyse der Videos ist die Einwilligung eines Elternteils oder der/des Erziehungsberechtigten nötig.",
+      "unavailableDesc": "Die Einwilligung konnte nicht geprüft werden. Versuche es später erneut."
+    },
+    "actions": {
+      "request": "Unterschrift anfordern",
+      "resend": "Erneut senden",
+      "requestAgain": "Erneut anfordern",
+      "withdraw": "Einwilligung widerrufen",
+      "withdrawConfirm": "Ja, widerrufen",
+      "cancelRequest": "Anfrage abbrechen"
+    },
+    "form": {
+      "explainer": "Gib Name und E-Mail eines Elternteils oder der/des Erziehungsberechtigten ein. Wir senden einen Link, mit dem sie/er selbst bestätigt (Ausweisnummer eingeben und Bedingungen akzeptieren).",
+      "nameLabel": "Name der/des Erziehungsberechtigten",
+      "namePlaceholder": "Vor- und Nachname",
+      "emailLabel": "E-Mail der/des Erziehungsberechtigten",
+      "emailPlaceholder": "eltern@beispiel.de",
+      "emailHint": "Verwende die E-Mail der/des Erziehungsberechtigten, nicht deine: Sie/er muss selbst bestätigen.",
+      "submit": "Anfrage senden",
+      "cancel": "Abbrechen"
+    },
+    "errors": {
+      "birthDateRequired": "Trage vor der Anfrage das Geburtsdatum im Profil des Spielers ein.",
+      "notRequired": "Der Spieler ist 14 oder älter: Die Einwilligung der Erziehungsberechtigten ist nicht nötig.",
+      "tenantMissing": "Kann nicht gespeichert werden: Dem Spieler ist kein Verein und keine Gruppe zugeordnet.",
+      "forbidden": "Du kannst für diesen Spieler keine Einwilligung anfordern.",
+      "generic": "Die Anfrage konnte nicht gesendet werden. Versuche es später erneut.",
+      "withdraw": "Die Einwilligung konnte nicht widerrufen werden. Versuche es erneut."
+    }
+  },
+  "verifyConsentPage": {
+    "title": "Einwilligung der/des Erziehungsberechtigten",
+    "intro": "Die verantwortliche Person für das Kind bei VITAS bittet dich um deine Einwilligung als Elternteil oder Erziehungsberechtigte/r. Das erlaubst du:",
+    "what1": "Die Analyse von Videos aus Trainings und Spielen, in denen das Kind zu sehen ist.",
+    "what2": "Die Speicherung der Ergebnisse dieser Analysen in seinem Profil, auf das nur die verantwortliche Person zugreift.",
+    "what3": "Du kannst sie jederzeit mit dem Link widerrufen, den wir dir nach der Bestätigung senden.",
+    "dniLabel": "Deine Ausweisnummer (Erziehungsberechtigte/r)",
+    "dniHint": "Gespeichert wird nur ein verschlüsselter Fingerabdruck, nie die Nummer.",
+    "termsBefore": "Ich habe gelesen und akzeptiere die",
+    "termsLink": "Nutzungsbedingungen",
+    "privacyBefore": "Ich habe gelesen und akzeptiere die",
+    "privacyLink": "Datenschutzerklärung",
+    "confirm": "Ich bestätige als Erziehungsberechtigte/r",
+    "notGuardian": "Wenn du nicht erziehungsberechtigt bist, schließe diese Seite: Ohne deine Bestätigung wird nichts analysiert.",
+    "goHome": "Zu VITAS",
+    "success": {
+      "done": "Einwilligung bestätigt. Danke.",
+      "already": "Diese Einwilligung war bereits bestätigt.",
+      "withdrawEmailed": "Wir haben dir per E-Mail den Link zum Widerruf geschickt. Du kannst auch diesen verwenden:",
+      "withdrawNoEmail": "Wir konnten dir die Bestätigungs-E-Mail nicht senden. Bewahre diesen Link auf, um die Einwilligung jederzeit zu widerrufen:",
+      "withdrawLink": "Einwilligung widerrufen"
+    },
+    "errors": {
+      "missingToken": "Ungültiger Link: Der Code fehlt. Öffne den vollständigen Link aus der E-Mail.",
+      "invalidToken": "Dieser Link ist ungültig oder nicht mehr verwendbar. Bitte die verantwortliche Person um einen neuen.",
+      "expired": "Der Link ist abgelaufen (24 Stunden). Bitte die verantwortliche Person um einen neuen.",
+      "changed": "Die Anfrage hat sich seit dem Versand des Links geändert. Bitte die verantwortliche Person um einen neuen.",
+      "validation": "Prüfe die Ausweisnummer und setze beide Häkchen.",
+      "generic": "Bestätigung nicht möglich. Versuche es erneut über den Link in der E-Mail.",
+      "network": "Verbindungsfehler. Versuche es erneut."
+    }
+  },
+  "withdrawConsentPage": {
+    "title": "Einwilligung widerrufen",
+    "explainer": "Wenn du sie widerrufst, werden die Videos des Kindes nicht mehr analysiert. Du kannst sie erneut erteilen, wenn die verantwortliche Person dich wieder darum bittet.",
+    "confirm": "Einwilligung widerrufen",
+    "done": "Einwilligung widerrufen. Die Videos des Kindes werden nicht mehr analysiert.",
+    "already": "Diese Einwilligung war bereits widerrufen.",
+    "goHome": "Zu VITAS",
+    "errors": {
+      "missingToken": "Ungültiger Link: Der Code fehlt. Öffne den vollständigen Link aus der E-Mail.",
+      "invalidToken": "Dieser Widerrufslink ist ungültig.",
+      "generic": "Widerruf nicht möglich. Versuche es erneut über den Link in der E-Mail.",
+      "network": "Verbindungsfehler. Versuche es erneut."
     }
   }
 }

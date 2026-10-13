@@ -1629,20 +1629,7 @@
     "fatigue_high_label": "High fatigue",
     "fatigue_critical_label": "Critical fatigue",
     "injuryRiskLoadHigh": "The training load is very high. We recommend active rest.",
-    "injuryRiskFatigueHigh": "The fatigue level is elevated. It's good for them to rest today.",
-    "consentParental": "Parental consent",
-    "consentGranted": "granted",
-    "consentBy": "by {{name}}",
-    "consentDenied": "denied",
-    "consentDeniedNote": "· the minor's data is anonymized",
-    "consentPending": "Parental consent pending",
-    "consentPendingDesc": "{{name}} is under 14. To process their data under GDPR, we need a parent/legal guardian to approve the processing.",
-    "iAmGuardianGrant": "I am the parent/guardian · give consent",
-    "guardianNamePlaceholder": "Guardian's full name",
-    "guardianEmailPlaceholder": "Guardian's email",
-    "cancel": "Cancel",
-    "saving": "Saving…",
-    "grant": "Grant"
+    "injuryRiskFatigueHigh": "The fatigue level is elevated. It's good for them to rest today."
   },
   "playerForm": {
     "stepProgress": "Step {{current}} of 3",
@@ -6038,67 +6025,10 @@
     "emptyNeedMore": "With 2+ analyses over time, you'll see the evolution curve here.",
     "seriesRisk": "Injury risk"
   },
-  "parentalConsentForm": {
-    "errors": {
-      "mustAccept": "You must accept the terms and the privacy policy",
-      "signFailed": "Error while signing",
-      "unknown": "Unknown error"
-    },
-    "success": {
-      "title": "Email sent",
-      "bodyBefore": "We've sent an email to",
-      "bodyAfter": "to verify your identity as legal guardian. The link expires in 24 hours.",
-      "footer": "Once verified, {{name}} will be able to use VITAS."
-    },
-    "minorFallback": "the minor",
-    "header": {
-      "eyebrow": "Parental consent · GDPR Art. 8",
-      "title": "Only a parent or legal guardian may register a minor",
-      "descBefore": "This consent is",
-      "descEmphasis": "required by law",
-      "descAfter": "to process data of children under 14. You'll receive a verification email after submitting the form."
-    },
-    "fields": {
-      "parentName": "Guardian's full name",
-      "parentEmail": "Guardian's email",
-      "parentDni": "Guardian's ID (DNI/NIE)",
-      "childBirthdate": "Date of birth of {{name}}"
-    },
-    "placeholders": {
-      "parentName": "Jane Smith",
-      "parentEmail": "parent@email.com",
-      "parentDni": "12345678X"
-    },
-    "hints": {
-      "parentEmail": "You'll receive the verification link here. It expires in 24h.",
-      "parentDni": "Your ID is stored encrypted · we never keep it in plain text."
-    },
-    "terms": {
-      "before": "I have read and accept the",
-      "link": "Terms and Conditions",
-      "after": "of VITAS."
-    },
-    "privacy": {
-      "before": "I have read and accept the",
-      "link": "Privacy Policy",
-      "after": "and expressly consent to the processing of my child's data (including biomechanical analysis and videos) for the purposes described."
-    },
-    "submit": {
-      "sending": "Sending...",
-      "default": "Sign consent and send verification"
-    },
-    "footerNote": "You can withdraw this consent at any time from your account."
-  },
   "parentalConsentPage": {
     "title": "Parental Consent",
     "header": {
       "badge": "GDPR"
-    },
-    "status": {
-      "pending": "Pending",
-      "granted": "Authorized",
-      "denied": "Denied",
-      "notRequired": "Not required"
     },
     "action": {
       "consent_requested": "Consent requested",
@@ -6109,26 +6039,7 @@
       "deletion_requested": "Deletion requested"
     },
     "form": {
-      "legalRef": "GDPR Art. 8 · LOPD Art. 7 · Mandatory for children under 14",
-      "playerMeta": "{{age}} years · Born: {{date}}",
-      "guardianNameLabel": "Legal guardian's full name",
-      "guardianNamePlaceholder": "Jane Smith",
-      "guardianEmailLabel": "Legal guardian's email",
-      "guardianEmailPlaceholder": "parent@email.com",
-      "emailNotice": "It is saved exactly as you type it: no email is sent and the guardian is not verified.",
-      "clipGateNotice": "This note does NOT unlock video analysis of a player under 14: that requires consent signed by the guardian and confirmed from their email.",
-      "actionLabel": "Action",
-      "authorizeAI": "Record authorisation",
-      "denyAI": "Deny AI",
-      "includesTitle": "What the consent includes:",
-      "includes1": "AI biomechanical video analysis (posture, movement)",
-      "includes2": "Tactical report generation with Claude",
-      "includes3": "Biological maturation calculation (PHV Mirwald)",
-      "includes4": "Performance metrics storage",
-      "revocationNotice": "Consent can be revoked at any time. Data is deleted 30 days after revocation.",
-      "cancel": "Cancel",
-      "registerAuthorization": "Register authorization",
-      "registerDenial": "Register denial"
+      "legalRef": "GDPR Art. 8 · LOPD Art. 7 · Mandatory for children under 14"
     },
     "toast": {
       "exportSuccess": "Data exported successfully",
@@ -6137,10 +6048,7 @@
       "deletionSuccess": "Deletion request recorded",
       "deletionDemo": "Request recorded (demo mode)",
       "deletionError": "Error requesting deletion",
-      "dsarNotAllowed": "No permission for this player: only the account that registered them can exercise this GDPR right",
-      "consentSuccess": "Consent recorded successfully",
-      "consentError": "Error recording consent",
-      "withdrawnLabelError": "Consent withdrawn. The label on this screen could not be updated and may still show the previous status."
+      "dsarNotAllowed": "No permission for this player: only the account that registered them can exercise this GDPR right"
     },
     "dsar": {
       "title": "ARCO Rights · {{name}}",
@@ -6169,10 +6077,7 @@
       "emptyWithStatus": "No players with status \"{{status}}\"",
       "ageYears": "{{age}} years",
       "guardian": "Guardian: {{name}}",
-      "grantedOn": "Authorized on {{date}}",
-      "manageConsent": "Manage consent",
-      "revoke": "Revoke",
-      "requestAgain": "Request again"
+      "grantedOn": "Authorized on {{date}}"
     },
     "audit": {
       "empty": "No audit records",
@@ -6504,6 +6409,100 @@
       "useNotes": "Use the report without video (notes only)",
       "demoPreview": "See an example (example data)",
       "baselineSuffix": "Full-match analysis is being validated and is not offered yet: use a short clip or text mode."
+    }
+  },
+  "guardianConsent": {
+    "title": "Legal guardian consent",
+    "loading": "Checking consent…",
+    "sent": "Email sent to {{email}}. The guardian has 24 hours to confirm.",
+    "sentNoEmail": "The request was saved, but the email could not be sent. Try again later.",
+    "withdrawConfirm": "Withdraw consent for {{name}}? Their videos will no longer be analysed until the guardian confirms again.",
+    "withdrawn": "Consent withdrawn.",
+    "state": {
+      "verified": "Confirmed",
+      "pending": "Pending",
+      "expired": "Expired",
+      "withdrawn": "Withdrawn",
+      "none": "Not requested",
+      "unavailable": "Unavailable",
+      "verifiedDesc": "Confirmed by {{name}} ({{email}}) on {{date}}. Their videos can be analysed.",
+      "pendingDesc": "Signature requested from {{email}}. Waiting for the guardian to confirm (the link expires on {{date}}). Until then their videos are not analysed.",
+      "expiredDesc": "The link sent to {{email}} expired without confirmation. Request the signature again.",
+      "withdrawnDesc": "Withdrawn on {{date}}. Their videos are not analysed.",
+      "noneDesc": "{{name}} is under 14: analysing their videos requires consent from a parent or legal guardian.",
+      "unavailableDesc": "Consent could not be checked. Try again later."
+    },
+    "actions": {
+      "request": "Ask the guardian to sign",
+      "resend": "Send again",
+      "requestAgain": "Request again",
+      "withdraw": "Withdraw consent",
+      "withdrawConfirm": "Yes, withdraw",
+      "cancelRequest": "Cancel request"
+    },
+    "form": {
+      "explainer": "Enter the name and email of the parent or legal guardian. We will send them a link to confirm themselves (they will enter their ID number and accept the terms).",
+      "nameLabel": "Guardian's name",
+      "namePlaceholder": "Full name",
+      "emailLabel": "Guardian's email",
+      "emailPlaceholder": "guardian@example.com",
+      "emailHint": "Use the guardian's email, not yours: the guardian has to confirm.",
+      "submit": "Send request",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "birthDateRequired": "Add the player's date of birth to their profile before requesting consent.",
+      "notRequired": "The player is 14 or older: guardian consent is not needed.",
+      "tenantMissing": "Cannot be saved: the player has no club or group assigned.",
+      "forbidden": "You cannot request consent for this player.",
+      "generic": "The request could not be sent. Try again later.",
+      "withdraw": "Consent could not be withdrawn. Try again."
+    }
+  },
+  "verifyConsentPage": {
+    "title": "Legal guardian consent",
+    "intro": "The person responsible for the minor in VITAS is asking for your consent as parent or legal guardian. This is what you authorise:",
+    "what1": "Analysis of videos of training sessions and matches in which the minor appears.",
+    "what2": "Storage of the results of that analysis in their profile, which only the responsible person can access.",
+    "what3": "You can withdraw it at any time with the link we will send you when you confirm.",
+    "dniLabel": "Your ID number (legal guardian)",
+    "dniHint": "Only an encrypted fingerprint is stored, never the number.",
+    "termsBefore": "I have read and accept the",
+    "termsLink": "terms of use",
+    "privacyBefore": "I have read and accept the",
+    "privacyLink": "privacy policy",
+    "confirm": "I confirm as legal guardian",
+    "notGuardian": "If you are not the legal guardian, close this page: nothing is analysed without your confirmation.",
+    "goHome": "Go to VITAS",
+    "success": {
+      "done": "Consent confirmed. Thank you.",
+      "already": "This consent was already confirmed.",
+      "withdrawEmailed": "We have emailed you the link to withdraw it at any time. You can also use this one:",
+      "withdrawNoEmail": "We could not send you the confirmation email. Keep this link to withdraw consent at any time:",
+      "withdrawLink": "Withdraw consent"
+    },
+    "errors": {
+      "missingToken": "Invalid link: the code is missing. Open the full link from the email.",
+      "invalidToken": "This link is not valid or can no longer be used. Ask the responsible person to send you a new one.",
+      "expired": "The link has expired (24 hours). Ask the responsible person to send you a new one.",
+      "changed": "The request changed after the link was sent. Ask the responsible person to send you a new one.",
+      "validation": "Check the ID number and tick both boxes.",
+      "generic": "Could not confirm. Try again from the link in the email.",
+      "network": "Connection error. Try again."
+    }
+  },
+  "withdrawConsentPage": {
+    "title": "Withdraw consent",
+    "explainer": "If you withdraw it, the minor's videos will no longer be analysed. You can give it again if the responsible person asks you.",
+    "confirm": "Withdraw consent",
+    "done": "Consent withdrawn. The minor's videos are no longer analysed.",
+    "already": "This consent was already withdrawn.",
+    "goHome": "Go to VITAS",
+    "errors": {
+      "missingToken": "Invalid link: the code is missing. Open the full link from the email.",
+      "invalidToken": "This withdrawal link is not valid.",
+      "generic": "Could not withdraw. Try again from the link in the email.",
+      "network": "Connection error. Try again."
     }
   }
 }

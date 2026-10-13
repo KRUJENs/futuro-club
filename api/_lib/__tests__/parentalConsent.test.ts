@@ -191,6 +191,7 @@ describe("token del email · emisión y verificación", () => {
     tokenHash: H1,
     expiresAt: "2099-01-01T00:00:00.000Z",
     tenantId: TENANT,
+    locale: null, // P1 bloque 3: idioma del correo al tutor (sin dato en esta emisión)
   };
 
   it("hashConsentToken: 'sha256:' + 64 hex, determinista y distinto del token", async () => {

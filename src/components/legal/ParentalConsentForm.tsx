@@ -1,220 +1,116 @@
 /**
- * VITAS · Parental Consent Form
- * Formulario que firma el padre/tutor antes de poder usar VITAS con un menor.
+ * VITAS · Pedir la firma al TUTOR legal (P1 bloque 3)
  *
- * Cumple GDPR Art. 8 y LOPD Art. 7.
+ * Lo rellena el responsable del jugador (entrenador o familia) con SOLO el nombre y el email del
+ * tutor. El servidor le manda un correo con el enlace para confirmar; el TUTOR, en esa página,
+ * escribe SU DNI y acepta las condiciones (decisión del owner del 14 oct). Aquí no se pide el
+ * DNI ni se acepta nada en nombre del tutor.
  *
- * Uso:
- *   <ParentalConsentForm playerId={player.id} onSuccess={() => navigate("/")} />
+ * Uso: <ParentalConsentForm playerId={id} initialName={…} initialEmail={…} onDone={…} />
  */
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Loader2, Send } from "lucide-react";
+import { useRequestGuardianSignature } from "@/hooks/useParentalConsent";
+import { ConsentRequestError } from "@/services/real/parentalConsentService";
 
 interface Props {
   playerId: string;
-  childName?: string;
-  onSuccess?: () => void;
+  initialName?: string | null;
+  initialEmail?: string | null;
+  /** Tras enviar (con o sin correo): el padre refresca el estado. */
+  onDone?: (result: { emailSent: boolean; email: string }) => void;
+  onCancel?: () => void;
 }
 
-export function ParentalConsentForm({ playerId, childName, onSuccess }: Props) {
+const ERROR_KEYS: Record<string, string> = {
+  birth_date_required: "guardianConsent.errors.birthDateRequired",
+  consent_not_required: "guardianConsent.errors.notRequired",
+  tenant_missing: "guardianConsent.errors.tenantMissing",
+  forbidden: "guardianConsent.errors.forbidden",
+};
+
+export function ParentalConsentForm({ playerId, initialName, initialEmail, onDone, onCancel }: Props) {
   const { t } = useTranslation();
-  const [parentName, setParentName] = useState("");
-  const [parentEmail, setParentEmail] = useState("");
-  const [parentDni, setParentDni] = useState("");
-  const [childBirthdate, setChildBirthdate] = useState("");
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [guardianName, setGuardianName] = useState(initialName ?? "");
+  const [guardianEmail, setGuardianEmail] = useState(initialEmail ?? "");
   const [error, setError] = useState<string | null>(null);
+  const request = useRequestGuardianSignature();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-
-    if (!acceptedTerms || !acceptedPrivacy) {
-      setError(t("parentalConsentForm.errors.mustAccept"));
-      return;
-    }
-
-    setSubmitting(true);
     try {
-      const res = await fetch("/api/auth/sign-consent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          playerId,
-          parentName,
-          parentEmail,
-          parentDni: parentDni.toUpperCase(),
-          childBirthdate,
-          acceptedTerms: true,
-          acceptedPrivacy: true,
-          consentVersion: "v1.0",
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message ?? t("parentalConsentForm.errors.signFailed"));
-
-      setSuccess(true);
-      onSuccess?.();
+      const res = await request.mutateAsync({ playerId, guardianName, guardianEmail });
+      onDone?.({ emailSent: res.emailSent, email: guardianEmail.trim() });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("parentalConsentForm.errors.unknown"));
-    } finally {
-      setSubmitting(false);
+      const code = err instanceof ConsentRequestError ? err.code : "";
+      setError(t(ERROR_KEYS[code] ?? "guardianConsent.errors.generic"));
     }
-  }
-
-  if (success) {
-    return (
-      <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center">
-        <div className="text-4xl mb-3">✉️</div>
-        <h2 className="font-rajdhani text-xl font-bold mb-2">{t("parentalConsentForm.success.title")}</h2>
-        <p className="text-sm text-slate-600">
-          {t("parentalConsentForm.success.bodyBefore")}{" "}
-          <strong>{parentEmail}</strong>{" "}
-          {t("parentalConsentForm.success.bodyAfter")}
-        </p>
-        <p className="text-xs text-slate-500 mt-4">
-          {t("parentalConsentForm.success.footer", { name: childName ?? t("parentalConsentForm.minorFallback") })}
-        </p>
-      </div>
-    );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5 max-w-xl mx-auto">
-      <header>
-        <div className="text-xs uppercase tracking-widest text-purple-600 font-bold mb-1">
-          {t("parentalConsentForm.header.eyebrow")}
-        </div>
-        <h2 className="font-rajdhani text-2xl font-bold mb-2">
-          {t("parentalConsentForm.header.title")}
-        </h2>
-        <p className="text-sm text-slate-600">
-          {t("parentalConsentForm.header.descBefore")}{" "}
-          <strong>{t("parentalConsentForm.header.descEmphasis")}</strong>{" "}
-          {t("parentalConsentForm.header.descAfter")}
-        </p>
-      </header>
-
+    <form onSubmit={handleSubmit} className="space-y-3" data-testid="guardian-consent-form">
+      <p className="text-[11px] text-muted-foreground leading-relaxed">{t("guardianConsent.form.explainer")}</p>
       <div>
-        <label className="block text-sm font-semibold mb-1">{t("parentalConsentForm.fields.parentName")}</label>
+        <label htmlFor={`gc-name-${playerId}`} className="block text-xs font-semibold text-foreground mb-1">
+          {t("guardianConsent.form.nameLabel")}
+        </label>
         <input
+          id={`gc-name-${playerId}`}
           type="text"
           required
           minLength={2}
           maxLength={120}
-          value={parentName}
-          onChange={(e) => setParentName(e.target.value)}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:outline-none"
-          placeholder={t("parentalConsentForm.placeholders.parentName")}
+          value={guardianName}
+          onChange={(e) => setGuardianName(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary/60"
+          placeholder={t("guardianConsent.form.namePlaceholder")}
         />
       </div>
-
       <div>
-        <label className="block text-sm font-semibold mb-1">{t("parentalConsentForm.fields.parentEmail")}</label>
+        <label htmlFor={`gc-email-${playerId}`} className="block text-xs font-semibold text-foreground mb-1">
+          {t("guardianConsent.form.emailLabel")}
+        </label>
         <input
+          id={`gc-email-${playerId}`}
           type="email"
           required
-          value={parentEmail}
-          onChange={(e) => setParentEmail(e.target.value)}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:outline-none"
-          placeholder={t("parentalConsentForm.placeholders.parentEmail")}
+          maxLength={254}
+          value={guardianEmail}
+          onChange={(e) => setGuardianEmail(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg bg-card border border-border text-sm text-foreground focus:outline-none focus:border-primary/60"
+          placeholder={t("guardianConsent.form.emailPlaceholder")}
         />
-        <p className="text-xs text-slate-500 mt-1">
-          {t("parentalConsentForm.hints.parentEmail")}
-        </p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold mb-1">{t("parentalConsentForm.fields.parentDni")}</label>
-        <input
-          type="text"
-          required
-          minLength={8}
-          maxLength={20}
-          pattern="[A-Za-z0-9]+"
-          value={parentDni}
-          onChange={(e) => setParentDni(e.target.value)}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:outline-none uppercase"
-          placeholder={t("parentalConsentForm.placeholders.parentDni")}
-        />
-        <p className="text-xs text-slate-500 mt-1">
-          {t("parentalConsentForm.hints.parentDni")}
-        </p>
-      </div>
-
-      <div>
-        <label className="block text-sm font-semibold mb-1">
-          {t("parentalConsentForm.fields.childBirthdate", { name: childName ?? t("parentalConsentForm.minorFallback") })}
-        </label>
-        <input
-          type="date"
-          required
-          value={childBirthdate}
-          onChange={(e) => setChildBirthdate(e.target.value)}
-          max={new Date().toISOString().slice(0, 10)}
-          className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-blue-500 focus:outline-none"
-        />
-      </div>
-
-      <div className="space-y-3 pt-3 border-t border-slate-200">
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={acceptedTerms}
-            onChange={(e) => setAcceptedTerms(e.target.checked)}
-            className="mt-1 w-5 h-5 accent-purple-600"
-            required
-          />
-          <span className="text-sm text-slate-700">
-            {t("parentalConsentForm.terms.before")}{" "}
-            <a href="/legal/terms" target="_blank" className="text-blue-600 underline">
-              {t("parentalConsentForm.terms.link")}
-            </a>{" "}
-            {t("parentalConsentForm.terms.after")}
-          </span>
-        </label>
-
-        <label className="flex items-start gap-3 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={acceptedPrivacy}
-            onChange={(e) => setAcceptedPrivacy(e.target.checked)}
-            className="mt-1 w-5 h-5 accent-purple-600"
-            required
-          />
-          <span className="text-sm text-slate-700">
-            {t("parentalConsentForm.privacy.before")}{" "}
-            <a href="/legal/privacy" target="_blank" className="text-blue-600 underline">
-              {t("parentalConsentForm.privacy.link")}
-            </a>{" "}
-            {t("parentalConsentForm.privacy.after")}
-          </span>
-        </label>
+        <p className="text-[10px] text-muted-foreground mt-1">{t("guardianConsent.form.emailHint")}</p>
       </div>
 
       {error && (
-        <div className="rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+        <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-700">
           {error}
-        </div>
+        </p>
       )}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full py-3.5 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold disabled:opacity-50"
-      >
-        {submitting ? t("parentalConsentForm.submit.sending") : t("parentalConsentForm.submit.default")}
-      </button>
-
-      <p className="text-xs text-center text-slate-500">
-        {t("parentalConsentForm.footerNote")}
-      </p>
+      <div className="flex gap-2">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 py-2 rounded-lg border border-border text-xs font-semibold text-muted-foreground hover:text-foreground"
+          >
+            {t("guardianConsent.form.cancel")}
+          </button>
+        )}
+        <button
+          type="submit"
+          disabled={request.isPending}
+          className="flex-1 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50 flex items-center justify-center gap-1.5"
+        >
+          {request.isPending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
+          {t("guardianConsent.form.submit")}
+        </button>
+      </div>
     </form>
   );
 }

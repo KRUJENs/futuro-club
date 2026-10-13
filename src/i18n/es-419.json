@@ -1629,20 +1629,7 @@
     "fatigue_high_label": "Fatiga alta",
     "fatigue_critical_label": "Fatiga crítica",
     "injuryRiskLoadHigh": "La carga de entrenamiento está muy alta. Recomendamos descanso activo.",
-    "injuryRiskFatigueHigh": "El nivel de fatiga es elevado. Es bueno que descanse hoy.",
-    "consentParental": "Consentimiento parental",
-    "consentGranted": "concedido",
-    "consentBy": "por {{name}}",
-    "consentDenied": "denegado",
-    "consentDeniedNote": "· los datos del menor están anonimizados",
-    "consentPending": "Consentimiento parental pendiente",
-    "consentPendingDesc": "{{name}} tiene menos de 14 años. Para procesar sus datos según RGPD, necesitamos que un padre/tutor legal apruebe el tratamiento.",
-    "iAmGuardianGrant": "Soy el padre/tutor · dar consentimiento",
-    "guardianNamePlaceholder": "Nombre completo del tutor",
-    "guardianEmailPlaceholder": "Email del tutor",
-    "cancel": "Cancelar",
-    "saving": "Guardando…",
-    "grant": "Conceder"
+    "injuryRiskFatigueHigh": "El nivel de fatiga es elevado. Es bueno que descanse hoy."
   },
   "playerForm": {
     "stepProgress": "Paso {{current}} de 3",
@@ -6038,67 +6025,10 @@
     "emptyNeedMore": "Con 2+ análisis en el tiempo verás aquí la curva de evolución.",
     "seriesRisk": "Riesgo lesión"
   },
-  "parentalConsentForm": {
-    "errors": {
-      "mustAccept": "Debes aceptar los términos y la política de privacidad",
-      "signFailed": "Error al firmar",
-      "unknown": "Error desconocido"
-    },
-    "success": {
-      "title": "Email enviado",
-      "bodyBefore": "Hemos enviado un email a",
-      "bodyAfter": "para verificar tu identidad como tutor legal. El enlace caduca en 24 horas.",
-      "footer": "Una vez verificado, {{name}} podrá usar VITAS."
-    },
-    "minorFallback": "el menor",
-    "header": {
-      "eyebrow": "Consentimiento parental · GDPR Art. 8",
-      "title": "Solo el padre/madre o tutor legal puede registrar a un menor",
-      "descBefore": "Este consentimiento es",
-      "descEmphasis": "obligatorio por ley",
-      "descAfter": "para procesar datos de menores de 14 años. Recibirás un email de verificación tras enviar el formulario."
-    },
-    "fields": {
-      "parentName": "Nombre completo del tutor",
-      "parentEmail": "Email del tutor",
-      "parentDni": "DNI/NIE del tutor",
-      "childBirthdate": "Fecha de nacimiento de {{name}}"
-    },
-    "placeholders": {
-      "parentName": "María Pérez García",
-      "parentEmail": "madre@email.com",
-      "parentDni": "12345678X"
-    },
-    "hints": {
-      "parentEmail": "Recibirás el enlace de verificación aquí. Caduca en 24h.",
-      "parentDni": "Tu DNI se almacena cifrado · nunca lo guardamos en claro."
-    },
-    "terms": {
-      "before": "He leído y acepto los",
-      "link": "Términos y Condiciones",
-      "after": "de VITAS."
-    },
-    "privacy": {
-      "before": "He leído y acepto la",
-      "link": "Política de Privacidad",
-      "after": "y consiento expresamente el procesamiento de los datos de mi hijo/a (incluyendo análisis biomecánico y videos) para los fines descritos."
-    },
-    "submit": {
-      "sending": "Enviando...",
-      "default": "Firmar consentimiento y enviar verificación"
-    },
-    "footerNote": "Puedes retirar este consentimiento en cualquier momento desde tu cuenta."
-  },
   "parentalConsentPage": {
     "title": "Consentimiento Parental",
     "header": {
       "badge": "RGPD"
-    },
-    "status": {
-      "pending": "Pendiente",
-      "granted": "Autorizado",
-      "denied": "Denegado",
-      "notRequired": "No requerido"
     },
     "action": {
       "consent_requested": "Consentimiento solicitado",
@@ -6109,26 +6039,7 @@
       "deletion_requested": "Eliminación solicitada"
     },
     "form": {
-      "legalRef": "RGPD Art. 8 · LOPD Art. 7 · Obligatorio para menores de 14 años",
-      "playerMeta": "{{age}} años · Nacimiento: {{date}}",
-      "guardianNameLabel": "Nombre completo del tutor legal",
-      "guardianNamePlaceholder": "María Pérez García",
-      "guardianEmailLabel": "Email del tutor legal",
-      "guardianEmailPlaceholder": "madre@email.com",
-      "emailNotice": "Se guarda tal como lo escribes: no se envía ningún correo ni se verifica al tutor.",
-      "clipGateNotice": "Esta anotación NO desbloquea el análisis de video de un menor de 14 años: para eso hace falta el consentimiento firmado por el tutor y confirmado desde su correo.",
-      "actionLabel": "Acción",
-      "authorizeAI": "Anotar autorización",
-      "denyAI": "Denegar IA",
-      "includesTitle": "Lo que incluye el consentimiento:",
-      "includes1": "Análisis biomecánico de video con IA (postura, movimiento)",
-      "includes2": "Generación de informes tácticos con Claude",
-      "includes3": "Cálculo de maduración biológica (PHV Mirwald)",
-      "includes4": "Almacenamiento de métricas de rendimiento",
-      "revocationNotice": "El consentimiento puede revocarse en cualquier momento. Los datos se eliminan en 30 días tras la revocación.",
-      "cancel": "Cancelar",
-      "registerAuthorization": "Registrar autorización",
-      "registerDenial": "Registrar denegación"
+      "legalRef": "RGPD Art. 8 · LOPD Art. 7 · Obligatorio para menores de 14 años"
     },
     "toast": {
       "exportSuccess": "Datos exportados correctamente",
@@ -6137,10 +6048,7 @@
       "deletionSuccess": "Solicitud de eliminación registrada",
       "deletionDemo": "Solicitud registrada (modo demo)",
       "deletionError": "Error al solicitar eliminación",
-      "dsarNotAllowed": "Sin permiso sobre este jugador: solo la cuenta que lo registró puede ejercer este derecho RGPD",
-      "consentSuccess": "Consentimiento registrado correctamente",
-      "consentError": "Error al registrar consentimiento",
-      "withdrawnLabelError": "Consentimiento retirado. La etiqueta de esta pantalla no se pudo actualizar y puede seguir mostrando el estado anterior."
+      "dsarNotAllowed": "Sin permiso sobre este jugador: solo la cuenta que lo registró puede ejercer este derecho RGPD"
     },
     "dsar": {
       "title": "Derechos ARCO · {{name}}",
@@ -6169,10 +6077,7 @@
       "emptyWithStatus": "No hay jugadores con estado \"{{status}}\"",
       "ageYears": "{{age}} años",
       "guardian": "Tutor: {{name}}",
-      "grantedOn": "Autorizado el {{date}}",
-      "manageConsent": "Gestionar consentimiento",
-      "revoke": "Revocar",
-      "requestAgain": "Solicitar de nuevo"
+      "grantedOn": "Autorizado el {{date}}"
     },
     "audit": {
       "empty": "No hay registros de auditoría",
@@ -6504,6 +6409,100 @@
       "useNotes": "Usar el informe sin video (solo notas)",
       "demoPreview": "Ver un ejemplo (datos de ejemplo)",
       "baselineSuffix": "El análisis de partido completo está en validación y todavía no se ofrece: usa un clip corto o el modo texto."
+    }
+  },
+  "guardianConsent": {
+    "title": "Consentimiento del tutor legal",
+    "loading": "Comprobando el consentimiento…",
+    "sent": "Correo enviado a {{email}}. El tutor tiene 24 horas para confirmar.",
+    "sentNoEmail": "La solicitud quedó registrada, pero el correo no se pudo enviar. Vuelve a intentarlo más tarde.",
+    "withdrawConfirm": "¿Retirar el consentimiento de {{name}}? Se dejarán de analizar sus videos hasta que el tutor vuelva a confirmar.",
+    "withdrawn": "Consentimiento retirado.",
+    "state": {
+      "verified": "Confirmado",
+      "pending": "Pendiente",
+      "expired": "Vencido",
+      "withdrawn": "Retirado",
+      "none": "Sin pedir",
+      "unavailable": "No disponible",
+      "verifiedDesc": "Confirmado por {{name}} ({{email}}) el {{date}}. Se pueden analizar sus videos.",
+      "pendingDesc": "Firma pedida a {{email}}. Falta que el tutor confirme (el enlace vence el {{date}}). Hasta entonces no se analizan sus videos.",
+      "expiredDesc": "El enlace enviado a {{email}} venció sin confirmar. Vuelve a pedir la firma.",
+      "withdrawnDesc": "Retirado el {{date}}. No se analizan sus videos.",
+      "noneDesc": "{{name}} tiene menos de 14 años: para analizar sus videos hace falta el consentimiento de su padre, madre o tutor legal.",
+      "unavailableDesc": "No se pudo comprobar el consentimiento. Inténtalo de nuevo más tarde."
+    },
+    "actions": {
+      "request": "Pedir firma al tutor",
+      "resend": "Volver a enviar",
+      "requestAgain": "Pedir de nuevo",
+      "withdraw": "Retirar consentimiento",
+      "withdrawConfirm": "Sí, retirar",
+      "cancelRequest": "Cancelar solicitud"
+    },
+    "form": {
+      "explainer": "Escribe el nombre y el correo del padre, madre o tutor legal. Le enviaremos un enlace para que confirme él mismo (escribirá su documento de identidad y aceptará las condiciones).",
+      "nameLabel": "Nombre del tutor",
+      "namePlaceholder": "Nombre y apellidos",
+      "emailLabel": "Correo del tutor",
+      "emailPlaceholder": "tutor@ejemplo.com",
+      "emailHint": "Usa el correo del tutor, no el tuyo: quien confirma tiene que ser él.",
+      "submit": "Enviar solicitud",
+      "cancel": "Cancelar"
+    },
+    "errors": {
+      "birthDateRequired": "Agrega la fecha de nacimiento del jugador en su ficha antes de pedir el consentimiento.",
+      "notRequired": "El jugador tiene 14 años o más: no hace falta el consentimiento del tutor.",
+      "tenantMissing": "No se puede registrar: el jugador no tiene club o grupo asignado.",
+      "forbidden": "No puedes pedir el consentimiento de este jugador.",
+      "generic": "No se pudo enviar la solicitud. Inténtalo de nuevo más tarde.",
+      "withdraw": "No se pudo retirar el consentimiento. Inténtalo de nuevo."
+    }
+  },
+  "verifyConsentPage": {
+    "title": "Consentimiento del tutor legal",
+    "intro": "El responsable del menor en VITAS te pide tu consentimiento como padre, madre o tutor legal. Esto es lo que autorizas:",
+    "what1": "Que se analicen los videos de entrenamientos y partidos en los que aparece el menor.",
+    "what2": "Que los resultados de esos análisis se guarden en su ficha, a la que solo accede su responsable.",
+    "what3": "Podrás retirarlo cuando quieras con el enlace que te enviaremos al confirmar.",
+    "dniLabel": "Tu documento de identidad (tutor legal)",
+    "dniHint": "Solo se guarda una huella cifrada, nunca el número.",
+    "termsBefore": "Leí y acepto las",
+    "termsLink": "condiciones de uso",
+    "privacyBefore": "Leí y acepto la",
+    "privacyLink": "política de privacidad",
+    "confirm": "Confirmo como tutor legal",
+    "notGuardian": "Si no eres el tutor legal, cierra esta página: sin tu confirmación no se analiza nada.",
+    "goHome": "Ir a VITAS",
+    "success": {
+      "done": "Consentimiento confirmado. Gracias.",
+      "already": "Este consentimiento ya estaba confirmado.",
+      "withdrawEmailed": "Te enviamos un correo con el enlace para retirarlo cuando quieras. También puedes usar este:",
+      "withdrawNoEmail": "No pudimos enviarte el correo de confirmación. Guarda este enlace para retirar el consentimiento cuando quieras:",
+      "withdrawLink": "Retirar el consentimiento"
+    },
+    "errors": {
+      "missingToken": "Enlace no válido: falta el código. Abre el enlace completo del correo.",
+      "invalidToken": "Este enlace no es válido o ya no se puede usar. Pide al responsable que te envíe uno nuevo.",
+      "expired": "El enlace venció (24 horas). Pide al responsable que te envíe uno nuevo.",
+      "changed": "La solicitud cambió desde que se envió el enlace. Pide al responsable que te envíe uno nuevo.",
+      "validation": "Revisa el documento y marca las dos casillas.",
+      "generic": "No se pudo confirmar. Inténtalo de nuevo desde el enlace del correo.",
+      "network": "Error de conexión. Inténtalo de nuevo."
+    }
+  },
+  "withdrawConsentPage": {
+    "title": "Retirar el consentimiento",
+    "explainer": "Si lo retiras, se dejarán de analizar los videos del menor. Podrás volver a darlo si el responsable te lo pide de nuevo.",
+    "confirm": "Retirar el consentimiento",
+    "done": "Consentimiento retirado. Ya no se analizan los videos del menor.",
+    "already": "Este consentimiento ya estaba retirado.",
+    "goHome": "Ir a VITAS",
+    "errors": {
+      "missingToken": "Enlace no válido: falta el código. Abre el enlace completo del correo.",
+      "invalidToken": "Este enlace de retiro no es válido.",
+      "generic": "No se pudo retirar. Inténtalo de nuevo desde el enlace del correo.",
+      "network": "Error de conexión. Inténtalo de nuevo."
     }
   }
 }

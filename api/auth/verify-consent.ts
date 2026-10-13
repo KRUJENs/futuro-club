@@ -28,24 +28,42 @@
  *      marca (el enlace sigue valiendo para reintentar);
  *   4. el marcado es condicional (sin retirar y aún pendiente). Si la evidencia ya estaba (un
  *      intento anterior no pudo marcar la fila), no se duplica: solo se marca.
+ *
+ * P1 bloque 3 (decisión del owner, 14 oct): este POST solo llega cuando el TUTOR pulsa
+ * «Confirmo como tutor legal» en la página (antes la página hacía el POST al abrirse: un
+ * escáner de enlaces del correo podía «firmar», CWE-650). Trae SU DNI (se guarda solo el hash) y
+ * su aceptación de las condiciones y la privacidad, que quedan en la evidencia. Al confirmar se
+ * le envía un segundo correo con un enlace de RETIRADA (api/auth/_guardian-withdraw.ts).
  */
 
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { createClient } from "@supabase/supabase-js";
+import { sha256Hex, randomHex } from "../_lib/edgeCrypto";
+import { sendEmail } from "../_lib/email";
+import { confirmationEmail } from "../_lib/consentEmails";
 import {
   findIssuedConsentToken,
   hasConsentVerification,
   hashConsentToken,
+  recordConsentWithdrawTokenIssued,
   recordParentalConsentVerified,
   type IssuedConsentToken,
 } from "../_lib/parentalConsent";
 
 export const config = { runtime: "edge" };
 
+/** Versión de las condiciones y de la privacidad que acepta el tutor en la página. */
+export const GUARDIAN_CONSENT_VERSION = "v1.0";
+
 const verifySchema = z.object({
   token: z.string().min(32).max(128),
+  // DNI/NIE o documento del tutor: lo escribe ÉL (nunca el responsable del jugador).
+  parentDni: z.string().trim().min(5).max(20).regex(/^[A-Z0-9]+$/i),
+  // Acción afirmativa del tutor (RGPD): ambas casillas marcadas en la página.
+  acceptedTerms: z.literal(true),
+  acceptedPrivacy: z.literal(true),
 });
 
 interface ConsentRow {
@@ -63,7 +81,7 @@ const invalidToken = () =>
 export default withHandler(
   { schema: verifySchema, requireAuth: false, maxRequests: 30 },
   async ({ body }) => {
-    const { token } = body as z.infer<typeof verifySchema>;
+    const { token, parentDni } = body as z.infer<typeof verifySchema>;
 
     // Misma precedencia que api/_lib/env.ts (SUPABASE_URL primero), la que usan la
     // evidencia (parentalConsent.ts) y el gate: la fila y su evidencia van al MISMO proyecto.
@@ -117,6 +135,9 @@ export default withHandler(
       return verifyFailed("No se pudo comprobar el enlace. Inténtalo de nuevo más tarde.");
     }
 
+    // DNI del tutor: solo su hash (nunca en claro), igual que antes en sign-consent.
+    const dniHash = await sha256Hex(parentDni.toUpperCase());
+
     if (!alreadyVerified) {
       // ── 5 · Caducidad: la que guardó el servidor al emitir el enlace ──
       if (Date.parse(issued.expiresAt) < Date.now()) {
@@ -126,9 +147,10 @@ export default withHandler(
           status: 410,
         });
       }
-      // ── 6 · Evidencia del servidor ANTES de marcar (si falla, no se marca) ──
+      // ── 6 · Evidencia del servidor ANTES de marcar (si falla, no se marca), con el DNI y
+      //       las aceptaciones del TUTOR ──
       try {
-        await recordParentalConsentVerified(issued);
+        await recordParentalConsentVerified(issued, { dniHash, consentVersion: GUARDIAN_CONSENT_VERSION });
       } catch (err) {
         console.error("[verify-consent] no se pudo registrar la evidencia (no se marca):", err instanceof Error ? err.message : err);
         return verifyFailed("No se pudo registrar la verificación. Inténtalo de nuevo desde el enlace del email.");
@@ -141,6 +163,8 @@ export default withHandler(
       .update({
         email_verified: true,
         email_verified_at: new Date().toISOString(),
+        parent_dni_hash: dniHash,
+        consent_version: GUARDIAN_CONSENT_VERSION,
         verification_token: null, // informativo: el que cuenta es el de la emisión
         verification_expires_at: null,
       })
@@ -154,20 +178,54 @@ export default withHandler(
     }
     if (alreadyVerified || !Array.isArray(updated) || updated.length === 0) {
       // Ya verificado con este enlace (doble clic, o reintento tras un fallo al marcar), u otra
-      // petición la marcó entre la lectura y el UPDATE.
+      // petición la marcó entre la lectura y el UPDATE. No se emite otro enlace de retirada: el
+      // tutor ya tiene el del correo de confirmación.
       return successResponse({
         consentId: consent.id,
-        playerId: issued.playerId,
         alreadyVerified: true,
         message: "Este consentimiento ya estaba verificado.",
       });
     }
 
+    // ── 8 · Enlace de RETIRADA para el tutor (correo de confirmación). Si algo falla aquí el
+    //       consentimiento YA vale; se avisa en la respuesta y el responsable puede retirarlo. ──
+    const withdrawToken = randomHex(32);
+    let withdrawIssued = false;
+    try {
+      await recordConsentWithdrawTokenIssued({
+        consentId: consent.id,
+        playerId: issued.playerId,
+        parentEmail: issued.parentEmail,
+        tokenHash: await hashConsentToken(withdrawToken),
+        tenantId: issued.tenantId,
+      });
+      withdrawIssued = true;
+    } catch (err) {
+      console.error("[verify-consent] no se pudo emitir el enlace de retirada:", err instanceof Error ? err.message : err);
+    }
+
+    let confirmationSent = false;
+    if (withdrawIssued) {
+      const { data: player } = await supabase.from("players").select("name").eq("id", issued.playerId).maybeSingle();
+      const { data: row } = await supabase.from("parental_consents").select("parent_name").eq("id", consent.id).maybeSingle();
+      const baseUrl = process.env.VITAS_PUBLIC_URL ?? "https://futuro-club.vercel.app";
+      const mail = confirmationEmail({
+        locale: issued.locale,
+        parentName: ((row as { parent_name?: string } | null)?.parent_name as string | undefined) ?? "",
+        childName: ((player as { name?: string } | null)?.name as string | undefined) ?? "—",
+        withdrawLink: `${baseUrl}/auth/withdraw-consent?token=${withdrawToken}`,
+      });
+      confirmationSent = await sendEmail({ to: issued.parentEmail, subject: mail.subject, html: mail.html });
+    }
+
     return successResponse({
       consentId: consent.id,
-      playerId: issued.playerId,
       verified: true,
-      message: "Consentimiento verificado · el menor ya puede usar VITAS",
+      // El tutor está en la página con SU enlace y su DNI: si el correo no sale, la página le
+      // ofrece el enlace de retirada igualmente (nunca se queda sin forma de retirarlo).
+      withdrawToken: withdrawIssued ? withdrawToken : null,
+      confirmationEmailSent: confirmationSent,
+      message: "Consentimiento verificado.",
     });
   }
 );

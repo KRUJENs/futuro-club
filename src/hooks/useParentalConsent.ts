@@ -1,85 +1,44 @@
 /**
- * VITAS · Parental Consent Hooks
- *
- * TanStack Query hooks around ParentalConsentService for the RGPD
- * workflow (/admin/consent and /family/:playerId).
+ * VITAS · Hooks del consentimiento del TUTOR (P1 bloque 3).
+ * El estado sale del servidor (/api/auth/consent-status), nunca de un rótulo del navegador.
  */
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ParentalConsentService,
-  type ParentalConsent,
+  fetchConsentStatus,
+  requestGuardianSignature,
+  withdrawConsentOnServer,
+  type GuardianConsentStatus,
 } from "@/services/real/parentalConsentService";
-import { toast } from "sonner";
-import i18n from "@/i18n";
+import { IS_DEMO } from "@/lib/demoMode";
 
-const STALE = 1000 * 60 * 2; // 2 min
+const KEY = "guardian-consent";
 
-/** Get consent state for one player */
-export function usePlayerConsent(playerId: string | undefined) {
-  return useQuery<ParentalConsent | null>({
-    queryKey: ["parental-consent", playerId],
-    queryFn: () => (playerId ? ParentalConsentService.getForPlayer(playerId) : Promise.resolve(null)),
-    enabled: !!playerId,
-    staleTime: STALE,
+/** Estado del consentimiento del tutor de estos jugadores (solo los del usuario). */
+export function useConsentStatus(playerIds: string[]) {
+  const ids = Array.from(new Set(playerIds.filter(Boolean))).sort();
+  return useQuery<Record<string, GuardianConsentStatus>>({
+    queryKey: [KEY, ids],
+    queryFn: () => fetchConsentStatus(ids),
+    // En el demo no hay servidor (red interceptada): no se consulta.
+    enabled: ids.length > 0 && !IS_DEMO,
+    staleTime: 30_000,
   });
 }
 
-/** List all consents (for /admin/consent) */
-export function useAllConsents() {
-  return useQuery({
-    queryKey: ["parental-consents", "all"],
-    queryFn: () => ParentalConsentService.listAll(),
-    staleTime: STALE,
-  });
-}
-
-/** Only pending consents */
-export function usePendingConsents() {
-  return useQuery({
-    queryKey: ["parental-consents", "pending"],
-    queryFn: () => ParentalConsentService.listPending(),
-    staleTime: STALE,
-  });
-}
-
-/** Stats for the dashboard widget */
-export function useConsentStats() {
-  return useQuery({
-    queryKey: ["parental-consents", "stats"],
-    queryFn: () => ParentalConsentService.getStats(),
-    staleTime: STALE,
-  });
-}
-
-interface GrantInput {
-  playerId: string;
-  guardianName: string;
-  guardianEmail: string;
-}
-
-export function useGrantConsent() {
+/** Pedir (o volver a pedir) la firma al tutor por correo. */
+export function useRequestGuardianSignature() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ playerId, guardianName, guardianEmail }: GrantInput) =>
-      ParentalConsentService.grant(playerId, guardianName, guardianEmail),
-    onSuccess: () => {
-      toast.success(i18n.t("toasts.consentGranted"));
-      qc.invalidateQueries({ queryKey: ["parental-consent"] });
-      qc.invalidateQueries({ queryKey: ["parental-consents"] });
-    },
-    onError: () => toast.error(i18n.t("toasts.consentSaveError")),
+    mutationFn: requestGuardianSignature,
+    onSuccess: () => qc.invalidateQueries({ queryKey: [KEY] }),
   });
 }
 
-export function useSendConsentReminder() {
+/** El responsable retira el consentimiento (en el servidor). */
+export function useWithdrawGuardianConsent() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: (playerId: string) => ParentalConsentService.sendReminder(playerId),
-    onSuccess: (res) => {
-      if (res.ok) toast.success(i18n.t("toasts.reminderSent"));
-      else if (res.reason === "email_service_not_configured")
-        toast.info(i18n.t("toasts.emailNotConfigured"));
-      else toast.error(i18n.t("toasts.reminderError"));
-    },
+    mutationFn: ({ playerId, reason }: { playerId: string; reason?: string }) => withdrawConsentOnServer(playerId, reason),
+    onSuccess: () => qc.invalidateQueries({ queryKey: [KEY] }),
   });
 }

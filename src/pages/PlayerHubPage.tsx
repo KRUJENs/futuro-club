@@ -29,6 +29,7 @@ import { useTranslation } from "react-i18next";
 import { PlayerService, type Player } from "@/services/real/playerService";
 import { useSavedAnalysesV2 } from "@/hooks/usePlayerAnalysisV2";
 import { useRawPlayerById } from "@/hooks/usePlayers";
+import { GuardianConsentCard } from "@/components/legal/GuardianConsentCard";
 import { useScoutInsights } from "@/hooks/useScoutFeed";
 import { useVideos } from "@/hooks/useVideos";
 import type { VideoRecord } from "@/services/real/videoService";
@@ -395,6 +396,12 @@ export default function PlayerHubPage() {
               transition={{ duration: 0.2 }}
               className="space-y-4"
             >
+              {/* P1 bloque 3: menor de 14 CONOCIDO ⇒ consentimiento del tutor (estado real del
+                  servidor + pedir la firma). Sin él no se analizan sus vídeos. */}
+              {id && player && (
+                <GuardianConsentCard playerId={id} playerName={player.name} birthDate={player.birthDate ?? null} />
+              )}
+
               {/* Sprint 2: PHV como producto — titular arriba del resumen */}
               {id && <PHVProductSection playerId={id} />}
 

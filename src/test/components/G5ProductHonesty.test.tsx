@@ -74,8 +74,10 @@ vi.mock("@/components/phv/GrowthSpurtShieldAlert", () => ({ GrowthSpurtShieldAle
 vi.mock("@/hooks/useIDP", () => ({ useCurrentIDP: () => ({ data: null }) }));
 vi.mock("@/hooks/usePHVProduct", () => ({ usePHVProduct: () => null }));
 vi.mock("@/hooks/useParentalConsent", () => ({
-  usePlayerConsent: () => ({ data: null }),
-  useGrantConsent: () => ({ mutate: vi.fn(), isPending: false }),
+  // P1 bloque 3: estado real del servidor (GuardianConsentCard); aquí sin datos.
+  useConsentStatus: () => ({ data: undefined, isLoading: false }),
+  useWithdrawGuardianConsent: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useRequestGuardianSignature: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock("@/hooks/usePlayerAnalysisV2", () => ({ useSavedAnalysesV2: () => ({ data: [] }) }));
 vi.mock("@/hooks/usePlayers", () => ({

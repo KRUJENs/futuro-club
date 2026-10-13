@@ -1629,20 +1629,7 @@
     "fatigue_high_label": "Hoge vermoeidheid",
     "fatigue_critical_label": "Kritieke vermoeidheid",
     "injuryRiskLoadHigh": "De trainingsbelasting is erg hoog. We raden actief herstel aan.",
-    "injuryRiskFatigueHigh": "Het vermoeidheidsniveau is verhoogd. Het is goed als hij/zij vandaag rust.",
-    "consentParental": "Ouderlijke toestemming",
-    "consentGranted": "verleend",
-    "consentBy": "door {{name}}",
-    "consentDenied": "geweigerd",
-    "consentDeniedNote": "· de gegevens van de minderjarige zijn geanonimiseerd",
-    "consentPending": "Ouderlijke toestemming in afwachting",
-    "consentPendingDesc": "{{name}} is jonger dan 14 jaar. Om zijn/haar gegevens volgens de AVG te verwerken, hebben we goedkeuring van een ouder/wettelijk voogd nodig.",
-    "iAmGuardianGrant": "Ik ben de ouder/voogd · toestemming geven",
-    "guardianNamePlaceholder": "Volledige naam van de voogd",
-    "guardianEmailPlaceholder": "E-mail van de voogd",
-    "cancel": "Annuleren",
-    "saving": "Opslaan…",
-    "grant": "Verlenen"
+    "injuryRiskFatigueHigh": "Het vermoeidheidsniveau is verhoogd. Het is goed als hij/zij vandaag rust."
   },
   "playerForm": {
     "stepProgress": "Stap {{current}} van 3",
@@ -6038,67 +6025,10 @@
     "emptyNeedMore": "Met 2+ analyses in de tijd zie je hier de evolutiecurve.",
     "seriesRisk": "Blessurerisico"
   },
-  "parentalConsentForm": {
-    "errors": {
-      "mustAccept": "Je moet de voorwaarden en het privacybeleid accepteren",
-      "signFailed": "Fout bij ondertekenen",
-      "unknown": "Onbekende fout"
-    },
-    "success": {
-      "title": "E-mail verzonden",
-      "bodyBefore": "We hebben een e-mail gestuurd naar",
-      "bodyAfter": "om je identiteit als wettelijk voogd te verifiëren. De link vervalt over 24 uur.",
-      "footer": "Zodra dit is geverifieerd, kan {{name}} VITAS gebruiken."
-    },
-    "minorFallback": "de minderjarige",
-    "header": {
-      "eyebrow": "Ouderlijke toestemming · AVG art. 8",
-      "title": "Alleen de ouder of wettelijk voogd kan een minderjarige registreren",
-      "descBefore": "Deze toestemming is",
-      "descEmphasis": "wettelijk verplicht",
-      "descAfter": "om gegevens van kinderen jonger dan 14 jaar te verwerken. Je ontvangt een verificatiemail na het verzenden van het formulier."
-    },
-    "fields": {
-      "parentName": "Volledige naam van de voogd",
-      "parentEmail": "E-mail van de voogd",
-      "parentDni": "ID-nummer van de voogd",
-      "childBirthdate": "Geboortedatum van {{name}}"
-    },
-    "placeholders": {
-      "parentName": "María Pérez García",
-      "parentEmail": "madre@email.com",
-      "parentDni": "12345678X"
-    },
-    "hints": {
-      "parentEmail": "Je ontvangt de verificatielink hier. Vervalt over 24u.",
-      "parentDni": "Je ID-nummer wordt versleuteld opgeslagen · we bewaren het nooit onversleuteld."
-    },
-    "terms": {
-      "before": "Ik heb de",
-      "link": "Algemene voorwaarden",
-      "after": "van VITAS gelezen en geaccepteerd."
-    },
-    "privacy": {
-      "before": "Ik heb het",
-      "link": "Privacybeleid",
-      "after": "gelezen en geaccepteerd en geef uitdrukkelijk toestemming voor de verwerking van de gegevens van mijn kind (inclusief biomechanische analyse en video's) voor de beschreven doeleinden."
-    },
-    "submit": {
-      "sending": "Verzenden...",
-      "default": "Toestemming ondertekenen en verificatie verzenden"
-    },
-    "footerNote": "Je kunt deze toestemming op elk moment intrekken via je account."
-  },
   "parentalConsentPage": {
     "title": "Ouderlijke toestemming",
     "header": {
       "badge": "AVG"
-    },
-    "status": {
-      "pending": "In afwachting",
-      "granted": "Geautoriseerd",
-      "denied": "Geweigerd",
-      "notRequired": "Niet vereist"
     },
     "action": {
       "consent_requested": "Toestemming aangevraagd",
@@ -6109,26 +6039,7 @@
       "deletion_requested": "Verwijdering aangevraagd"
     },
     "form": {
-      "legalRef": "AVG art. 8 · LOPD art. 7 · Verplicht voor kinderen jonger dan 14 jaar",
-      "playerMeta": "{{age}} jaar · Geboorte: {{date}}",
-      "guardianNameLabel": "Volledige naam van de wettelijk voogd",
-      "guardianNamePlaceholder": "María Pérez García",
-      "guardianEmailLabel": "E-mail van de wettelijk voogd",
-      "guardianEmailPlaceholder": "madre@email.com",
-      "emailNotice": "Wordt opgeslagen zoals je het typt: er wordt geen e-mail verzonden en de voogd wordt niet geverifieerd.",
-      "clipGateNotice": "Deze notitie geeft de videoanalyse van een speler jonger dan 14 NIET vrij: daarvoor is toestemming nodig die door de voogd is ondertekend en via zijn e-mail is bevestigd.",
-      "actionLabel": "Actie",
-      "authorizeAI": "Toestemming noteren",
-      "denyAI": "AI weigeren",
-      "includesTitle": "Wat de toestemming omvat:",
-      "includes1": "Biomechanische video-analyse met AI (houding, beweging)",
-      "includes2": "Genereren van tactische rapporten met Claude",
-      "includes3": "Berekening van biologische rijping (PHV Mirwald)",
-      "includes4": "Opslag van prestatiemetrics",
-      "revocationNotice": "De toestemming kan op elk moment worden ingetrokken. De gegevens worden 30 dagen na de intrekking verwijderd.",
-      "cancel": "Annuleren",
-      "registerAuthorization": "Autorisatie registreren",
-      "registerDenial": "Weigering registreren"
+      "legalRef": "AVG art. 8 · LOPD art. 7 · Verplicht voor kinderen jonger dan 14 jaar"
     },
     "toast": {
       "exportSuccess": "Gegevens succesvol geëxporteerd",
@@ -6137,10 +6048,7 @@
       "deletionSuccess": "Verwijderingsverzoek geregistreerd",
       "deletionDemo": "Verzoek geregistreerd (demomodus)",
       "deletionError": "Fout bij aanvragen van verwijdering",
-      "dsarNotAllowed": "Geen toestemming voor deze speler: alleen het account dat hem heeft geregistreerd kan dit AVG-recht uitoefenen",
-      "consentSuccess": "Toestemming succesvol geregistreerd",
-      "consentError": "Fout bij registreren van toestemming",
-      "withdrawnLabelError": "Toestemming ingetrokken. Het label op dit scherm kon niet worden bijgewerkt en toont mogelijk nog de vorige status."
+      "dsarNotAllowed": "Geen toestemming voor deze speler: alleen het account dat hem heeft geregistreerd kan dit AVG-recht uitoefenen"
     },
     "dsar": {
       "title": "ARCO-rechten · {{name}}",
@@ -6169,10 +6077,7 @@
       "emptyWithStatus": "Geen spelers met status \"{{status}}\"",
       "ageYears": "{{age}} jaar",
       "guardian": "Voogd: {{name}}",
-      "grantedOn": "Geautoriseerd op {{date}}",
-      "manageConsent": "Toestemming beheren",
-      "revoke": "Intrekken",
-      "requestAgain": "Opnieuw aanvragen"
+      "grantedOn": "Geautoriseerd op {{date}}"
     },
     "audit": {
       "empty": "Geen auditregistraties",
@@ -6504,6 +6409,100 @@
       "useNotes": "Het rapport zonder video (alleen notities) gebruiken",
       "demoPreview": "Een voorbeeld bekijken (voorbeeldgegevens)",
       "baselineSuffix": "De analyse van de hele wedstrijd wordt gevalideerd en nog niet aangeboden: gebruik een korte clip of de tekstmodus."
+    }
+  },
+  "guardianConsent": {
+    "title": "Toestemming van de wettelijke voogd",
+    "loading": "Toestemming controleren…",
+    "sent": "E-mail verstuurd naar {{email}}. De voogd heeft 24 uur om te bevestigen.",
+    "sentNoEmail": "Het verzoek is opgeslagen, maar de e-mail kon niet worden verstuurd. Probeer het later opnieuw.",
+    "withdrawConfirm": "Toestemming voor {{name}} intrekken? De video's worden niet meer geanalyseerd tot de voogd opnieuw bevestigt.",
+    "withdrawn": "Toestemming ingetrokken.",
+    "state": {
+      "verified": "Bevestigd",
+      "pending": "In afwachting",
+      "expired": "Verlopen",
+      "withdrawn": "Ingetrokken",
+      "none": "Niet gevraagd",
+      "unavailable": "Niet beschikbaar",
+      "verifiedDesc": "Bevestigd door {{name}} ({{email}}) op {{date}}. De video's kunnen worden geanalyseerd.",
+      "pendingDesc": "Handtekening gevraagd aan {{email}}. Wacht op bevestiging van de voogd (de link verloopt op {{date}}). Tot dan worden de video's niet geanalyseerd.",
+      "expiredDesc": "De link naar {{email}} is verlopen zonder bevestiging. Vraag de handtekening opnieuw.",
+      "withdrawnDesc": "Ingetrokken op {{date}}. De video's worden niet geanalyseerd.",
+      "noneDesc": "{{name}} is jonger dan 14: voor het analyseren van de video's is toestemming van een ouder of wettelijke voogd nodig.",
+      "unavailableDesc": "De toestemming kon niet worden gecontroleerd. Probeer het later opnieuw."
+    },
+    "actions": {
+      "request": "Handtekening vragen aan voogd",
+      "resend": "Opnieuw versturen",
+      "requestAgain": "Opnieuw vragen",
+      "withdraw": "Toestemming intrekken",
+      "withdrawConfirm": "Ja, intrekken",
+      "cancelRequest": "Verzoek annuleren"
+    },
+    "form": {
+      "explainer": "Vul de naam en het e-mailadres van de ouder of wettelijke voogd in. We sturen een link zodat die zelf bevestigt (identiteitsnummer invullen en de voorwaarden accepteren).",
+      "nameLabel": "Naam van de voogd",
+      "namePlaceholder": "Voor- en achternaam",
+      "emailLabel": "E-mail van de voogd",
+      "emailPlaceholder": "voogd@voorbeeld.nl",
+      "emailHint": "Gebruik het e-mailadres van de voogd, niet het jouwe: de voogd moet zelf bevestigen.",
+      "submit": "Verzoek versturen",
+      "cancel": "Annuleren"
+    },
+    "errors": {
+      "birthDateRequired": "Vul eerst de geboortedatum in het profiel van de speler in.",
+      "notRequired": "De speler is 14 of ouder: toestemming van de voogd is niet nodig.",
+      "tenantMissing": "Kan niet worden opgeslagen: de speler heeft geen club of groep.",
+      "forbidden": "Je kunt voor deze speler geen toestemming vragen.",
+      "generic": "Het verzoek kon niet worden verstuurd. Probeer het later opnieuw.",
+      "withdraw": "De toestemming kon niet worden ingetrokken. Probeer het opnieuw."
+    }
+  },
+  "verifyConsentPage": {
+    "title": "Toestemming van de wettelijke voogd",
+    "intro": "De verantwoordelijke voor de minderjarige in VITAS vraagt je toestemming als ouder of wettelijke voogd. Dit sta je toe:",
+    "what1": "Het analyseren van video's van trainingen en wedstrijden waarin de minderjarige te zien is.",
+    "what2": "Het bewaren van de resultaten van die analyses in het profiel, dat alleen de verantwoordelijke kan inzien.",
+    "what3": "Je kunt de toestemming op elk moment intrekken met de link die we je na het bevestigen sturen.",
+    "dniLabel": "Je identiteitsnummer (wettelijke voogd)",
+    "dniHint": "Alleen een versleutelde vingerafdruk wordt bewaard, nooit het nummer.",
+    "termsBefore": "Ik heb gelezen en ga akkoord met de",
+    "termsLink": "gebruiksvoorwaarden",
+    "privacyBefore": "Ik heb gelezen en ga akkoord met het",
+    "privacyLink": "privacybeleid",
+    "confirm": "Ik bevestig als wettelijke voogd",
+    "notGuardian": "Ben je niet de wettelijke voogd? Sluit deze pagina: zonder jouw bevestiging wordt niets geanalyseerd.",
+    "goHome": "Naar VITAS",
+    "success": {
+      "done": "Toestemming bevestigd. Bedankt.",
+      "already": "Deze toestemming was al bevestigd.",
+      "withdrawEmailed": "We hebben je de link om haar op elk moment in te trekken gemaild. Je kunt ook deze gebruiken:",
+      "withdrawNoEmail": "We konden je de bevestigingsmail niet sturen. Bewaar deze link om de toestemming op elk moment in te trekken:",
+      "withdrawLink": "Toestemming intrekken"
+    },
+    "errors": {
+      "missingToken": "Ongeldige link: de code ontbreekt. Open de volledige link uit de e-mail.",
+      "invalidToken": "Deze link is ongeldig of niet meer bruikbaar. Vraag de verantwoordelijke om een nieuwe.",
+      "expired": "De link is verlopen (24 uur). Vraag de verantwoordelijke om een nieuwe.",
+      "changed": "Het verzoek is gewijzigd sinds de link is verstuurd. Vraag de verantwoordelijke om een nieuwe.",
+      "validation": "Controleer het identiteitsnummer en vink beide vakjes aan.",
+      "generic": "Bevestigen is niet gelukt. Probeer het opnieuw via de link in de e-mail.",
+      "network": "Verbindingsfout. Probeer het opnieuw."
+    }
+  },
+  "withdrawConsentPage": {
+    "title": "Toestemming intrekken",
+    "explainer": "Als je haar intrekt, worden de video's van de minderjarige niet meer geanalyseerd. Je kunt haar opnieuw geven als de verantwoordelijke erom vraagt.",
+    "confirm": "Toestemming intrekken",
+    "done": "Toestemming ingetrokken. De video's van de minderjarige worden niet meer geanalyseerd.",
+    "already": "Deze toestemming was al ingetrokken.",
+    "goHome": "Naar VITAS",
+    "errors": {
+      "missingToken": "Ongeldige link: de code ontbreekt. Open de volledige link uit de e-mail.",
+      "invalidToken": "Deze intrekkingslink is ongeldig.",
+      "generic": "Intrekken is niet gelukt. Probeer het opnieuw via de link in de e-mail.",
+      "network": "Verbindingsfout. Probeer het opnieuw."
     }
   }
 }

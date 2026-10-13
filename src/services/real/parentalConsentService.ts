@@ -1,34 +1,96 @@
 /**
- * VITAS · Parental Consent Service (RGPD)
+ * VITAS · Consentimiento del TUTOR de un menor de 14 (RGPD art. 8 · LOPDGDD art. 7)
  *
- * Spanish RGPD requires parental consent for players under 14. This
- * service tracks the consent workflow:
- *   - pending  → awaiting parent action
- *   - granted  → parent approved
- *   - denied   → parent denied (player data must be removed/anonymized)
- *   - not_required → player ≥14 (automated)
+ * El único consentimiento que cuenta es el que el TUTOR confirma desde el enlace de su correo
+ * (servidor: api/_lib/parentalConsent.ts). Desde el P1 bloque 3 el navegador:
+ *   - consulta el estado REAL en el servidor (fetchConsentStatus → /api/auth/consent-status);
+ *     antes leía players.parental_consent_status, un rótulo que el propio entrenador ponía en
+ *     «concedido» sin el tutor (y que el gate de análisis nunca miró);
+ *   - pide la firma al tutor (requestGuardianSignature → /api/auth/sign-consent): solo nombre y
+ *     email del tutor; el DNI y la aceptación los pone el TUTOR al confirmar;
+ *   - retira (withdrawConsentOnServer → /api/auth/withdraw-consent).
+ * Nada de esto se puede «conceder» desde el navegador.
  *
- * Used by:
- *   - /admin/consent — workflow management UI
- *   - /family/:playerId — parent self-service
- *   - PlayerHub — shows consent badge
- *
- * Migration 036 adds 4 columns to `players` table:
- *   parental_consent_status, parental_consent_granted_at,
- *   parental_consent_guardian_name, parental_consent_guardian_email
+ * Usado por: GuardianConsentCard (ficha del jugador y vista de familia) y /admin/consent.
  */
 
-import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabase";
+// El singleton de i18next (lo inicializa src/i18n): solo se lee el idioma actual, sin arrastrar
+// la configuración de la app (ni react-i18next) a quien importe este servicio.
+import i18next from "i18next";
 import { getAuthHeaders } from "@/lib/apiAuth";
 
-const STORAGE_KEY = "vitas_parental_consents";
+export type GuardianConsentState =
+  | "verified" //    el tutor confirmó: cuenta para analizar sus vídeos
+  | "pending" //     firma pedida, el tutor aún no ha confirmado
+  | "expired" //     el enlace caducó sin confirmar
+  | "withdrawn" //   retirado (por el tutor o por el responsable)
+  | "none" //        nunca se pidió
+  | "unavailable"; // no se pudo comprobar (nunca se trata como «verificado»)
+
+export interface GuardianConsentStatus {
+  state: GuardianConsentState;
+  guardianName?: string | null;
+  guardianEmail?: string | null;
+  requestedAt?: string | null;
+  expiresAt?: string | null;
+  verifiedAt?: string | null;
+  withdrawnAt?: string | null;
+}
+
+/** Error con el `code` del servidor (birth_date_required, consent_not_required, tenant_missing…). */
+export class ConsentRequestError extends Error {
+  constructor(public readonly code: string, message: string) {
+    super(message);
+  }
+}
+
+type ApiJson<T> = { success?: boolean; data?: T; error?: string; errorDetail?: { code?: string; message?: string } } | null;
+
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, { method: "POST", headers: await getAuthHeaders(), body: JSON.stringify(body) });
+  const json = (await res.json().catch(() => null)) as ApiJson<T>;
+  if (!res.ok || !json?.success || json.data === undefined || json.data === null) {
+    throw new ConsentRequestError(json?.errorDetail?.code ?? `http_${res.status}`, json?.errorDetail?.message ?? "request_failed");
+  }
+  return json.data;
+}
+
+/**
+ * Estado del consentimiento del tutor de estos jugadores (solo los que son del usuario). Si
+ * el servidor no responde, cada jugador queda «unavailable» (nunca «verificado»).
+ */
+export async function fetchConsentStatus(playerIds: string[]): Promise<Record<string, GuardianConsentStatus>> {
+  const ids = Array.from(new Set(playerIds.filter(Boolean))).slice(0, 50);
+  if (ids.length === 0) return {};
+  try {
+    const data = await postJson<{ statuses?: Record<string, GuardianConsentStatus> }>("/api/auth/consent-status", { playerIds: ids });
+    return data.statuses ?? {};
+  } catch {
+    return Object.fromEntries(ids.map((id) => [id, { state: "unavailable" as const }]));
+  }
+}
+
+/**
+ * Pide la firma al tutor: el servidor le manda el correo (en el idioma actual) con el enlace
+ * para confirmar. Una solicitud nueva invalida la anterior pendiente. Lanza ConsentRequestError.
+ */
+export async function requestGuardianSignature(input: {
+  playerId: string;
+  guardianName: string;
+  guardianEmail: string;
+}): Promise<{ emailSent: boolean; expiresAt?: string }> {
+  return postJson("/api/auth/sign-consent", {
+    playerId: input.playerId,
+    parentName: input.guardianName.trim(),
+    parentEmail: input.guardianEmail.trim(),
+    locale: i18next.language,
+  });
+}
 
 /**
  * Retira en el SERVIDOR los consentimientos parentales activos del jugador
- * (POST /api/auth/withdraw-consent; solo el dueño del jugador). Es lo único que hace que una
- * revocación cuente: players.parental_consent_status es solo un rótulo de la pantalla y el gate
- * de análisis no lo mira. Lanza si el servidor no confirma la retirada → la UI NO debe mostrar
- * «revocado» en ese caso. Devuelve cuántos consentimientos se retiraron.
+ * (POST /api/auth/withdraw-consent; solo el dueño del jugador). Lanza si el servidor no confirma
+ * la retirada → la UI NO debe mostrar «retirado» en ese caso. Devuelve cuántos se retiraron.
  */
 export async function withdrawConsentOnServer(playerId: string, reason?: string): Promise<number> {
   const res = await fetch("/api/auth/withdraw-consent", {
@@ -40,241 +102,3 @@ export async function withdrawConsentOnServer(playerId: string, reason?: string)
   if (!res.ok || !json?.success) throw new Error(`withdraw_consent_failed_${res.status}`);
   return json.data?.withdrawn ?? 0;
 }
-
-export type ConsentStatus = "pending" | "granted" | "denied" | "not_required";
-
-export interface ParentalConsent {
-  playerId: string;
-  playerName?: string;
-  playerAge?: number;
-  status: ConsentStatus;
-  grantedAt?: string;
-  guardianName?: string;
-  guardianEmail?: string;
-  /** Optional: token for the email-based consent form */
-  consentToken?: string;
-  /** When the latest reminder was sent to the guardian */
-  lastReminderAt?: string;
-}
-
-interface DbPlayerRow {
-  id: string;
-  name: string;
-  age?: number;
-  parental_consent_status?: ConsentStatus;
-  parental_consent_granted_at?: string;
-  parental_consent_guardian_name?: string;
-  parental_consent_guardian_email?: string;
-}
-
-// ── Cache helpers ────────────────────────────────────────────────────
-function readCache(): ParentalConsent[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as ParentalConsent[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeCache(items: ParentalConsent[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, 500)));
-  } catch (err) {
-    console.error("[parentalConsentService] cache write failed", err);
-  }
-}
-
-function inferStatusFromAge(age?: number): ConsentStatus {
-  if (age === undefined || age === null) return "pending";
-  return age >= 14 ? "not_required" : "pending";
-}
-
-// ── Service ───────────────────────────────────────────────────────────
-export const ParentalConsentService = {
-  /** Get consent state for a specific player */
-  async getForPlayer(playerId: string): Promise<ParentalConsent | null> {
-    if (SUPABASE_CONFIGURED) {
-      try {
-        const { data, error } = await supabase
-          .from("players")
-          .select(
-            "id, name, age, parental_consent_status, parental_consent_granted_at, parental_consent_guardian_name, parental_consent_guardian_email",
-          )
-          .eq("id", playerId)
-          .maybeSingle();
-        if (error) throw error;
-        if (data) {
-          const row = data as DbPlayerRow;
-          return {
-            playerId: row.id,
-            playerName: row.name,
-            playerAge: row.age,
-            status: row.parental_consent_status ?? inferStatusFromAge(row.age),
-            grantedAt: row.parental_consent_granted_at,
-            guardianName: row.parental_consent_guardian_name,
-            guardianEmail: row.parental_consent_guardian_email,
-          };
-        }
-      } catch (err) {
-        console.warn("[parentalConsentService] get failed:", err);
-      }
-    }
-    return readCache().find((c) => c.playerId === playerId) ?? null;
-  },
-
-  /** Returns all players with their consent state (for /admin/consent dashboard) */
-  async listAll(): Promise<ParentalConsent[]> {
-    if (SUPABASE_CONFIGURED) {
-      try {
-        const { data, error } = await supabase
-          .from("players")
-          .select(
-            "id, name, age, parental_consent_status, parental_consent_granted_at, parental_consent_guardian_name, parental_consent_guardian_email",
-          )
-          .order("name");
-        if (error) throw error;
-        if (data) {
-          return (data as DbPlayerRow[]).map((row) => ({
-            playerId: row.id,
-            playerName: row.name,
-            playerAge: row.age,
-            status: row.parental_consent_status ?? inferStatusFromAge(row.age),
-            grantedAt: row.parental_consent_granted_at,
-            guardianName: row.parental_consent_guardian_name,
-            guardianEmail: row.parental_consent_guardian_email,
-          }));
-        }
-      } catch (err) {
-        console.warn("[parentalConsentService] list failed:", err);
-      }
-    }
-    return readCache();
-  },
-
-  /** Returns only consents that need attention (pending under 14yo) */
-  async listPending(): Promise<ParentalConsent[]> {
-    const all = await this.listAll();
-    return all.filter((c) => c.status === "pending");
-  },
-
-  /** Grant consent — typically called from /family by the guardian */
-  async grant(
-    playerId: string,
-    guardianName: string,
-    guardianEmail: string,
-  ): Promise<ParentalConsent> {
-    const updated: ParentalConsent = {
-      playerId,
-      status: "granted",
-      grantedAt: new Date().toISOString(),
-      guardianName,
-      guardianEmail,
-    };
-
-    const all = readCache().filter((c) => c.playerId !== playerId);
-    all.unshift(updated);
-    writeCache(all);
-
-    if (SUPABASE_CONFIGURED) {
-      try {
-        await supabase
-          .from("players")
-          .update({
-            parental_consent_status: "granted",
-            parental_consent_granted_at: updated.grantedAt,
-            parental_consent_guardian_name: guardianName,
-            parental_consent_guardian_email: guardianEmail,
-          })
-          .eq("id", playerId);
-      } catch (err) {
-        console.warn("[parentalConsentService] grant failed:", err);
-      }
-    }
-    return updated;
-  },
-
-  /**
-   * Deny consent — must trigger data removal/anonymization per RGPD.
-   * Con Supabase, la retirada se hace PRIMERO en el servidor (withdrawConsentOnServer); si
-   * falla, lanza y no se marca nada como denegado.
-   */
-  async deny(playerId: string, guardianName?: string): Promise<ParentalConsent> {
-    if (SUPABASE_CONFIGURED) await withdrawConsentOnServer(playerId);
-
-    const updated: ParentalConsent = {
-      playerId,
-      status: "denied",
-      guardianName,
-    };
-
-    const all = readCache().filter((c) => c.playerId !== playerId);
-    all.unshift(updated);
-    writeCache(all);
-
-    if (SUPABASE_CONFIGURED) {
-      try {
-        await supabase
-          .from("players")
-          .update({
-            parental_consent_status: "denied",
-            parental_consent_guardian_name: guardianName,
-          })
-          .eq("id", playerId);
-      } catch (err) {
-        console.warn("[parentalConsentService] deny failed:", err);
-      }
-    }
-    return updated;
-  },
-
-  /** Send a reminder email to the guardian (server-side via Edge Function) */
-  async sendReminder(playerId: string): Promise<{ ok: boolean; reason?: string }> {
-    // Best-effort: only works once the edge function api/consent/_send-reminder is in place
-    try {
-      const resp = await fetch("/api/consent/_send-reminder", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerId }),
-      });
-      if (resp.ok) {
-        const all = readCache();
-        const idx = all.findIndex((c) => c.playerId === playerId);
-        if (idx >= 0) {
-          all[idx] = { ...all[idx], lastReminderAt: new Date().toISOString() };
-          writeCache(all);
-        }
-        return { ok: true };
-      }
-      if (resp.status === 503) return { ok: false, reason: "email_service_not_configured" };
-      return { ok: false, reason: `http_${resp.status}` };
-    } catch (err) {
-      return { ok: false, reason: (err as Error).message };
-    }
-  },
-
-  /** Stats for the dashboard widget */
-  async getStats(): Promise<{
-    total: number;
-    pending: number;
-    granted: number;
-    denied: number;
-    notRequired: number;
-  }> {
-    const all = await this.listAll();
-    const stats = {
-      total: all.length,
-      pending: 0,
-      granted: 0,
-      denied: 0,
-      notRequired: 0,
-    };
-    for (const c of all) {
-      if (c.status === "pending") stats.pending++;
-      else if (c.status === "granted") stats.granted++;
-      else if (c.status === "denied") stats.denied++;
-      else if (c.status === "not_required") stats.notRequired++;
-    }
-    return stats;
-  },
-};

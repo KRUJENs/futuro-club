@@ -23,6 +23,7 @@ import RegisterPage from "./pages/RegisterPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import VerifyConsentPage from "./pages/VerifyConsentPage";
+import WithdrawConsentPage from "./pages/WithdrawConsentPage";
 import ConfirmEmailPage from "./pages/ConfirmEmailPage";
 
 // Pages — Core (static — hit on every session)
@@ -199,8 +200,11 @@ const App = () => {
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/reset-password" element={<ResetPasswordPage />} />
-                {/* Enlace del email de consentimiento (sign-consent.ts) → verifica el token vía POST al API */}
+                {/* Enlace del email de consentimiento (sign-consent.ts): el TUTOR confirma con un
+                    botón (DNI + aceptaciones); nada se verifica al abrir. */}
                 <Route path="/auth/verify-consent" element={<VerifyConsentPage />} />
+                {/* Enlace del correo de confirmación: el TUTOR retira con un botón. */}
+                <Route path="/auth/withdraw-consent" element={<WithdrawConsentPage />} />
                 <Route path="/auth/confirm" element={<ConfirmEmailPage />} />
                 <Route path="/terms" element={<TermsPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />

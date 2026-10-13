@@ -23,6 +23,8 @@ import accountDelete from "./account/_delete";
 import authWelcome from "./auth/_welcome";
 import authVerifyCaptcha from "./auth/_verify-captcha";
 import authWithdrawConsent from "./auth/_withdraw-consent";
+import authGuardianWithdraw from "./auth/_guardian-withdraw";
+import authConsentStatus from "./auth/_consent-status";
 
 export const config = { runtime: "edge" };
 
@@ -56,6 +58,8 @@ export default async function handler(req: Request): Promise<Response> {
     "auth/welcome": authWelcome,
     "auth/verify-captcha": authVerifyCaptcha,
     "auth/withdraw-consent": authWithdrawConsent,
+    "auth/guardian-withdraw": authGuardianWithdraw,
+    "auth/consent-status": authConsentStatus,
   };
 
   if (staticRoutes[key]) return staticRoutes[key](req);
