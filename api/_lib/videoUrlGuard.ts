@@ -217,8 +217,11 @@ export interface StreamVideoUrl {
  * si el CDN lo decodifica serviría los píxeles del vídeo ajeno. Cualquier otra forma → guid null
  * (la URL no identifica un vídeo y el gate la bloquea).
  */
-const STREAM_FILE_PATH = /^\/([A-Za-z0-9_-]{1,128})\/((?!\.+$)[A-Za-z0-9._-]{1,128})$/;
-const LIBRARY_VIDEO_PATH = /^\/library\/\d+\/videos\/([A-Za-z0-9_-]{1,128})(?:\/((?!\.+$)[A-Za-z0-9._-]{1,128}))?$/;
+// El GUID solo en minúsculas (como los da Bunny): la fila `videos` se busca por bunny_video_id
+// distinguiendo mayúsculas, y una variante en mayúsculas de un GUID ajeno no debe pasar por
+// «otro» vídeo (nit de la revisión de la ronda 6).
+const STREAM_FILE_PATH = /^\/([a-z0-9_-]{1,128})\/((?!\.+$)[A-Za-z0-9._-]{1,128})$/;
+const LIBRARY_VIDEO_PATH = /^\/library\/\d+\/videos\/([a-z0-9_-]{1,128})(?:\/((?!\.+$)[A-Za-z0-9._-]{1,128}))?$/;
 
 export function streamVideoFromUrl(raw: unknown, env: Env = process.env): StreamVideoUrl {
   const url = assertAllowedVideoUrl(raw, env);

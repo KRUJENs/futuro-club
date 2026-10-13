@@ -22,6 +22,7 @@ import {
   Baby, Mail, FileText, Download, Trash2, Eye,
 } from "lucide-react";
 import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabase";
+import { withdrawConsentOnServer } from "@/services/real/parentalConsentService";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -462,7 +463,12 @@ export default function ParentalConsentPage() {
       const newStatus = data.action === "grant" ? "granted" : "denied";
 
       if (SUPABASE_CONFIGURED) {
-        // Update player consent status
+        // Revocar: la retirada se hace PRIMERO en el servidor (marca el consentimiento como
+        // retirado; el gate de análisis no mira parental_consent_status). Si falla, se lanza y
+        // la pantalla no muestra «revocado».
+        if (data.action === "deny") await withdrawConsentOnServer(data.playerId);
+
+        // Update player consent status (solo rótulo de esta pantalla)
         const { error: playerErr } = await supabase
           .from("players")
           .update({

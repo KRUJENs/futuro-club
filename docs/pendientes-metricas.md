@@ -4,7 +4,7 @@
 > una métrica bloqueada con `gate_reason` honesto es un estado de entrega aceptable, pero
 > **no** es lo mismo que resuelta. Este fichero distingue las dos y se mantiene al día.
 >
-> **Última actualización:** 2026-10-13 (§5-E ronda 6 del PR #308: ruta exacta /<guid>/<fichero> tras el GUID declarado; revocar del entrenador ('denied') anula el consentimiento) · 2026-10-12 (§5-E ronda 5 del PR #308: B6 seguía abierto → token ligado en el servidor; B7: la URL que analiza Modal es la que comprueba el gate) · 2026-10-12 (§5-E ronda 4 del PR #308, B6: consentimiento parental solo del tutor + migración 075; C11) · 2026-10-12 (§B 074: `/api/live/events` sigue inerte como en main — la doble lectura del cuerpo NO se arregla en ese PR; el registro en directo nunca ha sincronizado, su upsert choca con el índice parcial de la 032 y el resumen del partido pinta cifras sin procedencia: puntos (j)-(l)) · 2026-10-12 (§B y §C12, 074 amplía a evaluation_history / player_knowledge: rama por organización) · 2026-10-09 (§B y §C12, migración 074: escribir datos de un jugador exige ser su dueño) · 2026-10-01 (§5-D, migración 073 solo dueño) · 2026-09-30 (digest del director sin hash, P0) · **Rama de creación:** `docs/pendientes-metricas`
+> **Última actualización:** 2026-10-13 (§5-E ronda 6 del PR #308: ruta exacta /<guid>/<fichero> tras el GUID declarado; revocar = retirada guardada en el consentimiento desde el servidor, /api/auth/withdraw-consent) · 2026-10-12 (§5-E ronda 5 del PR #308: B6 seguía abierto → token ligado en el servidor; B7: la URL que analiza Modal es la que comprueba el gate) · 2026-10-12 (§5-E ronda 4 del PR #308, B6: consentimiento parental solo del tutor + migración 075; C11) · 2026-10-12 (§B 074: `/api/live/events` sigue inerte como en main — la doble lectura del cuerpo NO se arregla en ese PR; el registro en directo nunca ha sincronizado, su upsert choca con el índice parcial de la 032 y el resumen del partido pinta cifras sin procedencia: puntos (j)-(l)) · 2026-10-12 (§B y §C12, 074 amplía a evaluation_history / player_knowledge: rama por organización) · 2026-10-09 (§B y §C12, migración 074: escribir datos de un jugador exige ser su dueño) · 2026-10-01 (§5-D, migración 073 solo dueño) · 2026-09-30 (digest del director sin hash, P0) · **Rama de creación:** `docs/pendientes-metricas`
 >
 > Estado del arnés a fecha de hoy: el **GATE real** (pre-commit → `audit_metrics.py
 > --baseline`) sale **exit 0** (deuda baselined). El audit CRUDO `audit_metrics.py` →
@@ -618,11 +618,23 @@ equipo; nunca se marca sola. Modal sin cambios (test de spawn byte a byte + call
   segmentos de más; cualquier otra → `guid null` → 400 `invalid_video_reference`. Control
   positivo: con el código de `af87e40` fallan los 12 casos nuevos de `videoUrlGuard` y los 2 de
   `track-players-consent` (el ataque de punta a punta, Modal no se llama).
-- **Revocar no paraba el análisis:** «revocar» en `/admin/consent` solo pone
-  `players.parental_consent_status = 'denied'` (nada fija `parental_consents.withdrawn_at`), y el
-  gate lo ignoraba. Ahora `findActiveParentalConsent` devuelve null si el jugador está en
-  `'denied'`: esa columna solo puede QUITAR, nunca conceder (lint
-  `parental-consent-single-source`). La columna existe en prod (la exige la 071, aplicada).
+- **Revocar no paraba el análisis:** «revocar» en `/admin/consent` solo ponía
+  `players.parental_consent_status = 'denied'` (nada fijaba `parental_consents.withdrawn_at`), y el
+  gate lo ignoraba. Un primer arreglo (mirar `'denied'` en el gate) lo BLOQUEÓ la revisión: el
+  entrenador lo vuelve a poner en `'granted'` («Solicitar de nuevo») y el consentimiento volvía a
+  contar sin el tutor; además un consentimiento nuevo del tutor no habría contado hasta cambiar la
+  columna. **Arreglo final:** `POST /api/auth/withdraw-consent` (solo el DUEÑO del jugador,
+  service_role) → `withdrawParentalConsents` escribe por cada consentimiento activo la evidencia
+  `consent_withdrawn` en `gdpr_audit_log` (append-only) y luego pone `withdrawn_at`; el trigger de
+  la 003 deja además la suya. La revocación de `/admin/consent` y `ParentalConsentService.deny`
+  llaman PRIMERO a ese endpoint; si falla, la pantalla da error y no marca «revocado».
+  `parental_consent_status` vuelve a no contar para nada en el servidor (lint
+  `parental-consent-single-source`). Tests `api/auth/__tests__/withdraw-consent.test.ts` (PostgREST
+  SIMULADO): verificado → retirado → «granted» sigue bloqueado; retirada que aguanta aunque un
+  cliente vuelva a poner `withdrawn_at` a NULL (antes de la 075); un consentimiento nuevo del tutor
+  sí cuenta; 403 a quien no es dueño; fallo a mitad → 500 y reintento seguro. Control: quitando la
+  evidencia fallan 3 de esos tests.
+- **GUID solo en minúsculas** en `streamVideoFromUrl` (nit): una variante en mayúsculas → null.
 - **Frase de B6 matizada:** «ya no puede fabricar un consentimiento que cuente» vale con la 076
   aplicada; sin ella, un usuario del mismo tenant podía hacerse dueño del jugador
   (`players_tenant_isolation`, nota de la 073) y firmar él. **La 076 está aplicada en producción**

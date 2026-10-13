@@ -122,6 +122,8 @@ describe("streamVideoFromUrl · qué vídeo de Bunny STREAM sirve la URL (B7, ro
     `https://${CDN}/g-own/...`,
     `https://${CDN}/g%2Down/play_720p.mp4`,
     `https://${CDN}/g.own/play_720p.mp4`,
+    `https://${CDN}/ABCDEF12-3456-4789-ABCD-EF0123456789/play_720p.mp4`, // GUID en mayúsculas
+    "https://video.bunnycdn.com/library/123456/videos/G-OWN/play.mp4",
     "https://video.bunnycdn.com/library/123456/videos/g-own/..%2Fg-foreign%2Fplay.mp4",
     "https://video.bunnycdn.com/library/123456/videos/g-own/g-foreign/play.mp4",
   ])("%s → guid null (no identifica un vídeo; el gate la bloquea)", (url) => {

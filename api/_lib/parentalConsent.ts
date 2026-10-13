@@ -44,9 +44,10 @@
  * firmar de nuevo. Con el dato verificado del 29-30 sep (ningún jugador de producción tiene
  * fecha de nacimiento) eso no bloquea hoy a nadie; cuántas hay: supabase/checks/075_previa.sql.
  *
- * players.parental_consent_status NUNCA CONCEDE: lo pone el propio entrenador desde
- * /admin/consent (ParentalConsentPage) sin ninguna verificación del tutor. Solo puede QUITAR:
- * 'denied' (la acción «revocar» de esa página) anula cualquier consentimiento verificado.
+ * players.parental_consent_status NUNCA cuenta: lo pone el propio entrenador desde
+ * /admin/consent (ParentalConsentPage) sin ninguna verificación del tutor, y lo puede volver a
+ * poner en 'granted' cuando quiera (ronda 6: por eso NO sirve ni para quitar). La retirada se
+ * guarda en el consentimiento mismo: withdrawParentalConsents (abajo).
  *
  * Límite que NO cierra este módulo (documentado en docs/pendientes-metricas.md §E): la
  * verificación por email prueba que alguien controla ESE buzón, no que sea el tutor. Un
@@ -287,16 +288,6 @@ type AuditRow = { action: unknown; resource_id: unknown; metadata: unknown };
  * el llamador NUNCA lo interpreta como «concedido».
  */
 export async function findActiveParentalConsent(playerId: string): Promise<ActiveParentalConsent | null> {
-  // Retirada registrada por el entrenador (ronda 6 de la review del PR #308). La acción
-  // «revocar» de /admin/consent solo pone players.parental_consent_status = 'denied' (nunca
-  // parental_consents.withdrawn_at), y sin esto un consentimiento ya verificado seguía
-  // contando tras retirarlo. 'denied' solo puede QUITAR el consentimiento: ningún valor de esa
-  // columna lo concede (ver cabecera). La columna es de la 036, que la 071 exige.
-  const status = await getRows<{ parental_consent_status: unknown }>(
-    `players?id=eq.${encodeURIComponent(playerId)}&select=parental_consent_status&limit=1`,
-  );
-  if (status[0]?.parental_consent_status === "denied") return null;
-
   const rows = await getRows<{ id: unknown; player_id: unknown }>(
     `parental_consents?player_id=eq.${encodeURIComponent(playerId)}` +
       `&email_verified=is.true&withdrawn_at=is.null` +
@@ -332,4 +323,75 @@ export async function findActiveParentalConsent(playerId: string): Promise<Activ
     if (match) return { id: c.id, parentEmail: metaString(match.metadata, "parent_email") };
   }
   return null;
+}
+
+/**
+ * RETIRA los consentimientos parentales activos del jugador (ronda 6 de la review del PR #308).
+ * La llama SOLO api/auth/_withdraw-consent.ts, después de comprobar que quien retira es el DUEÑO
+ * del jugador. Antes, «revocar» en /admin/consent solo ponía players.parental_consent_status =
+ * 'denied', que el entrenador puede volver a poner en 'granted' sin el tutor, y el
+ * consentimiento verificado seguía contando.
+ *
+ * Orden pensado para que la retirada valga aunque algo falle a mitad:
+ *   1. lee las filas activas (withdrawn_at IS NULL) del jugador;
+ *   2. escribe por cada una la evidencia 'consent_withdrawn' en gdpr_audit_log (append-only,
+ *      service_role): desde aquí findActiveParentalConsent ya no la cuenta, aunque luego un
+ *      cliente con permisos (antes de la 075) volviera a poner withdrawn_at a NULL;
+ *   3. pone withdrawn_at = ahora (y withdrawn_reason) en esas filas. El trigger
+ *      audit_consent_changes de la 003 escribe además su propia 'consent_withdrawn'.
+ * Si falla 2 o 3, lanza ParentalConsentDbError y el llamador responde 500: reintentar es seguro
+ * (repetir 2 solo añade otra fila de auditoría). Un consentimiento nuevo que el tutor firme y
+ * verifique DESPUÉS sí cuenta: es otra fila, con su propia emisión y verificación.
+ * Devuelve cuántos consentimientos se retiraron (0 si no había ninguno activo).
+ */
+export async function withdrawParentalConsents(input: {
+  playerId: string;
+  /** Quien retira (JWT verificado). */
+  userId: string | null;
+  tenantId: string | null;
+  reason: string | null;
+}): Promise<number> {
+  const rows = await getRows<{ id: unknown; player_id: unknown }>(
+    `parental_consents?player_id=eq.${encodeURIComponent(input.playerId)}` +
+      `&withdrawn_at=is.null&select=id,player_id&limit=${MAX_ROWS}`,
+  );
+  const ids = rows
+    .filter((r): r is { id: string; player_id: string } => typeof r?.id === "string" && UUID_RE.test(r.id) && r.player_id === input.playerId)
+    .map((r) => r.id);
+  if (ids.length === 0) return 0;
+
+  for (const id of ids) {
+    await insertAudit({
+      user_id: uuidOrNull(input.userId),
+      tenant_id: uuidOrNull(input.tenantId),
+      action: CONSENT_WITHDRAWN_ACTION,
+      resource_type: CONSENT_RESOURCE_TYPE,
+      resource_id: id,
+      metadata: { player_id: input.playerId, source: "owner_revoke" },
+    });
+  }
+
+  let url: string;
+  let headers: Record<string, string>;
+  try {
+    url =
+      `${supabaseRestUrl()}/rest/v1/parental_consents?id=in.${encodeURIComponent(pgInList(ids))}` +
+      `&player_id=eq.${encodeURIComponent(input.playerId)}&withdrawn_at=is.null`;
+    headers = serviceHeaders({ Prefer: "return=minimal" });
+  } catch {
+    throw new ParentalConsentDbError("supabase_not_configured");
+  }
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({
+      withdrawn_at: new Date().toISOString(),
+      withdrawn_reason: (input.reason ?? "").trim().slice(0, 500) || "revocado por el responsable del jugador",
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new ParentalConsentDbError(`withdraw ${res.status} ${text.slice(0, 300)}`);
+  }
+  return ids.length;
 }

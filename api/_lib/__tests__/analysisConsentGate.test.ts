@@ -258,17 +258,16 @@ describe("B6 · la fuente del consentimiento la firma y la verifica el TUTOR; el
     expect(r).toMatchObject({ allowed: false, code: "parental_consent_required" });
   });
 
-  // Ronda 6: «revocar» en /admin/consent solo pone 'denied' (nunca withdrawn_at). Una retirada
-  // tiene que parar el análisis aunque haya un consentimiento verificado por el tutor.
-  it("consentimiento VERIFICADO + el entrenador lo revoca ('denied') → bloqueado", async () => {
+  // Ronda 6: parental_consent_status no cuenta NI para quitar (el entrenador lo vuelve a poner
+  // en 'granted' cuando quiere). La retirada va por api/auth/withdraw-consent, que la guarda en
+  // el consentimiento: api/auth/__tests__/withdraw-consent.test.ts.
+  it("parental_consent_status = 'denied' tampoco decide: con un consentimiento verificado, el gate lo ignora", async () => {
     db.birthDates.p1 = "2013-05-01";
     db.activeConsents.push("p1");
-    // Control positivo: con el consentimiento verificado y sin revocar, pasa.
-    expect(await enforceClipConsent({ ...base, attestation: ATTESTATION, playerId: "p1", record: false }))
-      .toMatchObject({ allowed: true });
     withPlayerConsentStatus("denied");
     const r = await enforceClipConsent({ ...base, attestation: ATTESTATION, playerId: "p1", record: false });
-    expect(r).toMatchObject({ allowed: false, code: "parental_consent_required" });
+    expect(r).toMatchObject({ allowed: true });
+    expect(mock.calls.some((c) => c.url.includes("parental_consent_status"))).toBe(false);
   });
 
   it("error al leer la evidencia (gdpr_audit_log) de un menor con fila verificada → 500 consent_check_failed, nunca permitido", async () => {
