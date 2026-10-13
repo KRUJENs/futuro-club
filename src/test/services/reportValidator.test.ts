@@ -418,6 +418,16 @@ describe("validateTeamReport", () => {
       expect(issue).toBeDefined();
       expect(issue!.severity).toBe("warning");
     });
+
+    it("posesión null (no observada) → sin aviso (antes «Posesión de null% es extrema»)", () => {
+      const report = makeValidTeamReport();
+      report.posesion.porcentaje = null;
+
+      const result = validateTeamReport(report);
+
+      expect(result.issues.some((i: any) => i.rule === "possession_realism")).toBe(false);
+      expect(JSON.stringify(result)).not.toContain("null%");
+    });
   });
 
   describe("collective_metrics_coherence", () => {

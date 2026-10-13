@@ -37,7 +37,7 @@ import { isLocalSrc } from "@/lib/localVideoUtils";
 import { withholdIndividualData } from "@/lib/shared/teamReportIdentity";
 import ClipAttestationField from "@/components/consent/ClipAttestationField";
 import { buildClipAttestation, ClipConsentBlockedError } from "@/lib/shared/videoConsent";
-import { MetricValue, ProvenanceBadge } from "@/components/metrics/MetricValue";
+import { MetricValue } from "@/components/metrics/MetricValue";
 import { estimatedLLM, gated } from "@/lib/metrics/MetricResult";
 
 /**
@@ -136,7 +136,7 @@ function ResumenFormacion({ report }: { report: TeamIntelligenceOutput }) {
             result={possessionMetric(report.posesion?.porcentaje, (report as { confianza?: unknown }).confianza, t("teamAnalysis.possessionNotObserved"))}
             format={(v) => `${v}%`}
           />
-          {typeof report.posesion?.porcentaje === "number" && <ProvenanceBadge provenance="ESTIMADA_LLM" />}
+          {/* MetricValue ya pinta el ProvenanceBadge («Estimado por IA»); no se duplica. */}
         </Badge>
         {report.formacion.rigidez >= 7 && (
           <Badge variant="outline" className="text-[9px]">{t("teamAnalysis.rigid")}</Badge>

@@ -1,6 +1,6 @@
 {
   "_comment": "Baseline de errores tsc conocidos (tsconfig.app.json). NO editar a mano: regenerar con `node scripts/typecheck-baseline.mjs --update`. Objetivo: que solo baje. Ver scripts/typecheck-baseline.mjs.",
-  "total": 67,
+  "total": 66,
   "errors": {
     "api/_lib/budgetGuard.ts::TS2591::Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.": 4,
     "api/_lib/usageGuard.ts::TS2591::Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.": 3,
@@ -30,7 +30,7 @@
     "src/pages/PlayerIntelligencePage.tsx::TS2345::Argument of type '{ velocidadDecision?: { score?: number; observacion?: string; }; tecnicaConBalon?: { score?: number; observacion?: string; }; inteligenciaTactica?: { score?: number; observacion?: string; }; capacidadFisica?: { ...; }; liderazgoPresencia?: { ...; }; eficaciaCompetitiva?: { ...; }; }' is not assignable to parameter of type 'Record<string, { score: number; observacion?: string; }>'.": 1,
     "src/pages/PlayerIntelligencePage.tsx::TS2322::Type '{ fx?: number; fy?: number; }[]' is not assignable to type 'Position[]'.": 1,
     "src/pages/PlayerIntelligencePage.tsx::TS2322::Type '{ club?: string; score?: number; proPlayerId?: string; nombre?: string; posicion?: string; razonamiento?: string; }[]' is not assignable to type 'SimilarityMatch[]'.": 1,
-    "src/pages/PlayerIntelligencePage.tsx::TS2739::Type '{ club?: string; score?: number; proPlayerId?: string; nombre?: string; posicion?: string; narrativa?: string; }' is missing the following properties from type 'SimilarityMatch': player, positionMatch": 2,
+    "src/pages/PlayerIntelligencePage.tsx::TS2739::Type '{ club?: string; score?: number; proPlayerId?: string; nombre?: string; posicion?: string; narrativa?: string; }' is missing the following properties from type 'SimilarityMatch': player, positionMatch": 1,
     "src/services/real/agentService.ts::TS2358::The left-hand side of an 'instanceof' expression must be of type 'any', an object type or a type parameter.": 1,
     "src/services/real/observabilityAdapter.ts::TS2484::Export declaration conflicts with exported declaration of 'ObservabilityProvider'.": 1,
     "src/services/real/pushNotificationService.ts::TS2322::Type 'Uint8Array<ArrayBufferLike>' is not assignable to type 'string | BufferSource'.": 1,

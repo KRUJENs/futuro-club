@@ -8,14 +8,26 @@ import { motion } from "framer-motion";
 import { AlertTriangle, Filter, ArrowUpDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-interface PlayerRisk {
+// null = sin dato (riesgo aún no calculado o fallido; asistencia sin registros).
+// Nunca un 0 ni un «bajo» por defecto (P1 bloque 2, inv #2): se dice que falta.
+export interface PlayerRisk {
   playerId: string;
   playerName: string;
-  riskScore: number;
-  riskLevel: "low" | "moderate" | "high" | "critical";
-  primaryFactor: string;
-  engagementTrend: string;
-  attendanceRate: number;
+  riskScore: number | null;
+  riskLevel: "low" | "moderate" | "high" | "critical" | null;
+  primaryFactor: string | null;
+  engagementTrend: string | null;
+  attendanceRate: number | null;
+}
+
+const NO_RISK_COLORS = { bg: "bg-white/5", ring: "ring-white/10", dot: "bg-muted-foreground/40" };
+
+/** Los huecos (null) van siempre al final, sin importar el valor de los demás. */
+function nullLast(a: number | null, b: number | null, cmp: (x: number, y: number) => number): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1;
+  if (b === null) return -1;
+  return cmp(a, b);
 }
 
 interface Props {
@@ -54,9 +66,9 @@ export default function TeamRiskOverview({ players, onPlayerClick }: Props) {
     : players.filter(p => p.riskLevel === filterLevel);
 
   const sorted = [...filtered].sort((a, b) => {
-    if (sortBy === "riskScore") return b.riskScore - a.riskScore;
+    if (sortBy === "riskScore") return nullLast(a.riskScore, b.riskScore, (x, y) => y - x);
     if (sortBy === "name") return a.playerName.localeCompare(b.playerName);
-    return a.attendanceRate - b.attendanceRate;
+    return nullLast(a.attendanceRate, b.attendanceRate, (x, y) => x - y);
   });
 
   const counts = {
@@ -109,7 +121,7 @@ export default function TeamRiskOverview({ players, onPlayerClick }: Props) {
       {/* Player grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
         {sorted.map(player => {
-          const levelConfig = LEVEL_COLORS[player.riskLevel] ?? LEVEL_COLORS.low;
+          const levelConfig = player.riskLevel ? LEVEL_COLORS[player.riskLevel] ?? NO_RISK_COLORS : NO_RISK_COLORS;
           return (
             <motion.button
               key={player.playerId}
@@ -124,13 +136,22 @@ export default function TeamRiskOverview({ players, onPlayerClick }: Props) {
                 <span className="text-sm font-display font-bold text-foreground truncate flex-1">
                   {player.playerName}
                 </span>
-                <span className="text-sm font-mono font-black text-foreground">
-                  {player.riskScore}
-                </span>
+                {player.riskScore !== null ? (
+                  <span className="text-sm font-mono font-black text-foreground">
+                    {player.riskScore}
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-muted-foreground">{t("teamRiskOverview.riskUnavailable")}</span>
+                )}
               </div>
               <div className="flex items-center gap-3 text-[9px] text-muted-foreground">
-                <span>{t("teamRiskOverview.factorLabel")}: {FACTOR_LABELS[player.primaryFactor] ?? player.primaryFactor}</span>
-                <span>{t("teamRiskOverview.attendanceShort")}: {Math.round(player.attendanceRate)}%</span>
+                {player.primaryFactor && (
+                  <span>{t("teamRiskOverview.factorLabel")}: {FACTOR_LABELS[player.primaryFactor] ?? player.primaryFactor}</span>
+                )}
+                <span>
+                  {t("teamRiskOverview.attendanceShort")}:{" "}
+                  {player.attendanceRate !== null ? `${Math.round(player.attendanceRate)}%` : t("teamRiskOverview.noAttendance")}
+                </span>
               </div>
             </motion.button>
           );

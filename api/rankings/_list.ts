@@ -78,14 +78,14 @@ type PlayerRow = {
   phvOffset: number | null;
   phvTiming: MaturityTiming | null;
   phvGateReason: string | null;
-  competitiveLevel: string;
+  competitiveLevel: string | null; // null ⇒ nivel no registrado
   ageGroup: string;
   trending: "up" | "down" | "stable";
   percentile: number | null;         // null si sin evaluar
   percentileInAgeGroup: number | null; // null si sin evaluar
   updatedAt: string;
   metrics: Record<string, number>;
-  foot: string;
+  foot: string | null; // null ⇒ pie no registrado
   height: number | null;
   weight: number | null;
   // Campos de maduración para que el cliente compute el timing canónico
@@ -188,7 +188,10 @@ export default withHandler(
           age: p.age,
           position: p.position,
           vsi: p.vsi == null ? null : Number(p.vsi), // no coaccionar null→0
-          competitiveLevel: p.competitive_level,
+          // Nivel SOLO del blob (lo sobrescribe el spread de `data` de abajo si existe):
+          // la COLUMNA competitive_level la rellena el trigger de la 024 con 'Regional'
+          // cuando no hay nivel (residuo P2) ⇒ no se usa como dato (P1 bloque 2, inv #2).
+          competitiveLevel: null,
           ageGroup: p.age_group,
           percentile: p.percentile == null ? null : Math.round(Number(p.percentile)),
           percentileInAgeGroup:
@@ -281,14 +284,16 @@ export default withHandler(
           positionShort: abbreviatePosition((d.position as string) ?? "CM"),
           vsi,
           ...gatedPhvFields(d),
-          competitiveLevel: (d.competitiveLevel as string) ?? "Regional",
+          // Sin nivel elegido ⇒ null, no «Regional» (P1 bloque 2, inv #2).
+          competitiveLevel: typeof d.competitiveLevel === "string" && d.competitiveLevel ? d.competitiveLevel : null,
           ageGroup: getAgeGroup(age),
           trending,
           percentile: 0, // calculated below
           percentileInAgeGroup: 0, // calculated below
           updatedAt: row.updated_at,
           metrics,
-          foot: (d.foot as string) ?? "right",
+          // Sin pie registrado ⇒ null, no «right» (P1 bloque 2, inv #2).
+          foot: typeof d.foot === "string" && d.foot ? d.foot : null,
           // Sin default 170/60: son ENTRADAS del gate PHV que el cliente recalcula;
           // una talla/peso inventados abrirían el gate (invariante #2).
           height: typeof d.height === "number" ? d.height : null,
@@ -364,7 +369,7 @@ export default withHandler(
     }
     if (levelFilter && levelFilter !== "all") {
       filtered = filtered.filter(
-        (p) => p.competitiveLevel.toLowerCase() === levelFilter.toLowerCase()
+        (p) => p.competitiveLevel?.toLowerCase() === levelFilter.toLowerCase()
       );
     }
 
@@ -431,7 +436,7 @@ export default withHandler(
       totalUnfiltered: allPlayers.length,
       ageGroups: Object.keys(countByAgeGroup),
       ageGroupStats,
-      competitiveLevels: [...new Set(allPlayers.map((p) => p.competitiveLevel))],
+      competitiveLevels: [...new Set(allPlayers.map((p) => p.competitiveLevel).filter((lv): lv is string => !!lv))],
     });
   }
 );

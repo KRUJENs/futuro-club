@@ -5558,7 +5558,9 @@
     "sortAttendance": "Asistencia",
     "factorLabel": "Factor",
     "attendanceShort": "Asist",
-    "emptyFilter": "No hay jugadores con el filtro seleccionado"
+    "emptyFilter": "No hay jugadores con el filtro seleccionado",
+    "noAttendance": "sin registros",
+    "riskUnavailable": "riesgo sin calcular"
   },
   "vsiHistoryChart": {
     "notEnoughData": "Se necesitan al menos 2 registros de VSI para mostrar evolución",

@@ -46,9 +46,12 @@ const RoleProfileSchema = z.object({
   player_id: z.string(),
   player_name: z.string(),
   player_age: z.number().int().positive(),
-  dominant_foot: z.enum(["derecho", "izquierdo", "ambidiestro"]),
+  // Opcionales: el alta rápida no los pide y nunca se rellenan por defecto (P1 bloque 2).
+  // Requeridos, un jugador sin pie o sin nivel hacía fallar el perfil entero (y se
+  // volvía a pagar el LLM en cada visita, porque no llegaba a la caché).
+  dominant_foot: z.enum(["derecho", "izquierdo", "ambidiestro"]).optional(),
   minutes_played: z.number().int().min(0),
-  competitive_level: z.string(),
+  competitive_level: z.string().optional(),
   sample_tier: z.enum(["bronze", "silver", "gold", "platinum"]),
   overall_confidence: z.number().min(0).max(1),
   current: CapabilityScoresSchema,
@@ -302,7 +305,7 @@ export async function fetchRoleProfile(playerId: string): Promise<RoleProfileDat
         player_age:         player.age,
         dominant_foot:      footLabel(player.foot),
         minutes_played:     player.minutesPlayed,
-        competitive_level:  player.competitiveLevel,
+        competitive_level:  player.competitiveLevel || undefined,
         sample_tier:        sampleTier,
         overall_confidence: d.overallConfidence,
         // FASE 3: el agente emite positionAlternatives (contracts.ts:137) pero
@@ -393,7 +396,7 @@ export async function fetchRoleProfile(playerId: string): Promise<RoleProfileDat
     player_age: player.age,
     dominant_foot: footLabel(player.foot),
     minutes_played: player.minutesPlayed,
-    competitive_level: player.competitiveLevel,
+    competitive_level: player.competitiveLevel || undefined,
     sample_tier: videoAnalyses.length >= 3 ? "gold" : videoAnalyses.length >= 2 ? "silver" : "bronze",
     overall_confidence: 0.65,
     current: { tactical: tacticalScore, technical: technicalScore, physical: physicalScore },
@@ -481,7 +484,7 @@ function buildMetricsOnlyProfile(player: Player): RoleProfileData | null {
     player_age: player.age,
     dominant_foot: footLabel(player.foot),
     minutes_played: player.minutesPlayed,
-    competitive_level: player.competitiveLevel,
+    competitive_level: player.competitiveLevel || undefined,
     sample_tier: "bronze",
     overall_confidence: 0.35,
     current: { tactical: tacticalScore, technical: technicalScore, physical: physicalScore },

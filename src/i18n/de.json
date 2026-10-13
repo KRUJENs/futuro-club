@@ -5557,7 +5557,9 @@
     "sortAttendance": "Anwesenheit",
     "factorLabel": "Faktor",
     "attendanceShort": "Anw",
-    "emptyFilter": "Keine Spieler mit dem ausgewählten Filter"
+    "emptyFilter": "Keine Spieler mit dem ausgewählten Filter",
+    "noAttendance": "keine Einträge",
+    "riskUnavailable": "Risiko nicht berechnet"
   },
   "vsiHistoryChart": {
     "notEnoughData": "Für die Anzeige des Verlaufs sind mindestens 2 VSI-Einträge nötig",

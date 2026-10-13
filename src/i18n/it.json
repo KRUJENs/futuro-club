@@ -5557,7 +5557,9 @@
     "sortAttendance": "Presenze",
     "factorLabel": "Fattore",
     "attendanceShort": "Pres",
-    "emptyFilter": "Nessun giocatore con il filtro selezionato"
+    "emptyFilter": "Nessun giocatore con il filtro selezionato",
+    "noAttendance": "nessuna registrazione",
+    "riskUnavailable": "rischio non calcolato"
   },
   "vsiHistoryChart": {
     "notEnoughData": "Servono almeno 2 registrazioni di VSI per mostrare l'evoluzione",

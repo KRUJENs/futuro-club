@@ -326,8 +326,10 @@ export function validateTeamReport(report: TeamIntelligenceOutput): ValidationRe
   const issues: ValidationIssue[] = [];
 
   // ── Regla 2: Posesión realista ──────────────────────────────────────
-  const posesion = report.posesion.porcentaje;
-  if (posesion < 10 || posesion > 90) {
+  // null = posesión no observada (gateada, P1 bloque 2): no hay nada que validar.
+  // Antes `null < 10` era true ⇒ «Posesión de null% es extrema».
+  const posesion = report.posesion?.porcentaje;
+  if (typeof posesion === "number" && (posesion < 10 || posesion > 90)) {
     issues.push({
       rule: "possession_realism",
       severity: "warning",

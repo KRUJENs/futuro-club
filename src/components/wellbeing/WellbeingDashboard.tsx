@@ -315,11 +315,13 @@ export default function WellbeingDashboard() {
         return {
           playerId: p.id,
           playerName: p.name,
-          riskScore: r?.riskScore ?? 0,
-          riskLevel: r?.riskLevel ?? ("low" as const),
-          primaryFactor: r?.primaryFactor ?? "—",
-          engagementTrend: r?.engagement?.trend ?? "stable",
-          attendanceRate: r?.attendance?.rate ?? 0,
+          // Sin evaluación de riesgo (cargando o fallida) ⇒ null, no «0 · bajo»; sin
+          // asistencia registrada ⇒ null, no «0 %» (P1 bloque 2, inv #2).
+          riskScore: typeof r?.riskScore === "number" ? r.riskScore : null,
+          riskLevel: r?.riskLevel ?? null,
+          primaryFactor: r?.primaryFactor ?? null,
+          engagementTrend: r?.engagement?.trend ?? null,
+          attendanceRate: typeof r?.attendance?.rate === "number" ? r.attendance.rate : null,
         };
       }),
     [players, riskResults],

@@ -28,6 +28,8 @@ const state = vi.hoisted(() => ({
   attendance: null as unknown,
   player: null as unknown,
   mutate: vi.fn(),
+  roster: [] as unknown[],
+  teamRisk: [] as unknown[],
 }));
 
 const RISK = vi.hoisted(() => ({
@@ -37,7 +39,7 @@ const RISK = vi.hoisted(() => ({
 
 vi.mock("@/hooks/usePlayers", () => ({
   useRawPlayerById: () => ({ data: state.player }),
-  useAllPlayers: () => ({ data: [] }),
+  useAllPlayers: () => ({ data: state.roster, isLoading: false }),
 }));
 vi.mock("@/hooks/useWellbeing", async (orig) => ({
   ...(await orig<typeof import("@/hooks/useWellbeing")>()),
@@ -45,6 +47,8 @@ vi.mock("@/hooks/useWellbeing", async (orig) => ({
   useEngagementHistory: () => ({ data: [] }),
   useAttendance: () => ({ data: state.attendance }),
   useBurnoutReport: () => ({ mutate: state.mutate, isPending: false, data: undefined, isError: false }),
+  useTeamDropoutRisk: () => state.teamRisk,
+  useTeamEngagement: () => state.roster.map(() => ({ data: undefined })),
 }));
 vi.mock("@/components/wellbeing/AttendanceCalendar", () => ({ default: () => <div data-testid="attendance-calendar" /> }));
 vi.mock("@/components/wellbeing/DropoutRiskGauge", () => ({ default: () => null }));
@@ -54,7 +58,7 @@ vi.mock("@/components/wellbeing/AttendanceLogForm", () => ({ default: () => null
 vi.mock("@/components/wellbeing/EngagementLogForm", () => ({ default: () => null }));
 vi.mock("@/components/coaching/EngagementMiniCard", () => ({ default: () => null }));
 
-import { PlayerDetail } from "@/components/wellbeing/WellbeingDashboard";
+import WellbeingDashboard, { PlayerDetail } from "@/components/wellbeing/WellbeingDashboard";
 
 const NO_RECORDS = { playerId: "p1", rate: null, totalSessions: 0, records: [], isMock: false };
 
@@ -89,14 +93,51 @@ describe("PlayerDetail (Bienestar)", () => {
   });
 
   it("burnout: con fecha de nacimiento manda la edad real (decimal), no 13", () => {
-    state.attendance = NO_RECORDS;
-    state.player = { id: "p1", birthDate: "2010-01-15" };
-    render(<PlayerDetail playerId="p1" playerName="Leo" onBack={() => {}} />);
-    fireEvent.click(screen.getByText("burnoutReport.generate"));
-    expect(state.mutate).toHaveBeenCalledTimes(1);
-    const sent = state.mutate.mock.calls[0][0] as { playerAge: number };
-    const years = (Date.now() - Date.parse("2010-01-15")) / (365.25 * 24 * 3600 * 1000);
-    expect(sent.playerAge).not.toBe(13);
-    expect(Math.abs(sent.playerAge - years)).toBeLessThan(0.1);
+    // «Hoy» fijo ⇒ la edad esperada no depende del día de ejecución.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-13T12:00:00Z"));
+    try {
+      state.attendance = NO_RECORDS;
+      state.player = { id: "p1", birthDate: "2010-01-15" };
+      render(<PlayerDetail playerId="p1" playerName="Leo" onBack={() => {}} />);
+      fireEvent.click(screen.getByText("burnoutReport.generate"));
+      expect(state.mutate).toHaveBeenCalledTimes(1);
+      const sent = state.mutate.mock.calls[0][0] as { playerAge: number };
+      expect(sent.playerAge).toBe(16.7); // 15-1-2010 → 13-10-2026 ≈ 16,74 años, a 1 decimal
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("WellbeingDashboard · vista de equipo", () => {
+  beforeEach(() => {
+    state.roster = [{ id: "p1", name: "Leo" }];
+  });
+
+  it("riesgo sin calcular (cargando o fallido): ni «0» ni «bajo», y la asistencia dice que no hay registros", () => {
+    state.teamRisk = [{ data: undefined, isLoading: true }];
+    const { container } = render(<WellbeingDashboard />);
+    expect(screen.getByText("teamRiskOverview.riskUnavailable")).toBeInTheDocument();
+    expect(container.textContent).toContain("teamRiskOverview.noAttendance");
+    expect(container.textContent).not.toMatch(/\b0\s*%/);
+    expect(screen.queryByText("0")).toBeNull();
+    // No se cuenta como «bajo» en los filtros.
+    expect(container.textContent).toContain("teamRiskOverview.filterLow (0)");
+  });
+
+  it("riesgo calculado sin asistencia registrada ⇒ su puntuación, y asistencia «sin registros» (no 0 %)", () => {
+    state.teamRisk = [{ data: { riskScore: 40, riskLevel: "moderate", primaryFactor: "engagementDecline", attendance: { rate: null } } }];
+    const { container } = render(<WellbeingDashboard />);
+    expect(screen.getByText("40")).toBeInTheDocument();
+    expect(container.textContent).toContain("teamRiskOverview.noAttendance");
+    expect(container.textContent).not.toMatch(/\b0\s*%/);
+  });
+
+  it("con asistencia registrada ⇒ su porcentaje", () => {
+    state.teamRisk = [{ data: { riskScore: 40, riskLevel: "moderate", primaryFactor: "engagementDecline", attendance: { rate: 75 } } }];
+    const { container } = render(<WellbeingDashboard />);
+    expect(container.textContent).toContain("75%");
+    expect(container.textContent).not.toContain("teamRiskOverview.noAttendance");
   });
 });

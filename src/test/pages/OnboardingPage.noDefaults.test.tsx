@@ -85,7 +85,29 @@ describe("OnboardingPage · primer jugador sin valores inventados", () => {
     expect(created.input).toBeNull();
   });
 
+  it("menor de 8 años ⇒ se dice el rango de edad (antes error genérico de guardado) y no se crea", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-13T12:00:00Z"));
+    try {
+      goToPlayerStep();
+      fireEvent.change(screen.getByPlaceholderText("onboarding.placeholders.playerName"), { target: { value: "Leo" } });
+      fireEvent.change(dateInput(), { target: { value: "2020-05-01" } }); // 6 años
+      fireEvent.change(positionSelect(), { target: { value: "Pivote" } });
+      fireEvent.click(screen.getByText("common.male"));
+      fireEvent.click(screen.getByText("common.finish"));
+      await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith("firstRun.ageRange"));
+      expect(created.input).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("con lo que se escribió: edad desde la fecha y SIN pie, talla, peso ni nivel", async () => {
+    // «Hoy» fijo (solo Date; los temporizadores de waitFor siguen reales) ⇒ la edad
+    // esperada no depende del día en que se ejecute el test.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-13T12:00:00Z"));
+    try {
     goToPlayerStep();
     fireEvent.change(screen.getByPlaceholderText("onboarding.placeholders.playerName"), { target: { value: "Leo" } });
     fireEvent.change(dateInput(), { target: { value: "2014-03-01" } });
@@ -97,8 +119,10 @@ describe("OnboardingPage · primer jugador sin valores inventados", () => {
     expect(input.birthDate).toBe("2014-03-01");
     expect(input.position).toBe("Pivote");
     expect(input.gender).toBe("F");
-    const years = (Date.now() - Date.parse("2014-03-01")) / (365.25 * 24 * 3600 * 1000);
-    expect(input.age).toBe(Math.floor(years));
+    expect(input.age).toBe(12); // nacida el 1-3-2014, «hoy» 13-10-2026
     for (const k of ["foot", "height", "weight", "competitiveLevel"]) expect(input[k], k).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -134,7 +134,7 @@ function profileBlock(p: PlayerProfile): string {
 - Posición: ${p.position ?? "?"}
 - Pie dominante: ${p.foot ?? "?"}
 - Altura: ${p.height_cm ?? "?"} cm · Peso: ${p.weight_kg ?? "?"} kg
-- Nivel competitivo: ${p.competitive_level ?? "Regional"}
+- Nivel competitivo: ${p.competitive_level ?? "no registrado (no lo supongas)"}
 
 VALORACIÓN COACH (0-100, subjetiva)
 - Velocidad: ${m.speed}    · Resistencia: ${m.stamina}
@@ -347,7 +347,9 @@ export default withHandler(
     // ── 1. Cargar player ───────────────────────────────────────────
     const { data: playerRow, error: pErr } = await supabase
       .from("players")
-      .select("id, tenant_id, name, age, position, foot, height_cm, weight_kg, competitive_level, metric_speed, metric_technique, metric_vision, metric_stamina, metric_shooting, metric_defending, vsi, vsi_history")
+      // Nivel desde el BLOB (`data`): la columna competitive_level la rellena el trigger
+      // de la 024 con 'Regional' cuando no hay nivel (residuo P2) ⇒ no es un dato.
+      .select("id, tenant_id, name, age, position, foot, height_cm, weight_kg, nivel_registrado:data->>competitiveLevel, metric_speed, metric_technique, metric_vision, metric_stamina, metric_shooting, metric_defending, vsi, vsi_history")
       .eq("id", input.playerId)
       .single();
 
@@ -374,7 +376,8 @@ export default withHandler(
       foot: playerRow.foot,
       height_cm: playerRow.height_cm,
       weight_kg: playerRow.weight_kg,
-      competitive_level: playerRow.competitive_level,
+      competitive_level:
+        typeof playerRow.nivel_registrado === "string" && playerRow.nivel_registrado ? playerRow.nivel_registrado : null,
       metrics: {
         speed:     Number(playerRow.metric_speed)     || 0,
         technique: Number(playerRow.metric_technique) || 0,

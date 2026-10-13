@@ -149,6 +149,34 @@ describe("/api/players/crud", () => {
       expect(body.data.vsiEvaluations).toEqual([]);
     });
 
+    it("alta rápida SIN pie, medidas ni nivel (asistente del primer jugador) ⇒ 201 y nada inventado", async () => {
+      // P1 bloque 2: antes el schema exigía pie/talla/peso (400 al saltarse las medidas)
+      // y ponía competitiveLevel «Regional» por defecto.
+      let insertedBody: Record<string, unknown> = {};
+      vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, init) => {
+        insertedBody = JSON.parse(init?.body as string);
+        return new Response(JSON.stringify([{ id: insertedBody.id, data: insertedBody.data }]), { status: 201 });
+      });
+      const res = await crudHandler(makeRequest("POST", {
+        name: "Lucas Moreno", age: 11, position: "RW", birthDate: "2015-03-02",
+      }));
+      expect(res.status).toBe(201);
+      const data = insertedBody.data as Record<string, unknown>;
+      expect(data.competitiveLevel).toBeUndefined();
+      expect(data.foot).toBeUndefined();
+      expect(data.height).toBeUndefined();
+      expect(data.weight).toBeUndefined();
+      expect(insertedBody.competitive_level).toBeNull();
+      expect(insertedBody.foot).toBeNull();
+      expect(insertedBody.height_cm).toBeNull();
+      expect(insertedBody.weight_kg).toBeNull();
+    });
+
+    it("medidas fuera de rango siguen rechazándose (opcional ≠ sin validar)", async () => {
+      const res = await crudHandler(makeRequest("POST", { ...VALID_PLAYER, height: 40 }));
+      expect(res.status).toBe(400);
+    });
+
     it("rejects invalid player data", async () => {
       const res = await crudHandler(makeRequest("POST", { name: "A" }));
       expect(res.status).toBe(400);

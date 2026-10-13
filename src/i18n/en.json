@@ -5558,7 +5558,9 @@
     "sortAttendance": "Attendance",
     "factorLabel": "Factor",
     "attendanceShort": "Att",
-    "emptyFilter": "No players match the selected filter"
+    "emptyFilter": "No players match the selected filter",
+    "noAttendance": "no records",
+    "riskUnavailable": "risk not calculated"
   },
   "vsiHistoryChart": {
     "notEnoughData": "At least 2 VSI records are needed to show evolution",

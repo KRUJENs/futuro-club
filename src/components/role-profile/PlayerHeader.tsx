@@ -22,14 +22,19 @@ export default function PlayerHeader({ data }: Props) {
             <Clock className="w-3.5 h-3.5" />
             {t("rpPlayerHeader.age", { count: data.player_age })}
           </span>
-          <span className="flex items-center gap-1.5">
-            <Footprints className="w-3.5 h-3.5" />
-            {t("rpPlayerHeader.foot", { foot: data.dominant_foot })}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Trophy className="w-3.5 h-3.5" />
-            {data.competitive_level}
-          </span>
+          {/* Pie y nivel solo si se registraron (nunca un valor por defecto). */}
+          {data.dominant_foot && (
+            <span className="flex items-center gap-1.5">
+              <Footprints className="w-3.5 h-3.5" />
+              {t("rpPlayerHeader.foot", { foot: data.dominant_foot })}
+            </span>
+          )}
+          {data.competitive_level && (
+            <span className="flex items-center gap-1.5">
+              <Trophy className="w-3.5 h-3.5" />
+              {data.competitive_level}
+            </span>
+          )}
           <span className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5" />
             {t("rpPlayerHeader.minutesPlayed", { count: data.minutes_played })}

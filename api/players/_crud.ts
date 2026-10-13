@@ -64,12 +64,15 @@ const CreatePlayerSchema = z.object({
     "Pivote", "Mediocentro", "Mediapunta", "Extremo Derecho",
     "Extremo Izquierdo", "Delantero Centro", "Segundo Delantero",
   ]),
-  foot: z.enum(["right", "left", "both"]),
-  height: z.number().min(100).max(220),
-  weight: z.number().min(20).max(120),
+  // OPCIONALES (P1 bloque 2): el alta rápida no pide pie, medidas ni nivel y no se
+  // rellenan por defecto. Requeridos, el asistente del primer jugador daba 400 al
+  // saltarse las medidas; y el nivel se inventaba como «Regional» (invariante #2).
+  foot: z.enum(["right", "left", "both"]).optional(),
+  height: z.number().min(100).max(220).optional(),
+  weight: z.number().min(20).max(120).optional(),
   sittingHeight: z.number().min(30).max(130).optional(),
   legLength: z.number().min(30).max(130).optional(),
-  competitiveLevel: z.string().default("Regional"),
+  competitiveLevel: z.string().min(1).optional(),
   minutesPlayed: z.number().default(0),
   // OPCIONAL: el alta rápida no evalúa ⇒ sin métricas → VSI de ficha null.
   // No se rellena con defaults (sería inventar una evaluación; invariante #2).
@@ -238,12 +241,14 @@ export default withHandler(
         name: input.name,
         age: input.age,
         position: input.position,
-        foot: input.foot,
-        height_cm: input.height,
-        weight_kg: input.weight,
+        foot: input.foot ?? null,
+        height_cm: input.height ?? null,
+        weight_kg: input.weight ?? null,
         sitting_height: input.sittingHeight ?? null,
         leg_length: input.legLength ?? null,
-        competitive_level: input.competitiveLevel,
+        // Sin nivel ⇒ null. OJO: el trigger de la 024 rellena la COLUMNA con 'Regional'
+        // (residuo P2 en docs/pendientes-metricas.md); el blob `data` queda sin nivel.
+        competitive_level: input.competitiveLevel ?? null,
         minutes_played: input.minutesPlayed,
         gender: input.gender ?? null, // no asumir masculino si falta el sexo (invariante #5)
         metric_speed: input.metrics?.speed ?? null,

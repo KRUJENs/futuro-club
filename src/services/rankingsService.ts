@@ -47,14 +47,14 @@ export interface RankedPlayer {
   phvTiming?: MaturityTiming | null;
   /** Motivo del gate PHV del servidor (qué falta) cuando phvCategory es null. */
   phvGateReason?: string | null;
-  competitiveLevel: string;
+  competitiveLevel?: string | null;       // ausente/null ⇒ nivel no registrado
   ageGroup: string;
   trending: "up" | "down" | "stable";
   percentile: number | null;              // null si sin evaluar
   percentileInAgeGroup: number | null;    // null si sin evaluar
   updatedAt: string;
   metrics: Record<string, number>;
-  foot: string;
+  foot?: string | null;                   // ausente/null ⇒ pie no registrado
   height: number | null;
   weight: number | null;
   // ── Inputs de maduración (para playerMaturity → PHV/timing en el ranking) ──

@@ -87,9 +87,11 @@ export interface RoleProfileData {
   player_id: string;
   player_name: string;
   player_age: number;
-  dominant_foot: "derecho" | "izquierdo" | "ambidiestro";
+  /** Sin pie registrado ⇒ ausente (no se asume diestro). */
+  dominant_foot?: "derecho" | "izquierdo" | "ambidiestro";
   minutes_played: number;
-  competitive_level: string;
+  /** Sin nivel elegido ⇒ ausente (no se asume «Regional»). */
+  competitive_level?: string;
   sample_tier: SampleTier;
   overall_confidence: number;
   current: CapabilityScores;

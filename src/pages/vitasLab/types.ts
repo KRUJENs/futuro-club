@@ -17,8 +17,8 @@ export interface Dimension {
 
 export interface AnalysisReport {
   estadoActual: {
-    resumenEjecutivo: string;
-    nivelActual: string;
+    resumenEjecutivo: string;           // "" ⇒ el agente no dio resumen (no se pinta)
+    nivelActual: string | null;         // null ⇒ sin nivel del agente (nunca «talent» por defecto)
     fortalezasPrimarias: string[];
     areasDesarrollo: string[];
     dimensiones: {
@@ -49,7 +49,7 @@ export interface AnalysisReport {
       club:     string;
       score:    number;
       narrativa: string;
-    };
+    } | null; // null ⇒ el narrador no produjo comparable (nunca uno inventado)
   };
   proyeccionCarrera: {
     escenarioOptimista: { descripcion: string; nivelProyecto: string };

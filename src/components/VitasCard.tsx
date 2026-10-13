@@ -18,9 +18,38 @@ import { maturityTimingKey, maturityTone, type PlayerMaturityInput } from "@/lib
 import { gatedMaturity } from "@/lib/phv/phvGate";
 import type { SimilarityMatch } from "@/services/real/similarityService";
 
+/** Comparable tal y como lo guarda el informe (mapDbRowToLegacy). */
+interface ReportBestMatch {
+  nombre?:   string;
+  posicion?: string;
+  club?:     string;
+  score?:    number;
+}
+
+/**
+ * El comparable llega de dos fuentes: la similitud en vivo (SimilarityMatch, `player.*`)
+ * o el informe guardado (`nombre/club/posicion`). Antes se leía siempre
+ * `bestMatch.player.short_name` → TypeError al abrir la tarjeta desde la ficha cuando el
+ * informe tenía un comparable. Sin nombre o sin % ⇒ null (no se pinta).
+ */
+export function cloneFromMatch(m: SimilarityMatch | ReportBestMatch | null | undefined) {
+  if (!m) return null;
+  const sim = m as SimilarityMatch;
+  const rep = m as ReportBestMatch;
+  const name = sim.player?.short_name ?? rep.nombre ?? null;
+  const score = typeof m.score === "number" && Number.isFinite(m.score) ? m.score : null;
+  if (!name || score === null) return null;
+  return {
+    name,
+    club: (sim.player ? sim.player.club : rep.club) || null,
+    position: (sim.player ? sim.player.position : rep.posicion) || null,
+    score,
+  };
+}
+
 interface VitasCardProps {
   player:    Player;
-  bestMatch: SimilarityMatch | null;
+  bestMatch: SimilarityMatch | ReportBestMatch | null;
   projection?: string; // "Primera División", "Segunda División", etc.
   onClose?:  () => void;
 }
@@ -103,10 +132,11 @@ export default function VitasCard({ player, bestMatch, projection, onClose }: Vi
   const maturity = gatedMaturity(player as PlayerMaturityInput);
   const phvLabel = t(maturityTimingKey(maturity.timing));
   const phvColor = maturity.timing === "unknown" ? "#94A3B8" : MATURITY_TONE_COLOR[maturityTone(maturity)];
-  const cloneScore = bestMatch?.score ?? null;
-  const cloneName = bestMatch?.player.short_name ?? null;
-  const cloneClub = bestMatch?.player.club ?? null;
-  const clonePos = bestMatch?.player.position ?? null;
+  const clone = cloneFromMatch(bestMatch);
+  const cloneScore = clone?.score ?? null;
+  const cloneName = clone?.name ?? null;
+  const cloneClub = clone?.club ?? null;
+  const clonePos = clone?.position ?? null;
 
   const topMetrics = player.metrics
     ? Object.entries(player.metrics)
@@ -270,7 +300,7 @@ export default function VitasCard({ player, bestMatch, projection, onClose }: Vi
             {player.metrics && <RadarHex metrics={player.metrics} />}
 
             {/* Clon */}
-            {bestMatch && cloneName && (
+            {clone && (
               <div className="text-center rounded-xl px-4 py-3 border border-indigo-500/30 bg-indigo-500/10 w-full">
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <Star size={10} className="text-yellow-400" />
@@ -279,7 +309,9 @@ export default function VitasCard({ player, bestMatch, projection, onClose }: Vi
                   </span>
                 </div>
                 <p className="text-sm font-black text-white">{cloneName}</p>
-                <p className="text-[9px] text-white/50">{clonePos} · {cloneClub}</p>
+                {(clonePos || cloneClub) && (
+                  <p className="text-[9px] text-white/50">{[clonePos, cloneClub].filter(Boolean).join(" · ")}</p>
+                )}
                 <div className="mt-1.5 text-xl font-black text-indigo-400">
                   {cloneScore?.toFixed(0)}%
                 </div>

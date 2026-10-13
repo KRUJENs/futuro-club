@@ -5558,7 +5558,9 @@
     "sortAttendance": "Aanwezigheid",
     "factorLabel": "Factor",
     "attendanceShort": "Aanwez.",
-    "emptyFilter": "Geen spelers met het geselecteerde filter"
+    "emptyFilter": "Geen spelers met het geselecteerde filter",
+    "noAttendance": "geen registraties",
+    "riskUnavailable": "risico niet berekend"
   },
   "vsiHistoryChart": {
     "notEnoughData": "Er zijn minstens 2 VSI-registraties nodig om de evolutie te tonen",

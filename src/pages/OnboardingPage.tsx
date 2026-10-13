@@ -108,6 +108,12 @@ const OnboardingPage = () => {
       toast.error(t("onboarding.birthDateRequired"));
       return;
     }
+    // Fuera de 8-21 años el schema del jugador lo rechaza: se dice el motivo en vez del
+    // error genérico de guardado.
+    if (creatingPlayer && decimalAge !== null && (Math.floor(decimalAge) < 8 || Math.floor(decimalAge) > 21)) {
+      toast.error(t("firstRun.ageRange"));
+      return;
+    }
     setSaving(true);
     try {
       // Crear organización si aplica (academy / club)
