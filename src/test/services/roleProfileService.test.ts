@@ -175,6 +175,12 @@ describe("roleProfileService", () => {
           }),
         })
       );
+      // P1 bloque 2: solo las 6 métricas del entrenador; sin los sustitutos falsos
+      // pressing = stamina y positioning = vision.
+      const sentMetrics = (mockBuildRoleProfile.mock.calls[0][0] as { player: { metrics: Record<string, unknown> } }).player.metrics;
+      expect(sentMetrics).toEqual(mockPlayer.metrics);
+      expect(sentMetrics).not.toHaveProperty("pressing");
+      expect(sentMetrics).not.toHaveProperty("positioning");
     });
 
     it("cachea el perfil del agente: con la MISMA entrada no re-llama al LLM (perf, docx #6)", async () => {

@@ -105,11 +105,13 @@ export const RoleProfileInputSchema = z.object({
     id: z.string(),
     name: z.string(),
     age: z.number(),
-    foot: z.enum(["right", "left", "both"]),
+    foot: z.enum(["right", "left", "both"]).optional(), // sin pie registrado ⇒ se omite
     position: z.string(),
     secondaryPositions: z.array(z.string()).optional(),         // multi-posición
     minutesPlayed: z.number(),
-    competitiveLevel: z.string(),
+    competitiveLevel: z.string().optional(), // sin nivel registrado ⇒ se omite
+    // Solo las 6 métricas del entrenador. pressing/positioning se quitaron del contrato
+    // (P1 bloque 2): nadie los mide y se rellenaban con stamina/vision.
     metrics: z.object({
       speed: z.number().min(0).max(100),
       technique: z.number().min(0).max(100),
@@ -117,8 +119,6 @@ export const RoleProfileInputSchema = z.object({
       stamina: z.number().min(0).max(100),
       shooting: z.number().min(0).max(100),
       defending: z.number().min(0).max(100),
-      pressing: z.number().min(0).max(100).optional(),
-      positioning: z.number().min(0).max(100).optional(),
     }),
     // Solo con PHV gateado (src/lib/phv/phvGate.ts): ausentes ⇒ PHV no disponible.
     // Nunca un «ontme»/0 por defecto (invariante #2).
@@ -238,7 +238,7 @@ export const VideoIntelligenceInputSchema = z.object({
     name:            z.string(),
     age:             z.number().min(8).max(21),
     position:        z.string(),
-    foot:            z.enum(["right", "left", "both"]),
+    foot:            z.enum(["right", "left", "both"]).optional(), // sin pie registrado ⇒ se omite
     height:          z.number().optional(),
     weight:          z.number().optional(),
     currentVSI:      z.number().optional(),
@@ -425,9 +425,10 @@ export type VideoIntelligenceOutput = z.infer<typeof VideoIntelligenceOutputSche
 // removed; src/lib/shared/teamReportIdentity.ts strips it if a model still emits it.
 export const TeamObservationOutputSchema = z.object({
   formacionDetectada: z.string(),
+  // null = el modelo no pudo estimarla (no se inventa 55/45; P1 bloque 2).
   posesionEstimada:   z.object({
-    equipo: z.number(),
-    rival:  z.number(),
+    equipo: z.number().nullable(),
+    rival:  z.number().nullable(),
   }),
   fasesJuego: z.object({
     pressing: z.object({
@@ -482,7 +483,8 @@ export const TeamIntelligenceOutputSchema = z.object({
   }),
 
   posesion: z.object({
-    porcentaje:         z.number(),
+    // null = no observada (nunca un 0 ni el 55 del ejemplo del prompt).
+    porcentaje:         z.number().nullable(),
     estiloCirculacion:  z.string().max(200),
     zonasDominadas:     z.array(z.string()).max(4),
   }),

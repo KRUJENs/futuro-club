@@ -129,12 +129,6 @@ export default function PlayerPhvSection({ player, hasPhv, onSaved }: Props) {
         // (regla del owner 28-sep); sin ella el PHV queda bloqueado con motivo.
         birthDate={player.birthDate}
         gender={player.gender}
-        fallback={{
-          heightCm: player.height,
-          weightKg: player.weight,
-          sittingHeightCm: player.sittingHeight,
-          legLengthCm: player.legLength,
-        }}
       />
 
       {/* 2 · Datos de maduración (jugador y padres): fecha de nacimiento DEL

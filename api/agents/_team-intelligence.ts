@@ -283,7 +283,7 @@ Responde EXCLUSIVAMENTE con un JSON válido (sin markdown, sin backticks) con es
     "rigidez": 1-10
   },
   "posesion": {
-    "porcentaje": 55,
+    "porcentaje": <número 0-100 solo si viene en OBSERVACIONES TÁCTICAS; null si no observado>,
     "estiloCirculacion": "string max 200",
     "zonasDominadas": ["banda derecha", "mediocampo"]
   },

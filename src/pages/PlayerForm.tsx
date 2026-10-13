@@ -40,8 +40,16 @@ const formSchema = z.object({
   // exige elección explícita, igual que el pie dominante.
   gender: z.enum(["M", "F"], { required_error: "Selecciona el sexo (determina el cálculo PHV)" }),
   foot: z.enum(["right", "left", "both"], { required_error: "Selecciona pie dominante" }),
-  height: z.number({ invalid_type_error: "Ingresa la altura" }).min(100, "Mínimo 100 cm").max(220, "Máximo 220 cm"),
-  weight: z.number({ invalid_type_error: "Ingresa el peso" }).min(20, "Mínimo 20 kg").max(120, "Máximo 120 kg"),
+  // Talla y peso OPCIONALES y sin valor previo: vacío ⇒ sin dato (no 165/58). Las
+  // mediciones con fecha van a AnthropometricsForm; aquí solo entra lo que se escribe.
+  height: z.preprocess(
+    (v) => (v == null || v === "" || (typeof v === "number" && !Number.isFinite(v)) ? undefined : v),
+    z.number().min(100, "Mínimo 100 cm").max(220, "Máximo 220 cm").optional(),
+  ),
+  weight: z.preprocess(
+    (v) => (v == null || v === "" || (typeof v === "number" && !Number.isFinite(v)) ? undefined : v),
+    z.number().min(20, "Mínimo 20 kg").max(120, "Máximo 120 kg").optional(),
+  ),
   sittingHeight: z.number().min(40).max(120).optional().or(z.literal(0).transform(() => undefined)),
   legLength: z.number().min(40).max(130).optional().or(z.literal(0).transform(() => undefined)),
   // Maduración: fecha de nacimiento (edad decimal exacta) + alturas parentales (%PAH).
@@ -56,7 +64,7 @@ const formSchema = z.object({
     (v) => (v == null || v === 0 || v === "" || (typeof v === "number" && !Number.isFinite(v)) ? undefined : v),
     z.number().min(140, "Entre 140 y 230 cm").max(230, "Entre 140 y 230 cm").optional(),
   ),
-  competitiveLevel: z.string().min(1, "Selecciona el nivel"),
+  competitiveLevel: z.string().optional(), // opcional y sin valor previo (antes «Regional»)
   minutesPlayed: z.number().min(0).default(0),
   metrics: z.object({
     speed: z.number().min(0).max(100),
@@ -251,18 +259,20 @@ const PlayerForm = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      age: 14,
+      // Sin edad, pie, talla ni peso por defecto (inv #2): antes 14 años, pie derecho,
+      // 165 cm y 58 kg aparecían ya escritos y se guardaban como si alguien los hubiera
+      // medido. gender tampoco tiene default (afecta a la fórmula PHV).
+      age: undefined,
       position: "",
-      // gender SIN default: se exige elección explícita (afecta a la fórmula PHV).
-      foot: "right",
-      height: 165,
-      weight: 58,
+      foot: undefined,
+      height: undefined,
+      weight: undefined,
       sittingHeight: 0,
       legLength: 0,
       birthDate: "",
       motherHeightCm: 0,
       fatherHeightCm: 0,
-      competitiveLevel: "Regional",
+      competitiveLevel: "",
       minutesPlayed: 0,
       metrics: DEFAULT_METRICS,
     },
@@ -293,7 +303,7 @@ const PlayerForm = () => {
       birthDate: player.birthDate ?? "",
       motherHeightCm: player.motherHeightCm ?? 0,
       fatherHeightCm: player.fatherHeightCm ?? 0,
-      competitiveLevel: player.competitiveLevel,
+      competitiveLevel: player.competitiveLevel ?? "",
       minutesPlayed: player.minutesPlayed,
       metrics: player.metrics ?? DEFAULT_METRICS,
     });
@@ -393,7 +403,7 @@ const PlayerForm = () => {
             birthDate: data.birthDate || undefined,
             motherHeightCm: data.motherHeightCm || undefined,
             fatherHeightCm: data.fatherHeightCm || undefined,
-            competitiveLevel: data.competitiveLevel,
+            competitiveLevel: data.competitiveLevel || undefined,
             minutesPlayed: data.minutesPlayed,
             updatedAt: new Date().toISOString(),
           };
@@ -428,7 +438,7 @@ const PlayerForm = () => {
           birthDate: data.birthDate || undefined,
           motherHeightCm: data.motherHeightCm || undefined,
           fatherHeightCm: data.fatherHeightCm || undefined,
-          competitiveLevel: data.competitiveLevel,
+          competitiveLevel: data.competitiveLevel || undefined,
           minutesPlayed: data.minutesPlayed,
           // Sin confirmar las 6 barras ⇒ sin métricas ⇒ nace "sin evaluar" (vsi null).
           metrics: saveEvaluation ? data.metrics : undefined,
@@ -833,6 +843,7 @@ const PlayerForm = () => {
                 {...register("competitiveLevel")}
                 className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm font-display text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               >
+                <option value="">—</option>
                 {COMPETITIVE_LEVELS.map((l) => (
                   <option key={l} value={l}>{l}</option>
                 ))}

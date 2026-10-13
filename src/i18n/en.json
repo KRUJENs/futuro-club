@@ -827,7 +827,8 @@
       "scout": "E.g.: Carlos Martinez",
       "parent": "E.g.: John Garcia",
       "playerName": "E.g.: Lucas Moreno"
-    }
+    },
+    "birthDateRequired": "Enter the date of birth to create the player"
   },
   "drill": {
     "title": "Solo Drill",
@@ -1006,7 +1007,8 @@
     "generalEvalDesc": "Conclusions and recommendations",
     "teamStrengths": "Strengths",
     "toWork": "To work on",
-    "coachRecommendations": "Recommendations for the coach"
+    "coachRecommendations": "Recommendations for the coach",
+    "possessionNotObserved": "not observed"
   },
   "roleProfile": {
     "title": "Role Profile",
@@ -2167,7 +2169,8 @@
     "noTeamAnalysis": "No team analysis",
     "noTeamAnalysisDesc": "Upload a match video and generate the first tactical report",
     "perPlayerWithheld": "This report included per-player rows with a shirt number estimated by the AI. They are hidden: without validated shirt-number identification, VITAS does not attribute figures to any specific player. The analysis is team-level only.",
-    "individualTextsHidden": "Texts hidden because they mentioned a specific player (shirt number or number): {{n}}."
+    "individualTextsHidden": "Texts hidden because they mentioned a specific player (shirt number or number): {{n}}.",
+    "notObserved": "not observed"
   },
   "vitasLab": {
     "stepUpload": "UPLOAD",
@@ -4945,7 +4948,8 @@
     "backToTeam": "Back to team",
     "teamWellbeingPanel": "Team Wellbeing Panel",
     "emptyTitle": "No players yet",
-    "emptyDescription": "Add players to your team to see per-player dropout risk and engagement."
+    "emptyDescription": "Add players to your team to see per-player dropout risk and engagement.",
+    "noAttendance": "No attendance recorded yet"
   },
   "authContext": {
     "supabaseNotConfiguredWithKeys": "Supabase not configured — add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY",
@@ -5894,7 +5898,8 @@
     "generate": "Generate AI report",
     "generating": "Generating…",
     "error": "Could not generate the report. Try again.",
-    "hint": "Generate a narrative dropout-risk report with AI (intervention plan)."
+    "hint": "Generate a narrative dropout-risk report with AI (intervention plan).",
+    "birthDateRequired": "Without a date of birth the report is not generated (the age is not guessed)"
   },
   "teamReport": {
     "noContent": "No match data",

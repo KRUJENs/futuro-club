@@ -20,7 +20,7 @@ import {
   type DropoutRiskAssessment,
   type EngagementSnapshot,
 } from "@/hooks/useWellbeing";
-import { useAllPlayers } from "@/hooks/usePlayers";
+import { useAllPlayers, useRawPlayerById } from "@/hooks/usePlayers";
 
 import TeamRiskOverview from "./TeamRiskOverview";
 import DropoutRiskGauge from "./DropoutRiskGauge";
@@ -32,12 +32,9 @@ import InterventionPlanView from "./InterventionPlanView";
 import EngagementMiniCard from "@/components/coaching/EngagementMiniCard";
 import BurnoutReportView from "@/components/analysis/reports/BurnoutReportView";
 import DemoDataBanner from "@/components/DemoDataBanner";
+import { decimalAgeYears } from "@/lib/shared/age";
 import AttendanceLogForm from "./AttendanceLogForm";
 import EngagementLogForm from "./EngagementLogForm";
-
-// Edad por defecto cuando el jugador no tiene edad registrada; el agente
-// refleja la falta de datos en su confidence_score.
-const DEFAULT_PLAYER_AGE = 13;
 
 // ─── Heatmap semanal (a partir de snapshots reales de engagement) ──────────
 
@@ -108,7 +105,7 @@ function buildEngagementHeatmap(
 
 // ─── Player Detail View ──────────────────────────────────────────────────
 
-function PlayerDetail({
+export function PlayerDetail({
   playerId,
   playerName,
   onBack,
@@ -137,7 +134,7 @@ function PlayerDetail({
         {t("wellbeingDashboard.backToTeam")}
       </button>
 
-      {risk?.isMock && <DemoDataBanner messageKey="demoData.wellbeing" />}
+      {(risk?.isMock || attendance?.isMock) && <DemoDataBanner messageKey="demoData.wellbeing" />}
 
       {risk && (
         <>
@@ -205,11 +202,17 @@ function PlayerDetail({
               calendario y el riesgo se recalculan con datos reales, no de ejemplo. */}
           <AttendanceLogForm playerId={playerId} />
 
+          {/* Calendario solo con asistencia REGISTRADA (o el ejemplo del demo, con banner).
+              Sin registros se dice; antes se pintaba un calendario inventado (inv #4). */}
           {attendance && (
-            <AttendanceCalendar
-              records={attendance.records.map(r => ({ date: r.date, status: r.status }))}
-              rate={attendance.rate}
-            />
+            attendance.isMock || attendance.records.length > 0 ? (
+              <AttendanceCalendar
+                records={attendance.records.map(r => ({ date: r.date, status: r.status }))}
+                rate={attendance.rate ?? undefined}
+              />
+            ) : (
+              <p className="text-[11px] text-muted-foreground italic">{t("wellbeingDashboard.noAttendance")}</p>
+            )
           )}
 
           <InterventionPlanView
@@ -238,6 +241,12 @@ function BurnoutReportSection({
 }) {
   const { t } = useTranslation();
   const mutation = useBurnoutReport();
+  // Jugador CRUDO: la vista adaptada para UI no lleva birthDate.
+  const { data: player } = useRawPlayerById(risk.playerId);
+  // Edad REAL (decimal) desde la fecha de nacimiento del jugador (regla del owner
+  // 28-sep). Sin fecha no se genera el informe: antes se mandaba una edad fija de 13
+  // años, fuera cual fuera la real (P1 bloque 2, inv #2).
+  const age = decimalAgeYears(player?.birthDate);
 
   return (
     <div className="glass rounded-xl p-4 space-y-3">
@@ -247,8 +256,8 @@ function BurnoutReportSection({
         </span>
         {!mutation.data && (
           <button
-            onClick={() => mutation.mutate(buildBurnoutInput(risk, playerName, DEFAULT_PLAYER_AGE))}
-            disabled={mutation.isPending}
+            onClick={() => age !== null && mutation.mutate(buildBurnoutInput(risk, playerName, Math.round(age * 10) / 10))}
+            disabled={mutation.isPending || age === null}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-primary/20 text-primary border border-primary/30 hover:bg-primary/30 transition-colors disabled:opacity-50"
           >
             {mutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
@@ -256,6 +265,10 @@ function BurnoutReportSection({
           </button>
         )}
       </div>
+
+      {age === null && !mutation.data && (
+        <p className="text-[11px] text-muted-foreground">{t("burnoutReport.birthDateRequired")}</p>
+      )}
 
       {mutation.isError && (
         <div className="flex items-start gap-1.5 text-[11px] text-rose-400">

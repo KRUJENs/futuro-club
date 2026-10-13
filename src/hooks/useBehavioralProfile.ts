@@ -13,6 +13,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAuthHeaders } from "@/lib/apiAuth";
+import { IS_DEMO } from "@/lib/demoMode";
 
 const STALE_TIME = 1000 * 60 * 10; // 10 minutes (profiles don't change often)
 
@@ -87,17 +88,30 @@ async function fetchBehavioralProfile(playerId: string): Promise<BehavioralProfi
     const res = await fetch(`${API_BASE}/get-profile?playerId=${encodeURIComponent(playerId)}`, {
       headers: await getAuthHeaders(),
     });
-    if (!res.ok) return generateMockProfile(playerId);
+    if (!res.ok) return fallbackProfile(playerId);
     const data = await res.json();
-    if (data.data?.status === "not_implemented") return generateMockProfile(playerId);
-    const resolved = data.data ?? data ?? null;
+    if (data.data?.status === "not_implemented") return fallbackProfile(playerId);
+    // El servidor devuelve { playerId, profile: { scores, … } } (api/behavioral/[action].ts).
+    // Antes se leía data.data.scores, que no existe ⇒ un perfil REAL nunca llegaba.
+    const envelope = data.data ?? data ?? null;
+    const resolved = envelope && typeof envelope === "object" && "profile" in envelope ? envelope.profile : envelope;
     // Un perfil sin objeto `scores` no es usable: se devuelve null ("sin datos")
     // en vez de un objeto malformado que rompería a los consumidores. Invariante:
     // ante dato ausente se bloquea/abstiene, no se propaga algo que crashee.
-    return resolved && typeof resolved === "object" && resolved.scores ? resolved : null;
+    return resolved && typeof resolved === "object" && resolved.scores ? (resolved as BehavioralProfileData) : null;
   } catch {
-    return generateMockProfile(playerId);
+    return fallbackProfile(playerId);
   }
+}
+
+/**
+ * Sin perfil real ⇒ null (la UI dice «sin datos»). Solo el demo público (IS_DEMO)
+ * enseña un perfil de EJEMPLO, marcado source "mock" y con banner. Antes el ejemplo
+ * salía también en producción ante cualquier error y el IDP lo consumía como real
+ * (P1 bloque 2, inv #4).
+ */
+function fallbackProfile(playerId: string): BehavioralProfileData | null {
+  return IS_DEMO ? generateMockProfile(playerId) : null;
 }
 
 async function computeProfileApi(input: ComputeProfileInput): Promise<BehavioralProfileData> {

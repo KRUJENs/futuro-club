@@ -826,7 +826,8 @@
       "scout": "Ex : Carlos Martínez",
       "parent": "Ex : Juan García",
       "playerName": "Ex : Lucas Moreno"
-    }
+    },
+    "birthDateRequired": "Indique la date de naissance pour créer le joueur"
   },
   "drill": {
     "title": "Solo Drill",
@@ -1005,7 +1006,8 @@
     "generalEvalDesc": "Conclusions et recommandations",
     "teamStrengths": "Forces",
     "toWork": "À travailler",
-    "coachRecommendations": "Recommandations pour l'entraîneur"
+    "coachRecommendations": "Recommandations pour l'entraîneur",
+    "possessionNotObserved": "non observée"
   },
   "roleProfile": {
     "title": "Profil de rôle",
@@ -2166,7 +2168,8 @@
     "noTeamAnalysis": "Aucune analyse d'équipe",
     "noTeamAnalysisDesc": "Ajoutez une vidéo de match et générez le premier rapport tactique",
     "perPlayerWithheld": "Ce rapport contenait des lignes par joueur avec un numéro de maillot estimé par l'IA. Elles sont masquées : sans identification validée par le numéro de maillot, VITAS n'attribue aucun chiffre à un joueur précis. L'analyse porte uniquement sur l'équipe.",
-    "individualTextsHidden": "Textes masqués car ils mentionnaient un joueur précis (numéro de maillot ou numéro) : {{n}}."
+    "individualTextsHidden": "Textes masqués car ils mentionnaient un joueur précis (numéro de maillot ou numéro) : {{n}}.",
+    "notObserved": "non observé"
   },
   "vitasLab": {
     "stepUpload": "AJOUTER",
@@ -4944,7 +4947,8 @@
     "backToTeam": "Retour à l'équipe",
     "teamWellbeingPanel": "Panneau de bien-être de l'équipe",
     "emptyTitle": "Pas encore de joueurs",
-    "emptyDescription": "Ajoutez des joueurs à votre équipe pour voir le risque de décrochage et l'engagement par joueur."
+    "emptyDescription": "Ajoutez des joueurs à votre équipe pour voir le risque de décrochage et l'engagement par joueur.",
+    "noAttendance": "Aucune présence enregistrée pour l'instant"
   },
   "authContext": {
     "supabaseNotConfiguredWithKeys": "Supabase non configuré — ajoutez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY",
@@ -5893,7 +5897,8 @@
     "generate": "Générer un rapport IA",
     "generating": "Génération…",
     "error": "Impossible de générer le rapport. Réessayez.",
-    "hint": "Génère un rapport narratif de risque de décrochage avec l'IA (plan d'intervention)."
+    "hint": "Génère un rapport narratif de risque de décrochage avec l'IA (plan d'intervention).",
+    "birthDateRequired": "Sans date de naissance, le rapport n'est pas généré (l'âge n'est pas inventé)"
   },
   "teamReport": {
     "noContent": "Aucune donnée du match",

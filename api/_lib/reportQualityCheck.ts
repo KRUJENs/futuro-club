@@ -117,8 +117,8 @@ export function checkTeamReportQuality(
 
   // 2. Posesión realista
   const posesion = report.posesion as Record<string, unknown> | undefined;
-  const pct = posesion?.porcentaje as number | undefined;
-  if (pct !== undefined && (pct < 20 || pct > 80)) {
+  const pct = posesion?.porcentaje as number | null | undefined;
+  if (typeof pct === "number" && (pct < 20 || pct > 80)) {
     issues.push(`Posesión ${pct}% fuera de rango realista (20-80%)`);
   }
 

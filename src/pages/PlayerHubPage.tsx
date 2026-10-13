@@ -995,10 +995,12 @@ function WellbeingTab({ playerId }: { playerId: string }) {
         />
       )}
 
-      {attendance && (
+      {/* Solo con asistencia REGISTRADA (o el ejemplo del demo, con banner): sin
+          registros no se pinta un calendario inventado (inv #4). */}
+      {attendance && (attendance.isMock || attendance.records.length > 0) && (
         <AttendanceCalendar
           records={attendance.records.map(r => ({ date: r.date, status: r.status }))}
-          rate={attendance.rate}
+          rate={attendance.rate ?? undefined}
         />
       )}
     </div>

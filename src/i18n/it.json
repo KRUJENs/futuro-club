@@ -826,7 +826,8 @@
       "scout": "Es: Carlos Martínez",
       "parent": "Es: Juan García",
       "playerName": "Es: Lucas Moreno"
-    }
+    },
+    "birthDateRequired": "Inserisci la data di nascita per creare il giocatore"
   },
   "drill": {
     "title": "Solo Drill",
@@ -1005,7 +1006,8 @@
     "generalEvalDesc": "Conclusioni e raccomandazioni",
     "teamStrengths": "Punti di forza",
     "toWork": "Da migliorare",
-    "coachRecommendations": "Raccomandazioni per l'allenatore"
+    "coachRecommendations": "Raccomandazioni per l'allenatore",
+    "possessionNotObserved": "non osservata"
   },
   "roleProfile": {
     "title": "Profilo di ruolo",
@@ -2166,7 +2168,8 @@
     "noTeamAnalysis": "Nessuna analisi di squadra",
     "noTeamAnalysisDesc": "Carica un video di partita e genera il primo report tattico",
     "perPlayerWithheld": "Questo report includeva righe per giocatore con un numero di maglia stimato dall'IA. Sono nascoste: senza un'identificazione convalidata tramite il numero di maglia, VITAS non attribuisce cifre a nessun giocatore specifico. L'analisi è solo di squadra.",
-    "individualTextsHidden": "Testi nascosti perché menzionavano un giocatore specifico (numero di maglia o numero): {{n}}."
+    "individualTextsHidden": "Testi nascosti perché menzionavano un giocatore specifico (numero di maglia o numero): {{n}}.",
+    "notObserved": "non osservato"
   },
   "vitasLab": {
     "stepUpload": "CARICA",
@@ -4944,7 +4947,8 @@
     "backToTeam": "Torna alla squadra",
     "teamWellbeingPanel": "Pannello Benessere della squadra",
     "emptyTitle": "Ancora nessun giocatore",
-    "emptyDescription": "Aggiungi giocatori alla tua squadra per vedere il rischio di abbandono e l'engagement per giocatore."
+    "emptyDescription": "Aggiungi giocatori alla tua squadra per vedere il rischio di abbandono e l'engagement per giocatore.",
+    "noAttendance": "Nessuna presenza registrata finora"
   },
   "authContext": {
     "supabaseNotConfiguredWithKeys": "Supabase non configurato — aggiungi VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY",
@@ -5893,7 +5897,8 @@
     "generate": "Genera report IA",
     "generating": "Generazione…",
     "error": "Impossibile generare il report. Riprova.",
-    "hint": "Genera un report narrativo sul rischio di abbandono con l'IA (piano di intervento)."
+    "hint": "Genera un report narrativo sul rischio di abbandono con l'IA (piano di intervento).",
+    "birthDateRequired": "Senza data di nascita il report non viene generato (l'età non si inventa)"
   },
   "teamReport": {
     "noContent": "Nessun dato della partita",

@@ -182,8 +182,11 @@ export default function PlayerHubPrint() {
                 {player.secondaryPositions && player.secondaryPositions.length > 0 && (
                   <Stat label={t("playerHubPrint.statVersatility")} value={player.secondaryPositions.join(", ")} />
                 )}
-                <Stat label={t("playerHubPrint.statPreferredFoot")} value={player.foot === "right" ? t("playerHubPrint.footRight") : player.foot === "left" ? t("playerHubPrint.footLeft") : t("playerHubPrint.footBoth")} />
-                <Stat label={t("playerHubPrint.statLevel")} value={player.competitiveLevel} />
+                {/* Sin pie o nivel registrados no se pinta la fila (nada «por defecto»). */}
+                {player.foot && (
+                  <Stat label={t("playerHubPrint.statPreferredFoot")} value={player.foot === "right" ? t("playerHubPrint.footRight") : player.foot === "left" ? t("playerHubPrint.footLeft") : t("playerHubPrint.footBoth")} />
+                )}
+                {player.competitiveLevel && <Stat label={t("playerHubPrint.statLevel")} value={player.competitiveLevel} />}
               </div>
               <div style={{ marginTop: 20, display: "flex", gap: 8 }}>
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, background: tier.color, color: "white", fontSize: 11, fontWeight: 800, letterSpacing: "0.08em" }}>

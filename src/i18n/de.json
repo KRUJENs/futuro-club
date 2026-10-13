@@ -826,7 +826,8 @@
       "scout": "Z. B.: Carlos Martínez",
       "parent": "Z. B.: Juan García",
       "playerName": "Z. B.: Lucas Moreno"
-    }
+    },
+    "birthDateRequired": "Gib das Geburtsdatum ein, um den Spieler anzulegen"
   },
   "drill": {
     "title": "Solo Drill",
@@ -1005,7 +1006,8 @@
     "generalEvalDesc": "Schlussfolgerungen und Empfehlungen",
     "teamStrengths": "Stärken",
     "toWork": "Zu verbessern",
-    "coachRecommendations": "Empfehlungen für den Trainer"
+    "coachRecommendations": "Empfehlungen für den Trainer",
+    "possessionNotObserved": "nicht beobachtet"
   },
   "roleProfile": {
     "title": "Rollenprofil",
@@ -2166,7 +2168,8 @@
     "noTeamAnalysis": "Keine Teamanalyse",
     "noTeamAnalysisDesc": "Lade ein Spielvideo hoch und erstelle den ersten taktischen Bericht",
     "perPlayerWithheld": "Dieser Bericht enthielt Zeilen pro Spieler mit einer von der KI geschätzten Rückennummer. Sie werden ausgeblendet: Ohne validierte Identifizierung über die Rückennummer ordnet VITAS keinem bestimmten Spieler Zahlen zu. Die Analyse erfolgt nur auf Teamebene.",
-    "individualTextsHidden": "Ausgeblendete Texte, weil sie einen bestimmten Spieler nannten (Rückennummer oder Nummer): {{n}}."
+    "individualTextsHidden": "Ausgeblendete Texte, weil sie einen bestimmten Spieler nannten (Rückennummer oder Nummer): {{n}}.",
+    "notObserved": "nicht beobachtet"
   },
   "vitasLab": {
     "stepUpload": "HOCHLADEN",
@@ -4944,7 +4947,8 @@
     "backToTeam": "Zurück zum Team",
     "teamWellbeingPanel": "Panel für das Wohlbefinden des Teams",
     "emptyTitle": "Noch keine Spieler",
-    "emptyDescription": "Füge deinem Team Spieler hinzu, um das Abbruchrisiko und das Engagement pro Spieler zu sehen."
+    "emptyDescription": "Füge deinem Team Spieler hinzu, um das Abbruchrisiko und das Engagement pro Spieler zu sehen.",
+    "noAttendance": "Noch keine Anwesenheit erfasst"
   },
   "authContext": {
     "supabaseNotConfiguredWithKeys": "Supabase nicht konfiguriert — füge VITE_SUPABASE_URL und VITE_SUPABASE_ANON_KEY hinzu",
@@ -5893,7 +5897,8 @@
     "generate": "KI-Bericht erstellen",
     "generating": "Generiert…",
     "error": "Der Bericht konnte nicht erstellt werden. Versuche es erneut.",
-    "hint": "Erstellt einen narrativen Bericht zum Abbruchrisiko mit KI (Interventionsplan)."
+    "hint": "Erstellt einen narrativen Bericht zum Abbruchrisiko mit KI (Interventionsplan).",
+    "birthDateRequired": "Ohne Geburtsdatum wird der Bericht nicht erstellt (das Alter wird nicht geschätzt)"
   },
   "teamReport": {
     "noContent": "Keine Spieldaten",

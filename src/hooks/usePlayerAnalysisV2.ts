@@ -624,16 +624,42 @@ export type AnalysisDbRow = {
   reports: Array<{ report_type: string; content: Record<string, unknown> }>;
 };
 
-function normalizeTier(tier?: string): string {
+/** Nivel del agente normalizado; null si no dio ninguno (nunca «medio» por defecto, inv #2). */
+function normalizeTier(tier?: string): string | null {
   const map: Record<string, string> = {
     elite: "elite", alto: "alto", medio_alto: "medio_alto", medio: "medio",
     desarrollo: "desarrollo", high: "alto", mid_high: "medio_alto", mid: "medio",
     developing: "desarrollo", talent: "medio_alto",
   };
-  return map[tier ?? ""] ?? "medio";
+  return map[tier ?? ""] ?? null;
 }
 
-function mapDbRowToLegacy(row: AnalysisDbRow) {
+/**
+ * Comparable del informe best-match. El orquestador guarda el SOBRE del narrador
+ * ({ narrative: { primary_match: { player, club, similarity_pct, narrative } } }, a
+ * veces envuelto en { data }). Antes se leían bm.nombre / bm.score en el nivel superior,
+ * que no existen, así que TODO informe salía como «Jugador Referencia (60%)» (P1 bloque
+ * 2, inv #2). Sin comparable con nombre y porcentaje ⇒ null (no se pinta nada).
+ */
+export function bestMatchFromContent(bm: Record<string, unknown>) {
+  const env = (bm.data as Record<string, unknown> | undefined) ?? bm;
+  const narrative = (env.narrative as Record<string, unknown> | undefined) ?? env;
+  const pm = narrative.primary_match as Record<string, unknown> | undefined;
+  // Forma heredada (nombre/score en el nivel superior) por si algún informe la tuviera.
+  const nombre = (typeof pm?.player === "string" ? pm.player : undefined) ?? (typeof bm.nombre === "string" ? bm.nombre : undefined);
+  const pct = typeof pm?.similarity_pct === "number" ? pm.similarity_pct : typeof bm.score === "number" ? bm.score : null;
+  if (!nombre || pct === null || !Number.isFinite(pct)) return null;
+  return {
+    proPlayerId: "",
+    nombre,
+    posicion: (typeof bm.posicion === "string" ? bm.posicion : ""),
+    club: (typeof pm?.club === "string" ? pm.club : undefined) ?? (typeof bm.club === "string" ? bm.club : ""),
+    score: Math.round(pct),
+    narrativa: (typeof pm?.narrative === "string" ? pm.narrative : undefined) ?? (typeof bm.narrativa === "string" ? bm.narrativa : ""),
+  };
+}
+
+export function mapDbRowToLegacy(row: AnalysisDbRow) {
   const rpts = row.reports ?? [];
   const get = (type: string) =>
     (rpts.find((r) => r.report_type === type)?.content ?? {}) as Record<string, unknown>;
@@ -663,7 +689,8 @@ function mapDbRowToLegacy(row: AnalysisDbRow) {
     videoId:     row.video_id ?? "",
     generatedAt: row.created_at,
     estadoActual: {
-      resumenEjecutivo:    (pr.executive_summary as string) ?? "Análisis completado.",
+      // Sin texto del agente ⇒ vacío (la UI no pinta la sección); nunca «Análisis completado.»
+      resumenEjecutivo:    (pr.executive_summary as string) ?? "",
       nivelActual:         tierLabel,
       fortalezasPrimarias: strengths.map((s) => s.title),
       areasDesarrollo:     areasRaw.map((a) => a.title),
@@ -687,39 +714,35 @@ function mapDbRowToLegacy(row: AnalysisDbRow) {
       // Campos REALES del agente (_dna-profile.ts): primary_style/style_summary,
       // natural_role, pressure_behavior. Los nombres antiguos (playing_style,
       // archetype, mentality) nunca existieron en el schema → siempre defaults.
-      estiloJuego:      ((dna.style_summary as string) ?? (dna.primary_style as string) ?? (dna.playing_style as string) ?? (dna.estiloJuego as string) ?? "Perfil táctico calculado por IA").slice(0, 200),
-      arquetipoTactico: ((dna.natural_role as string) ?? (dna.archetype as string) ?? (dna.arquetipoTactico as string) ?? "DNA Análisis").slice(0, 100),
+      // Sin dato del agente ⇒ vacío. Antes «Perfil táctico calculado por IA», «DNA Análisis»
+      // y «Determinado y competitivo» se pintaban como si fueran del análisis (inv #2).
+      estiloJuego:      ((dna.style_summary as string) ?? (dna.primary_style as string) ?? (dna.playing_style as string) ?? (dna.estiloJuego as string) ?? "").slice(0, 200),
+      arquetipoTactico: ((dna.natural_role as string) ?? (dna.archetype as string) ?? (dna.arquetipoTactico as string) ?? "").slice(0, 100),
       patrones:         [] as never[],
-      mentalidad:       ((dna.pressure_behavior as string) ?? (dna.mentality as string) ?? (dna.mentalidad as string) ?? "Determinado y competitivo").slice(0, 200),
+      mentalidad:       ((dna.pressure_behavior as string) ?? (dna.mentality as string) ?? (dna.mentalidad as string) ?? "").slice(0, 200),
     },
     jugadorReferencia: {
       top5: [] as never[],
-      bestMatch: {
-        proPlayerId: "",
-        nombre:   (bm.nombre as string) ?? "Jugador Referencia",
-        posicion: (bm.posicion as string) ?? "",
-        club:     (bm.club as string) ?? "",
-        score:    (bm.score as number) ?? 60,
-        narrativa:(bm.narrativa as string) ?? "",
-      },
+      // null si el narrador no produjo un comparable: nunca «Jugador Referencia (60%)».
+      bestMatch: bestMatchFromContent(bm),
     },
     proyeccionCarrera: hasProjection ? {
       escenarioOptimista: {
-        descripcion:   ((pj.optimistic as Record<string,unknown>)?.description as string) ?? (pj.escenarioOptimista as Record<string,unknown>)?.descripcion as string ?? "Progresión favorable",
-        nivelProyecto: ((pj.optimistic as Record<string,unknown>)?.level as string) ?? "Semi-pro",
+        descripcion:   ((pj.optimistic as Record<string,unknown>)?.description as string) ?? (pj.escenarioOptimista as Record<string,unknown>)?.descripcion as string ?? "",
+        nivelProyecto: ((pj.optimistic as Record<string,unknown>)?.level as string) ?? "",
         clubTipo:      "",
       },
       escenarioRealista: {
-        descripcion:   ((pj.realistic as Record<string,unknown>)?.description as string) ?? (pj.escenarioRealista as Record<string,unknown>)?.descripcion as string ?? "Desarrollo consistente",
-        nivelProyecto: ((pj.realistic as Record<string,unknown>)?.level as string) ?? "Amateur alto",
+        descripcion:   ((pj.realistic as Record<string,unknown>)?.description as string) ?? (pj.escenarioRealista as Record<string,unknown>)?.descripcion as string ?? "",
+        nivelProyecto: ((pj.realistic as Record<string,unknown>)?.level as string) ?? "",
         clubTipo:      "",
       },
       factoresClave: (pj.key_factors as string[]) ?? [],
       riesgos:       (pj.risks as string[]) ?? [],
     } : null,
     planDesarrollo: {
-      objetivo6meses:  (dp.goal_6months as string) ?? (dp.objetivo6meses as string) ?? "Consolidar fundamentos técnicos",
-      objetivo18meses: (dp.goal_18months as string) ?? (dp.objetivo18meses as string) ?? "Transición a nivel competitivo superior",
+      objetivo6meses:  (dp.goal_6months as string) ?? (dp.objetivo6meses as string) ?? "",
+      objetivo18meses: (dp.goal_18months as string) ?? (dp.objetivo18meses as string) ?? "",
       pilaresTrabajo:  (dp.pillars as Array<{ pilar: string; acciones: string[]; prioridad: string }>) ?? [],
     },
     // confianza = confidence REAL del VSI compuesto, solo si > 0. Bloqueado ⇒ gated() ⇒

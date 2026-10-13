@@ -44,7 +44,9 @@ export function playerToColumns(p: Player) {
     weight_kg: p.weight,
     sitting_height: p.sittingHeight ?? null,
     leg_length: p.legLength ?? null,
-    competitive_level: p.competitiveLevel ?? "Regional",
+    // Sin nivel elegido se manda null. OJO: el trigger de la migración 024 lo rellena con
+    // 'Regional' en la base (residuo documentado en docs/pendientes-metricas.md, P2).
+    competitive_level: p.competitiveLevel ?? null,
     minutes_played: p.minutesPlayed ?? 0,
     gender: p.gender ?? null, // sin sexo registrado ⇒ null (no asumir masculino; invariante #5)
     metric_speed: p.metrics?.speed ?? 0,

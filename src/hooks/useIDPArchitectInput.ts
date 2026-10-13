@@ -93,7 +93,11 @@ function extractVSIFromAnalyses(analyses: unknown[] | undefined): {
 
 export function useIDPArchitectInput(playerId: string | undefined): IDPInputBundle {
   const { data: player, isLoading: loadingPlayer } = usePlayerById(playerId);
-  const { data: behavioralProfile } = useBehavioralProfile(playerId);
+  const { data: behavioralProfileRaw } = useBehavioralProfile(playerId);
+  // Un perfil de EJEMPLO (source "mock", solo en el demo) no alimenta el IDP ni cuenta
+  // como señal: antes entraba como real y la riqueza de datos lo marcaba en verde
+  // (P1 bloque 2, inv #4).
+  const behavioralProfile = behavioralProfileRaw && behavioralProfileRaw.source !== "mock" ? behavioralProfileRaw : undefined;
   const { data: savedAnalyses } = useSavedAnalysesV2(playerId ?? "");
   const { riskData: injuryRisk, injuries } = useInjuryRisk(playerId);
   const hasInjuries = Array.isArray(injuries) && injuries.length > 0;

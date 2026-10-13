@@ -18,6 +18,7 @@ import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/rea
 import { getAuthHeaders } from "@/lib/apiAuth";
 import i18n from "@/i18n";
 import { normalizeLocale, type ReportLocale } from "@/lib/shared/locale";
+import { IS_DEMO } from "@/lib/demoMode";
 
 const STALE_TIME = 1000 * 60 * 5; // 5 minutes
 
@@ -86,7 +87,8 @@ export interface AttendanceRecord {
 
 export interface AttendanceProfile {
   playerId: string;
-  rate: number;
+  /** % de asistencia (0-100). null si no hay sesiones registradas (no se inventa 0 ni 100). */
+  rate: number | null;
   totalSessions: number;
   attended: number;
   absent: number;
@@ -172,8 +174,17 @@ async function fetchEngagementHistory(playerId: string): Promise<EngagementSnaps
   return generateMockEngagementHistory(playerId);
 }
 
+/** Sin sesiones registradas: perfil VACÍO con rate null (ni 0 ni 100 inventados). */
+function emptyAttendance(playerId: string): AttendanceProfile {
+  return { playerId, rate: null, totalSessions: 0, attended: 0, absent: 0, late: 0, excused: 0, consecutiveAbsences: 0, records: [], isMock: false };
+}
+
 async function fetchAttendance(playerId: string): Promise<AttendanceProfile> {
-  // Try real Supabase-backed service first (graceful fallback to mock)
+  // Asistencia REAL (Supabase). Sin registros ⇒ perfil vacío, no un calendario de
+  // ejemplo: antes caía a generateMockAttendance y la UI lo pintaba junto a un riesgo
+  // real sin aviso (P1 bloque 2, inv #4). El ejemplo solo existe en el demo público
+  // (IS_DEMO), marcado isMock y con banner. Un error de la base se propaga (la consulta
+  // queda en error y no se pinta nada), no se tapa con datos inventados.
   try {
     const { WellbeingService } = await import("@/services/real/wellbeingService");
     const records = await WellbeingService.getAttendance(playerId, 60);
@@ -191,7 +202,9 @@ async function fetchAttendance(playerId: string): Promise<AttendanceProfile> {
       }
       return {
         playerId,
-        rate: total > 0 ? attended / total : 0,
+        // % 0-100, como lo esperan AttendanceCalendar (umbrales 60/80) y el scorer de
+        // riesgo; antes aquí salía una fracción 0-1 y el calendario pintaba «1%».
+        rate: Math.round((attended / total) * 100),
         totalSessions: total,
         attended,
         absent,
@@ -209,10 +222,14 @@ async function fetchAttendance(playerId: string): Promise<AttendanceProfile> {
         })),
       };
     }
+    return IS_DEMO ? generateMockAttendance(playerId) : emptyAttendance(playerId);
   } catch (err) {
-    console.warn("[useWellbeing] attendance service failed, using mock:", err);
+    if (IS_DEMO) {
+      console.warn("[useWellbeing] attendance service failed, using demo mock:", err);
+      return generateMockAttendance(playerId);
+    }
+    throw err;
   }
-  return generateMockAttendance(playerId);
 }
 
 async function saveQuestionnaireApi(input: QuestionnaireInput): Promise<{ status: string }> {
