@@ -466,10 +466,26 @@ export default function ParentalConsentPage() {
       const newStatus = data.action === "grant" ? "granted" : "denied";
 
       if (SUPABASE_CONFIGURED) {
+        const logAudit = async () => {
+          const { error: auditErr } = await supabase
+            .from("consent_audit_log")
+            .insert({
+              player_id: data.playerId,
+              action: data.action === "grant" ? "consent_granted" : "consent_denied",
+              actor_email: user?.email ?? "unknown",
+              details: { guardian_name: data.guardianName, guardian_email: data.guardianEmail },
+            });
+          if (auditErr) console.error("Audit log error:", auditErr);
+        };
+
         // Revocar: la retirada se hace PRIMERO en el servidor (marca el consentimiento como
         // retirado; el gate de análisis no mira parental_consent_status). Si falla, se lanza y
-        // la pantalla no muestra «revocado».
-        if (data.action === "deny") await withdrawConsentOnServer(data.playerId);
+        // la pantalla no muestra «revocado». Si sale bien, se anota en el historial de esta
+        // pantalla ANTES del rótulo, para que quede aunque el rótulo falle.
+        if (data.action === "deny") {
+          await withdrawConsentOnServer(data.playerId);
+          await logAudit();
+        }
 
         // Update player consent status (solo rótulo de esta pantalla)
         const { error: playerErr } = await supabase
@@ -486,16 +502,7 @@ export default function ParentalConsentPage() {
         if (playerErr && data.action === "deny") throw new Error(WITHDRAWN_LABEL_FAILED);
         if (playerErr) throw playerErr;
 
-        // Log to audit
-        const { error: auditErr } = await supabase
-          .from("consent_audit_log")
-          .insert({
-            player_id: data.playerId,
-            action: data.action === "grant" ? "consent_granted" : "consent_denied",
-            actor_email: user?.email ?? "unknown",
-            details: { guardian_name: data.guardianName, guardian_email: data.guardianEmail },
-          });
-        if (auditErr) console.error("Audit log error:", auditErr);
+        if (data.action === "grant") await logAudit();
       }
 
       return { playerId: data.playerId, status: newStatus };
@@ -512,6 +519,9 @@ export default function ParentalConsentPage() {
         toast.warning(t("parentalConsentPage.toast.withdrawnLabelError"));
         queryClient.invalidateQueries({ queryKey: ["consent-players"] });
         queryClient.invalidateQueries({ queryKey: ["consent-audit"] });
+        // La retirada ya vale: se cierra el formulario (no hay nada que reintentar aquí).
+        setShowConsentForm(false);
+        setSelectedPlayer(null);
         return;
       }
       toast.error(t("parentalConsentPage.toast.consentError"));

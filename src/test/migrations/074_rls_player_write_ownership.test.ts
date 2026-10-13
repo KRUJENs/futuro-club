@@ -24,8 +24,11 @@ import { buildState, splitStatements, type MigrationFile } from "./securityDefin
 const raw = import.meta.glob("/supabase/migrations/*.sql", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 const checks = import.meta.glob("/supabase/checks/074_*.sql", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
+// Este test fija el estado de la 074 tal como quedó con la 076: lo POSTERIOR (la 077
+// cierra las EXCLUIDAS, P1 bloque 1) se comprueba en 077_rls_remaining_player_writes.test.ts.
 const ALL: MigrationFile[] = Object.entries(raw)
   .map(([path, sql]) => ({ name: path.split("/").pop() ?? path, sql }))
+  .filter((f) => f.name < "077_")
   .sort((a, b) => (a.name < b.name ? -1 : 1));
 const FILE = "074_rls_player_write_ownership.sql";
 const sql = raw[`/supabase/migrations/${FILE}`] ?? "";
@@ -42,7 +45,7 @@ const TABLES = [
 /**
  * MISMA CLASE, NO INCLUIDAS en la 074 (documentadas en su cabecera y en
  * docs/pendientes-metricas.md): otra regla (rivales / propiedad de la sesión) o
- * las arregla otro PR (tracking_jobs → #308).
+ * de otro PR. Las cierra la 077 (P1 bloque 1): 077_rls_remaining_player_writes.test.ts.
  */
 const EXCLUDED = [
   "public.match_events|INSERT|Users manage their own events",

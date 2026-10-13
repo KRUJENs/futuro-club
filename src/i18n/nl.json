@@ -1104,7 +1104,6 @@
     "tacticalAnalysisComplete": "Tactische analyse voltooid",
     "consentGranted": "Ouderlijke toestemming verleend",
     "consentSaveError": "De toestemming kon niet worden opgeslagen",
-    "consentDenied": "Toestemming geweigerd · gegevens van de minderjarige geanonimiseerd",
     "reminderSent": "Herinnering verzonden naar de voogd",
     "emailNotConfigured": "E-maildienst nog niet geconfigureerd",
     "reminderError": "Fout bij verzenden van herinnering",
@@ -6133,7 +6132,7 @@
       "dsarNotAllowed": "Geen toestemming voor deze speler: alleen het account dat hem heeft geregistreerd kan dit AVG-recht uitoefenen",
       "consentSuccess": "Toestemming succesvol geregistreerd",
       "consentError": "Fout bij registreren van toestemming",
-      "withdrawnLabelError": "Toestemming ingetrokken, maar het label op het scherm kon niet worden bijgewerkt. Laad de pagina opnieuw."
+      "withdrawnLabelError": "Toestemming ingetrokken. Het label op dit scherm kon niet worden bijgewerkt en toont mogelijk nog de vorige status."
     },
     "dsar": {
       "title": "ARCO-rechten · {{name}}",

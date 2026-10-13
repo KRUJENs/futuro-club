@@ -1104,7 +1104,6 @@
     "tacticalAnalysisComplete": "Tactical analysis complete",
     "consentGranted": "Parental consent granted",
     "consentSaveError": "Could not save the consent",
-    "consentDenied": "Consent denied · minor's data anonymized",
     "reminderSent": "Reminder sent to the guardian",
     "emailNotConfigured": "Email service not configured yet",
     "reminderError": "Failed to send the reminder",
@@ -6133,7 +6132,7 @@
       "dsarNotAllowed": "No permission for this player: only the account that registered them can exercise this GDPR right",
       "consentSuccess": "Consent recorded successfully",
       "consentError": "Error recording consent",
-      "withdrawnLabelError": "Consent withdrawn, but the on-screen label could not be updated. Reload the page."
+      "withdrawnLabelError": "Consent withdrawn. The label on this screen could not be updated and may still show the previous status."
     },
     "dsar": {
       "title": "ARCO Rights · {{name}}",

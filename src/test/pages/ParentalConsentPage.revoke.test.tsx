@@ -27,7 +27,7 @@ vi.mock("react-i18next", async () => {
 const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
 vi.mock("sonner", () => ({ toast: toastMock }));
 
-const sb = vi.hoisted(() => ({ updateError: null as null | { message: string }, updates: 0, playerReads: 0 }));
+const sb = vi.hoisted(() => ({ updateError: null as null | { message: string }, updates: 0, playerReads: 0, auditInserts: [] as string[] }));
 
 vi.mock("@/lib/supabase", () => ({
   SUPABASE_CONFIGURED: true,
@@ -66,7 +66,10 @@ vi.mock("@/lib/supabase", () => ({
       // consent_audit_log
       return {
         select: () => ({ order: () => ({ limit: async () => ({ data: [], error: null }) }) }),
-        insert: async () => ({ error: null }),
+        insert: async (row: { action: string }) => {
+          sb.auditInserts.push(row.action);
+          return { error: null };
+        },
       };
     },
   },
@@ -89,6 +92,7 @@ beforeEach(() => {
   sb.updateError = null;
   sb.updates = 0;
   sb.playerReads = 0;
+  sb.auditInserts = [];
   withdrawStatus = 200;
   Object.values(toastMock).forEach((f) => f.mockReset());
   fetchMock = vi.fn(async () =>
@@ -131,6 +135,7 @@ describe("/admin/consent · revocar", () => {
     await revoke();
     await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith(P.toast.consentError));
     expect(sb.updates).toBe(0);
+    expect(sb.auditInserts).toEqual([]);
     expect(toastMock.success).not.toHaveBeenCalled();
   });
 
@@ -140,5 +145,9 @@ describe("/admin/consent · revocar", () => {
     await waitFor(() => expect(toastMock.warning).toHaveBeenCalledWith(P.toast.withdrawnLabelError));
     expect(toastMock.error).not.toHaveBeenCalled();
     await waitFor(() => expect(sb.playerReads).toBeGreaterThan(readsBefore));
+    // La revocación queda en el historial de la pantalla aunque falle el rótulo, y el
+    // formulario se cierra (no hay nada que reintentar).
+    expect(sb.auditInserts).toEqual(["consent_denied"]);
+    await waitFor(() => expect(screen.queryByText(P.form.registerDenial)).toBeNull());
   });
 });
