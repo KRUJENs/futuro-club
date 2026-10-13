@@ -72,19 +72,6 @@ export function useGrantConsent() {
   });
 }
 
-export function useDenyConsent() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ playerId, guardianName }: { playerId: string; guardianName?: string }) =>
-      ParentalConsentService.deny(playerId, guardianName),
-    onSuccess: () => {
-      toast.warning(i18n.t("toasts.consentDenied"));
-      qc.invalidateQueries({ queryKey: ["parental-consent"] });
-      qc.invalidateQueries({ queryKey: ["parental-consents"] });
-    },
-  });
-}
-
 export function useSendConsentReminder() {
   return useMutation({
     mutationFn: (playerId: string) => ParentalConsentService.sendReminder(playerId),

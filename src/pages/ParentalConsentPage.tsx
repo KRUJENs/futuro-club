@@ -53,6 +53,9 @@ interface AuditEntry {
 
 type ConsentTab = "pending" | "granted" | "denied" | "audit";
 
+/** El servidor retiró el consentimiento pero no se pudo actualizar el rótulo de la pantalla. */
+const WITHDRAWN_LABEL_FAILED = "withdrawn_label_update_failed";
+
 /* ── Mock data ─────────────────────────────────────────────────── */
 
 const MOCK_PLAYERS: ConsentPlayer[] = [
@@ -478,6 +481,9 @@ export default function ParentalConsentPage() {
             parental_consent_guardian_email: data.guardianEmail,
           })
           .eq("id", data.playerId);
+        // Si el servidor YA retiró el consentimiento, un fallo del rótulo no puede presentarse
+        // como «no se ha registrado»: la retirada vale. Se avisa aparte y se refresca la lista.
+        if (playerErr && data.action === "deny") throw new Error(WITHDRAWN_LABEL_FAILED);
         if (playerErr) throw playerErr;
 
         // Log to audit
@@ -501,7 +507,13 @@ export default function ParentalConsentPage() {
       setShowConsentForm(false);
       setSelectedPlayer(null);
     },
-    onError: () => {
+    onError: (err) => {
+      if (err instanceof Error && err.message === WITHDRAWN_LABEL_FAILED) {
+        toast.warning(t("parentalConsentPage.toast.withdrawnLabelError"));
+        queryClient.invalidateQueries({ queryKey: ["consent-players"] });
+        queryClient.invalidateQueries({ queryKey: ["consent-audit"] });
+        return;
+      }
       toast.error(t("parentalConsentPage.toast.consentError"));
     },
   });

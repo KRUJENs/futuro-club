@@ -6131,7 +6131,8 @@
       "deletionError": "Erreur lors de la demande de suppression",
       "dsarNotAllowed": "Aucune autorisation sur ce joueur : seul le compte qui l'a enregistré peut exercer ce droit RGPD",
       "consentSuccess": "Consentement enregistré avec succès",
-      "consentError": "Erreur lors de l'enregistrement du consentement"
+      "consentError": "Erreur lors de l'enregistrement du consentement",
+      "withdrawnLabelError": "Consentement retiré, mais l'étiquette à l'écran n'a pas pu être mise à jour. Rechargez la page."
     },
     "dsar": {
       "title": "Droits ARCO · {{name}}",

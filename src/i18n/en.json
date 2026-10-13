@@ -6132,7 +6132,8 @@
       "deletionError": "Error requesting deletion",
       "dsarNotAllowed": "No permission for this player: only the account that registered them can exercise this GDPR right",
       "consentSuccess": "Consent recorded successfully",
-      "consentError": "Error recording consent"
+      "consentError": "Error recording consent",
+      "withdrawnLabelError": "Consent withdrawn, but the on-screen label could not be updated. Reload the page."
     },
     "dsar": {
       "title": "ARCO Rights · {{name}}",
