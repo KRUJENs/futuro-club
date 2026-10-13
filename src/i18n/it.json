@@ -6462,10 +6462,10 @@
     "title": "Consenso del tutore legale",
     "intro": "Il responsabile del minore su VITAS ti chiede il consenso come genitore o tutore legale. Ecco cosa autorizzi:",
     "what1": "L'analisi dei video di allenamenti e partite in cui compare il minore.",
-    "what2": "La conservazione dei risultati di queste analisi nella sua scheda, accessibile solo al suo responsabile.",
+    "what2": "La conservazione dei risultati di queste analisi nella sua scheda VITAS, gestita dal suo responsabile.",
     "what3": "Potrai revocarlo quando vuoi con il link che ti invieremo dopo la conferma.",
     "dniLabel": "Il tuo numero di documento (tutore legale)",
-    "dniHint": "Viene salvata solo un'impronta cifrata, mai il numero.",
+    "dniHint": "Viene conservata un'impronta (hash) del documento, non il numero così com'è. Serve come prova di chi ha confermato.",
     "termsBefore": "Ho letto e accetto le",
     "termsLink": "condizioni d'uso",
     "privacyBefore": "Ho letto e accetto l'",
@@ -6478,7 +6478,9 @@
       "already": "Questo consenso era già confermato.",
       "withdrawEmailed": "Ti abbiamo inviato via email il link per revocarlo quando vuoi. Puoi anche usare questo:",
       "withdrawNoEmail": "Non siamo riusciti a inviarti l'email di conferma. Conserva questo link per revocare il consenso quando vuoi:",
-      "withdrawLink": "Revoca il consenso"
+      "withdrawLink": "Revoca il consenso",
+      "alreadyHint": "Per revocarlo, usa il link dell'email di conferma che hai ricevuto la prima volta.",
+      "withdrawUnavailable": "Non siamo riusciti a creare il tuo link per revocare il consenso. Se vuoi revocarlo, chiedilo al responsabile del giocatore: può farlo dall'app."
     },
     "errors": {
       "missingToken": "Link non valido: manca il codice. Apri il link completo dell'email.",
@@ -6494,7 +6496,7 @@
     "title": "Revoca il consenso",
     "explainer": "Se lo revochi, i video del minore non verranno più analizzati. Potrai darlo di nuovo se il responsabile te lo chiede.",
     "confirm": "Revoca il consenso",
-    "done": "Consenso revocato. I video del minore non vengono più analizzati.",
+    "done": "Consenso revocato. Questo consenso non permette più di analizzare i video del minore.",
     "already": "Questo consenso era già revocato.",
     "goHome": "Vai a VITAS",
     "errors": {

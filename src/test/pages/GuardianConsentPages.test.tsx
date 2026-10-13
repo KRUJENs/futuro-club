@@ -62,7 +62,29 @@ describe("/auth/verify-consent", () => {
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe("/api/auth/verify-consent");
     expect(JSON.parse(String(init.body))).toEqual({ token: TOKEN, parentDni: "12345678Z", acceptedTerms: true, acceptedPrivacy: true });
-    expect(screen.getByText("verifyConsentPage.success.withdrawLink").getAttribute("href")).toBe(`/auth/withdraw-consent?token=${"b".repeat(64)}`);
+    // El código va tras «#»: el fragmento no viaja a ningún servidor.
+    expect(screen.getByText("verifyConsentPage.success.withdrawLink").getAttribute("href")).toBe(`/auth/withdraw-consent#token=${"b".repeat(64)}`);
+    expect(screen.queryByTestId("withdraw-unavailable")).toBeNull();
+  });
+
+  it("enlace con el código tras «#» (formato del correo): se lee y se quita de la barra; nada al abrir", async () => {
+    openAt(`/auth/verify-consent#token=${TOKEN}`, <VerifyConsentPage />);
+    fireEvent.change(await screen.findByLabelText("verifyConsentPage.dniLabel"), { target: { value: "12345678Z" } });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(window.location.hash).toBe("");
+    for (const box of screen.getAllByRole("checkbox")) fireEvent.click(box);
+    fireEvent.click(screen.getByText("verifyConsentPage.confirm"));
+    await screen.findByText("verifyConsentPage.success.done");
+    expect(JSON.parse(String((fetchMock.mock.calls[0] as [string, RequestInit])[1].body)).token).toBe(TOKEN);
+  });
+
+  it("confirmado SIN enlace de retirada (no se pudo generar) → se le dice cómo retirarlo", async () => {
+    reply = { status: 200, body: { success: true, data: { verified: true, withdrawToken: null, confirmationEmailSent: false } } };
+    openAt(`/auth/verify-consent#token=${TOKEN}`, <VerifyConsentPage />);
+    fireEvent.change(await screen.findByLabelText("verifyConsentPage.dniLabel"), { target: { value: "12345678Z" } });
+    for (const box of screen.getAllByRole("checkbox")) fireEvent.click(box);
+    fireEvent.click(screen.getByText("verifyConsentPage.confirm"));
+    expect(await screen.findByTestId("withdraw-unavailable")).toHaveTextContent("verifyConsentPage.success.withdrawUnavailable");
   });
 
   it("enlace caducado (410) → lo dice; no «confirmado»", async () => {

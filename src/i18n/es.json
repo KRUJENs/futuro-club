@@ -6463,10 +6463,10 @@
     "title": "Consentimiento del tutor legal",
     "intro": "El responsable del menor en VITAS te pide tu consentimiento como padre, madre o tutor legal. Esto es lo que autorizas:",
     "what1": "Que se analicen los vídeos de entrenamientos y partidos en los que aparece el menor.",
-    "what2": "Que los resultados de esos análisis se guarden en su ficha, a la que solo accede su responsable.",
+    "what2": "Que los resultados de esos análisis se guarden en su ficha de VITAS, que gestiona su responsable.",
     "what3": "Podrás retirarlo cuando quieras con el enlace que te enviaremos al confirmar.",
     "dniLabel": "Tu DNI / NIE (tutor legal)",
-    "dniHint": "Solo se guarda una huella cifrada, nunca el número.",
+    "dniHint": "Se guarda una huella (hash) del documento, no el número tal cual. Sirve como prueba de quién confirmó.",
     "termsBefore": "He leído y acepto las",
     "termsLink": "condiciones de uso",
     "privacyBefore": "He leído y acepto la",
@@ -6479,7 +6479,9 @@
       "already": "Este consentimiento ya estaba confirmado.",
       "withdrawEmailed": "Te hemos enviado un correo con el enlace para retirarlo cuando quieras. También puedes usar este:",
       "withdrawNoEmail": "No pudimos enviarte el correo de confirmación. Guarda este enlace para retirar el consentimiento cuando quieras:",
-      "withdrawLink": "Retirar el consentimiento"
+      "withdrawLink": "Retirar el consentimiento",
+      "alreadyHint": "Para retirarlo, usa el enlace del correo de confirmación que recibiste la primera vez.",
+      "withdrawUnavailable": "No pudimos generar tu enlace para retirar el consentimiento. Si quieres retirarlo, pídeselo al responsable del jugador: puede hacerlo desde la app."
     },
     "errors": {
       "missingToken": "Enlace no válido: falta el código. Abre el enlace completo del correo.",
@@ -6495,7 +6497,7 @@
     "title": "Retirar el consentimiento",
     "explainer": "Si lo retiras, se dejarán de analizar los vídeos del menor. Podrás volver a darlo si el responsable te lo pide de nuevo.",
     "confirm": "Retirar el consentimiento",
-    "done": "Consentimiento retirado. Ya no se analizan los vídeos del menor.",
+    "done": "Consentimiento retirado. Con este consentimiento ya no se pueden analizar los vídeos del menor.",
     "already": "Este consentimiento ya estaba retirado.",
     "goHome": "Ir a VITAS",
     "errors": {

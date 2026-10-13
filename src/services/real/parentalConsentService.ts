@@ -57,16 +57,20 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 
 /**
  * Estado del consentimiento del tutor de estos jugadores (solo los que son del usuario). Si
- * el servidor no responde, cada jugador queda «unavailable» (nunca «verificado»).
+ * el servidor no responde, cada jugador queda «unavailable» (nunca «verificado»). Un jugador que
+ * el servidor no devuelve (p. ej. aún no sincronizado, o que no es del usuario) también queda
+ * «unavailable»: antes la tarjeta se quedaba cargando para siempre (revisión del PR #314).
  */
 export async function fetchConsentStatus(playerIds: string[]): Promise<Record<string, GuardianConsentStatus>> {
   const ids = Array.from(new Set(playerIds.filter(Boolean))).slice(0, 50);
   if (ids.length === 0) return {};
+  const unavailable = { state: "unavailable" as const };
   try {
     const data = await postJson<{ statuses?: Record<string, GuardianConsentStatus> }>("/api/auth/consent-status", { playerIds: ids });
-    return data.statuses ?? {};
+    const got = data.statuses ?? {};
+    return Object.fromEntries(ids.map((id) => [id, got[id] ?? unavailable]));
   } catch {
-    return Object.fromEntries(ids.map((id) => [id, { state: "unavailable" as const }]));
+    return Object.fromEntries(ids.map((id) => [id, unavailable]));
   }
 }
 

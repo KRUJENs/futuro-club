@@ -42,6 +42,12 @@ const st = vi.hoisted(() => ({
   consents: [] as Array<Record<string, unknown>>,
   audit: [] as Array<Record<string, unknown>>,
   emails: [] as Array<{ to: string; subject: string; html: string }>,
+  /**
+   * Carrera simulada: la fila con este id pasa a VERIFICADA justo en el punto de decisión de la
+   * sustitución — DESPUÉS de leer las pendientes (código que lee y luego escribe) o JUSTO ANTES de un
+   * PATCH condicional (código atómico).
+   */
+  raceVerifyId: null as string | null,
 }));
 
 const yearsAgo = (n: number) => `${new Date().getUTCFullYear() - n}-01-01`;
@@ -141,6 +147,7 @@ beforeEach(() => {
   st.consents = [];
   st.audit = [];
   st.emails = [];
+  st.raceVerifyId = null;
   vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const href = String(input instanceof Request ? input.url : input);
     if (href === "https://api.resend.com/emails") {
@@ -153,20 +160,44 @@ beforeEach(() => {
     const rowsOf: Record<string, Row[]> = { players: st.players, parental_consents: st.consents, gdpr_audit_log: st.audit };
     const rows = rowsOf[table];
     if (!rows) throw new Error(`petición no simulada: ${method} ${href}`);
+    // Como PostgREST: `select` proyecta, `order=col.desc|asc` ordena y `limit` recorta.
+    const project = (out: Row[]) => {
+      const sel = url.searchParams.get("select");
+      return sel && sel !== "*" ? out.map((r) => Object.fromEntries(sel.split(",").map((k) => [k, r[k]]))) : out;
+    };
     if (method === "GET") {
       let out = filterRows(rows, url.searchParams);
-      const sel = url.searchParams.get("select");
-      if (sel && sel !== "*") out = out.map((r) => Object.fromEntries(sel.split(",").map((k) => [k, r[k]])));
-      return Response.json(out);
+      const order = url.searchParams.get("order");
+      if (order) {
+        const [col, dir] = order.split(".");
+        out = [...out].sort((a, b) => (String(a[col] ?? "") < String(b[col] ?? "") ? -1 : 1) * (dir === "desc" ? -1 : 1));
+      }
+      const limit = Number(url.searchParams.get("limit"));
+      if (Number.isFinite(limit) && limit > 0) out = out.slice(0, limit);
+      const body = project(out);
+      // Carrera: el tutor confirma justo DESPUÉS de que la sustitución lea las pendientes.
+      if (st.raceVerifyId && table === "parental_consents" && url.searchParams.get("email_verified") === "is.false") {
+        Object.assign(rows.find((r) => r.id === st.raceVerifyId)!, { email_verified: true });
+        st.raceVerifyId = null;
+      }
+      return Response.json(body);
     }
     if (method === "POST") {
       rows.push(JSON.parse(String(init?.body)));
       return new Response(null, { status: 201 });
     }
     if (method === "PATCH") {
+      // Carrera (código atómico): el tutor confirma justo ANTES del PATCH condicional.
+      if (st.raceVerifyId && table === "parental_consents") {
+        Object.assign(rows.find((r) => r.id === st.raceVerifyId)!, { email_verified: true });
+        st.raceVerifyId = null;
+      }
       const patch = JSON.parse(String(init?.body)) as Row;
-      for (const r of filterRows(rows, url.searchParams)) Object.assign(r, patch);
-      return new Response(null, { status: 204 });
+      const hit = filterRows(rows, url.searchParams);
+      for (const r of hit) Object.assign(r, patch);
+      // `Prefer: return=representation` ⇒ devuelve las filas cambiadas.
+      const prefer = String((init?.headers as Record<string, string> | undefined)?.Prefer ?? "");
+      return prefer.includes("return=representation") ? Response.json(project(hit)) : new Response(null, { status: 204 });
     }
     throw new Error(`método no simulado: ${method} ${href}`);
   }));
@@ -190,7 +221,8 @@ const status = async (playerIds: string[]) => {
   return { status: res.status, body: (await res.json()) as { data: { statuses: Record<string, Record<string, unknown>> } } };
 };
 const linkToken = (html: string, page: "verify-consent" | "withdraw-consent") => {
-  const m = new RegExp(`/auth/${page}\\?token=([0-9a-f]{64})`).exec(html);
+  // El código va tras «#» (el fragmento no viaja a ningún servidor).
+  const m = new RegExp(`/auth/${page}[?#]token=([0-9a-f]{64})`).exec(html);
   if (!m) throw new Error(`el correo no trae el enlace ${page}`);
   return m[1];
 };
@@ -223,8 +255,10 @@ describe("consentimiento del tutor · de punta a punta", () => {
     expect(st.consents[0].parent_dni_hash).toBe(await sha256Hex(DNI));
     expect(JSON.stringify(st.consents) + JSON.stringify(st.audit)).not.toContain(DNI);
     expect(st.audit.find((a) => a.action === "consent_email_verified")!.metadata).toMatchObject({
-      guardian_dni_hash: await sha256Hex(DNI), accepted_terms_version: "v1.0", accepted_privacy_version: "v1.0",
+      guardian_dni_provided: true, accepted_terms_version: "v1.0", accepted_privacy_version: "v1.0",
     });
+    // El hash del DNI NO va a gdpr_audit_log (de solo añadir, no se borra con el jugador).
+    expect(JSON.stringify(st.audit)).not.toContain(await sha256Hex(DNI));
     // Correo de confirmación (mismo idioma) con el enlace de RETIRADA (el mismo que ve la página).
     expect(st.emails).toHaveLength(2);
     expect(st.emails[1]).toMatchObject({ to: "marta@familia.test", subject: "VITAS · Consent confirmed" });
@@ -279,6 +313,51 @@ describe("consentimiento del tutor · de punta a punta", () => {
     await requestSignature({ parentName: "<script>alert(1)</script>" });
     expect(st.emails[0].html).not.toContain("<script>");
     expect(st.emails[0].html).toContain("&lt;script&gt;");
+  });
+});
+
+describe("revisión del PR #314", () => {
+  const pendingRow = (i: number) => ({
+    id: `9${String(i).padStart(7, "0")}-0000-4000-8000-000000000000`,
+    player_id: "pMinor", tenant_id: TENANT, parent_email: `x${i}@x.test`, parent_name: "X",
+    email_verified: false, withdrawn_at: null, signed_at: new Date(Date.now() - 86_400_000 - i * 1000).toISOString(),
+  });
+
+  it("A · con ≥50 solicitudes pendientes el enlace del TUTOR sigue retirando su consentimiento (antes 500 y seguía contando)", async () => {
+    await requestSignature();
+    await confirm(linkToken(st.emails[0].html, "verify-consent"));
+    const withdrawToken = linkToken(st.emails[1].html, "withdraw-consent");
+    for (let i = 0; i < 55; i++) st.consents.push(pendingRow(i)); // p. ej. creadas en paralelo
+    const res = await withdraw(withdrawToken);
+    expect(res.status).toBe(200);
+    expect(await findActiveParentalConsent("pMinor")).toBeNull();
+    // Solo SU consentimiento: las pendientes no se tocan.
+    expect(st.consents.filter((c) => c.withdrawn_at).map((c) => c.id)).toEqual([st.consents[0].id]);
+  });
+
+  it("C · el estado no se queda en «no disponible» tras muchas solicitudes", async () => {
+    for (let i = 0; i < 60; i++) st.consents.push({ ...pendingRow(i), withdrawn_at: new Date().toISOString() });
+    await requestSignature();
+    expect((await status(["pMinor"])).body.data.statuses.pMinor).toMatchObject({ state: "pending", guardianEmail: "marta@familia.test" });
+  });
+
+  it("D · pedir de nuevo NO marca como sustituido un consentimiento que el tutor confirmó entretanto", async () => {
+    await requestSignature();
+    const first = st.consents[0];
+    // El tutor confirma EN MEDIO de la nueva solicitud (entre su lectura y su escritura).
+    st.raceVerifyId = first.id as string;
+    await requestSignature({ parentEmail: "otro@familia.test" });
+    expect(first.email_verified).toBe(true); // la carrera ocurrió
+    expect(first.withdrawn_at ?? null).toBeNull();
+    expect(st.audit.some((a) => a.action === "consent_withdrawn" && a.resource_id === first.id)).toBe(false);
+  });
+
+  it("una retirada registrada (aunque su PATCH fallara) ⇒ confirmar responde que el enlace no vale, no «confirmado»", async () => {
+    await requestSignature();
+    const token = linkToken(st.emails[0].html, "verify-consent");
+    st.audit.push({ action: "consent_withdrawn", resource_type: "parental_consents", resource_id: st.consents[0].id, metadata: { player_id: "pMinor", source: "owner_revoke" } });
+    expect((await confirm(token)).status).toBe(404);
+    expect(await findActiveParentalConsent("pMinor")).toBeNull();
   });
 });
 

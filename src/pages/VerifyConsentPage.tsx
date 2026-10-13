@@ -1,5 +1,6 @@
 /**
- * VITAS — Confirmación del TUTOR legal (ruta pública /auth/verify-consent?token=…)
+ * VITAS — Confirmación del TUTOR legal (ruta pública /auth/verify-consent#token=…; también
+ * acepta ?token=…)
  *
  * A esta página llega el tutor desde el correo que pidió el responsable del jugador
  * (api/auth/sign-consent.ts). P1 bloque 3:
@@ -17,6 +18,12 @@ import { useNavigate } from "react-router-dom";
 import { Loader2, CheckCircle2, AlertCircle, ShieldCheck } from "lucide-react";
 
 type Status = "form" | "submitting" | "success" | "error";
+
+/** El código del enlace: tras «#» (no viaja a ningún servidor) o, en enlaces antiguos, en ?token=. */
+function tokenFromUrl(): string | null {
+  const fromHash = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("token");
+  return fromHash ?? new URLSearchParams(window.location.search).get("token");
+}
 
 const ERROR_KEYS: Record<string, string> = {
   invalid_token: "verifyConsentPage.errors.invalidToken",
@@ -44,7 +51,7 @@ export default function VerifyConsentPage() {
   useEffect(() => {
     if (read.current) return;
     read.current = true;
-    setToken(new URLSearchParams(window.location.search).get("token"));
+    setToken(tokenFromUrl());
     try { window.history.replaceState(null, "", "/auth/verify-consent"); } catch { /* noop */ }
     setCheckedUrl(true);
   }, []);
@@ -105,10 +112,17 @@ export default function VerifyConsentPage() {
                 <p className="text-xs text-muted-foreground">
                   {confirmationSent ? t("verifyConsentPage.success.withdrawEmailed") : t("verifyConsentPage.success.withdrawNoEmail")}
                 </p>
-                <a href={`/auth/withdraw-consent?token=${withdrawToken}`} className="text-xs font-semibold text-primary underline">
+                <a href={`/auth/withdraw-consent#token=${withdrawToken}`} className="text-xs font-semibold text-primary underline">
                   {t("verifyConsentPage.success.withdrawLink")}
                 </a>
               </div>
+            )}
+            {/* Sin enlace de retirada: ya confirmado antes (el enlace está en el primer correo) o no
+                se pudo generar. Se dice, para que el tutor nunca se quede sin saber cómo retirarlo. */}
+            {!withdrawToken && (
+              <p className="text-xs rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800" data-testid="withdraw-unavailable">
+                {alreadyVerified ? t("verifyConsentPage.success.alreadyHint") : t("verifyConsentPage.success.withdrawUnavailable")}
+              </p>
             )}
             <button onClick={() => navigate("/")} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-display">
               {t("verifyConsentPage.goHome")}

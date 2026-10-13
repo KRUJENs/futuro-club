@@ -6462,10 +6462,10 @@
     "title": "Einwilligung der/des Erziehungsberechtigten",
     "intro": "Die verantwortliche Person für das Kind bei VITAS bittet dich um deine Einwilligung als Elternteil oder Erziehungsberechtigte/r. Das erlaubst du:",
     "what1": "Die Analyse von Videos aus Trainings und Spielen, in denen das Kind zu sehen ist.",
-    "what2": "Die Speicherung der Ergebnisse dieser Analysen in seinem Profil, auf das nur die verantwortliche Person zugreift.",
+    "what2": "Die Speicherung der Ergebnisse dieser Analysen in seinem VITAS-Profil, das die verantwortliche Person verwaltet.",
     "what3": "Du kannst sie jederzeit mit dem Link widerrufen, den wir dir nach der Bestätigung senden.",
     "dniLabel": "Deine Ausweisnummer (Erziehungsberechtigte/r)",
-    "dniHint": "Gespeichert wird nur ein verschlüsselter Fingerabdruck, nie die Nummer.",
+    "dniHint": "Gespeichert wird ein Fingerabdruck (Hash) der Ausweisnummer, nicht die Nummer selbst. Er dient als Nachweis, wer bestätigt hat.",
     "termsBefore": "Ich habe gelesen und akzeptiere die",
     "termsLink": "Nutzungsbedingungen",
     "privacyBefore": "Ich habe gelesen und akzeptiere die",
@@ -6478,7 +6478,9 @@
       "already": "Diese Einwilligung war bereits bestätigt.",
       "withdrawEmailed": "Wir haben dir per E-Mail den Link zum Widerruf geschickt. Du kannst auch diesen verwenden:",
       "withdrawNoEmail": "Wir konnten dir die Bestätigungs-E-Mail nicht senden. Bewahre diesen Link auf, um die Einwilligung jederzeit zu widerrufen:",
-      "withdrawLink": "Einwilligung widerrufen"
+      "withdrawLink": "Einwilligung widerrufen",
+      "alreadyHint": "Zum Widerruf verwende den Link aus der Bestätigungs-E-Mail, die du beim ersten Mal erhalten hast.",
+      "withdrawUnavailable": "Wir konnten deinen Link zum Widerruf nicht erstellen. Wenn du widerrufen möchtest, bitte die verantwortliche Person des Spielers darum: Sie kann es in der App tun."
     },
     "errors": {
       "missingToken": "Ungültiger Link: Der Code fehlt. Öffne den vollständigen Link aus der E-Mail.",
@@ -6494,7 +6496,7 @@
     "title": "Einwilligung widerrufen",
     "explainer": "Wenn du sie widerrufst, werden die Videos des Kindes nicht mehr analysiert. Du kannst sie erneut erteilen, wenn die verantwortliche Person dich wieder darum bittet.",
     "confirm": "Einwilligung widerrufen",
-    "done": "Einwilligung widerrufen. Die Videos des Kindes werden nicht mehr analysiert.",
+    "done": "Einwilligung widerrufen. Diese Einwilligung erlaubt keine Analyse der Videos des Kindes mehr.",
     "already": "Diese Einwilligung war bereits widerrufen.",
     "goHome": "Zu VITAS",
     "errors": {

@@ -6463,10 +6463,10 @@
     "title": "Toestemming van de wettelijke voogd",
     "intro": "De verantwoordelijke voor de minderjarige in VITAS vraagt je toestemming als ouder of wettelijke voogd. Dit sta je toe:",
     "what1": "Het analyseren van video's van trainingen en wedstrijden waarin de minderjarige te zien is.",
-    "what2": "Het bewaren van de resultaten van die analyses in het profiel, dat alleen de verantwoordelijke kan inzien.",
+    "what2": "Het bewaren van de resultaten van die analyses in het VITAS-profiel, dat de verantwoordelijke beheert.",
     "what3": "Je kunt de toestemming op elk moment intrekken met de link die we je na het bevestigen sturen.",
     "dniLabel": "Je identiteitsnummer (wettelijke voogd)",
-    "dniHint": "Alleen een versleutelde vingerafdruk wordt bewaard, nooit het nummer.",
+    "dniHint": "Er wordt een vingerafdruk (hash) van het identiteitsnummer bewaard, niet het nummer zelf. Die dient als bewijs van wie heeft bevestigd.",
     "termsBefore": "Ik heb gelezen en ga akkoord met de",
     "termsLink": "gebruiksvoorwaarden",
     "privacyBefore": "Ik heb gelezen en ga akkoord met het",
@@ -6479,7 +6479,9 @@
       "already": "Deze toestemming was al bevestigd.",
       "withdrawEmailed": "We hebben je de link om haar op elk moment in te trekken gemaild. Je kunt ook deze gebruiken:",
       "withdrawNoEmail": "We konden je de bevestigingsmail niet sturen. Bewaar deze link om de toestemming op elk moment in te trekken:",
-      "withdrawLink": "Toestemming intrekken"
+      "withdrawLink": "Toestemming intrekken",
+      "alreadyHint": "Gebruik om haar in te trekken de link uit de bevestigingsmail die je de eerste keer kreeg.",
+      "withdrawUnavailable": "We konden je intrekkingslink niet aanmaken. Wil je de toestemming intrekken, vraag het dan aan de verantwoordelijke van de speler: die kan het in de app doen."
     },
     "errors": {
       "missingToken": "Ongeldige link: de code ontbreekt. Open de volledige link uit de e-mail.",
@@ -6495,7 +6497,7 @@
     "title": "Toestemming intrekken",
     "explainer": "Als je haar intrekt, worden de video's van de minderjarige niet meer geanalyseerd. Je kunt haar opnieuw geven als de verantwoordelijke erom vraagt.",
     "confirm": "Toestemming intrekken",
-    "done": "Toestemming ingetrokken. De video's van de minderjarige worden niet meer geanalyseerd.",
+    "done": "Toestemming ingetrokken. Met deze toestemming kunnen de video's van de minderjarige niet meer worden geanalyseerd.",
     "already": "Deze toestemming was al ingetrokken.",
     "goHome": "Naar VITAS",
     "errors": {

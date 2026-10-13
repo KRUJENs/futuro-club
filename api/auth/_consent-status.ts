@@ -37,16 +37,19 @@ export default withHandler(
       return errorResponse({ code: "ownership_check_failed", message: "No se pudo comprobar la propiedad", status: 500 });
     }
 
+    // En lotes de 10 en paralelo (cada jugador son 2-4 consultas): 50 jugadores en serie podían
+    // rozar el límite de tiempo de Edge (revisión del PR #314).
+    const ids = Array.from(new Set(playerIds.filter((id) => owned.has(id))));
     const statuses: Record<string, StatusOrUnavailable> = {};
-    for (const id of playerIds) {
-      if (!owned.has(id) || id in statuses) continue;
+    const one = async (id: string) => {
       try {
         statuses[id] = await consentStatusForPlayer(id);
       } catch (err) {
         console.error("[consent-status] no se pudo comprobar:", err instanceof Error ? err.message : err);
         statuses[id] = { state: "unavailable" };
       }
-    }
+    };
+    for (let i = 0; i < ids.length; i += 10) await Promise.all(ids.slice(i, i + 10).map(one));
     return successResponse({ statuses });
   },
 );

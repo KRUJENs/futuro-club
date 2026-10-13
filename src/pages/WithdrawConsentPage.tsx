@@ -1,5 +1,6 @@
 /**
- * VITAS — El TUTOR retira su consentimiento (ruta pública /auth/withdraw-consent?token=…)
+ * VITAS — El TUTOR retira su consentimiento (ruta pública /auth/withdraw-consent#token=…; también
+ * acepta ?token=…)
  *
  * Enlace del correo de confirmación (api/auth/verify-consent.ts). P1 bloque 3, decisión del plan:
  * «el tutor retira con un enlace firmado en el correo». Nada se retira al abrir la página (un
@@ -27,7 +28,8 @@ export default function WithdrawConsentPage() {
   useEffect(() => {
     if (read.current) return;
     read.current = true;
-    setToken(new URLSearchParams(window.location.search).get("token"));
+    const fromHash = new URLSearchParams(window.location.hash.replace(/^#/, "")).get("token");
+    setToken(fromHash ?? new URLSearchParams(window.location.search).get("token"));
     try { window.history.replaceState(null, "", "/auth/withdraw-consent"); } catch { /* noop */ }
     setCheckedUrl(true);
   }, []);

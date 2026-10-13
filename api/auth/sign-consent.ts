@@ -10,7 +10,7 @@
  *      menor sale de la ficha (players.birth_date), no de lo que se escriba aquí.
  *   2. Se escribe la EMISIÓN del enlace (gdpr_audit_log 'consent_token_issued', service_role)
  *      y luego la fila pendiente (email_verified=false, sin DNI).
- *   3. Se envía al tutor el correo con el enlace /auth/verify-consent?token=… (24 h), en el
+ *   3. Se envía al tutor el correo con el enlace /auth/verify-consent#token=… (24 h), en el
  *      idioma de quien pide la firma.
  *   4. El TUTOR abre el enlace, lee qué autoriza, escribe SU DNI, acepta condiciones y
  *      privacidad y pulsa «Confirmo» (api/auth/verify-consent.ts). Nada se verifica al abrir.
@@ -217,7 +217,8 @@ export default withHandler(
       locale,
       parentName: input.parentName,
       childName: (player.name as string | null) ?? "—",
-      link: `${baseUrl}/auth/verify-consent?token=${verificationToken}`,
+      // El código va tras «#»: el fragmento no viaja a ningún servidor (ni a sus registros).
+      link: `${baseUrl}/auth/verify-consent#token=${verificationToken}`,
     });
     const emailSent = await sendEmail({ to: parentEmail, subject: mail.subject, html: mail.html });
 

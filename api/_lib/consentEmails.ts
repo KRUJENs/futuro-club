@@ -2,10 +2,11 @@
  * VITAS · Correos al TUTOR del consentimiento parental (P1 bloque 3), en los 7 idiomas.
  *
  *   1. requestEmail      — lo manda api/auth/sign-consent.ts cuando el responsable del jugador
- *                          pide la firma: enlace a /auth/verify-consent?token=… (24 h). El
+ *                          pide la firma: enlace a /auth/verify-consent#token=… (24 h). El
  *                          tutor revisa, escribe SU DNI, acepta y pulsa «Confirmo».
  *   2. confirmationEmail — lo manda api/auth/verify-consent.ts al confirmar: enlace de RETIRADA
- *                          (/auth/withdraw-consent?token=…), sin caducidad (RGPD art. 7.3).
+ *                          (/auth/withdraw-consent#token=…), sin caducidad (RGPD art. 7.3).
+ *   El código va tras «#»: el fragmento no viaja a ningún servidor (ni a sus registros).
  *
  * Los nombres los escribe una persona (responsable / tutor) ⇒ se escapan antes de ir al HTML.
  * Idioma: el de la interfaz de quien pide la firma (normalizeLocale; por defecto «es»).

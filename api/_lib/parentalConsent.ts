@@ -24,7 +24,8 @@
  * Por qué (hallazgo B6 de la review del PR #308). Antes de la 075/076, un `authenticated`
  * puede hacer UPDATE en parental_consents (política 003 consent_tenant_isolation, FOR ALL, si
  * su JWT trae el tenant de la fila; la 076 la retira y la 075 retira además los permisos;
- * que alguna de las dos esté aplicada en producción NO está verificado). La ronda 4 añadió la
+ * AMBAS están aplicadas y verificadas en producción: la 076 el 9 oct y la 075 el 13 oct, C9 y C11
+ * de docs/pendientes-metricas.md; cuando se escribió esto no estaba verificado). La ronda 4 añadió la
  * evidencia de verificación, pero verify-consent buscaba la fila por
  * `parental_consents.verification_token` y escribía la evidencia con el `player_id` de la
  * propia fila, dos columnas que ese UPDATE puede cambiar. Ronda 5 (revisor, SIMULACIÓN PGlite,
@@ -117,8 +118,6 @@ export interface IssuedConsentToken {
 
 /** Lo que el TUTOR aporta al confirmar (P1 bloque 3): su DNI (hasheado) y sus aceptaciones. */
 export interface GuardianConfirmation {
-  /** sha256 del DNI del tutor en mayúsculas (nunca en claro). */
-  dniHash: string;
   /** Versión de las condiciones y de la política de privacidad que aceptó el tutor. */
   consentVersion: string;
 }
@@ -313,9 +312,12 @@ export async function recordParentalConsentVerified(
       // P1 bloque 3 (decisión del owner, 14 oct): el DNI y la aceptación de las condiciones y de
       // la privacidad los pone el TUTOR al confirmar, no el entrenador al pedir la firma. La
       // evidencia queda a su nombre aquí (el tutor no tiene cuenta: no va a legal_acceptances).
+      // El HASH del DNI NO va aquí (revisión del PR #314): gdpr_audit_log es de solo añadir (no se
+      // puede borrar con el jugador) y un sha256 sin sal de un DNI se revierte probando números.
+      // Se guarda solo en parental_consents.parent_dni_hash, que se borra con el jugador.
       ...(guardian
         ? {
-            guardian_dni_hash: guardian.dniHash,
+            guardian_dni_provided: true,
             accepted_terms_version: guardian.consentVersion,
             accepted_privacy_version: guardian.consentVersion,
           }
@@ -471,28 +473,30 @@ const strOrNull = (v: unknown): string | null => (typeof v === "string" && v !==
  * NUNCA lo muestra como «verificado».
  */
 export async function consentStatusForPlayer(playerId: string): Promise<GuardianConsentStatus> {
-  const raw = await getRows<Record<string, unknown>>(
-    `parental_consents?player_id=eq.${encodeURIComponent(playerId)}` +
-      `&select=id,player_id,parent_name,email_verified,email_verified_at,withdrawn_at,signed_at` +
-      `&order=signed_at.desc&limit=${MAX_ROWS}`,
-  );
-  const rows: ConsentRowView[] = raw
-    .filter((r) => typeof r?.id === "string" && UUID_RE.test(r.id as string) && r.player_id === playerId)
-    .map((r) => ({
-      id: r.id as string,
-      player_id: playerId,
-      parent_name: strOrNull(r.parent_name),
-      email_verified: r.email_verified === true,
-      email_verified_at: strOrNull(r.email_verified_at),
-      withdrawn_at: strOrNull(r.withdrawn_at),
-      signed_at: strOrNull(r.signed_at),
-    }));
-  if (rows.length === 0) return NO_CONSENT;
+  const columns = "select=id,player_id,parent_name,email_verified,email_verified_at,withdrawn_at,signed_at";
+  const viewOf = (raw: Array<Record<string, unknown>>): ConsentRowView[] =>
+    raw
+      .filter((r) => typeof r?.id === "string" && UUID_RE.test(r.id as string) && r.player_id === playerId)
+      .map((r) => ({
+        id: r.id as string,
+        player_id: playerId,
+        parent_name: strOrNull(r.parent_name),
+        email_verified: r.email_verified === true,
+        email_verified_at: strOrNull(r.email_verified_at),
+        withdrawn_at: strOrNull(r.withdrawn_at),
+        signed_at: strOrNull(r.signed_at),
+      }));
 
   // 1 · ¿Hay uno que CUENTE? Misma regla que el gate de análisis (una sola implementación).
   const active = await findActiveParentalConsent(playerId);
   if (active) {
-    const row = rows.find((r) => r.id === active.id);
+    // Solo ESA fila (revisión del PR #314, punto C: leer todas las del jugador con tope 50 dejaba
+    // el estado en «no disponible» para siempre tras muchas solicitudes).
+    const row = viewOf(
+      await getRows<Record<string, unknown>>(
+        `parental_consents?id=eq.${encodeURIComponent(active.id)}&player_id=eq.${encodeURIComponent(playerId)}&${columns}&limit=1`,
+      ),
+    )[0];
     return {
       state: "verified",
       guardianName: row?.parent_name ?? null,
@@ -504,8 +508,13 @@ export async function consentStatusForPlayer(playerId: string): Promise<Guardian
     };
   }
 
-  // 2 · Si no, la solicitud MÁS RECIENTE y su emisión (email del tutor y caducidad del enlace).
-  const latest = rows[0];
+  // 2 · Si no, SOLO la solicitud MÁS RECIENTE y su emisión (email del tutor y caducidad del enlace).
+  const latest = viewOf(
+    await getRows<Record<string, unknown>>(
+      `parental_consents?player_id=eq.${encodeURIComponent(playerId)}&${columns}&order=signed_at.desc&limit=1`,
+    ),
+  )[0];
+  if (!latest) return NO_CONSENT;
   const audit = await getRows<AuditRow>(
     `gdpr_audit_log?action=in.${encodeURIComponent(pgInList([CONSENT_TOKEN_ISSUED_ACTION, CONSENT_WITHDRAWN_ACTION]))}` +
       `&resource_type=eq.${CONSENT_RESOURCE_TYPE}&resource_id=eq.${encodeURIComponent(latest.id)}` +
@@ -578,20 +587,13 @@ export async function withdrawParentalConsents(input: {
   source?: WithdrawSource;
 }): Promise<number> {
   const source: WithdrawSource = input.source ?? "owner_revoke";
-  const rows = await getRows<{ id: unknown; player_id: unknown }>(
-    `parental_consents?player_id=eq.${encodeURIComponent(input.playerId)}` +
-      `&withdrawn_at=is.null${input.onlyUnverified ? "&email_verified=is.false" : ""}` +
-      `&select=id,player_id&limit=${MAX_ROWS}`,
-  );
-  const only = input.consentIds ? new Set(input.consentIds) : null;
-  const ids = rows
-    .filter((r): r is { id: string; player_id: string } => typeof r?.id === "string" && UUID_RE.test(r.id) && r.player_id === input.playerId)
-    .map((r) => r.id)
-    .filter((id) => only === null || only.has(id));
-  if (ids.length === 0) return 0;
-
-  for (const id of ids) {
-    await insertAudit({
+  const playerFilter = `player_id=eq.${encodeURIComponent(input.playerId)}`;
+  const withdrawPatch = JSON.stringify({
+    withdrawn_at: new Date().toISOString(),
+    withdrawn_reason: (input.reason ?? "").trim().slice(0, 500) || DEFAULT_WITHDRAW_REASON[source],
+  });
+  const evidence = (id: string) =>
+    insertAudit({
       user_id: uuidOrNull(input.userId),
       tenant_id: uuidOrNull(input.tenantId),
       action: CONSENT_WITHDRAWN_ACTION,
@@ -599,29 +601,90 @@ export async function withdrawParentalConsents(input: {
       resource_id: id,
       metadata: { player_id: input.playerId, source },
     });
+
+  // Revisión del PR #314 (bloqueante A): con `consentIds` la consulta se limita a ESOS ids EN LA
+  // BASE. Antes se leían todas las filas activas del jugador (tope MAX_ROWS → too_many_rows) y se
+  // filtraba aquí: con ≥50 solicitudes pendientes (fáciles de crear en paralelo) el enlace del
+  // TUTOR daba 500 y su consentimiento seguía contando.
+  let idFilter = "";
+  if (input.consentIds) {
+    const wanted = input.consentIds.filter((id) => UUID_RE.test(id));
+    if (wanted.length === 0) return 0;
+    idFilter = `&id=in.${encodeURIComponent(pgInList(wanted))}`;
   }
+
+  // «superseded» (una solicitud nueva sustituye a las PENDIENTES) no es la retirada de nadie: primero
+  // un PATCH CONDICIONAL (aún sin verificar y sin retirar) que devuelve las filas que de verdad
+  // cambió, y solo para esas la evidencia. Así, si el tutor confirma justo entre la lectura y la
+  // escritura, su consentimiento NO queda marcado como sustituido (revisión del PR #314, punto D).
+  if (source === "superseded") {
+    let url: string;
+    let headers: Record<string, string>;
+    try {
+      url =
+        `${supabaseRestUrl()}/rest/v1/parental_consents?${playerFilter}${idFilter}` +
+        `&withdrawn_at=is.null&email_verified=is.false&select=id`;
+      headers = serviceHeaders({ Prefer: "return=representation" });
+    } catch {
+      throw new ParentalConsentDbError("supabase_not_configured");
+    }
+    const res = await fetch(url, { method: "PATCH", headers, body: withdrawPatch });
+    const text = await res.text().catch(() => "");
+    if (!res.ok) throw new ParentalConsentDbError(`supersede ${res.status} ${text.slice(0, 300)}`);
+    let patched: unknown;
+    try {
+      patched = JSON.parse(text || "[]");
+    } catch {
+      throw new ParentalConsentDbError("invalid_json");
+    }
+    const ids = (Array.isArray(patched) ? patched : [])
+      .map((r) => (r as { id?: unknown })?.id)
+      .filter((id): id is string => typeof id === "string" && UUID_RE.test(id));
+    for (const id of ids) await evidence(id);
+    return ids.length;
+  }
+
+  const rows = await getRows<{ id: unknown; player_id: unknown }>(
+    `parental_consents?${playerFilter}${idFilter}` +
+      `&withdrawn_at=is.null${input.onlyUnverified ? "&email_verified=is.false" : ""}` +
+      `&select=id,player_id&limit=${MAX_ROWS}`,
+  );
+  const ids = rows
+    .filter((r): r is { id: string; player_id: string } => typeof r?.id === "string" && UUID_RE.test(r.id) && r.player_id === input.playerId)
+    .map((r) => r.id);
+  if (ids.length === 0) return 0;
+
+  // Retirada de una persona (responsable o tutor): evidencia PRIMERO, para que valga aunque el
+  // PATCH falle a mitad (reintentar es seguro).
+  for (const id of ids) await evidence(id);
 
   let url: string;
   let headers: Record<string, string>;
   try {
     url =
       `${supabaseRestUrl()}/rest/v1/parental_consents?id=in.${encodeURIComponent(pgInList(ids))}` +
-      `&player_id=eq.${encodeURIComponent(input.playerId)}&withdrawn_at=is.null`;
+      `&${playerFilter}&withdrawn_at=is.null`;
     headers = serviceHeaders({ Prefer: "return=minimal" });
   } catch {
     throw new ParentalConsentDbError("supabase_not_configured");
   }
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers,
-    body: JSON.stringify({
-      withdrawn_at: new Date().toISOString(),
-      withdrawn_reason: (input.reason ?? "").trim().slice(0, 500) || DEFAULT_WITHDRAW_REASON[source],
-    }),
-  });
+  const res = await fetch(url, { method: "PATCH", headers, body: withdrawPatch });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new ParentalConsentDbError(`withdraw ${res.status} ${text.slice(0, 300)}`);
   }
   return ids.length;
+}
+
+/**
+ * ¿Hay ya una evidencia de RETIRADA ('consent_withdrawn') para este consentimiento? La usa
+ * verify-consent para no decir «confirmado» a un consentimiento que no puede contar (p. ej. una
+ * retirada cuyo PATCH falló a mitad). Lanza si no se puede comprobar.
+ */
+export async function hasConsentWithdrawal(consentId: string): Promise<boolean> {
+  const rows = await getRows<{ resource_id: unknown }>(
+    `gdpr_audit_log?action=eq.${CONSENT_WITHDRAWN_ACTION}&resource_type=eq.${CONSENT_RESOURCE_TYPE}` +
+      `&resource_id=eq.${encodeURIComponent(consentId)}&select=resource_id&limit=1`,
+  );
+  return rows.length > 0;
 }

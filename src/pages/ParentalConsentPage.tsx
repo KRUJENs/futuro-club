@@ -305,7 +305,7 @@ function DSARModal({ player, onClose }: DSARModalProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-200/70 backdrop-blur-sm px-4"
       onClick={onClose}
     >
       <motion.div
@@ -447,6 +447,9 @@ export default function ParentalConsentPage() {
   });
 
   const pendingCount = players?.filter(p => tabOf(stateOf(p)) === "pending").length ?? 0;
+  // Aviso «N menores sin consentimiento»: solo los que de verdad no lo tienen (sin pedir, pendiente,
+  // caducado), no los que no se pudieron comprobar (revisión del PR #314).
+  const blockedCount = players?.filter(p => ["none", "pending", "expired"].includes(stateOf(p))).length ?? 0;
   const grantedCount = players?.filter(p => tabOf(stateOf(p)) === "granted").length ?? 0;
   const deniedCount = players?.filter(p => tabOf(stateOf(p)) === "denied").length ?? 0;
 
@@ -512,12 +515,12 @@ export default function ParentalConsentPage() {
         )}
 
         {/* Warning banner for pending */}
-        {pendingCount > 0 && activeTab === "pending" && (
+        {blockedCount > 0 && activeTab === "pending" && (
           <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
             <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
             <div>
               <p className="text-xs font-display font-bold text-amber-400">
-                {t("parentalConsentPage.pendingWarning.title", { count: pendingCount })}
+                {t("parentalConsentPage.pendingWarning.title", { count: blockedCount })}
               </p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 {t("parentalConsentPage.pendingWarning.desc")}

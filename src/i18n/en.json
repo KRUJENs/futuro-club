@@ -6463,10 +6463,10 @@
     "title": "Legal guardian consent",
     "intro": "The person responsible for the minor in VITAS is asking for your consent as parent or legal guardian. This is what you authorise:",
     "what1": "Analysis of videos of training sessions and matches in which the minor appears.",
-    "what2": "Storage of the results of that analysis in their profile, which only the responsible person can access.",
+    "what2": "Storage of the results of that analysis in their VITAS profile, managed by the responsible person.",
     "what3": "You can withdraw it at any time with the link we will send you when you confirm.",
     "dniLabel": "Your ID number (legal guardian)",
-    "dniHint": "Only an encrypted fingerprint is stored, never the number.",
+    "dniHint": "A fingerprint (hash) of the ID is stored, not the number as typed. It serves as proof of who confirmed.",
     "termsBefore": "I have read and accept the",
     "termsLink": "terms of use",
     "privacyBefore": "I have read and accept the",
@@ -6479,7 +6479,9 @@
       "already": "This consent was already confirmed.",
       "withdrawEmailed": "We have emailed you the link to withdraw it at any time. You can also use this one:",
       "withdrawNoEmail": "We could not send you the confirmation email. Keep this link to withdraw consent at any time:",
-      "withdrawLink": "Withdraw consent"
+      "withdrawLink": "Withdraw consent",
+      "alreadyHint": "To withdraw it, use the link in the confirmation email you received the first time.",
+      "withdrawUnavailable": "We could not create your link to withdraw consent. If you want to withdraw it, ask the player's responsible person: they can do it from the app."
     },
     "errors": {
       "missingToken": "Invalid link: the code is missing. Open the full link from the email.",
@@ -6495,7 +6497,7 @@
     "title": "Withdraw consent",
     "explainer": "If you withdraw it, the minor's videos will no longer be analysed. You can give it again if the responsible person asks you.",
     "confirm": "Withdraw consent",
-    "done": "Consent withdrawn. The minor's videos are no longer analysed.",
+    "done": "Consent withdrawn. This consent no longer allows the minor's videos to be analysed.",
     "already": "This consent was already withdrawn.",
     "goHome": "Go to VITAS",
     "errors": {

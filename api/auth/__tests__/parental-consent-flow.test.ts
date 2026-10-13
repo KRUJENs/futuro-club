@@ -87,7 +87,11 @@ function consentsTable() {
         select: async () => {
           ops.push("consents.update");
           if (failUpdate) return { data: null, error: { message: "boom" } };
-          if (raceUpdate) return { data: [], error: null };
+          if (raceUpdate) {
+            // Otro clic la marcó entre la lectura y ESTE UPDATE: la fila ya está verificada.
+            for (const r of rows.filter((x) => filters.every((f) => f(x)))) Object.assign(r, { email_verified: true });
+            return { data: [], error: null };
+          }
           const hit = rows.filter((r) => filters.every((f) => f(r)));
           for (const r of hit) Object.assign(r, patch);
           return { data: hit.map((r) => ({ id: r.id })), error: null };
@@ -194,7 +198,8 @@ const verify = (token: string, extra: Record<string, unknown> = {}) =>
     }),
   );
 const tokenFromEmail = () => {
-  const m = /verify-consent\?token=([0-9a-f]+)/.exec(emails[0]?.html ?? "");
+  // P1 bloque 3: el código va tras «#» (el fragmento no viaja a ningún servidor).
+  const m = /verify-consent[?#]token=([0-9a-f]+)/.exec(emails[0]?.html ?? "");
   if (!m) throw new Error("el email no trae el enlace con el token");
   return m[1];
 };
@@ -397,12 +402,14 @@ describe("verify-consent · evidencia ANTES de marcar; si falla, no marca", () =
         parent_email: "tutor@familia.test",
         token_hash: await hashConsentToken(token),
         // DNI y aceptaciones del TUTOR (decisión del owner, 14 oct): el DNI solo hasheado.
-        guardian_dni_hash: await sha256Hex(DNI),
+        // Revisión #314: el hash del DNI NO va a gdpr_audit_log (de solo añadir); solo a la fila.
+        guardian_dni_provided: true,
         accepted_terms_version: "v1.0",
         accepted_privacy_version: "v1.0",
       },
     });
     expect(JSON.stringify(mock.inserts)).not.toContain(DNI);
+    expect(JSON.stringify(mock.inserts)).not.toContain(await sha256Hex(DNI));
     // La emisión se buscó por el hash del token (no la columna de la fila).
     const lookup = mock.calls.find((c) => decodeURIComponent(c.url).includes("metadata->>token_hash=eq."))!;
     expect(decodeURIComponent(lookup.url)).toContain(`action=eq.consent_token_issued`);
@@ -473,7 +480,7 @@ describe("verify-consent · evidencia ANTES de marcar; si falla, no marca", () =
     expect(ops).not.toContain("audit.insert");
   });
 
-  it("error al marcar → 500; la evidencia sola NO desbloquea; reintentar con el MISMO enlace marca sin duplicar la evidencia", async () => {
+  it("error al marcar → 500; la evidencia sola NO desbloquea; reintentar con el MISMO enlace marca sin duplicar la evidencia y SÍ da el enlace de retirada", async () => {
     await sign();
     const token = tokenFromEmail();
     failUpdate = true;
@@ -485,7 +492,13 @@ describe("verify-consent · evidencia ANTES de marcar; si falla, no marca", () =
     failUpdate = false;
     const retry = await verify(token);
     expect(retry.status).toBe(200);
-    expect((await retry.json()).data).toMatchObject({ alreadyVerified: true });
+    // Revisión #314 (punto B): ESTA petición es la que marca ⇒ verificado + enlace de retirada y
+    // correo de confirmación (antes «alreadyVerified» y el tutor se quedaba sin enlace).
+    const retryData = (await retry.json()).data as { verified?: boolean; withdrawToken?: string | null };
+    expect(retryData.verified).toBe(true);
+    expect(retryData.withdrawToken).toMatch(/^[0-9a-f]{64}$/);
+    expect(mock.inserts.filter((r) => r.action === "consent_withdraw_token_issued")).toHaveLength(1);
+    expect(emails.some((e) => /withdraw-consent#token=/.test(e.html))).toBe(true);
     expect(mock.inserts.filter((r) => r.action === "consent_email_verified")).toHaveLength(1);
     expect(rows[0].email_verified).toBe(true);
     expect(await gate()).toMatchObject({ allowed: true });

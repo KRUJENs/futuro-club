@@ -46,6 +46,7 @@ import { confirmationEmail } from "../_lib/consentEmails";
 import {
   findIssuedConsentToken,
   hasConsentVerification,
+  hasConsentWithdrawal,
   hashConsentToken,
   recordConsentWithdrawTokenIssued,
   recordParentalConsentVerified,
@@ -126,6 +127,15 @@ export default withHandler(
       });
     }
 
+    // ── 3b · ¿Ya retirado? (evidencia del servidor, aunque el PATCH de la retirada fallara a
+    //        mitad): no se dice «confirmado» a un consentimiento que no puede contar (revisión #314).
+    try {
+      if (await hasConsentWithdrawal(consent.id)) return invalidToken();
+    } catch (err) {
+      console.error("[verify-consent] no se pudo comprobar la retirada:", err instanceof Error ? err.message : err);
+      return verifyFailed("No se pudo comprobar el enlace. Inténtalo de nuevo más tarde.");
+    }
+
     // ── 4 · ¿Ya verificado con ESTE enlace? (evidencia del servidor, no la columna) ──
     let alreadyVerified: boolean;
     try {
@@ -135,7 +145,8 @@ export default withHandler(
       return verifyFailed("No se pudo comprobar el enlace. Inténtalo de nuevo más tarde.");
     }
 
-    // DNI del tutor: solo su hash (nunca en claro), igual que antes en sign-consent.
+    // DNI del tutor: solo su hash (nunca en claro), igual que antes en sign-consent. Va SOLO a la
+    // fila (que se borra con el jugador), no a la evidencia de gdpr_audit_log (de solo añadir).
     const dniHash = await sha256Hex(parentDni.toUpperCase());
 
     if (!alreadyVerified) {
@@ -147,10 +158,10 @@ export default withHandler(
           status: 410,
         });
       }
-      // ── 6 · Evidencia del servidor ANTES de marcar (si falla, no se marca), con el DNI y
-      //       las aceptaciones del TUTOR ──
+      // ── 6 · Evidencia del servidor ANTES de marcar (si falla, no se marca), con las
+      //       aceptaciones del TUTOR (y que aportó su DNI) ──
       try {
-        await recordParentalConsentVerified(issued, { dniHash, consentVersion: GUARDIAN_CONSENT_VERSION });
+        await recordParentalConsentVerified(issued, { consentVersion: GUARDIAN_CONSENT_VERSION });
       } catch (err) {
         console.error("[verify-consent] no se pudo registrar la evidencia (no se marca):", err instanceof Error ? err.message : err);
         return verifyFailed("No se pudo registrar la verificación. Inténtalo de nuevo desde el enlace del email.");
@@ -176,16 +187,31 @@ export default withHandler(
     if (updateError) {
       return verifyFailed("No se pudo registrar la verificación. Inténtalo de nuevo desde el enlace del email.");
     }
-    if (alreadyVerified || !Array.isArray(updated) || updated.length === 0) {
-      // Ya verificado con este enlace (doble clic, o reintento tras un fallo al marcar), u otra
-      // petición la marcó entre la lectura y el UPDATE. No se emite otro enlace de retirada: el
-      // tutor ya tiene el del correo de confirmación.
-      return successResponse({
-        consentId: consent.id,
-        alreadyVerified: true,
-        message: "Este consentimiento ya estaba verificado.",
-      });
+    if (!Array.isArray(updated) || updated.length === 0) {
+      // ESTA petición no marcó la fila. Se mira por qué (revisión #314): retirada o sustituida
+      // entre la lectura y el UPDATE ⇒ el enlace ya no vale; ya verificada (doble clic u otra
+      // petición) ⇒ «ya estaba confirmado» (el tutor tiene el enlace de retirada de la primera).
+      const { data: now, error: nowError } = await supabase
+        .from("parental_consents")
+        .select("id, player_id, parent_email, email_verified, withdrawn_at")
+        .eq("id", consent.id)
+        .maybeSingle();
+      if (nowError) return verifyFailed("No se pudo registrar la verificación. Inténtalo de nuevo desde el enlace del email.");
+      const row = now as ConsentRow | null;
+      if (!row || row.withdrawn_at) return invalidToken();
+      if (row.email_verified) {
+        return successResponse({
+          consentId: consent.id,
+          alreadyVerified: true,
+          message: "Este consentimiento ya estaba verificado.",
+        });
+      }
+      return verifyFailed("No se pudo registrar la verificación. Inténtalo de nuevo desde el enlace del email.");
     }
+    // Desde aquí ESTA petición marcó la fila: primera confirmación o reintento tras un fallo al
+    // marcar (la evidencia ya estaba). En los dos casos el tutor recibe su enlace de retirada
+    // (antes, en el reintento, no se emitía: revisión #314, punto B).
+    void alreadyVerified;
 
     // ── 8 · Enlace de RETIRADA para el tutor (correo de confirmación). Si algo falla aquí el
     //       consentimiento YA vale; se avisa en la respuesta y el responsable puede retirarlo. ──
@@ -213,7 +239,8 @@ export default withHandler(
         locale: issued.locale,
         parentName: ((row as { parent_name?: string } | null)?.parent_name as string | undefined) ?? "",
         childName: ((player as { name?: string } | null)?.name as string | undefined) ?? "—",
-        withdrawLink: `${baseUrl}/auth/withdraw-consent?token=${withdrawToken}`,
+        // El código va tras «#»: el fragmento no viaja a ningún servidor (ni a sus registros).
+        withdrawLink: `${baseUrl}/auth/withdraw-consent#token=${withdrawToken}`,
       });
       confirmationSent = await sendEmail({ to: issued.parentEmail, subject: mail.subject, html: mail.html });
     }
@@ -222,7 +249,8 @@ export default withHandler(
       consentId: consent.id,
       verified: true,
       // El tutor está en la página con SU enlace y su DNI: si el correo no sale, la página le
-      // ofrece el enlace de retirada igualmente (nunca se queda sin forma de retirarlo).
+      // ofrece el enlace de retirada igualmente. Si NO se pudo emitir (null), la página se lo dice
+      // y le indica que pida la retirada al responsable del jugador.
       withdrawToken: withdrawIssued ? withdrawToken : null,
       confirmationEmailSent: confirmationSent,
       message: "Consentimiento verificado.",
