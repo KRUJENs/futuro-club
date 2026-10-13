@@ -13,8 +13,9 @@
  *
  * HONESTIDAD (invariante #2): si el jugador NO tiene ninguna señal real, NO se
  * inventa un riesgo (un 0 vestido de "riesgo bajo" también es mentira). Se devuelve
- * un estado "insufficient_data" (source ≠ "computed" → el cliente lo marca isMock y
- * la UI muestra el DemoDataBanner) y NO se persiste ninguna fila.
+ * un estado "insufficient_data" (el cliente lo trata como «riesgo sin calcular» y no
+ * pinta sus números: fetchDropoutRisk en src/hooks/useWellbeing.ts, P1 bloque 2) y NO
+ * se persiste ninguna fila.
  *
  * Antes este endpoint devolvía SIEMPRE un valor derivado del HASH del id del
  * jugador (mock disfrazado, prohibido por rules/metricas.md). Eso se retira.
