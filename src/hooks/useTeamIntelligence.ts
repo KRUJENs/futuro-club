@@ -20,6 +20,11 @@ import { normalizeLocale } from "@/lib/shared/locale";
 import { aggregatePhvDistribution } from "@/lib/shared/phv";
 import { NO_VISUAL_INPUT, hasGeminiObservations, hasVisualInput } from "@/lib/shared/teamVisualInput";
 import { PlayerService } from "@/services/real/playerService";
+import {
+  ClipConsentBlockedError,
+  clipConsentErrorFromResponse,
+  type ClipAttestation,
+} from "@/lib/shared/videoConsent";
 
 // ——— Tipos ——————————————————————————————————————————————————————
 
@@ -61,7 +66,11 @@ async function readSSEStream(
   if (!response.ok) {
     const errText = await response.text().catch(() => `HTTP ${response.status}`);
     let errMsg = `HTTP ${response.status}`;
-    try { errMsg = (JSON.parse(errText) as { error?: string }).error ?? errMsg; } catch { /* ok */ }
+    let errJson: unknown = null;
+    try { errJson = JSON.parse(errText); errMsg = (errJson as { error?: string }).error ?? errMsg; } catch { /* ok */ }
+    // Consentimiento (gate antes del stream): motivo traducido, no un error genérico.
+    const consentErr = clipConsentErrorFromResponse(errJson, i18n.language);
+    if (consentErr) throw consentErr;
     throw new Error(errMsg);
   }
 
@@ -133,8 +142,14 @@ export function useTeamIntelligence() {
     competitiveLevel?: string;
     localVideoSrc?:   string;
     analysisFocus?:   string[];
+    /**
+     * Declaración del entrenador que marcó el usuario (decisión del owner, 30 sep). Viaja
+     * en team-observation y team-intelligence, que la exigen y la guardan. Vídeo de equipo:
+     * la comprobación por jugador no aplica.
+     */
+    attestation?:     ClipAttestation | null;
   }): Promise<TeamIntelligenceOutput | null> => {
-    const { videoId, videoDuration, teamColor, opponentColor, competitiveLevel, localVideoSrc, analysisFocus } = opts;
+    const { videoId, videoDuration, teamColor, opponentColor, competitiveLevel, localVideoSrc, analysisFocus, attestation } = opts;
     const hasLocalVideo = !!localVideoSrc && isLocalSrc(localVideoSrc);
     setState({ step: "analyzing", progress: 10, message: "Preparando video para análisis de equipo..." });
 
@@ -156,6 +171,8 @@ export function useTeamIntelligence() {
                 locale: normalizeLocale(i18n.language),
                 videoBase64: videoData.base64,
                 mediaType: videoData.mediaType,
+                videoId,
+                ...(attestation ? { attestation } : {}),
                 teamContext: {
                   teamColor,
                   opponentColor,
@@ -163,6 +180,13 @@ export function useTeamIntelligence() {
                 },
               }),
             });
+
+            if (!geminiRes.ok) {
+              // Un bloqueo de consentimiento NO cae al modo fotogramas: se para aquí.
+              const errJson = await geminiRes.json().catch(() => null);
+              const consentErr = clipConsentErrorFromResponse(errJson, i18n.language);
+              if (consentErr) throw consentErr;
+            }
 
             if (geminiRes.ok) {
               // Contrato successResponse (api/_lib/apiResponse.ts): { ok, success, data: { observations } }.
@@ -178,6 +202,7 @@ export function useTeamIntelligence() {
             }
           }
         } catch (geminiErr) {
+          if (geminiErr instanceof ClipConsentBlockedError) throw geminiErr;
           console.warn("[Team Intelligence] Error con Gemini:", geminiErr);
         }
 
@@ -218,6 +243,7 @@ export function useTeamIntelligence() {
           geminiObservations,
           keyframes,
           videoId,
+          ...(attestation ? { attestation } : {}),
           analysisFocus: analysisFocus ?? null,
           // FASE 5 · idioma del reporte = idioma activo de la app (bilingüe ES/EN)
           locale: normalizeLocale(i18n.language),

@@ -37,6 +37,23 @@ import { buildDemoAnalysisRows } from "@/lib/demo/demoReports";
 import i18n from "@/i18n";
 import { normalizeLocale } from "@/lib/shared/locale";
 import { finalizeSyncGateMessage } from "@/lib/syncVideoAnalysisGate";
+import {
+  ClipConsentBlockedError,
+  clipConsentErrorFromResponse,
+  type ClipAttestation,
+} from "@/lib/shared/videoConsent";
+
+/**
+ * Consentimiento (decisión del owner, 30 sep · src/lib/shared/videoConsent): create-upload,
+ * finalize y generate-reports exigen la declaración del entrenador (la que marca el
+ * usuario en la UI; aquí solo se reenvía, nunca se fabrica) y, para un menor de 14
+ * conocido, consentimiento parental verificado. Un bloqueo se lanza como
+ * ClipConsentBlockedError con su motivo traducido y NUNCA cae a otra ruta de análisis.
+ */
+function throwIfConsentBlocked(json: unknown): void {
+  const err = clipConsentErrorFromResponse(json, i18n.language);
+  if (err) throw err;
+}
 
 // ── Tipos ─────────────────────────────────────────────────────────
 
@@ -132,7 +149,7 @@ export function usePlayerAnalysisV2() {
    *   file → Bunny → Modal → 6 reports
    */
   const startAnalysis = useCallback(
-    async (params: { file: File; playerId: string; title: string }) => {
+    async (params: { file: File; playerId: string; title: string; attestation?: ClipAttestation | null }) => {
       const ac = new AbortController();
       abortRef.current = ac;
       setResult(INITIAL_RESULT);
@@ -148,10 +165,12 @@ export function usePlayerAnalysisV2() {
             playerId: params.playerId,
             title: params.title,
             durationSec: undefined,
+            ...(params.attestation ? { attestation: params.attestation } : {}),
           }),
           signal: ac.signal,
         });
         const createData = await createRes.json();
+        throwIfConsentBlocked(createData);
         if (!createRes.ok || !createData.success) {
           throw new Error(createData?.error?.message ?? i18n.t("videoAnalysis.errors.createUpload"));
         }
@@ -202,10 +221,16 @@ export function usePlayerAnalysisV2() {
             headers: { ...headers, "Content-Type": "application/json" },
             // locale: idioma de la UI → finalize lo persiste (mig 064) y los informes
             // asíncronos salen en él (antes siempre en español).
-            body: JSON.stringify({ videoId: meta.videoId, bunnyVideoId: meta.bunnyVideoId, locale: normalizeLocale(i18n.language) }),
+            body: JSON.stringify({
+              videoId: meta.videoId,
+              bunnyVideoId: meta.bunnyVideoId,
+              locale: normalizeLocale(i18n.language),
+              ...(params.attestation ? { attestation: params.attestation } : {}),
+            }),
             signal: ac.signal,
           });
           const finData = await finRes.json();
+          throwIfConsentBlocked(finData);
           // Gate honesto del servidor: vídeo demasiado largo para la cola de clips cortos
           // → se para aquí con el motivo real, no tras 12 reintentos con un "timeout" falso.
           const gateMsg = finalizeSyncGateMessage(i18n.t.bind(i18n), finData);
@@ -330,7 +355,14 @@ export function usePlayerAnalysisV2() {
    * Si ya hay un análisis completado lo carga directamente.
    */
   const analyzeExistingVideo = useCallback(
-    async (params: { videoId: string; bunnyVideoId: string; playerId: string; playedPosition?: string }) => {
+    async (params: {
+      videoId: string;
+      bunnyVideoId: string;
+      playerId: string;
+      playedPosition?: string;
+      /** Declaración marcada por el usuario para ESTE (re)análisis (finalize la exige). */
+      attestation?: ClipAttestation | null;
+    }) => {
       const ac = new AbortController();
       abortRef.current = ac;
       setResult(INITIAL_RESULT);
@@ -367,10 +399,12 @@ export function usePlayerAnalysisV2() {
               playerId: params.playerId,                // jugador elegido → finalize siembra player_id/tenant_id + encola
               playedPosition: params.playedPosition,    // posición jugada en este video
               locale: normalizeLocale(i18n.language),   // idioma de la UI → informes en ese idioma (mig 064)
+              ...(params.attestation ? { attestation: params.attestation } : {}),
             }),
             signal: ac.signal,
           });
           const finData = await finRes.json();
+          throwIfConsentBlocked(finData);
           const gateMsg = finalizeSyncGateMessage(i18n.t.bind(i18n), finData);
           if (gateMsg) throw new Error(gateMsg);
           if (finData?.data?.ready) { finalized = true; break; }
@@ -422,6 +456,8 @@ export function usePlayerAnalysisV2() {
       biomechanics?: Record<string, unknown> | null;
       physicalMetrics?: Record<string, unknown> | null;
       eventSummary?: Record<string, unknown> | null;
+      /** Declaración marcada por el usuario (generate-reports la exige; también el fallback). */
+      attestation?: ClipAttestation | null;
     }) => {
       const ac = new AbortController();
       abortRef.current = ac;
@@ -481,9 +517,16 @@ export function usePlayerAnalysisV2() {
                 playedPosition: params.playedPosition,
                 // FASE 5 · idioma activo → reportes bilingües ES/EN
                 locale: normalizeLocale(i18n.language),
+                ...(params.attestation ? { attestation: params.attestation } : {}),
               }),
               signal: ac.signal,
             });
+
+            if (!reportRes.ok) {
+              // Bloqueo de consentimiento: se para aquí (sin caer al pipeline estándar).
+              const errJson = await reportRes.json().catch(() => null);
+              throwIfConsentBlocked(errJson);
+            }
 
             if (reportRes.ok) {
               setState({ step: "generating_reports", progress: 75, message: i18n.t("videoAnalysis.progress.reportsGenerating"), error: null });
@@ -504,7 +547,9 @@ export function usePlayerAnalysisV2() {
                 return await loadAnalysis(completed.id);
               }
             }
-          } catch {
+          } catch (reportErr) {
+            // Un bloqueo de consentimiento NUNCA cae al pipeline alternativo.
+            if (reportErr instanceof ClipConsentBlockedError) throw reportErr;
             // Report generation endpoint may not exist yet — fall back to existing flow
             console.warn("[V2] Report generation endpoint not available, trying existing pipeline");
           }
@@ -518,9 +563,15 @@ export function usePlayerAnalysisV2() {
           bunnyVideoId,
           playerId: params.playerId,
           playedPosition: params.playedPosition,
+          attestation: params.attestation,
         });
 
       } catch (err) {
+        if (err instanceof ClipConsentBlockedError) {
+          // No es un "completado parcial": el servidor no analiza → error con su motivo.
+          setState({ step: "error", progress: 0, message: i18n.t("videoAnalysis.progress.error"), error: err.message });
+          throw err;
+        }
         const errorMsg = err instanceof Error ? err.message : "Error desconocido";
         // Don't throw — store biomechanics result even if reports fail
         setState({ step: "completed", progress: 100, message: i18n.t("videoAnalysis.progress.biomechanicsSaved"), error: null });

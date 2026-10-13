@@ -27,7 +27,10 @@
  *   3. Gate honesto: un vídeo más largo que SYNC_ANALYSIS_MAX_DURATION_SEC NO se encola
  *      en la cola Gemini de clips cortos (fallaría). El partido completo lo analizará el
  *      futuro match-analysis job. Duración desconocida → no se bloquea, no se inventa.
- *   4. Encolar el análisis (impl compartida con finalize, inv #7)
+ *   4. Encolar el análisis (impl compartida con finalize, inv #7). enqueueAnalysis exige
+ *      la declaración del entrenador GUARDADA con el vídeo (y el consentimiento parental
+ *      de un menor de 14 conocido); si falta → 200 { skipped, reason: <código> } para que
+ *      Bunny no reintente (api/_lib/analysisConsentGate).
  */
 
 import { z } from "zod";
@@ -189,10 +192,18 @@ export default withHandler(
       locale: videoLocale,
       publicUrl,
       cronSecret: process.env.CRON_SECRET ?? "",
+      endpoint: "webhooks/bunny-uploaded",
     });
 
     if (result.status === "error") {
       return errorResponse({ code: "create_analysis_failed", message: result.error, status: 500 });
+    }
+    if (result.status === "blocked") {
+      // Consentimiento (declaración guardada / consentimiento parental de un menor de 14
+      // conocido): no se analiza. 200 para que Bunny NO reintente — no es un fallo del
+      // webhook; el análisis se lanzará cuando el entrenador declare desde la app.
+      console.warn(`[VITAS] Video ${vrow.id}: análisis NO encolado por consentimiento (${result.code})`);
+      return successResponse({ skipped: true, reason: result.code, gate_reason: result.gate_reason });
     }
     if (result.status === "skipped") {
       // Vídeo sin jugador/tenant atado → no se encola (no es un fallo del webhook).

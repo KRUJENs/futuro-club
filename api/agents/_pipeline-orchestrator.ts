@@ -21,6 +21,7 @@ import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { createClient } from "@supabase/supabase-js";
 import { RESEND_FROM } from "../_lib/email";
+import { findActiveParentalConsent } from "../_lib/parentalConsent";
 import { deriveSimMetrics } from "../_lib/simMetrics";
 import { normalizeLocale, localeSchema, pickLocale, type ReportLocale } from "../../src/lib/shared/locale";
 import { resolveCategory } from "../../src/lib/shared/category";
@@ -808,14 +809,11 @@ export default withHandler(
       let consentBasis: "not_required" | "parental_verified" | null =
         dsAge != null && dsAge >= 14 ? "not_required" : null;
       if (!consentBasis) {
-        const { data: consent } = await supabase
-          .from("parental_consents")
-          .select("id")
-          .eq("player_id", analysis.player_id)
-          .eq("email_verified", true)
-          .limit(1)
-          .maybeSingle();
-        if (consent) consentBasis = "parental_verified";
+        // Fuente canónica ÚNICA del consentimiento parental (inv #7, B6 del PR #308):
+        // verificado por el tutor con el token de su email, no retirado. Antes se leía
+        // aquí sin `withdrawn_at IS NULL` y sin la evidencia del servidor. Un fallo de la
+        // base lanza → el catch de abajo no escribe la muestra (falla cerrado).
+        if (await findActiveParentalConsent(String(analysis.player_id))) consentBasis = "parental_verified";
       }
       if (consentBasis) {
         await supabase.from("labeled_datasets").upsert(
@@ -901,19 +899,14 @@ export default withHandler(
     // ── 8. Email Resend ────────────────────────────────────────────
     let emailSent = false;
     try {
-      const { data: parentEmail } = await supabase
-        .from("parental_consents")
-        .select("parent_email")
-        .eq("player_id", analysis.player_id)
-        .eq("email_verified", true)
-        .order("signed_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Misma fuente canónica que el gate (inv #7, B6): el email del tutor que verificó y
+      // no ha retirado el consentimiento; nunca el de una fila marcada por el cliente.
+      const activeConsent = await findActiveParentalConsent(String(analysis.player_id));
 
-      if (parentEmail?.parent_email && player) {
+      if (activeConsent?.parentEmail && player) {
         const vsiScore = vsiValue; // null (bloqueado) → email muestra "N/D", nunca "VSI 0"
         emailSent = await sendCompletionEmail(
-          parentEmail.parent_email,
+          activeConsent.parentEmail,
           player.name,
           vsiScore,
           `${PUBLIC_URL}/player/${analysis.player_id}/analysis/${analysis.id}`,

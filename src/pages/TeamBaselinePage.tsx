@@ -32,6 +32,7 @@ import BaselineMatchJobPanel from "@/components/match/BaselineMatchJobPanel";
 import CoverageBanner from "@/components/match/CoverageBanner";
 import { isMatchVideoClientFlagOn, resolveMatchVideoAvailability } from "@/lib/match/matchVideoAvailability";
 import type { MatchCoverage } from "@/lib/shared/matchJob/contract";
+import { clipConsentErrorFromResponse } from "@/lib/shared/videoConsent";
 
 type AnalysisMode = "text" | "video";
 
@@ -82,7 +83,7 @@ export default function TeamBaselinePage() {
   // a partial video is never read as a complete session (CoverageBanner above the results).
   const [dataCoverage, setDataCoverage] = useState<{ coverage: MatchCoverage | null } | null>(null);
 
-  async function handleVideoAnalysis(url: string) {
+  async function handleVideoAnalysis(url: string, videoId: string) {
     setVideoUrl(url);
     setAnalyzingVideo(true);
     try {
@@ -93,6 +94,10 @@ export default function TeamBaselinePage() {
         body: JSON.stringify({
           locale: normalizeLocale(i18n.language),
           videoUrl: url,
+          // Consentimiento (decisión del owner, 30 sep): el servidor comprueba que el vídeo
+          // es tuyo, que la URL es la suya y que tiene la declaración que marcaste al subirlo
+          // en VideoUpload (guardada con el vídeo). No se vuelve a declarar aquí.
+          videoId,
           // Observación de EQUIPO: sin identificar ni atribuir a un jugador, y sin
           // edad/posición inventadas (antes 13 / "MID" / "formativo" por defecto).
           analysisScope: "team",
@@ -100,6 +105,8 @@ export default function TeamBaselinePage() {
         }),
       });
       const json = await res.json();
+      const consentErr = clipConsentErrorFromResponse(json, i18n.language);
+      if (consentErr) throw consentErr;
       if (!res.ok || !json.success) throw new Error(json?.error?.message ?? t("teamBaselinePage.errorAnalyzingVideo"));
 
       const obs = json.data?.observations as Record<string, unknown>;
@@ -194,7 +201,7 @@ export default function TeamBaselinePage() {
                     const input = resolveSyncAnalysisInput(VideoService.getById(videoId), info.durationSec);
                     if (input.kind === "ok") {
                       setVideoNotice(null);
-                      void handleVideoAnalysis(input.url);
+                      void handleVideoAnalysis(input.url, videoId);
                     } else if (input.kind === "too_long" && matchVideoAvailable) {
                       // Partido completo: job asíncrono en vez de la llamada síncrona de 120 s.
                       setVideoNotice(null);

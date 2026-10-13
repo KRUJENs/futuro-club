@@ -38,6 +38,13 @@ vi.mock("../../_lib/anthropic", () => ({
   fetchMessages: vi.fn(),
 }));
 
+// Gate de consentimiento: aquí se prueba la identidad (nivel equipo), así que permite.
+// Sus tests propios: api/agents/__tests__/clip-consent-agents.test.ts.
+vi.mock("../../_lib/analysisConsentGate", async (orig) => ({
+  ...(await orig<typeof import("../../_lib/analysisConsentGate")>()),
+  gateClipAnalysis: vi.fn(async () => ({ allowed: true, attestation: "recorded", pendingAttestation: null, minor: null, video: null, videoPlayerIds: [] })),
+}));
+
 import teamObservation from "../team-observation";
 import teamIntelligence from "../_team-intelligence";
 import { fetchMessages } from "../../_lib/anthropic";

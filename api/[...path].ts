@@ -22,6 +22,7 @@ import reportsPdf from "./reports/_pdf";
 import accountDelete from "./account/_delete";
 import authWelcome from "./auth/_welcome";
 import authVerifyCaptcha from "./auth/_verify-captcha";
+import authWithdrawConsent from "./auth/_withdraw-consent";
 
 export const config = { runtime: "edge" };
 
@@ -54,6 +55,7 @@ export default async function handler(req: Request): Promise<Response> {
     "account/delete": accountDelete,
     "auth/welcome": authWelcome,
     "auth/verify-captcha": authVerifyCaptcha,
+    "auth/withdraw-consent": authWithdrawConsent,
   };
 
   if (staticRoutes[key]) return staticRoutes[key](req);

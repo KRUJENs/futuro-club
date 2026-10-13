@@ -6108,9 +6108,10 @@
       "guardianNamePlaceholder": "Jane Smith",
       "guardianEmailLabel": "Legal guardian's email",
       "guardianEmailPlaceholder": "parent@email.com",
-      "emailNotice": "A confirmation will be sent by email. The link expires in 24h.",
+      "emailNotice": "It is saved exactly as you type it: no email is sent and the guardian is not verified.",
+      "clipGateNotice": "This note does NOT unlock video analysis of a player under 14: that requires consent signed by the guardian and confirmed from their email.",
       "actionLabel": "Action",
-      "authorizeAI": "Authorize AI",
+      "authorizeAI": "Record authorisation",
       "denyAI": "Deny AI",
       "includesTitle": "What the consent includes:",
       "includes1": "AI biomechanical video analysis (posture, movement)",
@@ -6200,6 +6201,13 @@
       "loadingReports": "Error loading reports",
       "notFound": "Not found"
     }
+  },
+  "clipConsent": {
+    "blockedTitle": "Analysis not allowed",
+    "uploadNeedsAttestation": "Tick the declaration to upload and analyse the video.",
+    "analysisNeedsAttestation": "Tick the declaration to analyse the video. It is also required to re-analyse a video uploaded earlier.",
+    "minorNote": "If the player is under 14 according to their date of birth, the consent of their guardian, signed and confirmed by email, is also required.",
+    "liveVideoOmittedTitle": "The match video was not analysed"
   },
   "matchJob": {
     "stage": {

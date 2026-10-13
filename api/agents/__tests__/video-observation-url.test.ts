@@ -13,13 +13,31 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+// `serviceCall` = llamada server-to-server (cola, gemini-analyze, live/aggregate).
+let serviceCall = false;
 vi.mock("../../_lib/withHandler", () => ({
   withHandler:
     (_opts: unknown, handler: (ctx: Record<string, unknown>) => Promise<Response>) =>
     async (req: Request) => {
       const rawBody = await req.clone().text();
-      return handler({ req, rawBody, body: rawBody, userId: "user-123", isServiceCall: false, query: {}, headers: {} });
+      return handler({
+        req, rawBody, body: rawBody,
+        userId: serviceCall ? null : "user-123",
+        isServiceCall: serviceCall,
+        query: {}, headers: {},
+      });
     },
+}));
+
+// Gate de consentimiento de las llamadas de USUARIO: aquí se prueba la descarga, así que
+// permite. Sus tests propios: api/agents/__tests__/clip-consent-agents.test.ts.
+const userGate = vi.fn(async () => ({
+  allowed: true,
+  video: { id: "0f1e2d3c-guid", user_id: "user-123", tenant_id: null, player_id: null, bunny_video_id: "0f1e2d3c-guid" },
+}));
+vi.mock("../../_lib/analysisConsentGate", async (orig) => ({
+  ...(await orig<typeof import("../../_lib/analysisConsentGate")>()),
+  enforceUserVideoObservationConsent: (...args: unknown[]) => userGate(...(args as [])),
 }));
 
 vi.mock("../../_lib/budgetGuard", () => ({
@@ -68,6 +86,7 @@ const geminiCalls = () => fetchMock.mock.calls.filter(([u]) => isGemini(u));
 
 beforeEach(() => {
   vi.clearAllMocks();
+  serviceCall = false;
   process.env.GEMINI_API_KEY = "test-gemini-key";
   process.env.BUNNY_CDN_HOSTNAME = CDN;
   delete process.env.VITE_BUNNY_CDN_HOSTNAME;
@@ -155,11 +174,15 @@ describe("video-observation · videoUrl", () => {
     expect((await res.json()).errorDetail.code).toBe("VIDEO_DOWNLOAD_FAILED");
   });
 
-  it("videoBase64 directo (sin URL) sigue funcionando aunque no haya allowlist", async () => {
+  it("videoBase64 directo (sin URL) en una llamada de SERVICIO sigue funcionando aunque no haya allowlist", async () => {
+    // Las llamadas de USUARIO con fichero en el cuerpo las rechaza el gate de
+    // consentimiento (clip-consent-agents.test.ts); el camino de servicio no cambia.
+    serviceCall = true;
     delete process.env.BUNNY_CDN_HOSTNAME;
     const res = await call({ videoBase64: "AAAA", mediaType: "video/mp4" });
     expect(res.status).toBe(200);
     expect(downloadCalls()).toHaveLength(0);
     expect(geminiCalls()).toHaveLength(1);
+    expect(userGate).not.toHaveBeenCalled();
   });
 });

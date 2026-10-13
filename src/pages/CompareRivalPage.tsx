@@ -23,6 +23,7 @@ import { buildDemoRivalPlan } from "@/lib/demo/demoTeam";
 import VideoUpload from "@/components/VideoUpload";
 import { VideoService } from "@/services/real/videoService";
 import { resolveSyncAnalysisInput, syncAnalysisRefusalMessage } from "@/lib/syncVideoAnalysisGate";
+import { clipConsentErrorFromResponse } from "@/lib/shared/videoConsent";
 
 type AnalysisMode = "text" | "video";
 
@@ -83,7 +84,7 @@ export default function CompareRivalPage() {
   // Motivo honesto por el que el vídeo subido NO va al análisis rápido. null = sin aviso.
   const [videoNotice, setVideoNotice] = useState<string | null>(null);
 
-  async function handleVideoAnalysis(url: string) {
+  async function handleVideoAnalysis(url: string, videoId: string) {
     setVideoUrl(url);
     setAnalyzingVideo(true);
     try {
@@ -94,6 +95,9 @@ export default function CompareRivalPage() {
         body: JSON.stringify({
           locale: normalizeLocale(i18n.language),
           videoUrl: url,
+          // Consentimiento (decisión del owner, 30 sep): el servidor exige que el vídeo sea
+          // tuyo, que la URL sea la suya y la declaración que marcaste al subirlo.
+          videoId,
           // Observación de EQUIPO (el rival): sin identificar a jugadores y sin
           // edad/posición inventadas (antes 13 / "MID" / "formativo" por defecto).
           analysisScope: "team",
@@ -101,6 +105,8 @@ export default function CompareRivalPage() {
         }),
       });
       const json = await res.json();
+      const consentErr = clipConsentErrorFromResponse(json, i18n.language);
+      if (consentErr) throw consentErr;
       if (!res.ok || !json.success) throw new Error(json?.error?.message ?? t("compareRivalPage.errorAnalyzingVideo"));
 
       const obs = json.data?.observations as RivalVideoAnalysis;
@@ -218,7 +224,7 @@ export default function CompareRivalPage() {
                       const input = resolveSyncAnalysisInput(VideoService.getById(videoId), info.durationSec);
                       if (input.kind === "ok") {
                         setVideoNotice(null);
-                        void handleVideoAnalysis(input.url);
+                        void handleVideoAnalysis(input.url, videoId);
                       } else {
                         const msg = syncAnalysisRefusalMessage(t, input);
                         setVideoNotice(msg);

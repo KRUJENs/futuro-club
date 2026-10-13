@@ -21,6 +21,7 @@ import { DRILLS_LIBRARY, type DrillDocument } from "@/data/drillsLibrary";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { getAuthHeaders } from "@/lib/apiAuth";
+import { ClipConsentBlockedError, clipConsentErrorFromResponse } from "@/lib/shared/videoConsent";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -94,7 +95,7 @@ const item = { hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0, transiti
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const SoloDrill = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate  = useNavigate();
   const { user }  = useAuth();
   const { data: players = [] } = useAllPlayers();
@@ -155,6 +156,8 @@ const SoloDrill = () => {
           videoId,
           playerId,
           analysisMode: selectedCategory ?? "all",
+          // Idioma de los motivos de bloqueo que devuelve el servidor (se muestran tal cual).
+          locale: i18n.language,
         }),
       });
 
@@ -172,6 +175,11 @@ const SoloDrill = () => {
         return;
       }
 
+      // Consentimiento (decisión del owner, 30 sep): pipeline/start exige la declaración que
+      // se marcó al subir el vídeo en VideoUpload (guardada con él) y, para un menor de 14
+      // conocido, consentimiento parental verificado. Su motivo se muestra tal cual.
+      const consentErr = clipConsentErrorFromResponse(data, i18n.language);
+      if (consentErr) throw consentErr;
       if (!res.ok || !data.success || !data.report) {
         throw new Error(data.error ?? t("soloDrill.pipelineError"));
       }
@@ -190,7 +198,7 @@ const SoloDrill = () => {
     } catch (err) {
       setSessionState("error");
       toast.dismiss(toastId);
-      toast.error(t("drill.analysisError"), {
+      toast.error(err instanceof ClipConsentBlockedError ? t("clipConsent.blockedTitle") : t("drill.analysisError"), {
         description: err instanceof Error ? err.message : t("errors.unknownError"),
       });
     }

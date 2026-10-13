@@ -17,9 +17,15 @@
  *   - Concurrency limitada para no saturar la API de Bunny.
  */
 
-const BUNNY_LIBRARY_ID = process.env.BUNNY_STREAM_LIBRARY_ID ?? "";
-const BUNNY_API_KEY =
-  process.env.BUNNY_STREAM_API_KEY ?? process.env.BUNNY_API_KEY ?? "";
+// Credenciales leídas en CADA llamada (no al cargar el módulo): mismo valor en prod y
+// así un llamador que lee el env por petición (p. ej. upload/video-init al deshacer una
+// subida sin declaración guardada) borra con la misma librería con la que creó.
+function bunnyLibraryId(): string {
+  return process.env.BUNNY_STREAM_LIBRARY_ID ?? "";
+}
+function bunnyApiKey(): string {
+  return process.env.BUNNY_STREAM_API_KEY ?? process.env.BUNNY_API_KEY ?? "";
+}
 
 export interface BunnyCleanupResult {
   configured: boolean;
@@ -32,10 +38,10 @@ export interface BunnyCleanupResult {
 /** Borra un único vídeo de Bunny. Devuelve true si 200/404 (404 = ya no existe). */
 async function deleteOne(bunnyVideoId: string): Promise<boolean> {
   const res = await fetch(
-    `https://video.bunnycdn.com/library/${BUNNY_LIBRARY_ID}/videos/${bunnyVideoId}`,
+    `https://video.bunnycdn.com/library/${bunnyLibraryId()}/videos/${bunnyVideoId}`,
     {
       method: "DELETE",
-      headers: { AccessKey: BUNNY_API_KEY, Accept: "application/json" },
+      headers: { AccessKey: bunnyApiKey(), Accept: "application/json" },
     },
   );
   // 404 → el vídeo ya no está en Bunny; lo tratamos como éxito idempotente.
@@ -51,7 +57,7 @@ export async function deleteBunnyVideos(
 ): Promise<BunnyCleanupResult> {
   const ids = bunnyVideoIds.filter((x): x is string => Boolean(x));
   const result: BunnyCleanupResult = {
-    configured: Boolean(BUNNY_LIBRARY_ID && BUNNY_API_KEY),
+    configured: Boolean(bunnyLibraryId() && bunnyApiKey()),
     attempted: ids.length,
     deleted: 0,
     failed: 0,

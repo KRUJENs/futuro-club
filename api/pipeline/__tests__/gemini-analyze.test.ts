@@ -66,7 +66,7 @@ beforeEach(() => {
   process.env.INTERNAL_API_TOKEN = TOKEN;
   captured = { updates: [] };
   tables = {
-    videos: { bunny_video_id: "bunny-1" },
+    videos: { bunny_video_id: "1d000000-0000-4000-8000-000000000001" },
     players: { name: "Ana", position: null, foot: null },
     player_latest_anthropometrics: null, // sin antropometría registrada
   };
@@ -151,5 +151,45 @@ describe("gemini-analyze — identidad: abstención en vez de atribuir al menor"
     expect(fetchMock).not.toHaveBeenCalled();
     expect(analysesUpdate().status).toBe("failed");
     expect((json.data as Record<string, unknown>).abstained).toBe(true);
+  });
+});
+
+describe("gemini-analyze — B4: el GUID que va en la URL es el que comprobó el cron", () => {
+  const G = "0a0a0a0a-0000-4000-8000-000000000001";
+  const G_VICTIM = "0b0b0b0b-0000-4000-8000-000000000002";
+  const observationUrl = () => {
+    const call = fetchMock.mock.calls.find(([url]) => String(url).includes("/api/agents/video-observation"));
+    return call ? JSON.parse((call[1] as RequestInit).body as string).videoUrl : null;
+  };
+  const runWith = async (body: Record<string, unknown>) => {
+    const { default: handler } = await import("../_gemini-analyze");
+    const res = await handler(req(body));
+    return { status: res.status, json: (await res.json()) as Record<string, unknown> };
+  };
+
+  it.each([`a/../${G_VICTIM}`, `${G}/../${G_VICTIM}`, "bunny-1"])("bunny_video_id %j ⇒ 422 sin llamar a Gemini", async (bad) => {
+    tables.videos = { bunny_video_id: bad };
+    const { status, json } = await runWith(BODY);
+    expect(status).toBe(422);
+    expect((json.errorDetail as Record<string, unknown>).code).toBe("invalid_video_reference");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("la fila cambió de GUID desde que el cron la comprobó (bunnyVideoId distinto) ⇒ 409 sin llamar a Gemini", async () => {
+    tables.videos = { bunny_video_id: G_VICTIM };
+    const { status } = await runWith({ ...BODY, bunnyVideoId: G });
+    expect(status).toBe(409);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("GUID válido y el mismo que comprobó el cron ⇒ la URL enviada a video-observation es la de ESE GUID", async () => {
+    process.env.BUNNY_CDN_HOSTNAME = "cdn.test";
+    tables.videos = { bunny_video_id: G };
+    fetchMock.mockResolvedValue(
+      geminiReply({ identificacion: { estado: "unico_jugador", confianza: "alta", motivo: "" }, dimensiones: {}, eventosContados: {} }),
+    );
+    await runWith({ ...BODY, bunnyVideoId: G });
+    expect(observationUrl()).toBe(`https://cdn.test/${G}/play_720p.mp4`);
+    delete process.env.BUNNY_CDN_HOSTNAME;
   });
 });

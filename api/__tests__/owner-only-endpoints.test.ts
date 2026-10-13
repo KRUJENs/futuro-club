@@ -226,7 +226,10 @@ describe("analyses/generate-reports · sobrescribir el análisis de un menor y d
   it("A (dueño del jugador del análisis) → 200 y se dispara el orquestador", async () => {
     const { default: handler } = await import("../analyses/generate-reports");
     sbLog.length = 0;
-    const res = await handler(post("/api/analyses/generate-reports", { analysisId: AN, playerId: "pA", videoId: "v1" }));
+    // Con la declaración del entrenador (gate de consentimiento de clips, PR #308): sin ella
+    // el servidor responde 400 attestation_required antes de tocar el análisis.
+    const attestation = { accepted: true, version: "2026-09-28.v1" };
+    const res = await handler(post("/api/analyses/generate-reports", { analysisId: AN, playerId: "pA", videoId: "v1", attestation }));
     expect(res.status).toBe(200);
     expect(sbLog.some((l) => l.startsWith(`update analyses id=${AN}`))).toBe(true);
     expect(calls.some((c) => c.url.includes("/api/agents/pipeline-orchestrator"))).toBe(true);

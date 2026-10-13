@@ -19,8 +19,27 @@
  */
 
 import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabase";
+import { getAuthHeaders } from "@/lib/apiAuth";
 
 const STORAGE_KEY = "vitas_parental_consents";
+
+/**
+ * Retira en el SERVIDOR los consentimientos parentales activos del jugador
+ * (POST /api/auth/withdraw-consent; solo el dueño del jugador). Es lo único que hace que una
+ * revocación cuente: players.parental_consent_status es solo un rótulo de la pantalla y el gate
+ * de análisis no lo mira. Lanza si el servidor no confirma la retirada → la UI NO debe mostrar
+ * «revocado» en ese caso. Devuelve cuántos consentimientos se retiraron.
+ */
+export async function withdrawConsentOnServer(playerId: string, reason?: string): Promise<number> {
+  const res = await fetch("/api/auth/withdraw-consent", {
+    method: "POST",
+    headers: await getAuthHeaders(),
+    body: JSON.stringify({ playerId, ...(reason ? { reason } : {}) }),
+  });
+  const json = (await res.json().catch(() => null)) as { success?: boolean; data?: { withdrawn?: number } } | null;
+  if (!res.ok || !json?.success) throw new Error(`withdraw_consent_failed_${res.status}`);
+  return json.data?.withdrawn ?? 0;
+}
 
 export type ConsentStatus = "pending" | "granted" | "denied" | "not_required";
 
@@ -175,8 +194,14 @@ export const ParentalConsentService = {
     return updated;
   },
 
-  /** Deny consent — must trigger data removal/anonymization per RGPD */
+  /**
+   * Deny consent — must trigger data removal/anonymization per RGPD.
+   * Con Supabase, la retirada se hace PRIMERO en el servidor (withdrawConsentOnServer); si
+   * falla, lanza y no se marca nada como denegado.
+   */
   async deny(playerId: string, guardianName?: string): Promise<ParentalConsent> {
+    if (SUPABASE_CONFIGURED) await withdrawConsentOnServer(playerId);
+
     const updated: ParentalConsent = {
       playerId,
       status: "denied",

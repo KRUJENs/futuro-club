@@ -12,6 +12,18 @@
  *   4. Se envía email Resend con link de verificación (24h validez)
  *   5. Al hacer click → /api/auth/verify-consent marca email_verified=true
  *   6. Solo entonces el menor puede usar VITAS
+ *
+ * B6 (review del PR #308): en la base se guarda el HASH del token (hashConsentToken), no
+ * el token: el que llega en el email es el único que verifica. La fila nace pendiente y
+ * solo cuenta para el gate de análisis cuando verify-consent escribe su evidencia
+ * (api/_lib/parentalConsent.ts).
+ *
+ * Ronda 5 (B6 seguía abierto): ANTES de crear la fila se escribe la EMISIÓN del enlace
+ * (gdpr_audit_log 'consent_token_issued', service_role) con el id de la fila, el jugador cuyo
+ * dueño firma, el email del tutor, el hash del token y su caducidad. verify-consent busca el
+ * token en ESA fila (que un cliente no puede escribir ni cambiar), no en
+ * parental_consents.verification_token ni en su player_id (que un UPDATE de cliente sí puede
+ * cambiar antes de la 075/076). Si la emisión no se puede escribir → 500, sin fila ni email.
  */
 
 import { z } from "zod";
@@ -21,6 +33,7 @@ import { ownsPlayer } from "../_lib/ownership";
 import { RESEND_FROM } from "../_lib/email";
 import { createClient } from "@supabase/supabase-js";
 import { sha256Hex, randomHex } from "../_lib/edgeCrypto";
+import { hashConsentToken, recordConsentTokenIssued } from "../_lib/parentalConsent";
 
 export const config = { runtime: "edge" };
 
@@ -102,7 +115,9 @@ export default withHandler(
       return errorResponse({ code: "forbidden", message: "No autorizado para este jugador", status: 403 });
     }
 
-    const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
+    // Misma precedencia que api/_lib/env.ts (SUPABASE_URL primero), la que usan
+    // verify-consent, la evidencia (parentalConsent.ts) y el gate de análisis.
+    const supabaseUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
     if (!supabaseUrl || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
       return errorResponse({ code: "config_missing", message: "DB not configured", status: 500 });
     }
@@ -128,7 +143,12 @@ export default withHandler(
     const signatureHash = await sha256Hex(signaturePayload);
 
     // ── Token de verificación (24h validez) ───────────────────────
+    // El token en claro SOLO viaja en el email del tutor; en la base se guarda su hash
+    // (B6, api/_lib/parentalConsent.ts): quien pueda leer la fila no puede verificar el
+    // consentimiento él mismo. El hash y la caducidad que cuentan son los de la EMISIÓN (abajo);
+    // los de la fila son informativos (un UPDATE de cliente puede cambiarlos).
     const verificationToken = randomHex(32);
+    const verificationTokenHash = await hashConsentToken(verificationToken);
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
     // ── Buscar tenant del player ──────────────────────────────────
@@ -142,23 +162,48 @@ export default withHandler(
       return errorResponse({ code: "player_not_found", message: "Player no existe", status: 404 });
     }
 
-    // ── Insertar consentimiento ───────────────────────────────────
-    const { data: consent, error } = await supabase
+    // ── 1 · EMISIÓN del enlace ligada en el servidor (ANTES de la fila) ──
+    // El id de la fila lo pone el servidor para poder ligarlo antes de crearla: si la emisión
+    // no se puede escribir, no hay fila ni email (nada que verificar).
+    const consentId = crypto.randomUUID();
+    const parentEmail = input.parentEmail.toLowerCase();
+    try {
+      await recordConsentTokenIssued({
+        consentId,
+        playerId: input.playerId,
+        parentEmail,
+        tokenHash: verificationTokenHash,
+        expiresAt: verificationExpires,
+        tenantId: player.tenant_id ?? null,
+        userId: userId ?? null,
+      });
+    } catch (err) {
+      console.error("[sign-consent] no se pudo registrar la emisión del enlace (no se crea nada):", err instanceof Error ? err.message : err);
+      return errorResponse({
+        code: "consent_save_failed",
+        message: "No se pudo registrar el consentimiento. Inténtalo de nuevo más tarde.",
+        status: 500,
+      });
+    }
+
+    // ── 2 · Insertar consentimiento (con el id de la emisión) ─────
+    const { error } = await supabase
       .from("parental_consents")
       .insert({
+        id: consentId,
         player_id: input.playerId,
         tenant_id: player.tenant_id,
-        parent_email: input.parentEmail.toLowerCase(),
+        parent_email: parentEmail,
         parent_name: input.parentName,
         parent_dni_hash: dniHash,
         child_birthdate: input.childBirthdate,
         signed_ip: ip,
         signature_hash: signatureHash,
-        verification_token: verificationToken,
+        verification_token: verificationTokenHash,
         verification_expires_at: verificationExpires,
         consent_version: input.consentVersion,
       })
-      .select()
+      .select("id")
       .single();
 
     if (error) {
@@ -207,7 +252,7 @@ export default withHandler(
     );
 
     return successResponse({
-      consentId: consent.id,
+      consentId,
       status: "pending_verification",
       emailSent,
       message: emailSent

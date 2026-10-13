@@ -36,6 +36,18 @@ vi.mock("../../_lib/usageGuard", () => ({
   usageExceededResponse: vi.fn(),
 }));
 
+// Gate de consentimiento: aquí se prueba la lectura del cuerpo, así que permite. Sus
+// tests propios: api/_lib/__tests__/analysisConsentGate.test.ts y
+// api/agents/__tests__/clip-consent-agents.test.ts.
+vi.mock("../../_lib/analysisConsentGate", async (orig) => ({
+  ...(await orig<typeof import("../../_lib/analysisConsentGate")>()),
+  gateClipAnalysis: vi.fn(async () => ({ allowed: true, attestation: "recorded", pendingAttestation: null, minor: null, video: null, videoPlayerIds: [] })),
+  enforceUserVideoObservationConsent: vi.fn(async () => ({
+    allowed: true,
+    video: { id: "g-1", user_id: "user-123", tenant_id: null, player_id: null, bunny_video_id: "g-1" },
+  })),
+}));
+
 import { verifyAuth } from "../../_lib/auth";
 import videoObservation from "../video-observation";
 import teamObservation from "../team-observation";

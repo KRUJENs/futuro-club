@@ -44,6 +44,8 @@ interface AnalysisResult {
   stats_by_player: PlayerStat[];
   total_events: number;
   reports: Array<{ type: string; content: Record<string, unknown>; model: string }>;
+  /** El vídeo del partido se omitió por consentimiento (api/live/aggregate). */
+  video_consent_gate?: { code: string; gate_reason: string };
 }
 
 interface AggregateResponse {
@@ -177,6 +179,20 @@ export default function LiveSummaryPage() {
             <div className="text-sm font-display font-bold text-foreground mt-2">{teamSummary.result_phrase as string}</div>
           ) : null}
         </motion.div>
+
+        {/* Consentimiento (decisión del owner, 30 sep): el vídeo del partido no se mandó a
+            analizar (sin declaración guardada con él, o menor sin consentimiento parental).
+            El informe se basa solo en los eventos registrados; se dice por qué. */}
+        {(() => {
+          const gate = analysis.video_consent_gate;
+          if (!gate || typeof gate.gate_reason !== "string") return null;
+          return (
+            <div role="status" data-testid="live-video-consent-gate" className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 space-y-1">
+              <p className="text-xs font-display font-bold text-foreground">{t("clipConsent.liveVideoOmittedTitle")}</p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">{gate.gate_reason}</p>
+            </div>
+          );
+        })()}
 
         {/* MVP */}
         {teamSummary.mvp ? (

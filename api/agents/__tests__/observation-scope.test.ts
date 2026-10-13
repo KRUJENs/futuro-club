@@ -28,6 +28,16 @@ vi.mock("../../_lib/budgetGuard", () => ({
   budgetExceededResponse: vi.fn(),
 }));
 
+// Gate de consentimiento: aquí se prueba el prompt por ámbito, así que permite. Sus tests
+// propios: api/agents/__tests__/clip-consent-agents.test.ts.
+vi.mock("../../_lib/analysisConsentGate", async (orig) => ({
+  ...(await orig<typeof import("../../_lib/analysisConsentGate")>()),
+  enforceUserVideoObservationConsent: vi.fn(async () => ({
+    allowed: true,
+    video: { id: "g-1", user_id: "user-123", tenant_id: null, player_id: null, bunny_video_id: "g-1" },
+  })),
+}));
+
 import videoObservation from "../video-observation";
 
 function geminiResponse() {

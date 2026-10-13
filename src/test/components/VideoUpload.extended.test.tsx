@@ -25,6 +25,7 @@ const IDLE_STATE: UploadState = {
   etaSeconds: 0,
   encodeStatus: null,
   syncGateDurationSec: null,
+  consentBlocked: null,
 };
 
 // Estado mutable compartido; tipado como UploadState para que cada bloque
@@ -103,6 +104,8 @@ describe("VideoUpload — idle state", () => {
   it("rejects oversized files (shared MAX_UPLOAD_SIZE_MB)", async () => {
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
     render(<VideoUpload />);
+    // Declaración del entrenador: obligatoria antes de elegir el fichero.
+    fireEvent.click(screen.getByRole("checkbox"));
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const bigFile = new File(["x".repeat(100)], "big.mp4", { type: "video/mp4" });
@@ -119,6 +122,7 @@ describe("VideoUpload — idle state", () => {
   it("no rechaza un fichero de 2049 MB (el tope antiguo de 2048 MB ya no aplica)", async () => {
     const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
     render(<VideoUpload />);
+    fireEvent.click(screen.getByRole("checkbox")); // declaración obligatoria
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["x"], "partido.mp4", { type: "video/mp4" });

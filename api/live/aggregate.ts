@@ -11,6 +11,12 @@
  *
  * Persiste el resultado en live_matches.analysis_result (jsonb) para
  * que la summary page lo muestre sin volver a pagar Claude.
+ *
+ * Consentimiento (decisión del owner, 30 sep · api/_lib/analysisConsentGate): el vídeo
+ * del partido SOLO se manda a Gemini si es una fila `videos` con la declaración del
+ * entrenador guardada (VideoUpload la pide al subirlo). Si no, se omite SOLO la
+ * observación del vídeo (el informe de eventos sigue) y el resultado lo declara:
+ * `has_video: false` + `video_consent_gate: { code, gate_reason }`.
  */
 
 import { withHandler } from "../_lib/withHandler";
@@ -20,6 +26,8 @@ import { fetchMessages, responseText } from "../_lib/anthropic";
 import { createClient } from "@supabase/supabase-js";
 import { normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
 import { isAllowedVideoUrl } from "../_lib/videoUrlGuard";
+import { enforceStoredConsentForVideoUrl } from "../_lib/analysisConsentGate";
+import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 
 // Node.js runtime for Gemini video analysis (up to 120s)
 export const config = { runtime: "nodejs", maxDuration: 120 };
@@ -283,7 +291,7 @@ type ReportType = keyof typeof PROMPTS;
 
 export default withHandler(
   { method: "POST", requireAuth: true, maxRequests: 10 },
-  async ({ userId, query }) => {
+  async ({ userId, tenantId, query, ip }) => {
     if (!ANTHROPIC_API_KEY) {
       return errorResponse({ code: "no_api_key", message: "ANTHROPIC_API_KEY missing", status: 500 });
     }
@@ -358,15 +366,30 @@ export default withHandler(
 
     // ── 3. Analizar video con Gemini si existe ─────────────────
     let videoObs: Record<string, unknown> | null = null;
+    let videoConsentGate: { code: string; gate_reason: string } | null = null;
     // Filas antiguas pueden traer una URL arbitraria (antes no se validaba al guardar):
     // si no pasa la allowlist Bunny no se reenvía (video-observation la rechazaría
     // igual, pero tras contabilizar gasto). Sin vídeo → "SIN VÍDEO" honesto.
     if (match.video_url && isAllowedVideoUrl(match.video_url)) {
-      videoObs = await analyzeMatchVideo(
-        match.video_url,
-        match.team_name,
-        match.opponent_name ?? "Rival",
-      );
+      // Consentimiento: solo con la declaración guardada con el vídeo. Si falta, se
+      // omite SOLO la observación del vídeo y se declara el motivo.
+      const consent = await enforceStoredConsentForVideoUrl({
+        videoUrl: match.video_url,
+        actor: { userId, tenantId, ip },
+        endpoint: "live/aggregate",
+        locale: reportLocale,
+        ownsVideo: (video, uid) => ownsVideo(video, uid),
+        ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
+      });
+      if (consent.allowed) {
+        videoObs = await analyzeMatchVideo(
+          match.video_url,
+          match.team_name,
+          match.opponent_name ?? "Rival",
+        );
+      } else {
+        videoConsentGate = { code: consent.code, gate_reason: consent.gate_reason };
+      }
     }
 
     // ── 4. Generar 3 reportes Claude en paralelo ───────────────
@@ -410,6 +433,8 @@ export default withHandler(
       reports_failed: results.length - successful.length,
       has_video: !!videoObs,
       video_observation: videoObs ?? undefined,
+      // Vídeo omitido por consentimiento (declaración no guardada / menor sin consentimiento).
+      video_consent_gate: videoConsentGate ?? undefined,
     };
 
     // ── 6. Persistir en match.analysis_result ──────────────────

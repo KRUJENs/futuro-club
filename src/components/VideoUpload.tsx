@@ -4,9 +4,16 @@
  * Drag & drop + click-to-browse video upload.
  * Shows full upload pipeline progress:
  *   idle → uploading (%) → processing (encode %) → analyzing → done / error
+ *
+ * Consentimiento (decisión del owner, 30 sep): la subida dispara el análisis automático
+ * (webhook de Bunny → cola), así que el entrenador marca la declaración versionada ANTES
+ * de elegir el fichero; sin marcarla la zona de subida no acepta ficheros. La casilla
+ * empieza sin marcar y se desmarca al reiniciar (una declaración por vídeo, nunca sola).
+ * Si el servidor bloquea (menor de 14 conocido sin consentimiento parental verificado,
+ * etc.) se muestra su motivo.
  */
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -24,6 +31,8 @@ import {
   MAX_MATCH_DURATION_MIN,
   MAX_UPLOAD_SIZE_GB,
 } from "@/lib/shared/videoLimits";
+import ClipAttestationField from "@/components/consent/ClipAttestationField";
+import { buildClipAttestation } from "@/lib/shared/videoConsent";
 
 /** Info que acompaña a onDone: la duración que leyó el navegador (null = no se pudo leer). */
 export interface VideoUploadDoneInfo {
@@ -46,7 +55,18 @@ const ACCEPTED = "video/mp4,video/quicktime,video/x-msvideo,video/webm,video/*";
 
 export default function VideoUpload({ playerId, onDone, onUploaded, className = "" }: VideoUploadProps) {
   const { t } = useTranslation();
-  const { state, upload, cancel, reset } = useVideoUpload(playerId);
+  const { state, upload, cancel: cancelUpload, reset: resetUpload } = useVideoUpload(playerId);
+  // Declaración del entrenador para ESTE vídeo: empieza sin marcar y se desmarca al reiniciar.
+  const [attested, setAttested] = useState(false);
+  const attestationId = `clip-attestation-${useId()}`;
+  const reset = useCallback(() => {
+    setAttested(false);
+    resetUpload();
+  }, [resetUpload]);
+  const cancel = useCallback(() => {
+    setAttested(false);
+    cancelUpload();
+  }, [cancelUpload]);
 
   const phaseLabel: Record<UploadPhase, string> = {
     idle: "",
@@ -91,6 +111,9 @@ export default function VideoUpload({ playerId, onDone, onUploaded, className = 
 
   const handleFile = useCallback(
     async (file: File) => {
+      // Sin la declaración no se sube nada (el servidor también la exige: 400).
+      const attestation = buildClipAttestation(attested);
+      if (!attestation) return;
       // Límites compartidos (src/lib/shared/videoLimits · inv #7): un partido completo
       // cabe; lo que exceda el tamaño o la duración máxima se rechaza antes de subir.
       if (!checkUploadSize(file.size).ok) {
@@ -118,13 +141,14 @@ export default function VideoUpload({ playerId, onDone, onUploaded, className = 
         title: title || file.name,
         onDuplicate: handleDuplicate,
         durationSec,
+        attestation,
         ...(onUploaded ? { onUploaded: (info: { videoId: string }) => onUploaded(info.videoId) } : {}),
       });
       // upload() devuelve el videoId real resuelto; antes leíamos
       // state.videoId de la closure (stale) y el callback no disparaba (#26).
       if (videoId && onDone) onDone(videoId, { durationSec });
     },
-    [upload, title, onDone, onUploaded, handleDuplicate, t]
+    [upload, title, onDone, onUploaded, handleDuplicate, t, attested]
   );
 
   const onDrop = useCallback(
@@ -180,22 +204,31 @@ export default function VideoUpload({ playerId, onDone, onUploaded, className = 
         />
       )}
 
+      {/* Declaración del entrenador (obligatoria antes de elegir el fichero) */}
+      {state.phase === "idle" && (
+        <ClipAttestationField id={attestationId} checked={attested} onChange={setAttested} purpose="upload" />
+      )}
+
       {/* Drop zone */}
       <AnimatePresence mode="wait">
         {state.phase === "idle" && (
           <motion.div
             key="dropzone"
+            data-testid="video-upload-dropzone"
+            aria-disabled={!attested}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragOver={(e) => { e.preventDefault(); if (attested) setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
-            onClick={() => inputRef.current?.click()}
-            className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${
-              dragging
-                ? "border-primary bg-primary/10"
-                : "border-border hover:border-primary/40 hover:bg-secondary/50"
+            onClick={() => { if (attested) inputRef.current?.click(); }}
+            className={`relative border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-3 transition-all ${
+              !attested
+                ? "border-border opacity-50 cursor-not-allowed"
+                : dragging
+                  ? "border-primary bg-primary/10 cursor-pointer"
+                  : "border-border hover:border-primary/40 hover:bg-secondary/50 cursor-pointer"
             }`}
           >
             <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
@@ -216,6 +249,8 @@ export default function VideoUpload({ playerId, onDone, onUploaded, className = 
               type="file"
               accept={ACCEPTED}
               className="hidden"
+              disabled={!attested}
+              data-testid="video-upload-input"
               onChange={onInputChange}
             />
           </motion.div>
@@ -404,7 +439,11 @@ export default function VideoUpload({ playerId, onDone, onUploaded, className = 
               <AlertCircle size={18} className="text-destructive shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-display font-semibold text-foreground">
-                  {state.phase2Pending ? t("videoUpload.phase2ModuleTitle") : t("videoUpload.uploadErrorTitle")}
+                  {state.phase2Pending
+                    ? t("videoUpload.phase2ModuleTitle")
+                    : state.consentBlocked
+                      ? t("clipConsent.blockedTitle")
+                      : t("videoUpload.uploadErrorTitle")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
                   {state.phase2Pending

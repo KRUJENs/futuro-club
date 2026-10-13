@@ -19,6 +19,12 @@
  * y devuelve solo Content-Type → el servidor responde 401 y la UI muestra el error
  * genérico, sin romperse.
  *
+ * Consentimiento (decisión del owner, 30 sep): el botón de subir solo se habilita con la
+ * declaración versionada marcada (ClipAttestationField); viaja en create-upload (que la
+ * guarda con el vídeo ANTES de crearlo en Bunny) y en finalize. Un bloqueo del servidor
+ * (sin declaración, menor de 14 conocido sin consentimiento parental verificado, o no se
+ * pudo comprobar) para el flujo con su motivo traducido; nunca se reintenta en bucle.
+ *
  * Requiere: npm install tus-js-client
  *
  * Uso:
@@ -31,6 +37,8 @@ import i18n from "@/i18n";
 import { normalizeLocale } from "@/lib/shared/locale";
 import { finalizeSyncGateMessage } from "@/lib/syncVideoAnalysisGate";
 import { getAuthHeaders } from "@/lib/apiAuth";
+import ClipAttestationField from "@/components/consent/ClipAttestationField";
+import { buildClipAttestation, clipConsentErrorFromResponse } from "@/lib/shared/videoConsent";
 import * as tus from "tus-js-client";
 import {
   getActiveFieldFormat,
@@ -75,6 +83,8 @@ export function VideoUploader({ playerId, playerName, onComplete }: Props) {
   // Formato del partido: el usuario lo elige ANTES de analizar → selecciona
   // internamente plantilla, dimensiones (metros) y métricas del campo correcto.
   const [fieldFormat, setFieldFormat] = useState<FieldFormat>(getActiveFieldFormat());
+  // Declaración del entrenador para ESTE vídeo (sin marcar al empezar y tras reiniciar).
+  const [attested, setAttested] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function chooseFormat(fmt: FieldFormat) {
@@ -91,6 +101,7 @@ export function VideoUploader({ playerId, playerName, onComplete }: Props) {
     setAnalysisId(null);
     setFile(null);
     setTitle("");
+    setAttested(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -120,7 +131,8 @@ export function VideoUploader({ playerId, playerName, onComplete }: Props) {
   }
 
   async function handleUpload() {
-    if (!file || !title) return;
+    const attestation = buildClipAttestation(attested);
+    if (!file || !title || !attestation) return;
     setError(null);
     setState("creating");
     setStatusMessage(t("videoUploader.statusPreparing"));
@@ -135,6 +147,7 @@ export function VideoUploader({ playerId, playerName, onComplete }: Props) {
           playerId,
           title,
           durationSec: undefined,
+          attestation,
         }),
       });
 
@@ -144,6 +157,9 @@ export function VideoUploader({ playerId, playerName, onComplete }: Props) {
         throw new Error(t("errors.sessionExpired"));
       }
       const createData = await createRes.json();
+      // Bloqueo de consentimiento: el motivo del servidor, traducido (no un error genérico).
+      const createConsentErr = clipConsentErrorFromResponse(createData, i18n.language);
+      if (createConsentErr) throw createConsentErr;
       if (!createRes.ok || !createData.success) {
         throw new Error(createData?.error?.message ?? t("videoUploader.errorCreatingUpload"));
       }
@@ -199,6 +215,9 @@ export function VideoUploader({ playerId, playerName, onComplete }: Props) {
             // Idioma de la UI → finalize lo persiste (mig 064) para que los 9 informes
             // asíncronos salgan en este idioma y no siempre en español.
             locale: normalizeLocale(i18n.language),
+            // La misma declaración que marcó el usuario para este vídeo (create-upload ya
+            // la guardó; finalize la vuelve a exigir antes de encolar el análisis).
+            attestation,
           }),
         });
 
@@ -207,6 +226,9 @@ export function VideoUploader({ playerId, playerName, onComplete }: Props) {
         // acabar en un "Bunny tardó demasiado" falso.
         if (finRes.status === 401) throw new Error(t("errors.sessionExpired"));
         const finData = await finRes.json();
+        // Bloqueo de consentimiento → se para con su motivo (no se reintenta).
+        const finConsentErr = clipConsentErrorFromResponse(finData, i18n.language);
+        if (finConsentErr) throw finConsentErr;
         // Gate honesto del servidor (vídeo demasiado largo para la cola de clips cortos):
         // se muestra el motivo real en vez de reintentar hasta un "timeout" falso.
         const gateMsg = finalizeSyncGateMessage(t, finData);
@@ -350,9 +372,11 @@ export function VideoUploader({ playerId, playerName, onComplete }: Props) {
             </div>
           )}
 
+          <ClipAttestationField id="video-uploader-attestation" checked={attested} onChange={setAttested} purpose="upload" />
+
           <button
             onClick={handleUpload}
-            disabled={!file || !title}
+            disabled={!file || !title || !attested}
             className="w-full py-3.5 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold disabled:opacity-50"
           >
             {t("videoUploader.uploadButton")}

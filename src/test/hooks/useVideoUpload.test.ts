@@ -166,3 +166,60 @@ describe("useVideoUpload", () => {
     expect(result.current.state.phase).toBe("idle");
   });
 });
+
+describe("useVideoUpload · declaración del entrenador (decisión del owner, 30 sep)", () => {
+  const ATTESTATION = { accepted: true as const, version: "2026-09-28.v1" as const };
+  const apiError = (status: number, code: string) => ({
+    ok: false,
+    status,
+    text: () => Promise.resolve(JSON.stringify({ ok: false, success: false, error: "x", errorDetail: { message: "x", code } })),
+  });
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.keys(mockStorage).forEach((k) => delete mockStorage[k]);
+    mockStorage["vitas_videos"] = [];
+  });
+
+  it("la declaración marcada viaja a video-init; sin ella no se inventa ninguna", async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: () => Promise.resolve({ success: false, phase2Pending: true }) });
+    const { result } = renderHook(() => useVideoUpload("p1"));
+    await act(async () => {
+      await result.current.upload(new File(["v"], "a.mp4", { type: "video/mp4" }), { title: "A", attestation: ATTESTATION });
+    });
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toEqual({ title: "A", playerId: "p1", attestation: ATTESTATION });
+
+    mockFetch.mockClear();
+    await act(async () => {
+      await result.current.upload(new File(["v"], "b.mp4", { type: "video/mp4" }), { title: "B" });
+    });
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body)).not.toHaveProperty("attestation");
+  });
+
+  it("403 parental_consent_required → error con el motivo traducido, NO 'sesión caducada'", async () => {
+    const i18n = (await import("@/i18n")).default;
+    const { clipConsentGateReason } = await import("@/lib/shared/videoConsent");
+    mockFetch.mockResolvedValueOnce(apiError(403, "parental_consent_required"));
+    const { result } = renderHook(() => useVideoUpload("p1"));
+    await act(async () => {
+      await result.current.upload(new File(["v"], "a.mp4", { type: "video/mp4" }), { title: "A", attestation: ATTESTATION });
+    });
+    expect(result.current.state.phase).toBe("error");
+    expect(result.current.state.consentBlocked).toBe("parental_consent_required");
+    expect(result.current.state.error).toBe(clipConsentGateReason(i18n.language, "parental_consent_required"));
+    expect(result.current.state.error).not.toBe(i18n.t("errors.sessionExpired"));
+  });
+
+  it("un 403 que NO es de consentimiento no se marca como bloqueo de consentimiento", async () => {
+    const i18n = (await import("@/i18n")).default;
+    const { clipConsentGateReason } = await import("@/lib/shared/videoConsent");
+    mockFetch.mockResolvedValueOnce(apiError(403, "FORBIDDEN"));
+    const { result } = renderHook(() => useVideoUpload("p1"));
+    await act(async () => {
+      await result.current.upload(new File(["v"], "a.mp4", { type: "video/mp4" }), { title: "A", attestation: ATTESTATION });
+    });
+    expect(result.current.state.phase).toBe("error");
+    expect(result.current.state.consentBlocked).toBeNull();
+    expect(result.current.state.error).not.toBe(clipConsentGateReason(i18n.language, "parental_consent_required"));
+  });
+});

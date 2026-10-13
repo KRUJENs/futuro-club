@@ -16,6 +16,10 @@ interface LabUploadPanelProps {
   selectedVideoId: string | null;
   onSelectVideo: (id: string) => void;
   onStartAnalysis: () => void;
+  /** Declaración del entrenador (obligatoria antes de analizar, también un vídeo antiguo). */
+  consentControl?: React.ReactNode;
+  /** false ⇒ "Analizar este vídeo" deshabilitado. */
+  consentReady?: boolean;
 }
 
 /** Slide-over de subida/selección de vídeo del laboratorio. */
@@ -27,6 +31,8 @@ const LabUploadPanel = ({
   selectedVideoId,
   onSelectVideo,
   onStartAnalysis,
+  consentControl,
+  consentReady,
 }: LabUploadPanelProps) => {
   const { t } = useTranslation();
 
@@ -81,9 +87,11 @@ const LabUploadPanel = ({
                   <div>
                     <p className="text-xs font-display font-semibold text-muted-foreground uppercase tracking-wider mb-3">{t("vitasLab.selectedPreview")}</p>
                     <VideoPlayer video={vid} />
+                    {consentControl && <div className="mt-3">{consentControl}</div>}
                     <button
                       onClick={() => { onClose(); onStartAnalysis(); }}
-                      className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-display font-bold text-sm uppercase tracking-wider hover:bg-primary/90 transition-colors"
+                      disabled={consentReady === false}
+                      className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground font-display font-bold text-sm uppercase tracking-wider hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Rocket size={14} />
                       {t("vitasLab.analyzeThisVideo")}

@@ -15,6 +15,16 @@
  *      `video_too_long_for_sync_analysis` con la duración real (el cliente lo traduce).
  *   4. Encola el análisis IN-PROCESS (impl compartida con el webhook, inv #7).
  *
+ * Consentimiento (decisión del owner, 30 sep · api/_lib/analysisConsentGate): justo tras
+ * la propiedad, ANTES de tocar Bunny, se exige la declaración del entrenador (la del
+ * body `attestation` —se guarda con el vídeo— o una ya guardada) y, si hay un menor de 14
+ * conocido, su consentimiento parental verificado. Los jugadores que cuentan son el
+ * elegido al analizar Y el `player_id` de CADA fila `videos` de ese vídeo de Bunny (el
+ * elegido nunca sustituye al del vídeo; B1), y todas esas filas tienen que ser del
+ * usuario (B2: otra fila ajena con el mismo GUID → 403). Sin ello: 400/403/500 con el
+ * código, sin sembrar ni encolar. Así un vídeo subido antes pide la declaración al
+ * re-analizarlo (la UI nunca la marca sola).
+ *
  * Antes disparaba el webhook por HTTP SIN firma → el webhook fail-closed lo rechazaba
  * siempre (503/401) y el análisis nunca se encolaba, pero respondía ready:true → la UI
  * hacía polling 5 min y moría en timeout. Eso queda corregido.
@@ -26,6 +36,7 @@ import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { createClient } from "@supabase/supabase-js";
 import { ownsVideo, ownsPlayer } from "../_lib/ownership";
 import { enqueueAnalysis } from "../_lib/enqueueAnalysis";
+import { gateClipAnalysis, clipGateErrorResponse } from "../_lib/analysisConsentGate";
 import { BUNNY_API_VIDEO_STATUS, getBunnyVideo } from "../_lib/bunnyStream";
 import { localeSchema, normalizeLocale } from "../../src/lib/shared/locale";
 import {
@@ -54,11 +65,13 @@ const finalizeSchema = z.object({
   playedPosition: z.string().optional(),        // posición jugada en este video
   /** Idioma de la UI del usuario → informes en ese idioma (mig 064; registry-driven). */
   locale: localeSchema.optional(),
+  /** Declaración del entrenador `{ accepted: true, version }` (se valida en el gate, no aquí). */
+  attestation: z.unknown().optional(),
 });
 
 export default withHandler(
   { schema: finalizeSchema, requireAuth: true, maxRequests: 30 },
-  async ({ body, userId, tenantId, isServiceCall }) => {
+  async ({ body, userId, tenantId, isServiceCall, ip }) => {
     const input = body as z.infer<typeof finalizeSchema>;
 
     if (!BUNNY_LIBRARY_ID || !BUNNY_API_KEY) {
@@ -124,6 +137,25 @@ export default withHandler(
         .single();
       if (player?.tenant_id) resolvedTenantId = player.tenant_id as string;
     }
+
+    // ── Consentimiento ANTES de tocar Bunny (se guarda la declaración del body) ──
+    // GUID = el de la fila o, si aún no tiene, el que se va a sembrar (el del cliente).
+    const consent = await gateClipAnalysis({
+      videoId: video.id,
+      bunnyGuid: vrow.bunny_video_id ?? input.bunnyVideoId,
+      requireVideoRow: true,
+      seedRow: true, // una fila aún sin GUID se siembra abajo con el del cliente
+      attestation: input.attestation,
+      playerId,
+      actor: { userId, tenantId, ip },
+      endpoint: "videos/finalize",
+      scope: playerId ? "player" : "team",
+      locale: input.locale,
+      ownsVideo: (v, uid) => ownsVideo(v, uid, isServiceCall),
+      // B5: cada jugador del vídeo tiene que ser del usuario antes de leer su fecha de nacimiento.
+      ownsPlayer: isServiceCall ? null : (pid, uid) => ownsPlayer(pid, uid),
+    });
+    if (!consent.allowed) return clipGateErrorResponse(consent);
 
     // Idioma del usuario en la fila `videos` (mig 064) — se escribe AQUÍ, ANTES del
     // gate de Bunny-ready. Motivo (carrera): el cliente sondea `finalize` mientras
@@ -197,10 +229,20 @@ export default withHandler(
       locale: input.locale ? normalizeLocale(input.locale) : null,
       publicUrl: PUBLIC_URL,
       cronSecret: CRON_SECRET,
+      endpoint: "videos/finalize",
     });
 
     if (result.status === "error") {
       return errorResponse({ code: "enqueue_failed", message: result.error, status: 500 });
+    }
+    if (result.status === "blocked") {
+      return clipGateErrorResponse({
+        allowed: false,
+        code: result.code,
+        status: result.httpStatus,
+        gate_reason: result.gate_reason,
+        minor: null,
+      });
     }
     if (result.status === "skipped") {
       // Sin jugador atado: el vídeo queda almacenado, pero no hay análisis por jugador.

@@ -6107,9 +6107,10 @@
       "guardianNamePlaceholder": "María Pérez García",
       "guardianEmailLabel": "Email du tuteur légal",
       "guardianEmailPlaceholder": "mere@email.com",
-      "emailNotice": "Une confirmation sera envoyée par email. Le lien expire dans 24 h.",
+      "emailNotice": "Enregistré tel que vous l'écrivez : aucun e-mail n'est envoyé et le tuteur n'est pas vérifié.",
+      "clipGateNotice": "Cette note ne débloque PAS l'analyse vidéo d'un joueur de moins de 14 ans : il faut le consentement signé par le tuteur et confirmé depuis son e-mail.",
       "actionLabel": "Action",
-      "authorizeAI": "Autoriser l'IA",
+      "authorizeAI": "Noter l'autorisation",
       "denyAI": "Refuser l'IA",
       "includesTitle": "Ce que le consentement inclut :",
       "includes1": "Analyse biomécanique de vidéo avec IA (posture, mouvement)",
@@ -6199,6 +6200,13 @@
       "loadingReports": "Erreur lors du chargement des rapports",
       "notFound": "Introuvable"
     }
+  },
+  "clipConsent": {
+    "blockedTitle": "Analyse non autorisée",
+    "uploadNeedsAttestation": "Cochez la déclaration pour pouvoir importer et analyser la vidéo.",
+    "analysisNeedsAttestation": "Cochez la déclaration pour analyser la vidéo. Elle est aussi nécessaire pour réanalyser une vidéo importée auparavant.",
+    "minorNote": "Si, d'après sa date de naissance, le joueur a moins de 14 ans, le consentement de son tuteur, signé et confirmé par e-mail, est aussi nécessaire.",
+    "liveVideoOmittedTitle": "La vidéo du match n'a pas été analysée"
   },
   "matchJob": {
     "stage": {

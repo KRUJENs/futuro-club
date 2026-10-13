@@ -9,6 +9,16 @@
  *   1. Receives analysisId + client biomechanics + physicalMetrics + eventSummary
  *   2. Delegates to pipeline-orchestrator to generate 6 Claude reports
  *   3. Returns immediately (orchestrator handles report generation)
+ *
+ * Consentimiento (decisión del owner, 30 sep · api/_lib/analysisConsentGate): el tracking
+ * corrió en el navegador (el servidor no puede impedirlo), así que ESTE es el punto donde
+ * el servidor lo exige, ANTES de tocar el análisis y de llamar al orquestador: el `videoId`
+ * se resuelve en el servidor (por id o por bunny_video_id; todas las filas de ese vídeo
+ * tienen que ser del usuario), declaración del entrenador (la del body `attestation`, o
+ * una guardada con la fila) y, para un menor de 14 conocido —el jugador del análisis Y el
+ * `player_id` de cada fila del vídeo (B1/B2)—, consentimiento parental verificado.
+ * Bloqueado → 400/403/500 con el código; si el análisis ya existía (el navegador lo crea
+ * antes), se marca `failed` con el motivo para que no quede colgado.
  */
 
 import { z } from "zod";
@@ -17,7 +27,8 @@ import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { checkUsageQuota, incrementUsage, usageExceededResponse } from "../_lib/usageGuard";
 import { createClient } from "@supabase/supabase-js";
 import { localeSchema } from "../../src/lib/shared/locale";
-import { ownsPlayer } from "../_lib/ownership";
+import { gateClipAnalysis, clipGateErrorResponse } from "../_lib/analysisConsentGate";
+import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 
 export const config = { runtime: "edge" };
 
@@ -41,11 +52,13 @@ const schema = z.object({
   locale: localeSchema.optional(),
   /** C1 multi-categoría · override explícito (si falta, el orchestrator deriva de la edad) */
   category: z.enum(["youth", "senior"]).optional(),
+  /** Declaración del entrenador `{ accepted: true, version }` (se valida en el gate). */
+  attestation: z.unknown().optional(),
 });
 
 export default withHandler(
   { schema, requireAuth: true, maxRequests: 10 },
-  async ({ body, userId }) => {
+  async ({ body, userId, tenantId, ip }) => {
     // ── Quota check before expensive pipeline ─────────────────────
     if (userId) {
       const usage = await checkUsageQuota(userId);
@@ -100,6 +113,39 @@ export default withHandler(
     }
     if (!(await ownsPlayer(ownerTargetPlayerId, userId))) {
       return errorResponse({ code: "forbidden", message: "No gestionas este jugador", status: 403 });
+    }
+
+    // ── 0b. Consentimiento ANTES de tocar el análisis y de llamar al orquestador ──
+    // videoId puede ser una fila `videos` (por id o por su GUID de Bunny: propia → cuenta
+    // una declaración guardada; ajena → 403) o un id solo del navegador (la declaración
+    // tiene que venir en ESTA petición). El jugador de cada fila del vídeo se comprueba
+    // además del jugador del análisis.
+    const actor = { userId, tenantId, ip };
+    const consentPlayerId = (ownerTargetPlayerId as string | undefined) ?? playerId;
+    const consent = await gateClipAnalysis({
+      videoId,
+      requireVideoRow: false, // tracking del navegador: el vídeo puede no tener fila
+      attestation: body.attestation,
+      playerId: consentPlayerId,
+      actor,
+      endpoint: "analyses/generate-reports",
+      scope: "player",
+      locale,
+      ownsVideo: (video, uid) => ownsVideo(video, uid),
+      ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
+    });
+    if (!consent.allowed) {
+      // El navegador ya dejó el análisis en "processing_reports" (upsert previo): se cierra
+      // con el motivo en vez de dejarlo colgado hasta el reaper. SOLO en ese estado: un
+      // análisis ya completado o fallido no se toca.
+      if (analysisId) {
+        await supabase
+          .from("analyses")
+          .update({ status: "failed", status_message: consent.gate_reason })
+          .eq("id", analysisId)
+          .eq("status", "processing_reports");
+      }
+      return clipGateErrorResponse(consent);
     }
 
     if (analysisId) {

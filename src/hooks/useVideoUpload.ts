@@ -50,6 +50,12 @@ import {
   type TusUploadSession,
 } from "@/lib/tusUploadSession";
 import { evaluateSyncAnalysisGate, knownDurationSec } from "@/lib/shared/videoLimits";
+import {
+  ClipConsentBlockedError,
+  clipConsentErrorFromResponse,
+  type ClipAttestation,
+  type ClipConsentCode,
+} from "@/lib/shared/videoConsent";
 
 export type UploadPhase =
   | "idle"
@@ -95,6 +101,13 @@ export interface UploadOptions {
    * Bunny), ANTES del poll de codificación — que en un partido largo puede tardar.
    */
   onUploaded?: (info: { videoId: string; libraryId: number }) => void;
+  /**
+   * Declaración del entrenador `{ accepted: true, version }` (decisión del owner, 30 sep):
+   * video-init la exige y la GUARDA con el vídeo, porque el webhook de Bunny analiza
+   * solo con la subida. Sin ella el servidor responde 400 attestation_required. La pone
+   * SOLO el componente cuando el usuario marca la casilla; nunca un valor por defecto.
+   */
+  attestation?: ClipAttestation | null;
 }
 
 /** Resultado de la espera de codificación en Bunny. */
@@ -128,6 +141,12 @@ export interface UploadState {
    * (> SYNC_ANALYSIS_MAX_DURATION_SEC). null = no aplica / duración desconocida.
    */
   syncGateDurationSec: number | null;
+  /**
+   * El servidor rechazó la subida por consentimiento (sin declaración, menor de 14
+   * conocido sin consentimiento parental verificado, o no se pudo comprobar). `error`
+   * lleva el motivo traducido; null = no aplica.
+   */
+  consentBlocked: ClipConsentCode | null;
 }
 
 const INITIAL: UploadState = {
@@ -144,6 +163,7 @@ const INITIAL: UploadState = {
   etaSeconds: 0,
   encodeStatus: null,
   syncGateDurationSec: null,
+  consentBlocked: null,
 };
 
 const POLL_INTERVAL_MS = 4000;
@@ -302,20 +322,25 @@ export function useVideoUpload(playerId?: string) {
               playerId,
               // Solo si el navegador la leyó (dato real); nunca un default.
               ...(durationSec !== null ? { durationSec } : {}),
+              // Declaración marcada por el usuario (si no, el servidor la exige: 400).
+              ...(opts.attestation ? { attestation: opts.attestation } : {}),
             }),
           });
 
           if (!initRes.ok) {
+            const errText = await initRes.text().catch(() => `HTTP ${initRes.status}`);
+            let errJson: { error?: string } | null = null;
+            try {
+              errJson = JSON.parse(errText) as { error?: string };
+            } catch { /* not JSON */ }
+            // Bloqueo de consentimiento (400/403/500 con código): se muestra el motivo real;
+            // un 403 parental_consent_required NO es una "sesión caducada".
+            const consentErr = clipConsentErrorFromResponse(errJson, i18n.language);
+            if (consentErr) throw consentErr;
             if (initRes.status === 401 || initRes.status === 403) {
               throw new Error(i18n.t("errors.sessionExpired"));
             }
-            const errText = await initRes.text().catch(() => `HTTP ${initRes.status}`);
-            let errMsg = `HTTP ${initRes.status}`;
-            try {
-              const errJson = JSON.parse(errText) as { error?: string };
-              errMsg = errJson.error ?? errMsg;
-            } catch { /* not JSON */ }
-            throw new Error(`video-init: ${errMsg}`);
+            throw new Error(`video-init: ${errJson?.error ?? `HTTP ${initRes.status}`}`);
           }
 
           const initData = (await initRes.json()) as {
@@ -755,6 +780,11 @@ export function useVideoUpload(playerId?: string) {
         }
 
         console.error("[useVideoUpload] Upload failed:", err);
+        if (err instanceof ClipConsentBlockedError) {
+          // Motivo del servidor tal cual (ya traducido), sin el texto genérico de "error de subida".
+          setState((prev) => ({ ...prev, phase: "error", error: err.message, consentBlocked: err.code }));
+          return null;
+        }
         const { title, description } = getErrorDetails(err, "upload");
         const rawMsg = err instanceof Error ? err.message : String(err);
         // Show diagnostic message + raw error for debugging

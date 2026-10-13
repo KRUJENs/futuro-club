@@ -21,6 +21,17 @@ vi.mock("../../_lib/anthropic", () => ({
   responseText: () => "{}",
 }));
 
+// Gate de consentimiento del vídeo del partido (declaración guardada con la fila `videos`).
+// Por defecto permite; el bloque "consentimiento" lo fuerza a bloquear.
+type StoredGate =
+  | { allowed: true; attestation: "stored"; pendingAttestation: null; minor: null }
+  | { allowed: false; code: string; status: number; gate_reason: string; minor: null };
+const storedGate = vi.fn<(input: Record<string, unknown>) => Promise<StoredGate>>();
+vi.mock("../../_lib/analysisConsentGate", async (orig) => ({
+  ...(await orig<typeof import("../../_lib/analysisConsentGate")>()),
+  enforceStoredConsentForVideoUrl: (input: Record<string, unknown>) => storedGate(input),
+}));
+
 let storedVideoUrl: string | null = null;
 
 function chain(result: unknown) {
@@ -63,6 +74,8 @@ let aggregate: (req: Request) => Promise<Response>;
 
 beforeEach(async () => {
   process.env.BUNNY_CDN_HOSTNAME = CDN;
+  storedGate.mockReset();
+  storedGate.mockImplementation(async () => ({ allowed: true, attestation: "stored", pendingAttestation: null, minor: null }));
   fetchMock = vi.fn(async () =>
     new Response(JSON.stringify({ data: { observations: { resumenGeneral: "obs" } } }), { status: 200 }),
   );
@@ -106,4 +119,40 @@ describe("live/aggregate · video_url heredada", () => {
       expect((await res.json()).data.analysis.has_video).toBe(false);
     },
   );
+});
+
+describe("live/aggregate · consentimiento del vídeo (decisión del owner, 30 sep)", () => {
+  it("consulta el gate con la video_url guardada y el usuario del JWT", async () => {
+    storedVideoUrl = `https://${CDN}/guid/play_720p.mp4`;
+    await run();
+    expect(storedGate).toHaveBeenCalledTimes(1);
+    expect(storedGate.mock.calls[0][0]).toMatchObject({
+      videoUrl: storedVideoUrl,
+      actor: { userId: "user-123" },
+      endpoint: "live/aggregate",
+    });
+    // B5: el gate comprueba la propiedad de las filas Y de cada jugador antes de leer nada de él.
+    expect(typeof storedGate.mock.calls[0][0].ownsVideo).toBe("function");
+    expect(typeof storedGate.mock.calls[0][0].ownsPlayer).toBe("function");
+  });
+
+  it.each(["attestation_required", "parental_consent_required", "consent_check_failed"])(
+    "bloqueado (%s) → NO se manda el vídeo a Gemini; el informe de eventos sigue y declara el motivo",
+    async (code) => {
+      storedVideoUrl = `https://${CDN}/guid/play_720p.mp4`;
+      storedGate.mockImplementation(async () => ({ allowed: false, code, status: 400, gate_reason: `motivo ${code}`, minor: null }));
+      const res = await run();
+      expect(res.status).toBe(200);
+      expect(videoObservationCalls()).toHaveLength(0);
+      const analysis = (await res.json()).data.analysis;
+      expect(analysis.has_video).toBe(false);
+      expect(analysis.video_consent_gate).toEqual({ code, gate_reason: `motivo ${code}` });
+    },
+  );
+
+  it("URL fuera de la allowlist → ni siquiera se consulta el gate (no se reenvía nada)", async () => {
+    storedVideoUrl = "https://evil.example.com/huge.mp4";
+    await run();
+    expect(storedGate).not.toHaveBeenCalled();
+  });
 });

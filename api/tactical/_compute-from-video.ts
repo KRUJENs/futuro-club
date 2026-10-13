@@ -14,13 +14,27 @@
  * Endpoint diseñado para ser disparado:
  *   - Manualmente por el coach desde la UI ("Recomputar heatmap")
  *   - Automáticamente desde modal-callback cuando se completa un análisis
+ *
+ * Consentimiento (decisión del owner, 30 sep · api/_lib/analysisConsentGate): SOLO en las
+ * llamadas con JWT de USUARIO, antes del tripwire de gasto y de Modal, el servidor resuelve
+ * el vídeo por el GUID de la `videoUrl` (+ `videoId`): fila `videos` propia obligatoria,
+ * el jugador de cada fila se comprueba (menor de 14 conocido → consentimiento parental) y
+ * se exige la declaración del entrenador (body o guardada con el vídeo). La ruta de
+ * SERVICIO (cadena de modal-callback) NO cambia: su análisis de origen ya pasó por el gate.
+ *
+ * Ronda 5 de la review (B7): en las llamadas de USUARIO la `videoUrl` pasa antes la allowlist
+ * de hosts (api/_lib/videoUrlGuard) y Modal recibe la URL NORMALIZADA que comprobó el gate
+ * (misma cadena). Fuera de la allowlist → 400; sin hosts configurados → 500
+ * VIDEO_HOSTS_NOT_CONFIGURED. Antes, `https://atacante/<GUID propio declarado>/otro.mp4`
+ * pasaba el gate y Modal analizaba otro contenido.
  */
 
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
-import { ownsMatch } from "../_lib/ownership";
+import { ownsMatch, ownsPlayer, ownsVideo } from "../_lib/ownership";
 import { isOverBudget, recordSpendUsd, budgetExceededResponse } from "../_lib/budgetGuard";
+import { gateClipAnalysis, clipGateErrorResponse, userPixelVideoUrl } from "../_lib/analysisConsentGate";
 
 export const config = { runtime: "edge" };
 
@@ -42,6 +56,8 @@ const ComputeFromVideoSchema = z.object({
   frameHeight: z.number().optional(),
   /** FPS at which Modal will sample the video (default 5). */
   sampleFps: z.number().int().min(1).max(15).optional(),
+  /** Declaración del entrenador `{ accepted: true, version }` (llamadas de usuario). */
+  attestation: z.unknown().optional(),
 });
 
 interface ModalPlayer {
@@ -153,7 +169,7 @@ export default withHandler(
     allowServiceToken: true,
     maxRequests: 10,
   },
-  async ({ body, userId, isServiceCall }) => {
+  async ({ body, userId, tenantId, isServiceCall, ip }) => {
     const input = body as z.infer<typeof ComputeFromVideoSchema>;
 
     // Autorización a nivel de objeto: dispara Modal ($) y sobrescribe heatmaps de
@@ -173,6 +189,30 @@ export default withHandler(
       );
     }
 
+    // URL que recibe Modal: la del body en la ruta de SERVICIO (contrato sin cambios); en las
+    // llamadas de USUARIO, la URL normalizada de la allowlist que comprueba el gate (B7, ronda 5).
+    let modalVideoUrl: string = input.videoUrl;
+
+    // Consentimiento de las llamadas de USUARIO (la ruta de servicio no cambia).
+    if (!isServiceCall) {
+      const allowed = userPixelVideoUrl(input.videoUrl); // fuera de la allowlist → 400; sin hosts → 500
+      if (!allowed.ok) return allowed.response;
+      modalVideoUrl = allowed.href;
+      const consent = await gateClipAnalysis({
+        videoId: input.videoId,
+        videoUrl: modalVideoUrl, // Modal descargará ESTA URL (la misma cadena)
+        requireVideoRow: true,
+        attestation: input.attestation,
+        playerId: null, // heatmap de equipo; el jugador de cada fila del vídeo sí cuenta
+        actor: { userId, tenantId, ip },
+        endpoint: "tactical/compute-from-video",
+        scope: "team",
+        ownsVideo: (video, uid) => ownsVideo(video, uid),
+        ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
+      });
+      if (!consent.allowed) return clipGateErrorResponse(consent);
+    }
+
     // Tripwire de presupuesto (054): dispara Modal ($). Corta si el mes superó el
     // tope; fail-open si el ledger no responde.
     if (await isOverBudget()) return budgetExceededResponse();
@@ -187,7 +227,7 @@ export default withHandler(
         Authorization: `Bearer ${MODAL_API_KEY}`,
       },
       body: JSON.stringify({
-        video_url: input.videoUrl,
+        video_url: modalVideoUrl,
         sample_fps: input.sampleFps ?? 5,
         classes: [0, 32], // person + sports ball
       }),

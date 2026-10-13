@@ -12,6 +12,12 @@
  *   4. Servidor devuelve { videoId, bunnyVideoId, uploadUrl, signature }
  *   5. Cliente sube directo a Bunny via TUS (no pasa por nuestro server)
  *   6. Tras subir, cliente llama /api/videos/finalize con el bunnyVideoId
+ *
+ * Consentimiento (decisión del owner, 30 sep · api/_lib/analysisConsentGate): antes de
+ * crear nada se exige la declaración del entrenador (`attestation`) y, si el jugador es
+ * menor de 14 conocido, su consentimiento parental verificado. La declaración se guarda
+ * con el id del vídeo ANTES de crear el vídeo en Bunny: si no se puede guardar, no se
+ * crea nada (500 consent_check_failed).
  */
 
 import { z } from "zod";
@@ -21,6 +27,7 @@ import { ownsPlayer } from "../_lib/ownership";
 import { createClient } from "@supabase/supabase-js";
 import { randomHex } from "../_lib/edgeCrypto";
 import { signTusUpload } from "../_lib/bunnyStream";
+import { enforceClipConsent, clipConsentErrorResponse } from "../_lib/analysisConsentGate";
 
 export const config = { runtime: "edge" };
 
@@ -33,6 +40,8 @@ const createUploadSchema = z.object({
   playerId: z.string().min(1).max(120),
   title: z.string().min(1).max(200),
   durationSec: z.number().positive().optional(),
+  /** Declaración del entrenador `{ accepted: true, version }` (se valida en el gate). */
+  attestation: z.unknown().optional(),
 });
 
 async function createBunnyVideo(title: string): Promise<{ guid: string; libraryId: number } | null> {
@@ -73,7 +82,7 @@ async function createBunnyVideo(title: string): Promise<{ guid: string; libraryI
 
 export default withHandler(
   { schema: createUploadSchema, requireAuth: true, maxRequests: 30 },
-  async ({ body, userId, isServiceCall }) => {
+  async ({ body, userId, tenantId, isServiceCall, ip }) => {
     const input = body as z.infer<typeof createUploadSchema>;
 
     if (!BUNNY_LIBRARY_ID || !BUNNY_API_KEY) {
@@ -107,6 +116,19 @@ export default withHandler(
       return errorResponse({ code: "forbidden", message: "No gestionas este jugador", status: 403 });
     }
 
+    // Consentimiento + declaración guardada con el id del vídeo ANTES de crear nada.
+    const videoId = `vid-${randomHex(8)}`;
+    const consent = await enforceClipConsent({
+      attestation: input.attestation,
+      lookupStored: false, // vídeo nuevo: la declaración tiene que venir en ESTA petición
+      resource: { type: "videos", id: videoId },
+      playerId: input.playerId,
+      actor: { userId, tenantId, ip },
+      endpoint: "videos/create-upload",
+      scope: "player",
+    });
+    if (!consent.allowed) return clipConsentErrorResponse(consent);
+
     // Crear vídeo en Bunny
     const bunnyVideo = await createBunnyVideo(`${input.title} · ${player.name}`);
     if (!bunnyVideo) {
@@ -117,8 +139,7 @@ export default withHandler(
       });
     }
 
-    // Crear row en `videos` table
-    const videoId = `vid-${randomHex(8)}`;
+    // Crear row en `videos` table (id ya generado arriba: la declaración va ligada a él)
     const { data: video, error } = await supabase
       .from("videos")
       .insert({

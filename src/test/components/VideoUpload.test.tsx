@@ -66,6 +66,7 @@ const makeState = (overrides: Partial<UploadState> = {}): UploadState => ({
   etaSeconds: 0,
   encodeStatus: null,
   syncGateDurationSec: null,
+  consentBlocked: null,
   ...overrides,
 });
 
@@ -95,7 +96,11 @@ describe("VideoUpload", () => {
     vi.unstubAllGlobals();
   });
 
-  const pickFile = (file: File) => {
+  // Marca la declaración del entrenador (obligatoria antes de elegir el fichero).
+  const attest = () => fireEvent.click(screen.getByRole("checkbox"));
+
+  const pickFile = (file: File, { attested = true }: { attested?: boolean } = {}) => {
+    if (attested) attest();
     const input = document.querySelector("input[type='file']") as HTMLInputElement;
     // querySelector devuelve null (no undefined) si falta → toBeDefined() nunca
     // fallaría; toBeInstanceOf sí exige que el input exista de verdad.
@@ -259,6 +264,7 @@ describe("VideoUpload", () => {
     mockUseVideoUpload.mockReturnValue(makeHook(makeState(), { upload }));
 
     render(<VideoUpload onDone={onDone} />);
+    attest();
 
     const input = document.querySelector("input[type='file']") as HTMLInputElement;
     const file = new File(["x"], "clip.mp4", { type: "video/mp4" });
@@ -281,6 +287,7 @@ describe("VideoUpload", () => {
     mockUseVideoUpload.mockReturnValue(makeHook(makeState(), { upload }));
 
     render(<VideoUpload onDone={onDone} />);
+    attest();
 
     const input = document.querySelector("input[type='file']") as HTMLInputElement;
     const file = new File(["x"], "clip.mp4", { type: "video/mp4" });
@@ -291,5 +298,61 @@ describe("VideoUpload", () => {
     // hop async extra) tampoco se cuele → la aserción negativa no es vacua.
     await new Promise((r) => setTimeout(r, 0));
     expect(onDone).not.toHaveBeenCalled();
+  });
+});
+
+describe("VideoUpload · declaración del entrenador (decisión del owner, 30 sep)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal("alert", vi.fn());
+    mockReadDuration.mockResolvedValue(null);
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  const file = () => new File(["x"], "clip.mp4", { type: "video/mp4" });
+  const input = () => document.querySelector("input[type='file']") as HTMLInputElement;
+
+  it("la casilla empieza SIN marcar, con el texto versionado; sin marcarla no se sube nada", async () => {
+    const upload = vi.fn(async () => "vid-1");
+    mockUseVideoUpload.mockReturnValue(makeHook(makeState(), { upload }));
+    render(<VideoUpload />);
+    const box = screen.getByRole("checkbox") as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    expect(screen.getByText("matchJob.attestation.text_2026_09_28_v1")).toBeDefined();
+    expect(screen.getByText("clipConsent.uploadNeedsAttestation")).toBeDefined();
+    expect(input().disabled).toBe(true);
+    expect(screen.getByTestId("video-upload-dropzone").getAttribute("aria-disabled")).toBe("true");
+
+    fireEvent.change(input(), { target: { files: [file()] } });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(upload).not.toHaveBeenCalled();
+    expect(mockReadDuration).not.toHaveBeenCalled();
+  });
+
+  it("marcada → upload() recibe { accepted: true, version } (la versión vigente del servidor)", async () => {
+    const upload = vi.fn(async () => "vid-1");
+    mockUseVideoUpload.mockReturnValue(makeHook(makeState(), { upload }));
+    render(<VideoUpload />);
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(input().disabled).toBe(false);
+    fireEvent.change(input(), { target: { files: [file()] } });
+    await waitFor(() =>
+      expect(upload).toHaveBeenCalledWith(
+        expect.any(File),
+        expect.objectContaining({ attestation: { accepted: true, version: "2026-09-28.v1" } }),
+      ),
+    );
+  });
+
+  it("bloqueo del servidor → título 'Análisis no permitido' + su motivo; 'reintentar' desmarca la casilla", () => {
+    const reset = vi.fn();
+    mockUseVideoUpload.mockReturnValue(
+      makeHook(makeState({ phase: "error", error: "motivo del servidor", consentBlocked: "parental_consent_required" }), { reset }),
+    );
+    render(<VideoUpload />);
+    expect(screen.getByText("clipConsent.blockedTitle")).toBeDefined();
+    expect(screen.getByText("motivo del servidor")).toBeDefined();
+    fireEvent.click(screen.getByText("videoUpload.retry"));
+    expect(reset).toHaveBeenCalled();
   });
 });

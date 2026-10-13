@@ -102,7 +102,7 @@ describe("TeamAnalysisPage · no-visual-input gate", () => {
     expect(runAnalysis).not.toHaveBeenCalled();
   });
 
-  it("a local video is not gated up front", () => {
+  it("a local video is not gated up front (only the coach declaration is still required)", () => {
     renderPage();
     goToNewAnalysis();
     fireEvent.click(screen.getByText(LOCAL_VIDEO.title));
@@ -110,7 +110,43 @@ describe("TeamAnalysisPage · no-visual-input gate", () => {
       target: { value: "rojo" },
     });
     expect(screen.queryByTestId("team-visual-input-gate")).toBeNull();
+    // Owner decision (30 sep): the versioned declaration is required, never pre-ticked.
+    const box = screen.getByRole("checkbox") as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    expect(analyzeButton()).toBeDisabled();
+    fireEvent.click(box);
     expect(analyzeButton()).not.toBeDisabled();
+  });
+
+  it("the declaration is unticked again when another video is selected", () => {
+    renderPage();
+    goToNewAnalysis();
+    fireEvent.click(screen.getByText(LOCAL_VIDEO.title));
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(screen.getByText(CLOUD_VIDEO.title));
+    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("a consent block from the server is shown as such (title + translated reason), not as a generic error", async () => {
+    const { ClipConsentBlockedError } = await import("@/lib/shared/videoConsent");
+    runAnalysis.mockImplementation(async () => {
+      throw new ClipConsentBlockedError("attestation_required", "en");
+    });
+    renderPage();
+    goToNewAnalysis();
+    fireEvent.click(screen.getByText(LOCAL_VIDEO.title));
+    fireEvent.change(screen.getByPlaceholderText(i18n.t("teamAnalysisPage.teamColorPlaceholder")), {
+      target: { value: "rojo" },
+    });
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(analyzeButton());
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        i18n.t("clipConsent.blockedTitle"),
+        expect.objectContaining({ description: expect.stringMatching(/declaration/i) }),
+      ),
+    );
   });
 
   it("a run blocked by the hook shows the gate reason instead of a report", async () => {
@@ -126,10 +162,16 @@ describe("TeamAnalysisPage · no-visual-input gate", () => {
     fireEvent.change(screen.getByPlaceholderText(i18n.t("teamAnalysisPage.teamColorPlaceholder")), {
       target: { value: "rojo" },
     });
+    fireEvent.click(screen.getByRole("checkbox")); // coach declaration
     fireEvent.click(analyzeButton());
 
     await waitFor(() => expect(screen.getByTestId("team-visual-input-gate")).toHaveTextContent(reason));
-    expect(runAnalysis).toHaveBeenCalledWith(expect.objectContaining({ localVideoSrc: LOCAL_VIDEO.localPath }));
+    expect(runAnalysis).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localVideoSrc: LOCAL_VIDEO.localPath,
+        attestation: { accepted: true, version: "2026-09-28.v1" },
+      }),
+    );
     expect(toast.success).not.toHaveBeenCalled();
     // Still on the "new analysis" tab — no report view was opened.
     expect(screen.getByTestId("video-upload")).toBeInTheDocument();

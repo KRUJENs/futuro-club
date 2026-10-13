@@ -173,6 +173,36 @@ describe("webhook bunny-uploaded · estados", () => {
   });
 });
 
+describe("webhook bunny-uploaded · consentimiento (auto-encolado)", () => {
+  beforeEach(() => {
+    process.env.BUNNY_WEBHOOK_SECRET = SECRET;
+    process.env.VITE_SUPABASE_URL = "https://sb.test";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "svc-key";
+    delete process.env.BUNNY_STREAM_LIBRARY_ID;
+    delete process.env.BUNNY_STREAM_API_KEY;
+    enqueueMock.mockReset();
+    videoRow.current = { id: "v1", tenant_id: "t1", player_id: "p1", duration_sec: 120 };
+  });
+
+  it.each(["attestation_required", "parental_consent_required", "consent_check_failed"])(
+    "enqueueAnalysis bloquea (%s) → 200 { skipped, reason: código } para que Bunny NO reintente",
+    async (code) => {
+      enqueueMock.mockResolvedValue({ status: "blocked", code, httpStatus: 400, gate_reason: "motivo" });
+      const res = await handler(await signedRequest(FINISHED));
+      expect(res.status).toBe(200);
+      const json = await res.json();
+      expect(json.data).toMatchObject({ skipped: true, reason: code, gate_reason: "motivo" });
+      expect(json.data.status).toBeUndefined(); // no "queued"
+    },
+  );
+
+  it("encola por el helper compartido identificándose (endpoint) para el gate", async () => {
+    enqueueMock.mockResolvedValue({ status: "queued", analysisId: "an-1", triggered: false });
+    await handler(await signedRequest(FINISHED));
+    expect(enqueueMock.mock.calls[0][0]).toMatchObject({ endpoint: "webhooks/bunny-uploaded", videoId: "v1", playerId: "p1" });
+  });
+});
+
 describe("webhook bunny-uploaded · gate de clips cortos", () => {
   beforeEach(() => {
     process.env.BUNNY_WEBHOOK_SECRET = SECRET;

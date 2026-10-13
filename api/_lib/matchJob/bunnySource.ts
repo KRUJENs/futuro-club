@@ -13,9 +13,8 @@
  */
 import { sha256Hex } from "../edgeCrypto";
 import { assertAllowedVideoUrl } from "../videoUrlGuard";
+import { BUNNY_GUID_RE as GUID_RE } from "../bunnyGuid";
 import { MATCH_VIDEO_CONFIG as CFG } from "./config";
-
-const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const VARIANT_RE = /^(\d{3,4})p$/;
 
 /** Variante más pequeña ≥ minHeight; si ninguna llega, la mayor disponible; null si no hay. */

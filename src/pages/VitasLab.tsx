@@ -34,6 +34,8 @@ import { usePlayerAnalysisV2 } from "@/hooks/usePlayerAnalysisV2";
 import { useFatigue } from "@/hooks/useFatigue";
 import { useOneClickAnalysis } from "@/hooks/useOneClickAnalysis";
 import VitasLabOneClick from "@/components/VitasLabOneClick";
+import ClipAttestationField from "@/components/consent/ClipAttestationField";
+import { buildClipAttestation, ClipConsentBlockedError } from "@/lib/shared/videoConsent";
 import PrecisionToggle, { type PrecisionPhase } from "@/components/vision/PrecisionToggle";
 import { getTilingConfig } from "@/lib/yolo/tiling";
 import { containTransform, fromDisplay, toDisplay, PERCENT_SPACE, type PixelSpace } from "@/lib/yolo/coordSpace";
@@ -78,6 +80,13 @@ const VitasLab = () => {
   const [selectedVideoId, setSelectedVideoId]   = useState<string | null>(null);
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [playedPosition, setPlayedPosition] = useState<string>("");
+  // Declaración del entrenador (decisión del owner, 30 sep): obligatoria antes de CADA
+  // análisis del vídeo seleccionado, también si se subió antes del gate. Sin marcar al
+  // empezar y se desmarca al cambiar de vídeo: nunca se declara sola.
+  const [attested, setAttested] = useState(false);
+  useEffect(() => {
+    setAttested(false);
+  }, [selectedVideoId]);
   const v2 = usePlayerAnalysisV2();
   const analysisReport = v2.isCompleted ? mapV2ToReport(v2.result) : null;
   const { data: players = [] } = useAllPlayers();
@@ -663,6 +672,11 @@ const VitasLab = () => {
       toast.info(t("lab.selectPlayerFirst"), { description: t("lab.selectPlayerDesc"), duration: 4000 });
       return;
     }
+    const attestation = buildClipAttestation(attested);
+    if (!attestation) {
+      toast.error(t("clipConsent.blockedTitle"), { description: t("clipConsent.analysisNeedsAttestation"), duration: 5000 });
+      return;
+    }
 
     const video = videos.find((v) => v.id === selectedVideoId);
     if (!video) { toast.error(t("vitasLab.videoNotFound")); return; }
@@ -744,6 +758,7 @@ const VitasLab = () => {
             vaepApprox: eventSummary.vaepApprox,
             source: "client_event_engine",
           } : null,
+          attestation,
         });
       } else {
         // Fallback: standard pipeline via Bunny → Modal → Claude
@@ -752,6 +767,7 @@ const VitasLab = () => {
           bunnyVideoId,
           playerId: selectedPlayerId,
           playedPosition: finalPlayedPosition,
+          attestation,
         });
       }
 
@@ -766,7 +782,7 @@ const VitasLab = () => {
       setShowResultsPanel(true);
     } catch (err) {
       toast.dismiss(toastId);
-      toast.error(t("lab.analysisError"), {
+      toast.error(err instanceof ClipConsentBlockedError ? t("clipConsent.blockedTitle") : t("lab.analysisError"), {
         description: err instanceof Error ? err.message : t("vitasLab.unknownError"),
       });
     }
@@ -888,10 +904,21 @@ const VitasLab = () => {
       setShowUpgradePrompt(true);
       return;
     }
+    // La pasada local (tracking en el navegador) también es un análisis del clip: sin la
+    // declaración no arranca. El servidor no puede impedir el proceso local; sí lo exige
+    // (con el menor de 14) al recibir los resultados en generate-reports.
+    if (!attested) {
+      toast.error(t("clipConsent.blockedTitle"), { description: t("clipConsent.analysisNeedsAttestation"), duration: 5000 });
+      return;
+    }
     setActionLog([]);
     oneClick.reset();
     oneClick.startOneClick(labVideoRef.current);
   };
+
+  const labAttestation = (
+    <ClipAttestationField id="vitas-lab-attestation" checked={attested} onChange={setAttested} purpose="analysis" />
+  );
 
   /** Cambio del toggle de precisión. La persistencia ya la hace PrecisionToggle
    *  (setTilingConfig). Si hay una pasada EN CURSO, se reinicia: el worker se re-INIT
@@ -1056,6 +1083,8 @@ const VitasLab = () => {
             }}
             onSelectVideo={(id) => setSelectedVideoId(id)}
             onStartAnalysis={launchAnalysisPass}
+            consentControl={labAttestation}
+            consentReady={attested}
             precisionControl={
               <PrecisionToggle
                 phase={precisionPhase}
@@ -1138,6 +1167,8 @@ const VitasLab = () => {
         selectedVideoId={selectedVideoId}
         onSelectVideo={setSelectedVideoId}
         onStartAnalysis={handleStartAnalysis}
+        consentControl={labAttestation}
+        consentReady={attested}
       />
 
       {/* ── Results Panel ─────────────────────────────────────────────────────── */}

@@ -18,39 +18,58 @@ vi.mock("../../_lib/rateLimit", () => ({
   rateLimitHeaders: vi.fn().mockReturnValue({}),
 }));
 vi.mock("../../_lib/auth", () => ({
-  verifyAuth: vi.fn().mockResolvedValue({ userId: "user-1", email: null, tenantId: "tenant-9", error: null }),
+  verifyAuth: vi.fn().mockResolvedValue({ userId: "11111111-1111-4111-8111-111111111111", email: null, tenantId: "tenant-9", error: null }),
 }));
 
 import videoInit from "../_video-init";
+import { ATTESTATION, MINOR_BIRTH_DATE, consentFetch, emptyConsentDb, type ConsentDbState } from "../../_lib/__tests__/consentFetchMock";
 
 const GUID = "a1b2c3d4-0000-4000-8000-000000000001";
+const SVC = "svc-key-must-not-be-used";
 
 type Call = { url: string; init: RequestInit };
 
+let db: ConsentDbState;
+let gdprInserts: Array<Record<string, unknown>>;
+
 function setupFetch(opts: { playerVisible?: boolean; insertStatus?: number } = {}) {
+  db = emptyConsentDb();
+  // Un jugador que el usuario VE bajo RLS existe en la base: fecha de nacimiento
+  // desconocida por defecto (cada test que la necesita la fija tras setupFetch).
+  if (opts.playerVisible) db.birthDates.p1 = null;
+  // Solo las llamadas que NO son del gate (Bunny + RLS/fila con el JWT de usuario): los
+  // tests de siempre asertan sobre estas. Las del gate de consentimiento (service role:
+  // gdpr_audit_log, players.birth_date, parental_consents) las resuelve consentFetch.
   const calls: Call[] = [];
-  const fetchMock = vi.fn(async (url: string, init: RequestInit = {}) => {
-    calls.push({ url, init });
-    if (url === "https://video.bunnycdn.com/library/42/videos" && init.method === "POST") {
-      return new Response(JSON.stringify({ guid: GUID, title: "Partido" }), { status: 200 });
-    }
-    if (url.startsWith("https://sb.test/rest/v1/players")) {
-      return new Response(JSON.stringify(opts.playerVisible ? [{ id: "p1" }] : []), { status: 200 });
-    }
-    if (url === "https://sb.test/rest/v1/videos") {
-      return new Response("", { status: opts.insertStatus ?? 201 });
-    }
-    throw new Error(`unexpected fetch ${url}`);
+  const mock = consentFetch(db, {
+    serviceKey: SVC,
+    fallback: async (url: string, init: RequestInit) => {
+      calls.push({ url, init });
+      if (url === "https://video.bunnycdn.com/library/42/videos" && init.method === "POST") {
+        return new Response(JSON.stringify({ guid: GUID, title: "Partido" }), { status: 200 });
+      }
+      if (url === `https://video.bunnycdn.com/library/42/videos/${GUID}` && init.method === "DELETE") {
+        return new Response("", { status: 200 });
+      }
+      if (url.startsWith("https://sb.test/rest/v1/players")) {
+        return new Response(JSON.stringify(opts.playerVisible ? [{ id: "p1" }] : []), { status: 200 });
+      }
+      if (url === "https://sb.test/rest/v1/videos") {
+        return new Response("", { status: opts.insertStatus ?? 201 });
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    },
   });
-  vi.stubGlobal("fetch", fetchMock);
+  gdprInserts = mock.inserts;
+  vi.stubGlobal("fetch", mock.fn);
   return calls;
 }
 
-function post(body: Record<string, unknown>) {
+function post(body: Record<string, unknown>, opts: { attest?: boolean } = {}) {
   return new Request("https://x.test/api/upload/video-init", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: "Bearer user-jwt-123" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(opts.attest === false ? body : { attestation: ATTESTATION, ...body }),
   });
 }
 
@@ -60,7 +79,9 @@ describe("video-init", () => {
     process.env.BUNNY_STREAM_API_KEY = "lib-key";
     process.env.VITE_SUPABASE_URL = "https://sb.test";
     process.env.VITE_SUPABASE_ANON_KEY = "anon-key";
-    process.env.SUPABASE_SERVICE_ROLE_KEY = "svc-key-must-not-be-used";
+    // La service key la usa SOLO el gate de consentimiento (gdpr_audit_log, fecha de
+    // nacimiento, parental_consents), nunca la fila `videos`.
+    process.env.SUPABASE_SERVICE_ROLE_KEY = SVC;
   });
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -99,7 +120,7 @@ describe("video-init", () => {
     expect(row).toMatchObject({
       id: GUID,
       bunny_video_id: GUID,
-      user_id: "user-1",
+      user_id: "11111111-1111-4111-8111-111111111111",
       tenant_id: "tenant-9",
       player_id: "p1",
       duration_sec: 5400,
@@ -122,7 +143,7 @@ describe("video-init", () => {
     await videoInit(post({ title: "Partido", playerId: "p1" }));
     const lookup = calls.find((c) => c.url.startsWith("https://sb.test/rest/v1/players"))!;
     expect(lookup.url).toContain("id=eq.p1");
-    expect(lookup.url).toContain("user_id=eq.user-1");
+    expect(lookup.url).toContain("user_id=eq.11111111-1111-4111-8111-111111111111");
     expect(lookup.url).not.toContain("tenant");
   });
 
@@ -133,13 +154,15 @@ describe("video-init", () => {
     expect(row).not.toHaveProperty("duration_sec");
   });
 
-  it("sin Supabase configurado → no inserta y la subida sigue (fallback)", async () => {
+  it("sin anon key (fila con JWT de usuario no posible) → no inserta la fila y la subida sigue", async () => {
     delete process.env.VITE_SUPABASE_ANON_KEY;
     const calls = setupFetch();
     const res = await videoInit(post({ title: "Partido" }));
     expect(res.status).toBe(200);
     expect((await res.json()).data.videoRow).toBe("skipped");
     expect(calls.some((c) => c.url.startsWith("https://sb.test"))).toBe(false);
+    // …pero la declaración SÍ se guardó (service role) con el GUID.
+    expect(gdprInserts).toHaveLength(1);
   });
 
   it("si el insert falla, la subida NO se rompe (best-effort)", async () => {
@@ -163,5 +186,85 @@ describe("video-init", () => {
     const res = await videoInit(post({ title: "Partido" }));
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ success: false, phase2Pending: true });
+  });
+});
+
+describe("video-init · consentimiento (el webhook de Bunny analiza solo con la subida)", () => {
+  beforeEach(() => {
+    process.env.BUNNY_STREAM_LIBRARY_ID = "42";
+    process.env.BUNNY_STREAM_API_KEY = "lib-key";
+    process.env.VITE_SUPABASE_URL = "https://sb.test";
+    process.env.VITE_SUPABASE_ANON_KEY = "anon-key";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = SVC;
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete process.env.VITE_SUPABASE_ANON_KEY;
+  });
+
+  it("sin declaración → 400 attestation_required y NO se crea nada en Bunny ni en videos", async () => {
+    const calls = setupFetch();
+    const res = await videoInit(post({ title: "Partido" }, { attest: false }));
+    expect(res.status).toBe(400);
+    expect((await res.json()).errorDetail).toMatchObject({ code: "attestation_required", attestationVersion: "2026-09-28.v1" });
+    expect(calls).toHaveLength(0);
+    expect(gdprInserts).toHaveLength(0);
+  });
+
+  it("declaración de otra versión → 400 attestation_required", async () => {
+    const calls = setupFetch();
+    const res = await videoInit(post({ title: "Partido", attestation: { accepted: true, version: "2020-01-01.v0" } }));
+    expect(res.status).toBe(400);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("jugador visible, menor de 14 conocido, SIN consentimiento parental → 403 y NO se crea nada", async () => {
+    const calls = setupFetch({ playerVisible: true });
+    db.birthDates.p1 = MINOR_BIRTH_DATE;
+    const res = await videoInit(post({ title: "Partido", playerId: "p1" }));
+    expect(res.status).toBe(403);
+    expect((await res.json()).errorDetail.code).toBe("parental_consent_required");
+    expect(calls.filter((c) => c.url.includes("bunnycdn"))).toHaveLength(0);
+    expect(gdprInserts).toHaveLength(0);
+  });
+
+  it("menor de 14 CON consentimiento verificado → sube y guarda la declaración con el GUID", async () => {
+    setupFetch({ playerVisible: true });
+    db.birthDates.p1 = MINOR_BIRTH_DATE;
+    db.activeConsents.push("p1");
+    const res = await videoInit(post({ title: "Partido", playerId: "p1" }));
+    expect(res.status).toBe(200);
+    expect(gdprInserts[0]).toMatchObject({
+      user_id: "11111111-1111-4111-8111-111111111111", // quién = usuario del JWT verificado
+      action: "video_analysis_attested",
+      resource_type: "videos",
+      resource_id: GUID,
+      metadata: { version: "2026-09-28.v1", player_id: "p1", bunny_video_id: GUID, endpoint: "upload/video-init" },
+    });
+  });
+
+  it("fecha de nacimiento desconocida → basta la declaración (no se infiere la edad)", async () => {
+    setupFetch({ playerVisible: true });
+    db.birthDates.p1 = null;
+    const res = await videoInit(post({ title: "Partido", playerId: "p1" }));
+    expect(res.status).toBe(200);
+  });
+
+  it("jugador NO visible bajo RLS → no se ata al vídeo ni se consulta su edad (vídeo sin jugador)", async () => {
+    setupFetch({ playerVisible: false });
+    db.birthDates.p1 = MINOR_BIRTH_DATE; // si se consultara, bloquearía
+    const res = await videoInit(post({ title: "Partido", playerId: "p1" }));
+    expect(res.status).toBe(200);
+    expect(gdprInserts[0]).toMatchObject({ metadata: { player_id: null } });
+  });
+
+  it("no se puede guardar la declaración → 500 consent_check_failed y se BORRA el vídeo de Bunny", async () => {
+    const calls = setupFetch();
+    db.failures.gdpr_insert = { status: 401, body: "permission denied" };
+    const res = await videoInit(post({ title: "Partido" }));
+    expect(res.status).toBe(500);
+    expect((await res.json()).errorDetail.code).toBe("consent_check_failed");
+    expect(calls.some((c) => c.init.method === "DELETE" && c.url.endsWith(`/videos/${GUID}`))).toBe(true);
+    expect(calls.some((c) => c.url === "https://sb.test/rest/v1/videos")).toBe(false); // sin fila
   });
 });

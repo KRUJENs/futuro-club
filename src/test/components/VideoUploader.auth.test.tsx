@@ -97,14 +97,20 @@ function headersOf(urlPrefix: string): Array<Record<string, string> | undefined>
     .map(([, init]) => (init as RequestInit | undefined)?.headers as Record<string, string> | undefined);
 }
 
-async function selectFileAndUpload(container: HTMLElement) {
+async function selectFileAndUpload(container: HTMLElement, { attest = true }: { attest?: boolean } = {}) {
   const input = container.querySelector('input[type="file"]') as HTMLInputElement;
   const file = new File([new Uint8Array(200 * 1024)], "clip.mp4", { type: "video/mp4" });
   fireEvent.change(input, { target: { files: [file] } });
+  // Declaración del entrenador (decisión del owner, 30 sep): obligatoria para subir.
+  if (attest) fireEvent.click(screen.getByRole("checkbox"));
   await act(async () => {
     fireEvent.click(screen.getByText("videoUploader.uploadButton"));
   });
 }
+
+const ATTESTATION = { accepted: true, version: "2026-09-28.v1" };
+const bodyOf = (urlPrefix: string, i = 0) =>
+  JSON.parse(String((fetchMock.mock.calls.filter(([url]) => String(url).startsWith(urlPrefix))[i]?.[1] as RequestInit).body));
 
 /** Avanza los timers falsos (5 s entre finalize, 8 s entre polls) dejando correr las promesas. */
 async function advance(ms: number) {
@@ -246,5 +252,45 @@ describe("VideoUploader — Authorization header", () => {
     expect(headersOf("/api/analyses/by-video")).toHaveLength(1);
     expect(screen.getByText("errors.sessionExpired")).toBeInTheDocument();
     expect(screen.queryByText("videoUploader.statusTakingLong")).not.toBeInTheDocument();
+  });
+});
+
+describe("VideoUploader — declaración del entrenador (decisión del owner, 30 sep)", () => {
+  it("sin marcar la declaración el botón de subir está deshabilitado y no se llama a nada", async () => {
+    routeFetch(happyRoutes);
+    const { container } = render(<VideoUploader playerId="p-1" />);
+    await selectFileAndUpload(container, { attest: false });
+    expect((screen.getByText("videoUploader.uploadButton") as HTMLButtonElement).disabled).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(screen.getByText("clipConsent.uploadNeedsAttestation")).toBeInTheDocument();
+  });
+
+  it("marcada → create-upload y finalize llevan { accepted: true, version } (nunca fabricada)", async () => {
+    routeFetch(happyRoutes);
+    const { container } = render(<VideoUploader playerId="p-1" />);
+    await selectFileAndUpload(container);
+    await advance(5000);
+    expect(bodyOf("/api/videos/create-upload").attestation).toEqual(ATTESTATION);
+    expect(bodyOf("/api/videos/finalize").attestation).toEqual(ATTESTATION);
+  });
+
+  it("menor de 14 sin consentimiento parental (403 del servidor) → motivo traducido, sin TUS ni 'sesión caducada'", async () => {
+    routeFetch({ create: () => apiError(403, "motivo", "parental_consent_required") });
+    const { container } = render(<VideoUploader playerId="p-1" />);
+    await selectFileAndUpload(container);
+    expect(tusStarts.count).toBe(0);
+    expect(screen.queryByText("errors.sessionExpired")).not.toBeInTheDocument();
+    // El mensaje sale del catálogo de videoConsent en el idioma de la UI (es).
+    expect(screen.getByText(/menos de 14 años/)).toBeInTheDocument();
+  });
+
+  it("bloqueo en finalize → para con su motivo (no reintenta 12 veces)", async () => {
+    routeFetch({ ...happyRoutes, finalize: () => apiError(400, "motivo", "attestation_required") });
+    const { container } = render(<VideoUploader playerId="p-1" />);
+    await selectFileAndUpload(container);
+    await advance(5000);
+    await advance(5000 * 12);
+    expect(headersOf("/api/videos/finalize")).toHaveLength(1);
+    expect(screen.getByText(/declaración del entrenador/)).toBeInTheDocument();
   });
 });

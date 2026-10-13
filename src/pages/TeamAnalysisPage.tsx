@@ -13,7 +13,7 @@
  * guardados antes aún los tienen: se retiran al leerlos y se avisa.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -35,6 +35,8 @@ import { getErrorDetails } from "@/services/errorDiagnosticService";
 import AnalysisFocusSelector from "@/components/AnalysisFocusSelector";
 import { isLocalSrc } from "@/lib/localVideoUtils";
 import { withholdIndividualData } from "@/lib/shared/teamReportIdentity";
+import ClipAttestationField from "@/components/consent/ClipAttestationField";
+import { buildClipAttestation, ClipConsentBlockedError } from "@/lib/shared/videoConsent";
 
 // ─── Fuente visual ───────────────────────────────────────────────
 
@@ -288,6 +290,12 @@ export default function TeamAnalysisPage() {
   const [compareIdx, setCompareIdx] = useState(1);
   /** Video whose last run was blocked for lack of visual input (no report). */
   const [blockedVideoId, setBlockedVideoId] = useState<string | null>(null);
+  // Coach declaration for THIS video (owner decision, 30 sep): required before every team
+  // analysis, unticked at start and whenever the selected video changes (never automatic).
+  const [attested, setAttested] = useState(false);
+  useEffect(() => {
+    setAttested(false);
+  }, [selectedVideoId]);
 
   const {
     state,
@@ -328,6 +336,11 @@ export default function TeamAnalysisPage() {
     }
     const video = allVideos.find(v => v.id === selectedVideoId);
     if (!video) return;
+    const attestation = buildClipAttestation(attested);
+    if (!attestation) {
+      toast.error(t("clipConsent.blockedTitle"), { description: t("clipConsent.analysisNeedsAttestation") });
+      return;
+    }
 
     try {
       const report = await runAnalysis({
@@ -337,6 +350,7 @@ export default function TeamAnalysisPage() {
         opponentColor: opponentColor.trim() || undefined,
         localVideoSrc: localSourceOf(video),
         analysisFocus: analysisFocus.length > 0 ? analysisFocus : undefined,
+        attestation,
       });
       if (!report) {
         // Bloqueado (sin entrada visual): se muestra el motivo, no un informe.
@@ -347,6 +361,10 @@ export default function TeamAnalysisPage() {
       toast.success(t("teamAnalysisPage.analysisCompleted"));
       setActiveTab("informe");
     } catch (err) {
+      if (err instanceof ClipConsentBlockedError) {
+        toast.error(t("clipConsent.blockedTitle"), { description: err.message });
+        return;
+      }
       const { title, description } = getErrorDetails(err, "team-analysis");
       toast.error(title, { description });
     }
@@ -518,10 +536,13 @@ export default function TeamAnalysisPage() {
             {/* Selector de enfoque */}
             <AnalysisFocusSelector value={analysisFocus} onChange={setAnalysisFocus} />
 
+            {/* Coach declaration (required; team video → no per-player check) */}
+            <ClipAttestationField id="team-analysis-attestation" checked={attested} onChange={setAttested} purpose="analysis" />
+
             <Button
               className="w-full h-12 text-sm font-display font-bold gap-2"
               onClick={handleRunAnalysis}
-              disabled={!selectedVideoId || !teamColor.trim() || isAnalyzing || cloudOnly}
+              disabled={!selectedVideoId || !teamColor.trim() || isAnalyzing || cloudOnly || !attested}
             >
               {isAnalyzing ? (
                 <><Loader2 size={16} className="animate-spin" /> {t("teamAnalysisPage.analyzingTeam")}</>

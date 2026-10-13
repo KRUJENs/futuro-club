@@ -250,4 +250,60 @@ describe("useTeamIntelligence · data flow", () => {
     });
     expect(result.current.state.step).toBe("error");
   });
+
+  // ── Coach declaration (owner decision, 30 sep · src/lib/shared/videoConsent) ──
+  const ATTESTATION = { accepted: true as const, version: "2026-09-28.v1" as const };
+  const consentError = (code: string) =>
+    jsonResponse({ ok: false, success: false, error: "x", errorDetail: { message: "x", code } }, false);
+
+  it("sends the ticked declaration (and the client video id) to team-observation AND team-intelligence", async () => {
+    vi.mocked(isLocalSrc).mockReturnValue(true);
+    vi.mocked(readVideoAsBase64).mockResolvedValue({ base64: "AAAA", mediaType: "video/mp4" } as never);
+    const { result } = renderHook(() => useTeamIntelligence(), { wrapper: createWrapper() });
+    await act(async () => {
+      await result.current.runAnalysis({ videoId: "v1", teamColor: "rojo", localVideoSrc: "blob:local", attestation: ATTESTATION });
+    });
+    const obsBody = JSON.parse(((fetchMock.mock.calls as FetchCall[]).find(([u]) => u.includes("team-observation"))![1].body) ?? "{}");
+    expect(obsBody).toMatchObject({ attestation: ATTESTATION, videoId: "v1" });
+    expect(JSON.parse(intelligenceCalls()[0][1].body ?? "{}")).toMatchObject({ attestation: ATTESTATION, videoId: "v1" });
+  });
+
+  it("a consent block on team-observation does NOT fall back to frames nor call team-intelligence", async () => {
+    vi.mocked(isLocalSrc).mockReturnValue(true);
+    vi.mocked(readVideoAsBase64).mockResolvedValue({ base64: "AAAA", mediaType: "video/mp4" } as never);
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes("team-observation") ? consentError("attestation_required") : sseResponse(COMPLETE_SSE),
+    );
+    const { clipConsentGateReason } = await import("@/lib/shared/videoConsent");
+    const { result } = renderHook(() => useTeamIntelligence(), { wrapper: createWrapper() });
+    await act(async () => {
+      await expect(
+        result.current.runAnalysis({ videoId: "v1", teamColor: "rojo", localVideoSrc: "blob:local" }),
+      ).rejects.toThrow(clipConsentGateReason(i18n.language, "attestation_required"));
+    });
+    expect(extractKeyframesFromVideo).not.toHaveBeenCalled();
+    expect(intelligenceCalls()).toHaveLength(0);
+    expect(result.current.state.step).toBe("error");
+    expect(result.current.analysisResult).toBeNull();
+  });
+
+  it("a consent block on team-intelligence (before the stream) surfaces its translated reason", async () => {
+    vi.mocked(isLocalSrc).mockReturnValue(true);
+    vi.mocked(extractKeyframesFromVideo).mockResolvedValue([
+      { url: "data:image/jpeg;base64,AAAA", timestamp: 0, frameIndex: 0 },
+    ] as never);
+    fetchMock.mockImplementation(async () => consentError("consent_check_failed"));
+    const { ClipConsentBlockedError } = await import("@/lib/shared/videoConsent");
+    const { result } = renderHook(() => useTeamIntelligence(), { wrapper: createWrapper() });
+    let caught: unknown = null;
+    await act(async () => {
+      try {
+        await result.current.runAnalysis({ videoId: "v1", teamColor: "rojo", localVideoSrc: "blob:local", attestation: ATTESTATION });
+      } catch (e) {
+        caught = e;
+      }
+    });
+    expect(caught).toBeInstanceOf(ClipConsentBlockedError);
+    expect((caught as { code: string }).code).toBe("consent_check_failed");
+  });
 });

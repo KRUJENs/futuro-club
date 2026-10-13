@@ -6108,9 +6108,10 @@
       "guardianNamePlaceholder": "María Pérez García",
       "guardianEmailLabel": "E-mail van de wettelijk voogd",
       "guardianEmailPlaceholder": "madre@email.com",
-      "emailNotice": "Er wordt een bevestiging per e-mail verzonden. De link vervalt over 24u.",
+      "emailNotice": "Wordt opgeslagen zoals je het typt: er wordt geen e-mail verzonden en de voogd wordt niet geverifieerd.",
+      "clipGateNotice": "Deze notitie geeft de videoanalyse van een speler jonger dan 14 NIET vrij: daarvoor is toestemming nodig die door de voogd is ondertekend en via zijn e-mail is bevestigd.",
       "actionLabel": "Actie",
-      "authorizeAI": "AI autoriseren",
+      "authorizeAI": "Toestemming noteren",
       "denyAI": "AI weigeren",
       "includesTitle": "Wat de toestemming omvat:",
       "includes1": "Biomechanische video-analyse met AI (houding, beweging)",
@@ -6200,6 +6201,13 @@
       "loadingReports": "Fout bij het laden van rapporten",
       "notFound": "Niet gevonden"
     }
+  },
+  "clipConsent": {
+    "blockedTitle": "Analyse niet toegestaan",
+    "uploadNeedsAttestation": "Vink de verklaring aan om de video te uploaden en te analyseren.",
+    "analysisNeedsAttestation": "Vink de verklaring aan om de video te analyseren. Dat is ook nodig om een eerder geüploade video opnieuw te analyseren.",
+    "minorNote": "Is de speler volgens de geboortedatum jonger dan 14, dan is ook de toestemming van de voogd nodig, ondertekend en per e-mail bevestigd.",
+    "liveVideoOmittedTitle": "De wedstrijdvideo is niet geanalyseerd"
   },
   "matchJob": {
     "stage": {

@@ -7,6 +7,16 @@
  * Retorna JSON con formación, posesión y fases de juego — SOLO nivel de equipo:
  * sin dorsales ni lista por jugador (identidad.md: no hay identificación por
  * dorsal validada; son menores). Si el modelo aún los emite, se retiran.
+ *
+ * Consentimiento (decisión del owner, 30 sep · api/_lib/analysisConsentGate): el fichero
+ * viene del navegador, pero el `videoId` del cliente se resuelve en el servidor (por id o
+ * por bunny_video_id): si es una fila `videos`, tiene que ser del usuario (si no, 403) y el
+ * `player_id` de cada fila de ese vídeo se comprueba aunque se pida «de equipo» (un menor
+ * de 14 conocido sin consentimiento parental → 403; hallazgo B1). Declaración del
+ * entrenador: la de la petición o la guardada con la fila, ANTES de gastar. Sin fila
+ * (fichero solo del navegador) se guarda como `video_ref` y, al ser vídeo de equipo, la
+ * comprobación por jugador no aplica (decisión del owner). LÍMITE: el servidor no puede
+ * ligar los bytes del body a un vídeo; la UI siempre manda el `videoId` de su registro.
  */
 
 import { withHandler } from "../_lib/withHandler";
@@ -15,18 +25,23 @@ import { isOverBudget, recordSpendUsd, budgetExceededResponse } from "../_lib/bu
 import { normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
 import { GEMINI_MODEL } from "../../src/lib/shared/geminiModel";
 import { withholdIndividualData } from "../../src/lib/shared/teamReportIdentity";
+import { gateClipAnalysis, clipGateErrorResponse } from "../_lib/analysisConsentGate";
+import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 
 export const config = { runtime: "nodejs", maxDuration: 120 };
 
 export default withHandler(
   { requireAuth: true, rawBody: true },
-  async ({ rawBody }) => {
+  async ({ rawBody, userId, tenantId, ip }) => {
     try {
       // withHandler ya leyó el cuerpo (rawBody: true) → usar ctx.rawBody, nunca req.json().
       let body: {
         videoBase64?: string;
         mediaType?: string;
         locale?: unknown;
+        /** Id del vídeo en el cliente (queda en la fila de auditoría de la declaración). */
+        videoId?: unknown;
+        attestation?: unknown;
         teamContext?: {
           teamColor?: string;
           opponentColor?: string;
@@ -53,6 +68,21 @@ export default withHandler(
       if (!apiKey) {
         return errorResponse("GEMINI_API_KEY no configurada", 503, "GEMINI_NOT_CONFIGURED");
       }
+
+      // Consentimiento ANTES de gastar: vídeo resuelto en el servidor + declaración.
+      const consent = await gateClipAnalysis({
+        videoId: body.videoId,
+        requireVideoRow: false, // fichero del navegador: puede no haber fila
+        attestation: body.attestation,
+        playerId: null, // equipo; el jugador de cada fila del vídeo SÍ se comprueba
+        actor: { userId, tenantId, ip },
+        endpoint: "agents/team-observation",
+        scope: "team",
+        locale,
+        ownsVideo: (video, uid) => ownsVideo(video, uid),
+        ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
+      });
+      if (!consent.allowed) return clipGateErrorResponse(consent);
 
       // Tripwire de presupuesto (054).
       if (await isOverBudget()) return budgetExceededResponse();

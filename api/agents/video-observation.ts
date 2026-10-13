@@ -5,6 +5,15 @@
  * Node runtime (no Edge) — video puede ser grande.
  * Envía el video completo a Gemini para observación detallada.
  * Retorna JSON con timeline, dimensiones, momentos y patrones.
+ *
+ * Consentimiento (decisión del owner, 30 sep · api/_lib/analysisConsentGate):
+ *   - llamadas con JWT de USUARIO (TeamBaselinePage, CompareRivalPage): deben traer
+ *     `videoId` de una fila `videos` que gestione el usuario, la `videoUrl` de ESE vídeo
+ *     y la declaración (`attestation`, o una ya guardada con el vídeo); si el vídeo tiene
+ *     un jugador menor de 14 conocido, además su consentimiento parental verificado. Sin
+ *     fichero en base64. Todo ANTES del tripwire de gasto y de Gemini.
+ *   - llamadas de SERVICIO (cola → gemini-analyze / inline, live/aggregate): el gate va
+ *     en el llamador, antes de despachar; aquí no se repite.
  */
 
 import { withHandler } from "../_lib/withHandler";
@@ -13,6 +22,8 @@ import { isOverBudget, recordSpendUsd, budgetExceededResponse } from "../_lib/bu
 import { normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
 import { GEMINI_MODEL } from "../../src/lib/shared/geminiModel";
 import { assertAllowedVideoUrl, fetchAllowedVideo, VideoUrlError } from "../_lib/videoUrlGuard";
+import { enforceUserVideoObservationConsent } from "../_lib/analysisConsentGate";
+import { ownsPlayer, ownsVideo } from "../_lib/ownership";
 
 export const config = { runtime: "nodejs", maxDuration: 120 };
 
@@ -71,7 +82,7 @@ export default withHandler(
   // y live/aggregate llaman server-to-server con INTERNAL_API_TOKEN / CRON_SECRET.
   // Las llamadas directas desde la UI siguen exigiendo JWT de usuario.
   { requireAuth: true, allowServiceToken: true, rawBody: true },
-  async ({ rawBody }) => {
+  async ({ rawBody, userId, tenantId, isServiceCall, ip }) => {
     try {
       // withHandler ya leyó el cuerpo (rawBody: true) → usar ctx.rawBody, nunca
       // req.json() (antes fallaba SIEMPRE y se devolvía como 413 falso).
@@ -116,6 +127,23 @@ export default withHandler(
           console.warn(`[Gemini] videoUrl rechazada (${urlErr.code}): ${urlErr.message}`);
           return errorResponse(urlErr.message, urlErr.status, urlErr.code);
         }
+      }
+
+      // Consentimiento de las llamadas de USUARIO (antes de gastar): vídeo guardado propio,
+      // URL de ese vídeo, declaración y, si es un menor de 14 conocido, consentimiento parental.
+      if (!isServiceCall) {
+        const gate = await enforceUserVideoObservationConsent({
+          videoId: body.videoId,
+          videoUrl,
+          hasBase64: Boolean(videoBase64FromBody),
+          attestation: body.attestation,
+          scope: analysisScope,
+          actor: { userId, tenantId, ip },
+          locale,
+          ownsVideo: (video, uid) => ownsVideo(video, uid),
+          ownsPlayer: (pid, uid) => ownsPlayer(pid, uid),
+        });
+        if (!gate.allowed) return gate.response;
       }
 
       // Tripwire de presupuesto (054): Gemini vídeo es de las llamadas más caras.

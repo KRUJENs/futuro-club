@@ -4,6 +4,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { enqueueAnalysis } from "../enqueueAnalysis";
+import type { gateClipAnalysis } from "../analysisConsentGate";
 
 // Mock supabase que soporta las cadenas del helper:
 //   from("analyses").select(...).eq(video).eq(player).in(...).maybeSingle()
@@ -38,12 +39,23 @@ function mockSupabase(opts: { existing?: { id: string; status: string } | null; 
   return { client: client as never, insertSpy };
 }
 
+const allowConsent = vi.fn(async (_input: Parameters<typeof gateClipAnalysis>[0]) => ({
+  allowed: true as const,
+  attestation: "stored" as const,
+  pendingAttestation: null,
+  minor: null,
+  video: null,
+  videoPlayerIds: [] as string[],
+}));
+
 const base = {
   videoId: "vid-1",
   tenantId: "tenant-1",
   playerId: "p1",
   publicUrl: "https://x.test",
   cronSecret: "",
+  // Gate de consentimiento inyectado (sus propios tests: analysisConsentGate.test.ts).
+  checkConsent: allowConsent,
 };
 
 describe("enqueueAnalysis · guarda RLS/FK", () => {
@@ -106,5 +118,50 @@ describe("enqueueAnalysis · guarda RLS/FK", () => {
     const r2 = await enqueueAnalysis({ ...base, cronSecret: "", supabase: c2 });
     expect(r2.status === "queued" && r2.triggered).toBe(false);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("enqueueAnalysis · gate de consentimiento (webhook de Bunny + finalize)", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true })));
+    allowConsent.mockClear();
+  });
+
+  it("pide SOLO la declaración GUARDADA con el vídeo (storedOnly), la fila `videos` obligatoria y el jugador del análisis", async () => {
+    const { client } = mockSupabase({ insertId: "an-1" });
+    await enqueueAnalysis({ ...base, supabase: client, endpoint: "webhooks/bunny-uploaded", locale: "en" });
+    expect(allowConsent).toHaveBeenCalledTimes(1);
+    expect(allowConsent.mock.calls[0][0]).toMatchObject({
+      videoId: "vid-1",
+      requireVideoRow: true, // el gate resuelve TODAS las filas del vídeo y sus jugadores (B1)
+      storedOnly: true,
+      playerId: "p1",
+      actor: { userId: null },
+      endpoint: "webhooks/bunny-uploaded",
+      locale: "en",
+      ownsVideo: null, // ruta sin usuario
+    });
+  });
+
+  it.each([
+    ["attestation_required", 400],
+    ["parental_consent_required", 403],
+    ["consent_check_failed", 500],
+  ] as const)("bloqueado (%s) → status blocked, NO inserta ni dispara la cola", async (code, httpStatus) => {
+    const fetchSpy = vi.fn(async () => ({ ok: true }));
+    vi.stubGlobal("fetch", fetchSpy);
+    const { client, insertSpy } = mockSupabase({ insertId: "an-x" });
+    const blocked = vi.fn(async () => ({ allowed: false as const, code, status: httpStatus, gate_reason: "motivo", minor: null }));
+    const r = await enqueueAnalysis({ ...base, cronSecret: "s3cr3t", supabase: client, checkConsent: blocked });
+    expect(r).toEqual({ status: "blocked", code, httpStatus, gate_reason: "motivo" });
+    expect(insertSpy).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("análisis ya existente → exists sin volver a consultar el gate (no se crea nada nuevo)", async () => {
+    const { client } = mockSupabase({ existing: { id: "an-old", status: "completed" } });
+    const r = await enqueueAnalysis({ ...base, supabase: client });
+    expect(r.status).toBe("exists");
+    expect(allowConsent).not.toHaveBeenCalled();
   });
 });

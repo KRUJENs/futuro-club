@@ -6107,9 +6107,10 @@
       "guardianNamePlaceholder": "María Pérez García",
       "guardianEmailLabel": "E-Mail des gesetzlichen Vertreters",
       "guardianEmailPlaceholder": "mutter@email.com",
-      "emailNotice": "Es wird eine Bestätigung per E-Mail gesendet. Der Link läuft in 24h ab.",
+      "emailNotice": "Wird so gespeichert, wie du es eingibst: Es wird keine E-Mail gesendet und der Erziehungsberechtigte wird nicht verifiziert.",
+      "clipGateNotice": "Diese Notiz schaltet die Videoanalyse eines Spielers unter 14 NICHT frei: Dafür braucht es die vom Erziehungsberechtigten unterschriebene und per E-Mail bestätigte Einwilligung.",
       "actionLabel": "Aktion",
-      "authorizeAI": "KI genehmigen",
+      "authorizeAI": "Genehmigung notieren",
       "denyAI": "KI verweigern",
       "includesTitle": "Was die Einwilligung umfasst:",
       "includes1": "Biomechanische Videoanalyse mit KI (Haltung, Bewegung)",
@@ -6199,6 +6200,13 @@
       "loadingReports": "Fehler beim Laden der Berichte",
       "notFound": "Nicht gefunden"
     }
+  },
+  "clipConsent": {
+    "blockedTitle": "Analyse nicht erlaubt",
+    "uploadNeedsAttestation": "Bestätige die Erklärung, um das Video hochzuladen und zu analysieren.",
+    "analysisNeedsAttestation": "Bestätige die Erklärung, um das Video zu analysieren. Sie ist auch nötig, um ein früher hochgeladenes Video erneut zu analysieren.",
+    "minorNote": "Ist der Spieler laut Geburtsdatum unter 14, ist zusätzlich die Einwilligung des Erziehungsberechtigten nötig, unterschrieben und per E-Mail bestätigt.",
+    "liveVideoOmittedTitle": "Das Spielvideo wurde nicht analysiert"
   },
   "matchJob": {
     "stage": {

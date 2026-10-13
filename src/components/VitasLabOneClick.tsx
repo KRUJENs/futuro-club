@@ -75,6 +75,12 @@ export interface VitasLabOneClickProps {
    * ANTES de analizar y vea el estado durante/después. Ver `PrecisionToggle`.
    */
   precisionControl?: React.ReactNode;
+  /**
+   * Declaración del entrenador (decisión del owner, 30 sep): se muestra justo encima del
+   * botón de analizar; con `consentReady === false` el botón queda deshabilitado.
+   */
+  consentControl?: React.ReactNode;
+  consentReady?: boolean;
   /** Children: manual override section content */
   children?: React.ReactNode;
 }
@@ -136,6 +142,8 @@ export default function VitasLabOneClick({
   onOpenUploadPanel,
   onViewResults,
   precisionControl,
+  consentControl,
+  consentReady,
   children,
 }: VitasLabOneClickProps) {
   const { t } = useTranslation();
@@ -378,11 +386,14 @@ export default function VitasLabOneClick({
 
       {/* ── Action Buttons ── */}
       <div className="mt-auto space-y-2">
+        {/* Declaración obligatoria antes de analizar */}
+        {!isRunning && !isIAComplete && consentControl}
+
         {/* Main 1-Click button */}
         {!isRunning && !isIAComplete && (
           <button
             onClick={onStartAnalysis}
-            disabled={!canStart}
+            disabled={!canStart || consentReady === false}
             className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-primary-foreground font-display font-bold text-sm uppercase tracking-wider hover:bg-primary/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
           >
             <Rocket size={18} />

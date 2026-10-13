@@ -164,7 +164,10 @@ describe("074 · lint del repositorio (control positivo y negativo)", () => {
     // Antes de la 076 también caen los planes IDP (047: coach_id = auth.uid() / tenant) y
     // las tablas cuya escritura iba por TENANT o por «cualquier usuario con sesión»
     // (003-005 / 048 / 049 / 055), que retira la 076 (otra clase, no de la 074).
-    const TENANT_CLOSED_BY_076 = ["analyses", "parental_consents", "phase_heatmaps", "player_anthropometrics", "reports", "transfer_listings"];
+    // parental_consents ya no cae aquí: la 075 (PR #308, anterior a la 076) le quita todas las
+    // políticas y permisos de cliente (solo escribe el servidor).
+    const TENANT_CLOSED_BY_076 = ["analyses", "phase_heatmaps", "player_anthropometrics", "reports", "transfer_listings"];
+    expect(ALL.some((f) => f.name.startsWith("075_"))).toBe(true);
     expect(gapTables(BEFORE_076)).toEqual(
       ["development_plans", "evaluation_history", "fatigue_sessions", "idp_checkins", "idp_goals", "idp_milestones",
        "live_events", "match_events", "player_analyses", "player_knowledge", "player_session_metrics", "scout_insights",

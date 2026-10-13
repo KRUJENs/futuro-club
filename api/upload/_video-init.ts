@@ -17,6 +17,15 @@
  *   Así el webhook de Bunny encuentra la fila por bunny_video_id aunque el cliente
  *   cierre la pestaña antes de su upsert. Sin Supabase configurado → se omite (no rompe).
  *
+ * Consentimiento (decisión del owner, 30 sep · api/_lib/analysisConsentGate): el webhook
+ * de Bunny encola el análisis SOLO con la subida, así que la declaración se exige AQUÍ:
+ *   - sin `attestation` vigente → 400 attestation_required, sin crear nada en Bunny;
+ *   - jugador (visible bajo RLS) menor de 14 conocido sin consentimiento parental
+ *     verificado → 403 parental_consent_required, sin crear nada;
+ *   - con Bunny creado, la declaración se guarda con el GUID (= id de la fila `videos`);
+ *     si no se puede guardar → 500 consent_check_failed y se borra el vídeo de Bunny
+ *     (best-effort): no queda un vídeo que el webhook analizaría sin declaración.
+ *
  * Env vars needed (Vercel):
  *   BUNNY_STREAM_LIBRARY_ID  — numeric Library ID from Bunny dashboard
  *   BUNNY_STREAM_API_KEY     — library-level API key (AccessKey)
@@ -33,6 +42,9 @@ import {
   MATCH_DURATION_GATE_CODE,
   MAX_MATCH_DURATION_MIN,
 } from "../../src/lib/shared/videoLimits";
+import { enforceClipConsent, recordClipAttestation, clipConsentErrorResponse } from "../_lib/analysisConsentGate";
+import { deleteBunnyVideos } from "../_lib/bunnyCleanup";
+import { CLIP_ATTESTATION_VERSION, CLIP_CONSENT_HTTP_STATUS, clipConsentGateReason } from "../../src/lib/shared/videoConsent";
 
 const BodySchema = z.object({
   title: z.string().min(1).max(200),
@@ -40,11 +52,48 @@ const BodySchema = z.object({
   collection: z.string().optional(), // Bunny collection GUID (optional)
   /** Duración leída de los metadatos del NAVEGADOR (s). Opcional: si no se leyó, no viene. */
   durationSec: z.number().positive().finite().optional(),
+  /** Declaración del entrenador `{ accepted: true, version }` (se valida en el gate). */
+  attestation: z.unknown().optional(),
 });
 
 const BUNNY_BASE = "https://video.bunnycdn.com/library";
 
 type VideoRowResult = "inserted" | "skipped" | "failed";
+
+function userRest(userJwt: string | null): { sbUrl: string; authHeaders: Record<string, string> } | null {
+  const sbUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? "";
+  const anonKey = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY ?? "";
+  if (!sbUrl || !anonKey || !userJwt) return null;
+  return { sbUrl, authHeaders: { apikey: anonKey, Authorization: `Bearer ${userJwt}` } };
+}
+
+/**
+ * player_id solo si ESTE usuario es el DUEÑO del jugador (no se adjuntan vídeos a menores
+ * ajenos). La FK a players no aplica RLS → este check es obligatorio. Además de la RLS, se
+ * filtra por user_id = el usuario del JWT verificado (076): así vale aunque la RLS de
+ * players de la base aún tenga una rama por tenant u organización (players_tenant_isolation
+ * de 003 / 038) que dejaría «ver» al jugador de otra cuenta. Se resuelve ANTES de crear
+ * nada: el gate de consentimiento necesita saber qué jugador lleva el vídeo.
+ */
+async function resolveVisiblePlayerId(
+  userJwt: string | null,
+  userId: string | null,
+  playerId: string | undefined,
+): Promise<string | null> {
+  const rest = userRest(userJwt);
+  if (!rest || !playerId || !userId) return null;
+  try {
+    const pRes = await fetch(
+      `${rest.sbUrl}/rest/v1/players?id=eq.${encodeURIComponent(playerId)}&user_id=eq.${encodeURIComponent(userId)}&select=id&limit=1`,
+      { headers: rest.authHeaders },
+    );
+    if (!pRes.ok) return null;
+    const rows = (await pRes.json().catch(() => [])) as Array<{ id?: string }>;
+    return Array.isArray(rows) && rows.some((r) => r?.id === playerId) ? playerId : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Inserta la fila `videos` con el JWT del usuario (RLS + trigger de org con auth.uid()).
@@ -57,34 +106,16 @@ async function insertVideoRow(opts: {
   tenantId: string | null;
   guid: string;
   title: string;
-  playerId: string | null;
+  /** Ya comprobado: el usuario es su dueño (resolveVisiblePlayerId). */
+  safePlayerId: string | null;
   durationSec: number | null;
 }): Promise<VideoRowResult> {
-  const sbUrl = process.env.SUPABASE_URL ?? process.env.VITE_SUPABASE_URL ?? "";
-  const anonKey = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY ?? "";
-  if (!sbUrl || !anonKey || !opts.userJwt) return "skipped";
-
-  const authHeaders = { apikey: anonKey, Authorization: `Bearer ${opts.userJwt}` };
+  const rest = userRest(opts.userJwt);
+  if (!rest) return "skipped";
+  const { sbUrl, authHeaders } = rest;
+  const safePlayerId = opts.safePlayerId;
 
   try {
-    // player_id solo si ESTE usuario es el DUEÑO del jugador (no se adjuntan vídeos a
-    // menores ajenos). La FK a players no aplica RLS → este check es obligatorio.
-    // Además de la RLS, se filtra por user_id = el usuario del JWT verificado (076):
-    // así vale aunque la RLS de players de la base aún tenga una rama por tenant u
-    // organización (players_tenant_isolation de 003 / 038) que dejaría «ver» al
-    // jugador de otra cuenta.
-    let safePlayerId: string | null = null;
-    if (opts.playerId) {
-      const pRes = await fetch(
-        `${sbUrl}/rest/v1/players?id=eq.${encodeURIComponent(opts.playerId)}&user_id=eq.${encodeURIComponent(opts.userId)}&select=id&limit=1`,
-        { headers: authHeaders },
-      );
-      if (pRes.ok) {
-        const rows = (await pRes.json().catch(() => [])) as Array<{ id?: string }>;
-        if (Array.isArray(rows) && rows.some((r) => r?.id === opts.playerId)) safePlayerId = opts.playerId;
-      }
-    }
-
     const nowIso = new Date().toISOString();
     // `data` = stub mínimo con SOLO lo conocido (pullAll del cliente lee row.data).
     // Sin duration/width/height/fps a 0: no se sabe todavía (invariante #2).
@@ -135,7 +166,7 @@ async function insertVideoRow(opts: {
 
 export default withHandler(
   { method: "POST", schema: BodySchema, requireAuth: true, maxRequests: 10 },
-  async ({ req, body, userId, tenantId }) => {
+  async ({ req, body, userId, tenantId, ip }) => {
     const libraryId = process.env.BUNNY_STREAM_LIBRARY_ID;
     const apiKey = process.env.BUNNY_STREAM_API_KEY ?? process.env.BUNNY_API_KEY;
 
@@ -163,6 +194,23 @@ export default withHandler(
       });
     }
 
+    // Step 0: consentimiento ANTES de crear nada (el webhook de Bunny analiza solo con la
+    // subida). La declaración se GUARDA tras crear el vídeo (su id es el GUID de Bunny).
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const userJwt = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() || null : null;
+    const safePlayerId = await resolveVisiblePlayerId(userJwt, userId, playerId);
+    const actor = { userId, tenantId, ip };
+    const consent = await enforceClipConsent({
+      attestation: body.attestation,
+      lookupStored: false, // vídeo nuevo: la declaración tiene que venir en ESTA petición
+      resource: { type: "videos", id: "pending" },
+      playerId: safePlayerId,
+      actor,
+      endpoint: "upload/video-init",
+      record: false,
+    });
+    if (!consent.allowed) return clipConsentErrorResponse(consent);
+
     // Step 1: Create video entry in Bunny Stream
     const createPayload: Record<string, string> = { title };
     if (collection) createPayload.collectionId = collection;
@@ -188,6 +236,29 @@ export default withHandler(
 
     const video = (await createRes.json()) as { guid: string; title: string };
 
+    // Step 1b: guardar la declaración CON el vídeo (quién = JWT, cuándo = reloj de la base,
+    // versión). Sin ella el vídeo no puede existir: se borra de Bunny y se responde 500.
+    try {
+      if (!consent.pendingAttestation) throw new Error("no pending attestation");
+      await recordClipAttestation({
+        attestation: consent.pendingAttestation,
+        resource: { type: "videos", id: video.guid, bunnyVideoId: video.guid },
+        actor,
+        playerId: safePlayerId,
+        endpoint: "upload/video-init",
+      });
+    } catch (err) {
+      console.error("[video-init] no se pudo guardar la declaración → se borra el vídeo de Bunny:", err instanceof Error ? err.message : err);
+      await deleteBunnyVideos([video.guid]).catch(() => null);
+      const gate_reason = clipConsentGateReason(null, "consent_check_failed");
+      return errorResponse({
+        message: gate_reason,
+        status: CLIP_CONSENT_HTTP_STATUS.consent_check_failed,
+        code: "consent_check_failed",
+        details: { gate_reason, attestationVersion: CLIP_ATTESTATION_VERSION },
+      });
+    }
+
     // Step 2: Firma TUS válida 24 h (Bunny valida AuthorizationExpire en CADA
     // POST/HEAD/PATCH y re-firmar NO extiende la caducidad del recurso → la ventana
     // debe cubrir la subida completa de un partido). Helper compartido con create-upload.
@@ -198,15 +269,13 @@ export default withHandler(
     });
 
     // Step 3: fila `videos` con el JWT del usuario (best-effort, ver insertVideoRow).
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const userJwt = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() || null : null;
     const videoRow = await insertVideoRow({
       userJwt,
       userId: userId as string,
       tenantId,
       guid: video.guid,
       title: video.title ?? title,
-      playerId: playerId ?? null,
+      safePlayerId,
       durationSec,
     });
 
