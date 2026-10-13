@@ -6131,7 +6131,8 @@
       "deletionError": "Fehler beim Anfragen der Löschung",
       "dsarNotAllowed": "Keine Berechtigung für diesen Spieler: Nur das Konto, das ihn angelegt hat, kann dieses DSGVO-Recht ausüben",
       "consentSuccess": "Einwilligung erfolgreich registriert",
-      "consentError": "Fehler beim Registrieren der Einwilligung"
+      "consentError": "Fehler beim Registrieren der Einwilligung",
+      "withdrawnLabelError": "Einwilligung widerrufen, aber die Anzeige konnte nicht aktualisiert werden. Lade die Seite neu."
     },
     "dsar": {
       "title": "ARCO-Rechte · {{name}}",

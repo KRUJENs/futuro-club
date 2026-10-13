@@ -6131,7 +6131,8 @@
       "deletionError": "Errore nella richiesta di eliminazione",
       "dsarNotAllowed": "Nessun permesso su questo giocatore: solo l'account che lo ha registrato può esercitare questo diritto GDPR",
       "consentSuccess": "Consenso registrato correttamente",
-      "consentError": "Errore nella registrazione del consenso"
+      "consentError": "Errore nella registrazione del consenso",
+      "withdrawnLabelError": "Consenso revocato, ma l'etichetta sullo schermo non è stata aggiornata. Ricarica la pagina."
     },
     "dsar": {
       "title": "Diritti ARCO · {{name}}",

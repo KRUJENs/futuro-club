@@ -167,6 +167,16 @@ filas(n, comprobacion, resultado, esperado, ok) AS (
                 || has_function_privilege('service_role', to_regprocedure('public.log_gdpr_action(uuid, uuid, text, text, text, jsonb, inet)'), 'EXECUTE')::text END,
          'informativo (esperado: false · true, estado de la 072)', NULL::boolean
     FROM hh
+  UNION ALL
+  -- 11 · La RLS sigue activada en parental_consents (P1 bloque 0, nit de la revisión del
+  --      paquete): sin RLS, un GRANT que alguien añadiera después abriría todas las filas.
+  SELECT 11, 'parental_consents: RLS activada',
+         CASE WHEN NOT hh.pc THEN 'tabla no existe'
+              ELSE (SELECT c.relrowsecurity::text FROM pg_class c WHERE c.oid = to_regclass('public.parental_consents')) END,
+         'true',
+         CASE WHEN NOT hh.pc THEN NULL
+              ELSE (SELECT c.relrowsecurity FROM pg_class c WHERE c.oid = to_regclass('public.parental_consents')) END
+    FROM hh
 )
 SELECT n, comprobacion, resultado, esperado, ok
   FROM filas

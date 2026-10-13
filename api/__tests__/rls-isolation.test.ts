@@ -177,27 +177,32 @@ describe.skipIf(SKIP)("RLS · Aislamiento multi-tenant (parental_consents)", () 
   // 076 (solo el dueño): parental_consents deja de tener política de cliente — el
   // navegador nunca la lee ni la escribe (solo api/ con service_role). Antes de la 076
   // lo que se comprobaba aquí era el aislamiento POR TENANT, que la 076 retira.
-  it("076 · con sesión NO se lee parental_consents (ni el propio): solo service_role", async () => {
+  // 075 (aplicada en producción el 13 oct): además authenticated no tiene NINGÚN permiso de
+  // tabla, así que la lectura da error de permiso (42501) en vez de 0 filas. Los tests
+  // aceptan los dos estados: lo que importa es que con sesión no se ve ninguna fila.
+  const noRowsWithSession = (res: { data: unknown[] | null; error: { code?: string } | null }) => {
+    expect(res.data ?? []).toHaveLength(0);
+    if (res.error) expect(res.error.code).toBe("42501");
+  };
+
+  it("075/076 · con sesión NO se lee parental_consents (ni el propio): solo service_role", async () => {
     const clientA = createClient(SUPABASE_URL!, SERVICE_KEY!, {
       global: { headers: { Authorization: `Bearer ${userAToken}` } },
     });
-    const { data, error } = await clientA
+    noRowsWithSession(await clientA
       .from("parental_consents")
       .select("*")
-      .eq("id", consentAId);
-    expect(error).toBeNull();
-    expect(data).toHaveLength(0);
+      .eq("id", consentAId));
   });
 
   it("Tenant A NO PUEDE leer consent de Tenant B (RLS filtra)", async () => {
     const clientA = createClient(SUPABASE_URL!, SERVICE_KEY!, {
       global: { headers: { Authorization: `Bearer ${userAToken}` } },
     });
-    const { data } = await clientA
+    noRowsWithSession(await clientA
       .from("parental_consents")
       .select("*")
-      .eq("id", consentBId);
-    expect(data).toHaveLength(0);
+      .eq("id", consentBId));
   });
 
   it("Tenant A NO PUEDE actualizar consent de Tenant B", async () => {
@@ -233,15 +238,14 @@ describe.skipIf(SKIP)("RLS · Aislamiento multi-tenant (parental_consents)", () 
     expect(data).not.toBeNull();
   });
 
-  it("076 · B tampoco lee SU consent con sesión (validación cruzada: solo service_role)", async () => {
+  it("075/076 · B tampoco lee SU consent con sesión (validación cruzada: solo service_role)", async () => {
     const clientB = createClient(SUPABASE_URL!, SERVICE_KEY!, {
       global: { headers: { Authorization: `Bearer ${userBToken}` } },
     });
-    const { data } = await clientB
+    noRowsWithSession(await clientB
       .from("parental_consents")
       .select("*")
-      .eq("id", consentBId);
-    expect(data).toHaveLength(0);
+      .eq("id", consentBId));
     // …y el backend (service_role) sí la ve.
     const { data: admin } = await adminClient.from("parental_consents").select("id").eq("id", consentBId);
     expect(admin).toHaveLength(1);

@@ -6132,7 +6132,8 @@
       "deletionError": "Fout bij aanvragen van verwijdering",
       "dsarNotAllowed": "Geen toestemming voor deze speler: alleen het account dat hem heeft geregistreerd kan dit AVG-recht uitoefenen",
       "consentSuccess": "Toestemming succesvol geregistreerd",
-      "consentError": "Fout bij registreren van toestemming"
+      "consentError": "Fout bij registreren van toestemming",
+      "withdrawnLabelError": "Toestemming ingetrokken, maar het label op het scherm kon niet worden bijgewerkt. Laad de pagina opnieuw."
     },
     "dsar": {
       "title": "ARCO-rechten · {{name}}",
