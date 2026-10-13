@@ -1103,7 +1103,6 @@
     "tacticalAnalysisComplete": "Analisi tattica completata",
     "consentGranted": "Consenso parentale concesso",
     "consentSaveError": "Impossibile salvare il consenso",
-    "consentDenied": "Consenso negato · dati del minore anonimizzati",
     "reminderSent": "Promemoria inviato al tutore",
     "emailNotConfigured": "Servizio email non ancora configurato",
     "reminderError": "Invio del promemoria fallito",
@@ -6132,7 +6131,7 @@
       "dsarNotAllowed": "Nessun permesso su questo giocatore: solo l'account che lo ha registrato può esercitare questo diritto GDPR",
       "consentSuccess": "Consenso registrato correttamente",
       "consentError": "Errore nella registrazione del consenso",
-      "withdrawnLabelError": "Consenso revocato, ma l'etichetta sullo schermo non è stata aggiornata. Ricarica la pagina."
+      "withdrawnLabelError": "Consenso revocato. L'etichetta di questa schermata non è stata aggiornata e potrebbe mostrare ancora lo stato precedente."
     },
     "dsar": {
       "title": "Diritti ARCO · {{name}}",

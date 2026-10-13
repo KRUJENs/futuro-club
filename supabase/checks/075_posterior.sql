@@ -7,7 +7,7 @@
 -- (to_regclass / to_regrole / to_regprocedure). Probada en SIMULACIÓN PGlite (NO en tu
 -- base): base vacía, todas las migraciones del repo y la forma de producción (sin
 -- 073/076), antes de la 075 (sin la 076 sale ok = false en las filas 2-5; con la 076, en
--- las 3-5) y después (ok = true en las filas 1-8), más controles positivos (un GRANT de
+-- las 3-5) y después (ok = true en las filas 1-8 y 11), más controles positivos (un GRANT de
 -- tabla, un GRANT por columna y una política creada a mano se detectan).
 -- =====================================================================
 WITH

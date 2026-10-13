@@ -1103,7 +1103,6 @@
     "tacticalAnalysisComplete": "Taktische Analyse abgeschlossen",
     "consentGranted": "Elterliche Einwilligung erteilt",
     "consentSaveError": "Einwilligung konnte nicht gespeichert werden",
-    "consentDenied": "Einwilligung verweigert · Daten des Minderjährigen anonymisiert",
     "reminderSent": "Erinnerung an den Erziehungsberechtigten gesendet",
     "emailNotConfigured": "E-Mail-Dienst noch nicht konfiguriert",
     "reminderError": "Senden der Erinnerung fehlgeschlagen",
@@ -6132,7 +6131,7 @@
       "dsarNotAllowed": "Keine Berechtigung für diesen Spieler: Nur das Konto, das ihn angelegt hat, kann dieses DSGVO-Recht ausüben",
       "consentSuccess": "Einwilligung erfolgreich registriert",
       "consentError": "Fehler beim Registrieren der Einwilligung",
-      "withdrawnLabelError": "Einwilligung widerrufen, aber die Anzeige konnte nicht aktualisiert werden. Lade die Seite neu."
+      "withdrawnLabelError": "Einwilligung widerrufen. Die Anzeige auf diesem Bildschirm konnte nicht aktualisiert werden und zeigt eventuell noch den vorherigen Status."
     },
     "dsar": {
       "title": "ARCO-Rechte · {{name}}",
