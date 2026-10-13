@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AgentService } from "@/services/real/agentService";
 import { PlayerService } from "@/services/real/playerService";
 import { ragService } from "@/services/real/ragService";
-import type { PHVInput, RoleProfileInput } from "@/agents/contracts";
+import type { PHVInput } from "@/agents/contracts";
 import i18n from "@/i18n";
 import { normalizeLocale } from "@/lib/shared/locale";
 
@@ -38,51 +38,8 @@ export function usePHVCalculator(input: PHVInput | null) {
 // NOTE: useScoutInsights lives in useScoutFeed.ts (single source of truth)
 // Do NOT duplicate it here — ScoutFeed.tsx imports from useScoutFeed.ts
 
-// ─────────────────────────────────────────
-// Hook: Role Profile por jugador
-// Cache 30 min (análisis costoso, no cambia seguido)
-// ─────────────────────────────────────────
-export function useRoleProfileAgent(playerId: string | undefined) {
-  return useQuery({
-    // El idioma forma parte de la clave → el perfil se regenera en el idioma activo.
-    queryKey: ["role-profile-agent", playerId, normalizeLocale(i18n.language)],
-    queryFn: async () => {
-      if (!playerId) throw new Error(i18n.t("errors.noPlayerId"));
-      const player = PlayerService.getById(playerId);
-      if (!player) throw new Error(`Jugador ${playerId} no encontrado`);
-
-      const input: RoleProfileInput = {
-        player: {
-          id: player.id,
-          name: player.name,
-          age: player.age,
-          foot: player.foot,
-          position: player.position,
-          minutesPlayed: player.minutesPlayed,
-          competitiveLevel: player.competitiveLevel,
-          metrics: {
-            ...player.metrics,
-            // NOTE: pressing y positioning eliminados — eran aproximaciones falsas
-            // (pressing ≈ stamina, positioning ≈ vision). El prompt de Role Profile
-            // solo usa las 6 métricas VSI reales: speed, technique, vision, stamina, shooting, defending.
-          },
-          // PHV solo si el gate único lo produjo; si no, se omite (nunca «ontme»/0).
-          ...(player.phvCategory && typeof player.phvOffset === "number"
-            ? { phvCategory: player.phvCategory, phvOffset: player.phvOffset }
-            : {}),
-          phvDataAvailable: !!(player.phvCategory && typeof player.phvOffset === "number"),
-        },
-      };
-
-      const res = await AgentService.buildRoleProfile(input);
-      if (!res.success || !res.data) throw new Error(res.error ?? "Error en RoleProfile Agent");
-      return res.data;
-    },
-    enabled: !!playerId,
-    staleTime: 1000 * 60 * 30, // 30 minutos
-    retry: 2,
-  });
-}
+// useRoleProfileAgent se borró (P1 bloque 2): no tenía llamadores; todas las pantallas
+// usan useRoleProfile → services/roleProfileService (una sola implementación, inv #7).
 
 // ─────────────────────────────────────────
 // Hook: RAG Drill Recommendations

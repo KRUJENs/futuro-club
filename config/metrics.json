@@ -246,10 +246,10 @@
       "provenance": "ESTIMADA_LLM",
       "calc_paths": ["api/agents/team-observation.ts"],
       "ui_paths": ["src/pages/TeamAnalysisPage.tsx"],
-      "allowed_literals": [],
-      "gated": false,
+      "allowed_literals": [0, 1, 100],
+      "gated": true,
       "source_ref": "gemini-2.5-flash",
-      "notes": "El LLM estima la posesión a ojo (debe sumar 100). Se muestra como '%Posesión' indistinguible de estadística oficial."
+      "notes": "El LLM estima la posesión a ojo. Desde P1 bloque 2: el prompt ya no ancla 55/45 y admite null; TeamAnalysisPage la pinta como ESTIMADA_LLM con badge y, si falta, bloqueada con motivo (nunca 0%)."
     },
     {
       "id": "voronoi_espacio",

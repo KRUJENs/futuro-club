@@ -164,7 +164,7 @@ Genera un análisis con esta estructura JSON exacta (sin markdown, sin backticks
 
 {
   "formacionDetectada": "4-3-3",
-  "posesionEstimada": {"equipo": 55, "rival": 45},
+  "posesionEstimada": {"equipo": <número 0-100 estimado a ojo, o null si el vídeo no permite estimarla>, "rival": <número 0-100 o null>},
   "fasesJuego": {
     "pressing": {
       "tipo": "pressing alto tras pérdida",

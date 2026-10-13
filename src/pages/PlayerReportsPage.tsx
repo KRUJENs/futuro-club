@@ -93,7 +93,7 @@ function ReportCard({
     ((report.estadoActual as Record<string, unknown> | undefined)?.dimensionesMedidas === true);
   const clon = report.jugadorReferencia?.bestMatch;
   const confianza = report.confianza ?? null; // null ⇒ sin confianza medible → no pintar "0%" (inv #2)
-  const nivel = estado?.nivelActual ?? "medio";
+  const nivel = estado?.nivelActual ?? null; // null ⇒ el agente no dio nivel: no se pinta «Medio» (inv #2)
 
   const date = new Date(analysis.created_at);
   const dateStr = date.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
@@ -130,16 +130,18 @@ function ReportCard({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Badge
-            className="text-[9px] font-bold"
-            style={{
-              backgroundColor: `${LEVEL_COLORS[nivel]}20`,
-              color: LEVEL_COLORS[nivel],
-              borderColor: LEVEL_COLORS[nivel],
-            }}
-          >
-            {LEVEL_LABELS[nivel]}
-          </Badge>
+          {nivel && (
+            <Badge
+              className="text-[9px] font-bold"
+              style={{
+                backgroundColor: `${LEVEL_COLORS[nivel]}20`,
+                color: LEVEL_COLORS[nivel],
+                borderColor: LEVEL_COLORS[nivel],
+              }}
+            >
+              {LEVEL_LABELS[nivel]}
+            </Badge>
+          )}
           {confianza != null && (
             <span className="text-[9px] text-muted-foreground">
               {Math.round(confianza * 100)}%

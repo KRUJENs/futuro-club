@@ -32,7 +32,7 @@ interface DimensionScore {
 interface AnalysisReport {
   estadoActual: {
     resumenEjecutivo: string;
-    nivelActual: string;
+    nivelActual: string | null; // null ⇒ el agente no dio nivel (no se pinta)
     fortalezasPrimarias: string[];
     areasDesarrollo: string[];
     dimensiones: {
@@ -52,13 +52,14 @@ interface AnalysisReport {
     mentalidad: string;
   };
   jugadorReferencia: {
+    /** null ⇒ sin comparable (no se pinta la sección). score = % 0-100. */
     bestMatch: {
       nombre: string;
       posicion: string;
       club: string;
       score: number;
       narrativa: string;
-    };
+    } | null;
   };
   proyeccionCarrera: {
     escenarioOptimista: { descripcion: string; nivelProyecto: string };
@@ -315,7 +316,9 @@ export default function AnalysisReportPrint() {
         {/* ── At-a-glance (solo ejecutivo · para dirección) ────────────── */}
         {mode === "executive" && (
           <section className="mb-6 no-break grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <GlanceCard label={t("analysisReportPrint.glanceLevel")} value={r.estadoActual.nivelActual} />
+            {r.estadoActual.nivelActual && (
+              <GlanceCard label={t("analysisReportPrint.glanceLevel")} value={r.estadoActual.nivelActual} />
+            )}
             {r.confianza != null && (
               <GlanceCard label={t("analysisReportPrint.confidence")} value={`${Math.round(r.confianza * 100)}%`} />
             )}
@@ -331,13 +334,17 @@ export default function AnalysisReportPrint() {
         {/* ── 2. Resumen Ejecutivo ────────────────────────────────────── */}
         <section className="mb-6 no-break">
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t("analysisReportPrint.executiveSummary")}</h2>
-          <p className={mode === "executive" ? "text-base text-gray-800 leading-relaxed" : "text-sm text-gray-700 leading-relaxed"}>{r.estadoActual.resumenEjecutivo}</p>
-          <div className="flex gap-4 mt-3 text-xs">
-            <div>
-              <span className="text-gray-400">{t("analysisReportPrint.currentLevel")}:</span>{" "}
-              <span className="font-semibold text-purple-700">{r.estadoActual.nivelActual}</span>
+          {r.estadoActual.resumenEjecutivo && (
+            <p className={mode === "executive" ? "text-base text-gray-800 leading-relaxed" : "text-sm text-gray-700 leading-relaxed"}>{r.estadoActual.resumenEjecutivo}</p>
+          )}
+          {r.estadoActual.nivelActual && (
+            <div className="flex gap-4 mt-3 text-xs">
+              <div>
+                <span className="text-gray-400">{t("analysisReportPrint.currentLevel")}:</span>{" "}
+                <span className="font-semibold text-purple-700">{r.estadoActual.nivelActual}</span>
+              </div>
             </div>
-          </div>
+          )}
           <div className="flex gap-2 flex-wrap mt-3">
             {r.estadoActual.fortalezasPrimarias.map((f, i) => (
               <span key={i} className="px-2 py-0.5 bg-green-50 text-green-700 text-[10px] font-semibold rounded">
@@ -654,20 +661,30 @@ export default function AnalysisReportPrint() {
         {/* ── 6. ADN Futbolístico ────────────────────────────────────── */}
         <section className="mb-6 no-break">
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t("analysisReportPrint.footballDna")}</h2>
-          <div className="grid grid-cols-3 gap-3 mb-3">
-            <div className="p-2 bg-purple-50 rounded">
-              <div className="text-[9px] text-gray-400 uppercase">{t("analysisReportPrint.archetype")}</div>
-              <div className="text-xs font-bold text-purple-700">{r.adnFutbolistico.arquetipoTactico}</div>
+          {/* Solo lo que dio el agente: una celda vacía no se pinta (antes salían textos
+              por defecto como «Determinado y competitivo», inv #2). */}
+          {(r.adnFutbolistico.arquetipoTactico || r.adnFutbolistico.estiloJuego || r.adnFutbolistico.mentalidad) && (
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              {r.adnFutbolistico.arquetipoTactico && (
+                <div className="p-2 bg-purple-50 rounded">
+                  <div className="text-[9px] text-gray-400 uppercase">{t("analysisReportPrint.archetype")}</div>
+                  <div className="text-xs font-bold text-purple-700">{r.adnFutbolistico.arquetipoTactico}</div>
+                </div>
+              )}
+              {r.adnFutbolistico.estiloJuego && (
+                <div className="p-2 bg-purple-50 rounded">
+                  <div className="text-[9px] text-gray-400 uppercase">{t("analysisReportPrint.style")}</div>
+                  <div className="text-xs font-bold text-purple-700">{r.adnFutbolistico.estiloJuego}</div>
+                </div>
+              )}
+              {r.adnFutbolistico.mentalidad && (
+                <div className="p-2 bg-purple-50 rounded">
+                  <div className="text-[9px] text-gray-400 uppercase">{t("analysisReportPrint.mentality")}</div>
+                  <div className="text-xs font-bold text-purple-700">{r.adnFutbolistico.mentalidad}</div>
+                </div>
+              )}
             </div>
-            <div className="p-2 bg-purple-50 rounded">
-              <div className="text-[9px] text-gray-400 uppercase">{t("analysisReportPrint.style")}</div>
-              <div className="text-xs font-bold text-purple-700">{r.adnFutbolistico.estiloJuego}</div>
-            </div>
-            <div className="p-2 bg-purple-50 rounded">
-              <div className="text-[9px] text-gray-400 uppercase">{t("analysisReportPrint.mentality")}</div>
-              <div className="text-xs font-bold text-purple-700">{r.adnFutbolistico.mentalidad}</div>
-            </div>
-          </div>
+          )}
           {mode === "technical" && r.adnFutbolistico.patrones.length > 0 && (
             <div className="space-y-1">
               {r.adnFutbolistico.patrones.map((p, i) => (
@@ -681,28 +698,31 @@ export default function AnalysisReportPrint() {
           )}
         </section>
 
-        {/* ── 7. Jugador Referencia ──────────────────────────────────── */}
-        <section className="mb-6 no-break">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t("analysisReportPrint.referencePlayer")}</h2>
-          <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <div className="flex items-center justify-between mb-1">
-              <div>
-                <span className="text-sm font-bold text-gray-900">
-                  {r.jugadorReferencia.bestMatch.nombre}
-                </span>
-                <span className="text-xs text-gray-400 ml-2">
-                  {r.jugadorReferencia.bestMatch.posicion} · {r.jugadorReferencia.bestMatch.club}
+        {/* ── 7. Jugador Referencia — solo si el narrador dio un comparable (null ⇒ nada) ── */}
+        {r.jugadorReferencia?.bestMatch && (
+          <section className="mb-6 no-break">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t("analysisReportPrint.referencePlayer")}</h2>
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <div className="flex items-center justify-between mb-1">
+                <div>
+                  <span className="text-sm font-bold text-gray-900">
+                    {r.jugadorReferencia.bestMatch.nombre}
+                  </span>
+                  <span className="text-xs text-gray-400 ml-2">
+                    {[r.jugadorReferencia.bestMatch.posicion, r.jugadorReferencia.bestMatch.club].filter(Boolean).join(" · ")}
+                  </span>
+                </div>
+                <span className="text-xs font-bold text-purple-600">
+                  {/* score ya es % (0-100); antes se multiplicaba por 100 */}
+                  {t("analysisReportPrint.similarity", { percent: Math.round(r.jugadorReferencia.bestMatch.score) })}
                 </span>
               </div>
-              <span className="text-xs font-bold text-purple-600">
-                {t("analysisReportPrint.similarity", { percent: Math.round(r.jugadorReferencia.bestMatch.score * 100) })}
-              </span>
+              <p className="text-[11px] text-gray-600 leading-relaxed">
+                {r.jugadorReferencia.bestMatch.narrativa}
+              </p>
             </div>
-            <p className="text-[11px] text-gray-600 leading-relaxed">
-              {r.jugadorReferencia.bestMatch.narrativa}
-            </p>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* ── 8. Proyección de Carrera — solo si hay datos reales (null ⇒ no fabricar "Semi-pro") ── */}
         {r.proyeccionCarrera && (
@@ -744,16 +764,22 @@ export default function AnalysisReportPrint() {
         {/* ── 9. Plan de Desarrollo ──────────────────────────────────── */}
         <section className="mb-6 no-break">
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t("analysisReportPrint.developmentPlan")}</h2>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div className="p-2 bg-gray-50 rounded">
-              <div className="text-[9px] text-gray-400 uppercase">{t("analysisReportPrint.goal6Months")}</div>
-              <div className="text-[10px] font-semibold text-gray-700">{r.planDesarrollo.objetivo6meses}</div>
+          {(r.planDesarrollo.objetivo6meses || r.planDesarrollo.objetivo18meses) && (
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              {r.planDesarrollo.objetivo6meses && (
+                <div className="p-2 bg-gray-50 rounded">
+                  <div className="text-[9px] text-gray-400 uppercase">{t("analysisReportPrint.goal6Months")}</div>
+                  <div className="text-[10px] font-semibold text-gray-700">{r.planDesarrollo.objetivo6meses}</div>
+                </div>
+              )}
+              {r.planDesarrollo.objetivo18meses && (
+                <div className="p-2 bg-gray-50 rounded">
+                  <div className="text-[9px] text-gray-400 uppercase">{t("analysisReportPrint.goal18Months")}</div>
+                  <div className="text-[10px] font-semibold text-gray-700">{r.planDesarrollo.objetivo18meses}</div>
+                </div>
+              )}
             </div>
-            <div className="p-2 bg-gray-50 rounded">
-              <div className="text-[9px] text-gray-400 uppercase">{t("analysisReportPrint.goal18Months")}</div>
-              <div className="text-[10px] font-semibold text-gray-700">{r.planDesarrollo.objetivo18meses}</div>
-            </div>
-          </div>
+          )}
           {mode === "technical" && r.planDesarrollo.pilaresTrabajo.length > 0 && (
             <div className="space-y-2">
               {r.planDesarrollo.pilaresTrabajo.map((pilar, i) => (

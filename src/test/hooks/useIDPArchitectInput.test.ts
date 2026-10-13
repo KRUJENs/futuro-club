@@ -75,4 +75,18 @@ describe("useIDPArchitectInput · perfil conductual sin scores", () => {
     expect(result.current.architectInput?.vsi?.mental).toBe(68);
     expect(result.current.liveMetrics.mental_composite).toBe(68);
   });
+
+  // P1 bloque 2: un perfil de EJEMPLO (source "mock", solo en el demo) no alimenta el IDP
+  // ni sale como «perfil conductual ✓» en la riqueza de datos.
+  it("un perfil de ejemplo (source mock) NO cuenta ni entra en el IDP", () => {
+    mocks.behavioralProfile = {
+      playerId: "demo-a",
+      source: "mock",
+      scores: { decisionSpeed: 68, scanningIntelligence: 72, resilience: 61, leadership: 45, mentalComposite: 63, archetype: "architect" },
+    };
+    const { result } = renderHook(() => useIDPArchitectInput("demo-a"));
+    expect(result.current.dataRichness.hasBehavioralProfile).toBe(false);
+    expect(result.current.architectInput?.behavioralProfile).toBeUndefined();
+    expect(result.current.liveMetrics.mental_composite).toBeUndefined();
+  });
 });

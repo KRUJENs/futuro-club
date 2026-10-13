@@ -466,16 +466,22 @@ export default function ParentalConsentPage() {
       const newStatus = data.action === "grant" ? "granted" : "denied";
 
       if (SUPABASE_CONFIGURED) {
+        // El historial de ESTA pantalla es informativo: un fallo (error o excepción de red)
+        // no puede convertir una retirada ya hecha en el servidor en «error al registrar».
         const logAudit = async () => {
-          const { error: auditErr } = await supabase
-            .from("consent_audit_log")
-            .insert({
-              player_id: data.playerId,
-              action: data.action === "grant" ? "consent_granted" : "consent_denied",
-              actor_email: user?.email ?? "unknown",
-              details: { guardian_name: data.guardianName, guardian_email: data.guardianEmail },
-            });
-          if (auditErr) console.error("Audit log error:", auditErr);
+          try {
+            const { error: auditErr } = await supabase
+              .from("consent_audit_log")
+              .insert({
+                player_id: data.playerId,
+                action: data.action === "grant" ? "consent_granted" : "consent_denied",
+                actor_email: user?.email ?? "unknown",
+                details: { guardian_name: data.guardianName, guardian_email: data.guardianEmail },
+              });
+            if (auditErr) console.error("Audit log error:", auditErr);
+          } catch (err) {
+            console.error("Audit log error:", err);
+          }
         };
 
         // Revocar: la retirada se hace PRIMERO en el servidor (marca el consentimiento como

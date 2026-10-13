@@ -827,7 +827,8 @@
       "scout": "Bijv.: Carlos Martínez",
       "parent": "Bijv.: Juan García",
       "playerName": "Bijv.: Lucas Moreno"
-    }
+    },
+    "birthDateRequired": "Voer de geboortedatum in om de speler aan te maken"
   },
   "drill": {
     "title": "Solo Drill",
@@ -1006,7 +1007,8 @@
     "generalEvalDesc": "Conclusies en aanbevelingen",
     "teamStrengths": "Sterke punten",
     "toWork": "Aandachtspunten",
-    "coachRecommendations": "Aanbevelingen voor de trainer"
+    "coachRecommendations": "Aanbevelingen voor de trainer",
+    "possessionNotObserved": "niet waargenomen"
   },
   "roleProfile": {
     "title": "Rolprofiel",
@@ -2167,7 +2169,8 @@
     "noTeamAnalysis": "Geen teamanalyse",
     "noTeamAnalysisDesc": "Upload een wedstrijdvideo en genereer het eerste tactische rapport",
     "perPlayerWithheld": "Dit rapport bevatte rijen per speler met een door de AI geschat rugnummer. Ze worden verborgen: zonder gevalideerde identificatie via het rugnummer koppelt VITAS geen cijfers aan een specifieke speler. De analyse is alleen op teamniveau.",
-    "individualTextsHidden": "Teksten verborgen omdat ze een specifieke speler noemden (rugnummer of nummer): {{n}}."
+    "individualTextsHidden": "Teksten verborgen omdat ze een specifieke speler noemden (rugnummer of nummer): {{n}}.",
+    "notObserved": "niet waargenomen"
   },
   "vitasLab": {
     "stepUpload": "UPLOADEN",
@@ -4945,7 +4948,9 @@
     "backToTeam": "Terug naar het team",
     "teamWellbeingPanel": "Welzijnspaneel van het team",
     "emptyTitle": "Nog geen spelers",
-    "emptyDescription": "Voeg spelers aan je team toe om het uitvalrisico en het engagement per speler te zien."
+    "emptyDescription": "Voeg spelers aan je team toe om het uitvalrisico en het engagement per speler te zien.",
+    "noAttendance": "Nog geen aanwezigheid geregistreerd",
+    "riskNotCalculated": "Uitvalrisico niet berekend. Het wordt berekend zodra er registraties van aanwezigheid, welzijn of belasting voor deze speler zijn."
   },
   "authContext": {
     "supabaseNotConfiguredWithKeys": "Supabase niet geconfigureerd — voeg VITE_SUPABASE_URL en VITE_SUPABASE_ANON_KEY toe",
@@ -5554,7 +5559,9 @@
     "sortAttendance": "Aanwezigheid",
     "factorLabel": "Factor",
     "attendanceShort": "Aanwez.",
-    "emptyFilter": "Geen spelers met het geselecteerde filter"
+    "emptyFilter": "Geen spelers met het geselecteerde filter",
+    "noAttendance": "geen registraties",
+    "riskUnavailable": "risico niet berekend"
   },
   "vsiHistoryChart": {
     "notEnoughData": "Er zijn minstens 2 VSI-registraties nodig om de evolutie te tonen",
@@ -5894,7 +5901,8 @@
     "generate": "AI-rapport genereren",
     "generating": "Genereren…",
     "error": "Het rapport kon niet worden gegenereerd. Probeer het opnieuw.",
-    "hint": "Genereer een verhalend rapport over uitvalrisico met AI (interventieplan)."
+    "hint": "Genereer een verhalend rapport over uitvalrisico met AI (interventieplan).",
+    "birthDateRequired": "Zonder geboortedatum wordt het rapport niet gemaakt (de leeftijd wordt niet gegokt)"
   },
   "teamReport": {
     "noContent": "Geen wedstrijdgegevens",

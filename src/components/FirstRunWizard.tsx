@@ -66,25 +66,10 @@ const EMPTY_FORM: FormState = {
   name: "", age: "", gender: "", position: "", foot: "", height: "", weight: "",
 };
 
-// Defaults razonables si el user salta paso 3
-const DEFAULTS_BY_AGE: Record<number, { height: number; weight: number }> = {
-  // Estaturas/pesos medios europeos · interpolados
-  8:  { height: 130, weight: 28 },
-  9:  { height: 135, weight: 31 },
-  10: { height: 140, weight: 34 },
-  11: { height: 145, weight: 38 },
-  12: { height: 150, weight: 42 },
-  13: { height: 155, weight: 47 },
-  14: { height: 162, weight: 52 },
-  15: { height: 168, weight: 58 },
-  16: { height: 172, weight: 62 },
-  17: { height: 175, weight: 65 },
-  18: { height: 177, weight: 68 },
-};
-
-function defaultsForAge(age: number) {
-  const clamped = Math.min(18, Math.max(8, Math.round(age)));
-  return DEFAULTS_BY_AGE[clamped] ?? { height: 160, weight: 50 };
+/** Medida escrita por quien da de alta; vacío o no numérico ⇒ undefined (sin dato). */
+function typedMeasure(v: string): number | undefined {
+  const n = Number(v);
+  return v.trim() !== "" && Number.isFinite(n) && n > 0 ? n : undefined;
 }
 
 export default function FirstRunWizard() {
@@ -123,19 +108,20 @@ export default function FirstRunWizard() {
     setSubmitting(true);
     try {
       const age = Number(form.age);
-      const defaults = defaultsForAge(age);
-      const heightCm = skipMeasurements || !form.height ? defaults.height : Number(form.height);
-      const weightKg = skipMeasurements || !form.weight ? defaults.weight : Number(form.weight);
+      // Saltar las medidas = sin talla ni peso (P1 bloque 2, inv #2). Antes se rellenaban
+      // con medias europeas por edad y luego entraban en Mirwald como una medición.
+      const heightCm = skipMeasurements ? undefined : typedMeasure(form.height);
+      const weightKg = skipMeasurements ? undefined : typedMeasure(form.weight);
 
       const player = await createPlayer.mutateAsync({
         name: form.name.trim(),
         age,
         position: form.position,
-        foot: (form.foot || "right") as "right" | "left" | "both",
+        foot: form.foot || undefined, // el paso 2 lo exige; nunca «right» por defecto
         height: heightCm,
         weight: weightKg,
         gender: form.gender || undefined, // sexo real elegido en el paso 1; nunca "M" por defecto
-        competitiveLevel: "Regional",
+        // Sin nivel competitivo: este asistente no lo pregunta (antes «Regional» fijo).
         minutesPlayed: 0,
         // Sin métricas: este wizard NO evalúa. El jugador nace "sin evaluar"
         // (vsi null); el coach evaluará luego con las 6 barras de la ficha.

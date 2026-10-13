@@ -39,13 +39,6 @@ interface Props {
   /** Fecha de nacimiento del JUGADOR (ISO). Sin ella no se calcula el PHV. */
   birthDate?: string;
   gender?: "M" | "F";
-  /** Fallbacks si todavía no hay mediciones en la tabla histórica */
-  fallback?: {
-    heightCm?: number;
-    weightKg?: number;
-    sittingHeightCm?: number;
-    legLengthCm?: number;
-  };
   /** Tras guardar (enviado al servidor): las medidas introducidas, para el host. */
   onSaved?: (measures: SavedMeasures) => void;
 }
@@ -96,7 +89,7 @@ function labelKey(c: PhvCategory): keyof typeof PHV_LABELS {
 
 const EMPTY_FORM = { height: "", weight: "", sitting: "", leg: "" };
 
-export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gender, fallback, onSaved }: Props) {
+export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gender, onSaved }: Props) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -148,17 +141,10 @@ export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gen
 
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
-  // Si no hay histórico pero el jugador tiene fallback (PlayerForm), pre-rellenar
-  useEffect(() => {
-    if (!loading && history.length === 0 && fallback && !showForm) {
-      setForm({
-        height:  fallback.heightCm        ? String(fallback.heightCm)        : "",
-        weight:  fallback.weightKg        ? String(fallback.weightKg)        : "",
-        sitting: fallback.sittingHeightCm ? String(fallback.sittingHeightCm) : "",
-        leg:     fallback.legLengthCm     ? String(fallback.legLengthCm)     : "",
-      });
-    }
-  }, [loading, history.length, fallback, showForm]);
+  // Sin pre-relleno desde la ficha (P1 bloque 2): una medición se escribe cuando se
+  // toma. Antes el formulario traía la talla y el peso del blob del jugador, que en el
+  // alta rápida eran 165 cm / 58 kg que nadie había medido, y se guardaban como medición
+  // (inv #2).
 
   /**
    * La ficha (blob que lee el gate de PHV del Hub) adopta las medidas guardadas.
@@ -200,12 +186,7 @@ export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gen
 
   function startNew() {
     setEditingId(null);
-    setForm({
-      height:  fallback?.heightCm        ? String(fallback.heightCm)        : "",
-      weight:  fallback?.weightKg        ? String(fallback.weightKg)        : "",
-      sitting: fallback?.sittingHeightCm ? String(fallback.sittingHeightCm) : "",
-      leg:     fallback?.legLengthCm     ? String(fallback.legLengthCm)     : "",
-    });
+    setForm(EMPTY_FORM);
     setError(null);
     setShowForm(true);
   }
@@ -334,10 +315,10 @@ export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gen
   // Qué le falta al PERFIL del jugador para que una medida nueva produzca PHV
   // (las 4 medidas las exige el propio formulario). Se avisa ANTES de guardar.
   const identityMissing = missingPhvInputs({
-    height: Number(form.height) || fallback?.heightCm,
-    weight: Number(form.weight) || fallback?.weightKg,
-    sittingHeight: Number(form.sitting) || fallback?.sittingHeightCm,
-    legLength: Number(form.leg) || fallback?.legLengthCm,
+    height: Number(form.height) || undefined,
+    weight: Number(form.weight) || undefined,
+    sittingHeight: Number(form.sitting) || undefined,
+    legLength: Number(form.leg) || undefined,
     birthDate,
     gender,
   }).filter((k) => k === "birthDate" || k === "sex");

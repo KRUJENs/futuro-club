@@ -52,8 +52,10 @@ function TimelineEntry({
   const dateStr  = date.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
   const timeStr  = date.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 
-  const levelColor = LEVEL_COLORS[estado?.nivelActual ?? "medio"] ?? "#3B82F6";
-  const levelLabel = t(`analysisTimeline.${LEVEL_LABEL_KEYS[estado?.nivelActual ?? "medio"] ?? "levelMedio"}`);
+  // Sin nivel del agente ⇒ no se pinta «Medio» por defecto (inv #2).
+  const nivel = estado?.nivelActual ?? null;
+  const levelColor = LEVEL_COLORS[nivel ?? ""] ?? "#3B82F6";
+  const levelLabel = nivel ? t(`analysisTimeline.${LEVEL_LABEL_KEYS[nivel] ?? "levelMedio"}`) : null;
 
   return (
     <motion.div
@@ -89,12 +91,14 @@ function TimelineEntry({
               </p>
             )}
           </div>
-          <span
-            className="text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0"
-            style={{ color: levelColor, borderColor: `${levelColor}40`, backgroundColor: `${levelColor}15` }}
-          >
-            {levelLabel}
-          </span>
+          {levelLabel && (
+            <span
+              className="text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0"
+              style={{ color: levelColor, borderColor: `${levelColor}40`, backgroundColor: `${levelColor}15` }}
+            >
+              {levelLabel}
+            </span>
+          )}
         </div>
 
         {/* Resumen */}

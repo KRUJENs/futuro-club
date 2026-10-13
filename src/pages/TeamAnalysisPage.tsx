@@ -37,6 +37,22 @@ import { isLocalSrc } from "@/lib/localVideoUtils";
 import { withholdIndividualData } from "@/lib/shared/teamReportIdentity";
 import ClipAttestationField from "@/components/consent/ClipAttestationField";
 import { buildClipAttestation, ClipConsentBlockedError } from "@/lib/shared/videoConsent";
+import { MetricValue, ProvenanceBadge } from "@/components/metrics/MetricValue";
+import { estimatedLLM, gated } from "@/lib/metrics/MetricResult";
+
+/**
+ * Posesión del informe como MetricResult (inv #1): ESTIMADA_LLM con la confianza del
+ * propio informe, o BLOQUEADA con motivo si el modelo no la observó. Antes se pintaba
+ * «Posesión 0%» cuando faltaba y «55%» (el ejemplo del prompt) como si fuera una
+ * estadística (P1 bloque 2).
+ */
+export function possessionMetric(pct: number | null | undefined, confianza: unknown, notObserved: string) {
+  if (typeof pct !== "number" || !Number.isFinite(pct)) {
+    return gated(notObserved, { provenance: "ESTIMADA_LLM", units: "%" });
+  }
+  const confidence = typeof confianza === "number" && Number.isFinite(confianza) ? Math.min(1, Math.max(0, confianza)) : 0;
+  return estimatedLLM(Math.round(pct), { confidence, units: "%", source_ref: "team-intelligence" });
+}
 
 // ─── Fuente visual ───────────────────────────────────────────────
 
@@ -114,8 +130,13 @@ function ResumenFormacion({ report }: { report: TeamIntelligenceOutput }) {
 
       <div className="flex items-center gap-2 mb-3">
         <Badge className="text-xs font-display">{report.formacion.sistema}</Badge>
-        <Badge variant="secondary" className="text-[9px]">
-          {t("teamAnalysis.possession")} {report.posesion?.porcentaje ?? 0}%
+        <Badge variant="secondary" className="text-[9px] flex items-center gap-1">
+          {t("teamAnalysis.possession")}{" "}
+          <MetricValue
+            result={possessionMetric(report.posesion?.porcentaje, (report as { confianza?: unknown }).confianza, t("teamAnalysis.possessionNotObserved"))}
+            format={(v) => `${v}%`}
+          />
+          {/* MetricValue ya pinta el ProvenanceBadge («Estimado por IA»); no se duplica. */}
         </Badge>
         {report.formacion.rigidez >= 7 && (
           <Badge variant="outline" className="text-[9px]">{t("teamAnalysis.rigid")}</Badge>
@@ -642,18 +663,25 @@ export default function TeamAnalysisPage() {
                         { label: t("teamAnalysisPage.compactness"), cur: report.metricasColectivas?.compacidad, prev: compareReport.metricasColectivas?.compacidad },
                         { label: t("teamAnalysisPage.width"), cur: report.metricasColectivas?.amplitud, prev: compareReport.metricasColectivas?.amplitud },
                         { label: t("teamAnalysisPage.synchronization"), cur: report.metricasColectivas?.sincronizacion, prev: compareReport.metricasColectivas?.sincronizacion },
-                        { label: t("teamAnalysisPage.possessionPct"), cur: report.posesion?.porcentaje, prev: compareReport.posesion?.porcentaje },
-                      ].map(({ label, cur, prev }) => {
-                        const delta = (cur ?? 0) - (prev ?? 0);
-                        const DeltaIcon = delta > 0 ? ArrowUpRight : delta < 0 ? ArrowDownRight : Minus;
-                        const color = delta > 0 ? "text-green-400" : delta < 0 ? "text-red-400" : "text-muted-foreground";
+                        // La posesión la estima el LLM: lleva su etiqueta también aquí.
+                        { label: t("teamAnalysisPage.possessionPct"), cur: report.posesion?.porcentaje, prev: compareReport.posesion?.porcentaje, provenance: "ESTIMADA_LLM" as const },
+                      ].map(({ label, cur, prev, provenance }) => {
+                        // Sin uno de los dos valores no hay variación que pintar: se dice
+                        // «no observado» en vez de tratar el hueco como 0 (inv #2).
+                        const delta = typeof cur === "number" && typeof prev === "number" ? cur - prev : null;
+                        const DeltaIcon = delta === null ? Minus : delta > 0 ? ArrowUpRight : delta < 0 ? ArrowDownRight : Minus;
+                        const color = delta === null ? "text-muted-foreground" : delta > 0 ? "text-green-400" : delta < 0 ? "text-red-400" : "text-muted-foreground";
+                        const show = (v: number | null | undefined) => (typeof v === "number" ? v : t("teamAnalysisPage.notObserved"));
                         return (
                           <div key={label} className="rounded-lg bg-secondary/50 p-2 flex items-center justify-between">
-                            <span className="text-[10px] text-muted-foreground">{label}</span>
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                              {label}
+                              {provenance && (typeof cur === "number" || typeof prev === "number") && <ProvenanceBadge provenance={provenance} />}
+                            </span>
                             <div className="flex items-center gap-1">
-                              <span className="text-[10px] font-mono">{prev ?? "?"}</span>
+                              <span className="text-[10px] font-mono">{show(prev)}</span>
                               <DeltaIcon size={10} className={color} />
-                              <span className={`text-[10px] font-mono font-bold ${color}`}>{cur ?? "?"}</span>
+                              <span className={`text-[10px] font-mono font-bold ${color}`}>{show(cur)}</span>
                             </div>
                           </div>
                         );
@@ -680,9 +708,12 @@ export default function TeamAnalysisPage() {
 
                 {/* Meta */}
                 <div className="glass rounded-xl p-3 flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">
-                    {t("teamAnalysisPage.confidence")}: {Math.round((report.confianza ?? 0) * 100)}%
-                  </span>
+                  {/* Sin confianza en el informe no se pinta «0 %» (inv #2). */}
+                  {typeof report.confianza === "number" ? (
+                    <span className="text-[10px] text-muted-foreground">
+                      {t("teamAnalysisPage.confidence")}: {Math.round(report.confianza * 100)}%
+                    </span>
+                  ) : <span />}
                   <button
                     onClick={() => setActiveTab("nuevo")}
                     className="flex items-center gap-1.5 text-[10px] text-primary"

@@ -31,6 +31,8 @@ import { PlayerService } from "@/services/real/playerService";
 import { SupabasePlayerService } from "@/services/real/supabasePlayerService";
 import { OrganizationService } from "@/services/real/organizationService";
 import { DemoDataService } from "@/services/real/demoDataService";
+import { decimalAgeYears } from "@/lib/shared/age";
+import { completedYearsAt } from "@/lib/shared/videoConsent";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -74,8 +76,11 @@ const OnboardingPage = () => {
   const [profileType, setProfileType] = useState<ProfileType | null>(null);
   const [orgName, setOrgName] = useState("");
   const [playerName, setPlayerName] = useState("");
-  const [playerAge, setPlayerAge] = useState("14");
-  const [playerPosition, setPlayerPosition] = useState("Extremo Izquierdo");
+  // Sin valores por defecto (inv #2): la edad sale de la FECHA DE NACIMIENTO y la
+  // posición la elige quien da de alta. Antes el jugador nacía con 14 años, extremo
+  // izquierdo, pie derecho, 1,65 m y 58 kg que nadie había medido.
+  const [playerBirthDate, setPlayerBirthDate] = useState("");
+  const [playerPosition, setPlayerPosition] = useState("");
   const [playerGender, setPlayerGender] = useState<"M" | "F" | "">(""); // requerido si se crea jugador (invariante #5)
   const [saving, setSaving] = useState(false);
 
@@ -88,8 +93,30 @@ const OnboardingPage = () => {
     if (!user || !profileType) return;
     // Si se va a crear un jugador manual, exigir el sexo: determina la fórmula PHV
     // (Mirwald/Khamis-Roche). Nunca se asume "M" por defecto (invariante #5).
-    if (!opts?.skipPlayer && playerName.trim() && !playerGender) {
+    const creatingPlayer = !opts?.skipPlayer && playerName.trim().length > 0;
+    if (creatingPlayer && !playerGender) {
       toast.error(t("common.chooseGender"));
+      return;
+    }
+    if (creatingPlayer && !playerPosition) {
+      toast.error(t("firstRun.choosePosition"));
+      return;
+    }
+    // Edad decimal desde la fecha de nacimiento (regla del owner 28-sep): sin fecha no
+    // se crea el jugador con una edad inventada.
+    const decimalAge = creatingPlayer ? decimalAgeYears(playerBirthDate) : null;
+    if (creatingPlayer && decimalAge === null) {
+      toast.error(t("onboarding.birthDateRequired"));
+      return;
+    }
+    // Edad en AÑOS CUMPLIDOS por calendario (misma función que el control de menores,
+    // inv #7). No Math.floor(decimalAge): decimalAgeYears redondea a 2 decimales y daba
+    // un año de más los ~2 días antes del cumpleaños.
+    const wholeYears = creatingPlayer && decimalAge !== null ? completedYearsAt(playerBirthDate, new Date()) : null;
+    // Fuera de 8-21 años el schema del jugador lo rechaza: se dice el motivo en vez del
+    // error genérico de guardado.
+    if (creatingPlayer && (wholeYears === null || wholeYears < 8 || wholeYears > 21)) {
+      toast.error(t("firstRun.ageRange"));
       return;
     }
     setSaving(true);
@@ -110,16 +137,14 @@ const OnboardingPage = () => {
 
       // Crear primer jugador solo si NO se omite y se dio nombre (flag explícito,
       // no depende de setState asíncrono → "Omitir"/"demo" ya no crean jugador).
-      if (!opts?.skipPlayer && playerName.trim()) {
+      if (creatingPlayer && wholeYears !== null) {
         const created = PlayerService.create({
           name: playerName.trim(),
-          age: parseInt(playerAge) || 14,
+          age: wholeYears,
+          birthDate: playerBirthDate,
           position: playerPosition,
           gender: playerGender || undefined, // sexo real elegido en el paso 4; nunca "M" por defecto
-          foot: "right",
-          height: 165,
-          weight: 58,
-          competitiveLevel: "Regional",
+          // Sin pie, talla, peso ni nivel: en el alta rápida nadie los ha medido ni elegido.
           minutesPlayed: 0,
           // Sin métricas: el alta rápida NO evalúa. El jugador nace "sin evaluar"
           // (vsi null); el coach evaluará luego en su ficha. Sembrar 60/50 aquí
@@ -327,14 +352,13 @@ const OnboardingPage = () => {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-display text-muted-foreground uppercase tracking-wide">
-                      {t("common.age")}
+                      {t("players.form.birthDate")}
                     </Label>
                     <Input
-                      type="number"
-                      min={8}
-                      max={21}
-                      value={playerAge}
-                      onChange={(e) => setPlayerAge(e.target.value)}
+                      type="date"
+                      max={new Date().toISOString().slice(0, 10)}
+                      value={playerBirthDate}
+                      onChange={(e) => setPlayerBirthDate(e.target.value)}
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -346,6 +370,7 @@ const OnboardingPage = () => {
                       onChange={(e) => setPlayerPosition(e.target.value)}
                       className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm font-display text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     >
+                      <option value="">{t("players.form.validation.selectPosition")}</option>
                       {[
                         "Portero", "Defensa Central", "Lateral Derecho", "Lateral Izquierdo",
                         "Pivote", "Mediocentro", "Mediapunta",

@@ -163,3 +163,21 @@ describe("handler · la categoría persistida NO llega a los 6 prompts", () => {
     expect(analysisInserts[0]?.phv).toMatchObject({ category: "early", offset: -1.6, chronologicalAge: 12.37 });
   });
 });
+
+describe("handler · nivel competitivo sin inventar (P1 bloque 2)", () => {
+  it("sin nivel en el blob: la columna 'Regional' del trigger NO llega a los prompts", async () => {
+    // playerRow trae competitive_level 'Regional' (columna) y ningún nivel_registrado.
+    await run();
+    expect(sentPrompts.length).toBe(6);
+    for (const p of sentPrompts) {
+      expect(p).toContain("Nivel competitivo: no registrado");
+      expect(p).not.toContain("Nivel competitivo: Regional");
+    }
+  });
+
+  it("con nivel registrado en el blob ⇒ ese nivel", async () => {
+    playerRow = { ...playerRow, nivel_registrado: "Nacional" };
+    await run();
+    expect(sentPrompts[0]).toContain("Nivel competitivo: Nacional");
+  });
+});

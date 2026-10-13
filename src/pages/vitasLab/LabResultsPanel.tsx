@@ -168,14 +168,20 @@ const LabResultsPanel = ({
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
 
-              {/* Resumen ejecutivo */}
+              {/* Resumen ejecutivo — solo lo que el agente produjo: sin texto ni nivel
+                  inventados («Análisis completado…», «TALENT»; P1 bloque 2, inv #2). */}
+              {(report.estadoActual.resumenEjecutivo || report.estadoActual.nivelActual || report.estadoActual.ajusteVSIVideoScore != null) && (
               <div className="glass rounded-xl p-4">
                 <p className="text-[10px] font-display font-semibold uppercase tracking-widest text-muted-foreground mb-1">{t("vitasLab.executiveSummary")}</p>
-                <p className="text-sm text-foreground leading-relaxed">{report.estadoActual.resumenEjecutivo}</p>
+                {report.estadoActual.resumenEjecutivo && (
+                  <p className="text-sm text-foreground leading-relaxed">{report.estadoActual.resumenEjecutivo}</p>
+                )}
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-[10px] font-display px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                    {report.estadoActual.nivelActual.replace("_", " ").toUpperCase()}
-                  </span>
+                  {report.estadoActual.nivelActual && (
+                    <span className="text-[10px] font-display px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                      {report.estadoActual.nivelActual.replace("_", " ").toUpperCase()}
+                    </span>
+                  )}
                   {report.estadoActual.ajusteVSIVideoScore != null && (
                     <span className={`text-[10px] font-display px-2 py-0.5 rounded-full ${report.estadoActual.ajusteVSIVideoScore >= 0 ? "bg-green-500/10 text-green-600 border border-green-500/20" : "bg-red-500/10 text-red-500 border border-red-500/20"}`}>
                       VSI {report.estadoActual.ajusteVSIVideoScore >= 0 ? "+" : ""}{report.estadoActual.ajusteVSIVideoScore} pts
@@ -183,6 +189,7 @@ const LabResultsPanel = ({
                   )}
                 </div>
               </div>
+              )}
 
               {/* Dimensiones — el score por dimensión es una CONSTANTE FABRICADA (el
                   pipeline de vídeo no puntúa por dimensión). Se oculta toda la sección
@@ -393,17 +400,26 @@ const LabResultsPanel = ({
 
               {/* VAEP: disponible en future sprint con datos biomecánicos del pipeline GPU */}
 
-              {/* ADN Futbolístico */}
+              {/* ADN Futbolístico — solo lo que dio el agente (antes «DNA Análisis»,
+                  «Determinado y competitivo»… como si fueran del análisis). */}
+              {(report.adnFutbolistico.arquetipoTactico || report.adnFutbolistico.estiloJuego || report.adnFutbolistico.mentalidad) && (
               <div className="glass rounded-xl p-4">
                 <p className="text-[10px] font-display font-semibold uppercase tracking-widest text-muted-foreground mb-2">{t("vitasLab.footballDna")}</p>
-                <div className="flex flex-wrap gap-2 mb-2">
-                  <span className="text-[10px] font-display px-2 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20">
-                    {report.adnFutbolistico.arquetipoTactico}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">{report.adnFutbolistico.estiloJuego}</p>
-                <p className="text-xs text-foreground mt-1 italic">"{report.adnFutbolistico.mentalidad}"</p>
+                {report.adnFutbolistico.arquetipoTactico && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    <span className="text-[10px] font-display px-2 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20">
+                      {report.adnFutbolistico.arquetipoTactico}
+                    </span>
+                  </div>
+                )}
+                {report.adnFutbolistico.estiloJuego && (
+                  <p className="text-xs text-muted-foreground">{report.adnFutbolistico.estiloJuego}</p>
+                )}
+                {report.adnFutbolistico.mentalidad && (
+                  <p className="text-xs text-foreground mt-1 italic">"{report.adnFutbolistico.mentalidad}"</p>
+                )}
               </div>
+              )}
 
               {/* Best Match */}
               {report.jugadorReferencia?.bestMatch && (
@@ -415,11 +431,15 @@ const LabResultsPanel = ({
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-display font-bold text-foreground">{report.jugadorReferencia.bestMatch.nombre}</p>
-                      <p className="text-xs text-muted-foreground">{report.jugadorReferencia.bestMatch.posicion} · {report.jugadorReferencia.bestMatch.club}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {[report.jugadorReferencia.bestMatch.posicion, report.jugadorReferencia.bestMatch.club].filter(Boolean).join(" · ")}
+                      </p>
                     </div>
                     <span className="text-2xl font-display font-black text-primary">{report.jugadorReferencia.bestMatch.score.toFixed(0)}%</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{report.jugadorReferencia.bestMatch.narrativa}</p>
+                  {report.jugadorReferencia.bestMatch.narrativa && (
+                    <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{report.jugadorReferencia.bestMatch.narrativa}</p>
+                  )}
                 </div>
               )}
 
@@ -445,21 +465,27 @@ const LabResultsPanel = ({
                 </div>
               )}
 
-              {/* Plan de Desarrollo */}
+              {/* Plan de Desarrollo — sin objetivos genéricos de relleno («Consolidar
+                  fundamentos técnicos»…): solo lo que redactó el agente. */}
+              {(report.planDesarrollo.objetivo6meses || report.planDesarrollo.objetivo18meses || report.planDesarrollo.pilaresTrabajo?.length > 0) && (
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Target size={14} className="text-primary" />
                   <p className="text-[10px] font-display font-semibold uppercase tracking-widest text-muted-foreground">{t("vitasLab.developmentPlan")}</p>
                 </div>
                 <div className="space-y-2 mb-3">
-                  <div className="glass rounded-lg px-3 py-2">
-                    <p className="text-[9px] font-display uppercase tracking-wider text-muted-foreground">{t("vitasLab.goal6Months")}</p>
-                    <p className="text-xs text-foreground mt-0.5">{report.planDesarrollo.objetivo6meses}</p>
-                  </div>
-                  <div className="glass rounded-lg px-3 py-2">
-                    <p className="text-[9px] font-display uppercase tracking-wider text-muted-foreground">{t("vitasLab.goal18Months")}</p>
-                    <p className="text-xs text-foreground mt-0.5">{report.planDesarrollo.objetivo18meses}</p>
-                  </div>
+                  {report.planDesarrollo.objetivo6meses && (
+                    <div className="glass rounded-lg px-3 py-2">
+                      <p className="text-[9px] font-display uppercase tracking-wider text-muted-foreground">{t("vitasLab.goal6Months")}</p>
+                      <p className="text-xs text-foreground mt-0.5">{report.planDesarrollo.objetivo6meses}</p>
+                    </div>
+                  )}
+                  {report.planDesarrollo.objetivo18meses && (
+                    <div className="glass rounded-lg px-3 py-2">
+                      <p className="text-[9px] font-display uppercase tracking-wider text-muted-foreground">{t("vitasLab.goal18Months")}</p>
+                      <p className="text-xs text-foreground mt-0.5">{report.planDesarrollo.objetivo18meses}</p>
+                    </div>
+                  )}
                 </div>
                 {report.planDesarrollo.pilaresTrabajo?.slice(0, 3).map((pilar, i) => (
                   <div key={i} className="glass rounded-lg px-3 py-2 mb-2">
@@ -479,6 +505,7 @@ const LabResultsPanel = ({
                   </div>
                 ))}
               </div>
+              )}
 
               {/* Ejercicios Recomendados (RAG con feedback) */}
               {report.estadoActual.areasDesarrollo?.length > 0 && (

@@ -24,12 +24,17 @@ export const PlayerSchema = z.object({
   age: z.number().min(8).max(21),
   position: z.string(),                                  // posición primaria (backward-compat)
   secondaryPositions: z.array(z.string()).optional(),    // adicionales · jugadores polivalentes
-  foot: z.enum(["right", "left", "both"]),
-  height: z.number().min(100).max(220),
-  weight: z.number().min(20).max(120),
+  // Pie, talla, peso y nivel OPCIONALES (P1 bloque 2, inv #2): un alta sin medición
+  // no los inventa. Antes el alta rápida guardaba pie derecho, 165 cm, 58 kg y nivel
+  // «Regional» que nadie había medido ni elegido, y la talla y el peso entraban luego
+  // en Mirwald como si fueran una medición. Las medidas reales llegan por
+  // AnthropometricsForm (histórico) o PlayerForm.
+  foot: z.enum(["right", "left", "both"]).optional(),
+  height: z.number().min(100).max(220).optional(),
+  weight: z.number().min(20).max(120).optional(),
   sittingHeight: z.number().min(30).max(130).optional(),
   legLength: z.number().min(30).max(130).optional(),
-  competitiveLevel: z.string().default("Regional"),
+  competitiveLevel: z.string().optional(),
   minutesPlayed: z.number().default(0),
   // Métricas del entrenador (las 6 barras). OPCIONAL: un alta rápida
   // (onboarding/wizard) NO evalúa → el jugador nace sin métricas. Rellenar con

@@ -827,7 +827,8 @@
       "scout": "Ej: Carlos Martínez",
       "parent": "Ej: Juan García",
       "playerName": "Ej: Lucas Moreno"
-    }
+    },
+    "birthDateRequired": "Introduce la fecha de nacimiento para crear el jugador"
   },
   "drill": {
     "title": "Solo Drill",
@@ -1006,7 +1007,8 @@
     "generalEvalDesc": "Conclusiones y recomendaciones",
     "teamStrengths": "Fortalezas",
     "toWork": "A trabajar",
-    "coachRecommendations": "Recomendaciones para el entrenador"
+    "coachRecommendations": "Recomendaciones para el entrenador",
+    "possessionNotObserved": "no observada"
   },
   "roleProfile": {
     "title": "Perfil de rol",
@@ -2167,7 +2169,8 @@
     "noTeamAnalysis": "Sin análisis de equipo",
     "noTeamAnalysisDesc": "Sube un video de partido y genera el primer informe táctico",
     "perPlayerWithheld": "Este informe incluía filas por jugador con un dorsal estimado por la IA. Se ocultan: sin identificación por dorsal validada, VITAS no atribuye cifras a ningún jugador concreto. El análisis es solo de equipo.",
-    "individualTextsHidden": "Textos ocultos por mencionar a un jugador concreto (dorsal o número): {{n}}."
+    "individualTextsHidden": "Textos ocultos por mencionar a un jugador concreto (dorsal o número): {{n}}.",
+    "notObserved": "no observado"
   },
   "vitasLab": {
     "stepUpload": "SUBIR",
@@ -4945,7 +4948,9 @@
     "backToTeam": "Volver al equipo",
     "teamWellbeingPanel": "Panel de Bienestar del Equipo",
     "emptyTitle": "Aún no hay jugadores",
-    "emptyDescription": "Añade jugadores a tu equipo para ver el riesgo de abandono y el engagement por jugador."
+    "emptyDescription": "Añade jugadores a tu equipo para ver el riesgo de abandono y el engagement por jugador.",
+    "noAttendance": "Sin asistencia registrada todavía",
+    "riskNotCalculated": "Riesgo de abandono sin calcular. Se calcula cuando hay registros de asistencia, bienestar o carga de este jugador."
   },
   "authContext": {
     "supabaseNotConfiguredWithKeys": "Supabase no configurado — agrega VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY",
@@ -5554,7 +5559,9 @@
     "sortAttendance": "Asistencia",
     "factorLabel": "Factor",
     "attendanceShort": "Asist",
-    "emptyFilter": "No hay jugadores con el filtro seleccionado"
+    "emptyFilter": "No hay jugadores con el filtro seleccionado",
+    "noAttendance": "sin registros",
+    "riskUnavailable": "riesgo sin calcular"
   },
   "vsiHistoryChart": {
     "notEnoughData": "Se necesitan al menos 2 registros de VSI para mostrar evolución",
@@ -5894,7 +5901,8 @@
     "generate": "Generar reporte IA",
     "generating": "Generando…",
     "error": "No se pudo generar el reporte. Inténtalo de nuevo.",
-    "hint": "Genera un reporte narrativo de riesgo de abandono con IA (plan de intervención)."
+    "hint": "Genera un reporte narrativo de riesgo de abandono con IA (plan de intervención).",
+    "birthDateRequired": "Sin fecha de nacimiento no se genera el informe (la edad no se inventa)"
   },
   "teamReport": {
     "noContent": "Sin datos del partido",

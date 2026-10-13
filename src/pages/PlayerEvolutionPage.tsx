@@ -415,14 +415,15 @@ export default function PlayerEvolutionPage() {
   const trendDelta = lastAvg - firstAvg;
 
   // Textual evolution data
-  const nivelTimeline = sorted.map((a) => {
+  const nivelTimeline = sorted.flatMap((a) => {
     const r = a.report as VideoIntelligenceOutput;
-    const nivel = r.estadoActual?.nivelActual ?? "medio";
-    return {
+    const nivel = r.estadoActual?.nivelActual;
+    if (!nivel) return []; // sin nivel del agente no se inventa «Medio» (inv #2)
+    return [{
       label: LEVEL_LABELS[nivel] ?? nivel,
       date: new Date(a.created_at).toLocaleDateString("es-ES", { day: "2-digit", month: "short" }),
       color: LEVEL_COLORS[nivel] ?? "#3B82F6",
-    };
+    }];
   });
 
   const clonTimeline = sorted

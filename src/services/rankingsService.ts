@@ -47,14 +47,14 @@ export interface RankedPlayer {
   phvTiming?: MaturityTiming | null;
   /** Motivo del gate PHV del servidor (qué falta) cuando phvCategory es null. */
   phvGateReason?: string | null;
-  competitiveLevel: string;
+  competitiveLevel?: string | null;       // ausente/null ⇒ nivel no registrado
   ageGroup: string;
   trending: "up" | "down" | "stable";
   percentile: number | null;              // null si sin evaluar
   percentileInAgeGroup: number | null;    // null si sin evaluar
   updatedAt: string;
   metrics: Record<string, number>;
-  foot: string;
+  foot?: string | null;                   // ausente/null ⇒ pie no registrado
   height: number | null;
   weight: number | null;
   // ── Inputs de maduración (para playerMaturity → PHV/timing en el ranking) ──
@@ -175,7 +175,7 @@ function fetchLocalRankedPlayers(
       phvOffset: p.phvOffset ?? null,
       // Del jugador CRUDO: el adaptador de UI no conserva estos campos (antes salía
       // siempre "Regional"/"right" por defecto aunque la ficha tuviera otro valor).
-      competitiveLevel: raw?.competitiveLevel ?? "Regional",
+      competitiveLevel: raw?.competitiveLevel, // sin nivel registrado ⇒ undefined, no «Regional»
       ageGroup,
       trending: p.trending ?? "stable",
       // Sin evaluar ⇒ percentil null (no compite ni cuenta como 0).
@@ -183,7 +183,7 @@ function fetchLocalRankedPlayers(
       percentileInAgeGroup: null, // calculated below
       updatedAt: p.lastActive ?? new Date().toISOString(),
       metrics: p.stats ?? {},
-      foot: raw?.foot ?? "right",
+      foot: raw?.foot, // sin pie registrado ⇒ undefined, no «right» por defecto (inv #2)
       // Entradas del gate PHV que Rankings recalcula: sin default 170/60 (inv #2).
       height: raw?.height ?? null,
       weight: raw?.weight ?? null,
@@ -230,7 +230,7 @@ function fetchLocalRankedPlayers(
   }
   if (filters.level && filters.level !== "all") {
     filtered = filtered.filter(
-      (p) => p.competitiveLevel.toLowerCase() === filters.level!.toLowerCase()
+      (p) => (p.competitiveLevel ?? "").toLowerCase() === filters.level!.toLowerCase()
     );
   }
 
@@ -252,7 +252,7 @@ function fetchLocalRankedPlayers(
     totalUnfiltered: enriched.length,
     ageGroups: Object.keys(countByAgeGroup),
     ageGroupStats,
-    competitiveLevels: [...new Set(enriched.map((p) => p.competitiveLevel))],
+    competitiveLevels: [...new Set(enriched.map((p) => p.competitiveLevel).filter((l): l is string => !!l))],
     limit: filtered.length,
     offset: 0,
   };

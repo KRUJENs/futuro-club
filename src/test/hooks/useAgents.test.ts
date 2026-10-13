@@ -66,7 +66,7 @@ vi.mock("@/services/real/ragService", () => ({
   },
 }));
 
-import { usePHVCalculator, useRoleProfileAgent, useRAGDrillRecommendations, useRecalculatePHV } from "@/hooks/useAgents";
+import { usePHVCalculator, useRAGDrillRecommendations, useRecalculatePHV } from "@/hooks/useAgents";
 
 function createWrapper() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -89,18 +89,6 @@ describe("useAgents", () => {
     });
   });
 
-  describe("useRoleProfileAgent", () => {
-    it("returns role profile when playerId provided", async () => {
-      const { result } = renderHook(() => useRoleProfileAgent("p1"), { wrapper: createWrapper() });
-      await waitFor(() => expect(result.current.data).toBeDefined());
-      expect(result.current.data!.dominantIdentity).toBe("ofensivo");
-    });
-
-    it("does not fetch when playerId is undefined", () => {
-      const { result } = renderHook(() => useRoleProfileAgent(undefined), { wrapper: createWrapper() });
-      expect(result.current.fetchStatus).toBe("idle");
-    });
-  });
 
   describe("useRAGDrillRecommendations", () => {
     it("returns drill recommendations for areas", async () => {

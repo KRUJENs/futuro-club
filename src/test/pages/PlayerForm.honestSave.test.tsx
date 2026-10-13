@@ -97,6 +97,18 @@ describe("PlayerForm · editar · guardado honesto", () => {
     expect(await screen.findByText("hub")).toBeInTheDocument();
   });
 
+  it("jugador del alta rápida SIN pie: se guarda sin obligar a elegir uno (no se adivina) y la columna queda null", async () => {
+    const { foot: _f, height: _h, weight: _w, competitiveLevel: _l, ...quick } = BASE;
+    const p = PlayerService.create(quick);
+    renderEdit(p.id);
+    fireEvent.click(await screen.findByRole("button", { name: /players\.form\.submitEdit/ }));
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("toasts.playerUpdated"));
+    const row = db.rows.get(p.id)!;
+    expect(row.foot).toBeNull();
+    expect(row.height_cm).toBeNull();
+    expect(row.weight_kg).toBeNull();
+  });
+
   it("nube caída ⇒ NO «actualizado»: aviso «pendiente de sincronizar» y op en SyncQueue", async () => {
     const p = PlayerService.create(BASE);
     db.failUpsert = true;
@@ -128,6 +140,9 @@ async function fillAndSubmitCreate() {
   });
   fireEvent.change(document.getElementById("position") as HTMLSelectElement, { target: { value: "Pivote" } });
   fireEvent.click(screen.getByRole("button", { name: "common.male" }));
+  // P1 bloque 2: ni la edad ni el pie vienen ya rellenos (antes 14 años y pie derecho).
+  fireEvent.change(document.getElementById("age") as HTMLInputElement, { target: { value: "12" } });
+  fireEvent.click(screen.getByRole("button", { name: "common.footLeft" }));
   // Paso 1 → 2 → 3 (la validación por paso es asíncrona: esperar a que cambie).
   fireEvent.click(screen.getByRole("button", { name: /playerForm\.next/ }));
   await waitFor(() => expect(document.getElementById("height")).not.toBeNull());
@@ -146,6 +161,28 @@ describe("PlayerForm · alta · guardado honesto", () => {
     expect(created).toBeTruthy();
     expect(db.rows.has(created!.id)).toBe(true);
     expect(SyncQueueService.hasPendingFor("player", created!.id, "user-1")).toBe(false);
+    // Lo que nadie escribió no se guarda: sin talla, peso ni nivel inventados (inv #2).
+    expect(created!.height).toBeUndefined();
+    expect(created!.weight).toBeUndefined();
+    expect(created!.competitiveLevel).toBeUndefined();
+    expect(created!.age).toBe(12);
+    expect(created!.foot).toBe("left");
+  });
+
+  it("sin edad ni pie el paso 1 NO avanza (no se inventan 14 años ni pie derecho)", async () => {
+    renderCreate();
+    fireEvent.change(screen.getByPlaceholderText("players.form.fullNamePlaceholder"), {
+      target: { value: "Nuevo Jugador" },
+    });
+    fireEvent.change(document.getElementById("position") as HTMLSelectElement, { target: { value: "Pivote" } });
+    fireEvent.click(screen.getByRole("button", { name: "common.male" }));
+    fireEvent.click(screen.getByRole("button", { name: /playerForm\.next/ }));
+    // La validación del paso 1 falla: aviso de errores y se sigue en el paso 1.
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith("players.form.fixErrors"));
+    fireEvent.click(screen.getByRole("button", { name: /playerForm\.next/ }));
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole("button", { name: /players\.form\.submit$/ })).toBeNull();
+    expect(PlayerService.getAll().find((p) => p.name === "Nuevo Jugador")).toBeUndefined();
   });
 
   it("nube caída ⇒ NO «agregado»: «pendiente de sincronizar» y alta en SyncQueue", async () => {

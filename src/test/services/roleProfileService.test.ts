@@ -37,9 +37,12 @@ const mockPlayer = {
   phvOffset: 0,
 };
 
+// Alta rápida (P1 bloque 2): sin pie ni nivel registrados — no se rellenan por defecto.
+const mockPlayerSinPieNiNivel = { ...mockPlayer, id: "p2", foot: undefined, competitiveLevel: undefined };
+
 vi.mock("@/services/real/playerService", () => ({
   PlayerService: {
-    getById: vi.fn((id: string) => id === "p1" ? mockPlayer : null),
+    getById: vi.fn((id: string) => id === "p1" ? mockPlayer : id === "p2" ? mockPlayerSinPieNiNivel : null),
   },
 }));
 
@@ -175,6 +178,12 @@ describe("roleProfileService", () => {
           }),
         })
       );
+      // P1 bloque 2: solo las 6 métricas del entrenador; sin los sustitutos falsos
+      // pressing = stamina y positioning = vision.
+      const sentMetrics = (mockBuildRoleProfile.mock.calls[0][0] as { player: { metrics: Record<string, unknown> } }).player.metrics;
+      expect(sentMetrics).toEqual(mockPlayer.metrics);
+      expect(sentMetrics).not.toHaveProperty("pressing");
+      expect(sentMetrics).not.toHaveProperty("positioning");
     });
 
     it("cachea el perfil del agente: con la MISMA entrada no re-llama al LLM (perf, docx #6)", async () => {
@@ -207,6 +216,51 @@ describe("roleProfileService", () => {
       expect(mockBuildRoleProfile).toHaveBeenCalledTimes(1);
       expect(second!.player_id).toBe("p1");
       expect(second!.overall_confidence).toBe(0.82);
+    });
+
+    it("jugador SIN pie ni nivel: el perfil del agente se devuelve y se cachea (antes el schema lo rechazaba)", async () => {
+      setupSupabaseMock([makeVideoAnalysis()]);
+      mockBuildRoleProfile.mockResolvedValue({
+        success: true,
+        data: {
+          overallConfidence: 0.8,
+          capabilities: {
+            tactical: { current: 78, p6m: 80, p18m: 83 },
+            technical: { current: 80, p6m: 82, p18m: 85 },
+            physical: { current: 60, p6m: 63, p18m: 67 },
+          },
+          dominantIdentity: "tecnico",
+          identityDistribution: { tecnico: 0.4, ofensivo: 0.25, defensivo: 0.2, fisico: 0.1, mixto: 0.05 },
+          topPositions: [{ code: "RCM", fit: 85, confidence: 0.8 }],
+          topArchetypes: [{ code: "filtrador", fit: 88, stability: "estable" }],
+          strengths: ["Pase entre líneas"],
+          risks: ["Resistencia limitada"],
+          gaps: ["Volumen de carry"],
+        },
+      });
+
+      const first = await fetchRoleProfile("p2");
+      const second = await fetchRoleProfile("p2");
+
+      expect(first).not.toBeNull();
+      expect(first!.dominant_foot).toBeUndefined();     // no se asume diestro
+      expect(first!.competitive_level).toBeUndefined(); // no se asume «Regional»
+      expect(second).not.toBeNull();
+      // Llegó a la caché: el LLM (caro) no se vuelve a llamar en la 2.ª visita.
+      expect(mockBuildRoleProfile).toHaveBeenCalledTimes(1);
+      const sent = (mockBuildRoleProfile.mock.calls[0][0] as { player: Record<string, unknown> }).player;
+      expect(sent.foot).toBeUndefined();
+      expect(sent.competitiveLevel).toBeUndefined();
+    });
+
+    it("jugador SIN pie ni nivel: el perfil desde vídeo (agente caído) también se devuelve", async () => {
+      setupSupabaseMock([makeVideoAnalysis()]);
+      mockBuildRoleProfile.mockRejectedValue(new Error("Agent timeout"));
+
+      const result = await fetchRoleProfile("p2");
+      expect(result).not.toBeNull();
+      expect(result!.dominant_foot).toBeUndefined();
+      expect(result!.competitive_level).toBeUndefined();
     });
 
     it("builds basic profile from video data when agent fails", async () => {

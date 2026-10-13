@@ -46,9 +46,12 @@ const RoleProfileSchema = z.object({
   player_id: z.string(),
   player_name: z.string(),
   player_age: z.number().int().positive(),
-  dominant_foot: z.enum(["derecho", "izquierdo", "ambidiestro"]),
+  // Opcionales: el alta rápida no los pide y nunca se rellenan por defecto (P1 bloque 2).
+  // Requeridos, un jugador sin pie o sin nivel hacía fallar el perfil entero (y se
+  // volvía a pagar el LLM en cada visita, porque no llegaba a la caché).
+  dominant_foot: z.enum(["derecho", "izquierdo", "ambidiestro"]).optional(),
   minutes_played: z.number().int().min(0),
-  competitive_level: z.string(),
+  competitive_level: z.string().optional(),
   sample_tier: z.enum(["bronze", "silver", "gold", "platinum"]),
   overall_confidence: z.number().min(0).max(1),
   current: CapabilityScoresSchema,
@@ -112,7 +115,12 @@ const RoleProfileSchema = z.object({
 const ROLE_PROFILE_CACHE_PREFIX = "vitas_roleprofile_";
 // Súbelo si cambia la forma del perfil o la lógica del agente, para invalidar
 // las cachés viejas (la clave incluye la versión → un bump provoca cache-miss).
-const ROLE_PROFILE_CACHE_VERSION = "v1";
+const ROLE_PROFILE_CACHE_VERSION = "v2"; // v2: sin los proxies pressing/positioning
+
+/** Pie dominante para el perfil; sin pie registrado ⇒ undefined (nunca «ambidiestro» por defecto). */
+function footLabel(foot: "right" | "left" | "both" | undefined): "derecho" | "izquierdo" | "ambidiestro" | undefined {
+  return foot === "right" ? "derecho" : foot === "left" ? "izquierdo" : foot === "both" ? "ambidiestro" : undefined;
+}
 
 function hashStr(s: string): string {
   let h = 0;
@@ -207,7 +215,9 @@ export async function fetchRoleProfile(playerId: string): Promise<RoleProfileDat
       secondaryPositions: player.secondaryPositions ?? [],   // multi-posición
       minutesPlayed: player.minutesPlayed,
       competitiveLevel: player.competitiveLevel,
-      metrics: { ...player.metrics, pressing: player.metrics.stamina, positioning: player.metrics.vision },
+      // Solo las 6 métricas reales del entrenador. «pressing = stamina» y
+      // «positioning = vision» eran aproximaciones falsas (P1 bloque 2, inv #2).
+      metrics: { ...player.metrics },
       // PHV solo si el gate único lo produjo (PlayerService ya retira el persistido
       // no recalculable). Sin él se OMITE: nunca «ontme»/0 por defecto (inv #2).
       ...(player.phvCategory && typeof player.phvOffset === "number"
@@ -220,7 +230,8 @@ export async function fetchRoleProfile(playerId: string): Promise<RoleProfileDat
         latestDimensions: dimensiones,
         strengths: (estadoActual?.fortalezasPrimarias as string[]) ?? [],
         areasDesarrollo: (estadoActual?.areasDesarrollo as string[]) ?? [],
-        nivelActual: (estadoActual?.nivelActual as string) ?? "desarrollo",
+        // Sin nivel del informe ⇒ null (no se inventa «desarrollo», inv #2).
+        nivelActual: (estadoActual?.nivelActual as string) ?? null,
         arquetipoTactico: (adnFutbolistico?.arquetipoTactico as string) ?? "",
         estiloJuego: (adnFutbolistico?.estiloJuego as string) ?? "",
       },
@@ -292,9 +303,9 @@ export async function fetchRoleProfile(playerId: string): Promise<RoleProfileDat
         player_id:          playerId,
         player_name:        player.name,
         player_age:         player.age,
-        dominant_foot:      player.foot === "right" ? "derecho" : player.foot === "left" ? "izquierdo" : "ambidiestro",
+        dominant_foot:      footLabel(player.foot),
         minutes_played:     player.minutesPlayed,
-        competitive_level:  player.competitiveLevel,
+        competitive_level:  player.competitiveLevel || undefined,
         sample_tier:        sampleTier,
         overall_confidence: d.overallConfidence,
         // FASE 3: el agente emite positionAlternatives (contracts.ts:137) pero
@@ -383,9 +394,9 @@ export async function fetchRoleProfile(playerId: string): Promise<RoleProfileDat
     player_id: playerId,
     player_name: player.name,
     player_age: player.age,
-    dominant_foot: player.foot === "right" ? "derecho" : player.foot === "left" ? "izquierdo" : "ambidiestro",
+    dominant_foot: footLabel(player.foot),
     minutes_played: player.minutesPlayed,
-    competitive_level: player.competitiveLevel,
+    competitive_level: player.competitiveLevel || undefined,
     sample_tier: videoAnalyses.length >= 3 ? "gold" : videoAnalyses.length >= 2 ? "silver" : "bronze",
     overall_confidence: 0.65,
     current: { tactical: tacticalScore, technical: technicalScore, physical: physicalScore },
@@ -471,9 +482,9 @@ function buildMetricsOnlyProfile(player: Player): RoleProfileData | null {
     player_id: player.id,
     player_name: player.name,
     player_age: player.age,
-    dominant_foot: player.foot === "right" ? "derecho" : player.foot === "left" ? "izquierdo" : "ambidiestro",
+    dominant_foot: footLabel(player.foot),
     minutes_played: player.minutesPlayed,
-    competitive_level: player.competitiveLevel,
+    competitive_level: player.competitiveLevel || undefined,
     sample_tier: "bronze",
     overall_confidence: 0.35,
     current: { tactical: tacticalScore, technical: technicalScore, physical: physicalScore },

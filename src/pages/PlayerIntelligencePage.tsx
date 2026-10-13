@@ -128,10 +128,13 @@ function EstadoActual({ data, benchmark }: {
         <SectionHeader icon={Brain} title={t("intelligence.currentState")} subtitle={t("intelligence.currentStateDesc")} />
 
         <div className="flex items-center gap-2 mb-3">
-          <span className="text-xs font-display font-bold"
-            style={{ color: levelColor }}>
-            ● {LEVEL_LABELS[data.nivelActual] ?? data.nivelActual}
-          </span>
+          {/* Sin nivel del agente no se pinta nada (antes quedaba una viñeta «●» vacía). */}
+          {data.nivelActual && (
+            <span className="text-xs font-display font-bold"
+              style={{ color: levelColor }}>
+              ● {LEVEL_LABELS[data.nivelActual] ?? data.nivelActual}
+            </span>
+          )}
           {data.ajusteVSIVideoScore != null && data.ajusteVSIVideoScore !== 0 && (
             <Badge
               variant={data.ajusteVSIVideoScore > 0 ? "default" : "destructive"}
