@@ -76,6 +76,13 @@ const formSchema = z.object({
   }),
 });
 
+// Al EDITAR, el pie puede seguir sin registrar (el alta rápida no lo pide): exigirlo para
+// guardar cualquier otro cambio (p. ej. la fecha de nacimiento) obligaría a adivinarlo
+// (P1 bloque 2, inv #2). En el alta completa sigue siendo obligatorio elegirlo.
+const editFormSchema = formSchema.extend({
+  foot: z.enum(["right", "left", "both"]).optional(),
+});
+
 // z.infer degrada el objeto anidado `metrics` a inner-opcional por el tamaño del
 // schema (límite de profundidad de TS); el runtime de zod SÍ exige las 6. Fijamos
 // `metrics: PlayerMetrics` para que "presente ⇒ completo" llegue a los consumidores.
@@ -256,7 +263,7 @@ const PlayerForm = () => {
     formState: { errors, isSubmitting, dirtyFields },
     reset,
   } = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(isEditMode ? editFormSchema : formSchema),
     defaultValues: {
       name: "",
       // Sin edad, pie, talla ni peso por defecto (inv #2): antes 14 años, pie derecho,

@@ -37,7 +37,7 @@ import { isLocalSrc } from "@/lib/localVideoUtils";
 import { withholdIndividualData } from "@/lib/shared/teamReportIdentity";
 import ClipAttestationField from "@/components/consent/ClipAttestationField";
 import { buildClipAttestation, ClipConsentBlockedError } from "@/lib/shared/videoConsent";
-import { MetricValue } from "@/components/metrics/MetricValue";
+import { MetricValue, ProvenanceBadge } from "@/components/metrics/MetricValue";
 import { estimatedLLM, gated } from "@/lib/metrics/MetricResult";
 
 /**
@@ -663,8 +663,9 @@ export default function TeamAnalysisPage() {
                         { label: t("teamAnalysisPage.compactness"), cur: report.metricasColectivas?.compacidad, prev: compareReport.metricasColectivas?.compacidad },
                         { label: t("teamAnalysisPage.width"), cur: report.metricasColectivas?.amplitud, prev: compareReport.metricasColectivas?.amplitud },
                         { label: t("teamAnalysisPage.synchronization"), cur: report.metricasColectivas?.sincronizacion, prev: compareReport.metricasColectivas?.sincronizacion },
-                        { label: t("teamAnalysisPage.possessionPct"), cur: report.posesion?.porcentaje, prev: compareReport.posesion?.porcentaje },
-                      ].map(({ label, cur, prev }) => {
+                        // La posesión la estima el LLM: lleva su etiqueta también aquí.
+                        { label: t("teamAnalysisPage.possessionPct"), cur: report.posesion?.porcentaje, prev: compareReport.posesion?.porcentaje, provenance: "ESTIMADA_LLM" as const },
+                      ].map(({ label, cur, prev, provenance }) => {
                         // Sin uno de los dos valores no hay variación que pintar: se dice
                         // «no observado» en vez de tratar el hueco como 0 (inv #2).
                         const delta = typeof cur === "number" && typeof prev === "number" ? cur - prev : null;
@@ -673,7 +674,10 @@ export default function TeamAnalysisPage() {
                         const show = (v: number | null | undefined) => (typeof v === "number" ? v : t("teamAnalysisPage.notObserved"));
                         return (
                           <div key={label} className="rounded-lg bg-secondary/50 p-2 flex items-center justify-between">
-                            <span className="text-[10px] text-muted-foreground">{label}</span>
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                              {label}
+                              {provenance && (typeof cur === "number" || typeof prev === "number") && <ProvenanceBadge provenance={provenance} />}
+                            </span>
                             <div className="flex items-center gap-1">
                               <span className="text-[10px] font-mono">{show(prev)}</span>
                               <DeltaIcon size={10} className={color} />
@@ -704,9 +708,12 @@ export default function TeamAnalysisPage() {
 
                 {/* Meta */}
                 <div className="glass rounded-xl p-3 flex items-center justify-between">
-                  <span className="text-[10px] text-muted-foreground">
-                    {t("teamAnalysisPage.confidence")}: {Math.round((report.confianza ?? 0) * 100)}%
-                  </span>
+                  {/* Sin confianza en el informe no se pinta «0 %» (inv #2). */}
+                  {typeof report.confianza === "number" ? (
+                    <span className="text-[10px] text-muted-foreground">
+                      {t("teamAnalysisPage.confidence")}: {Math.round(report.confianza * 100)}%
+                    </span>
+                  ) : <span />}
                   <button
                     onClick={() => setActiveTab("nuevo")}
                     className="flex items-center gap-1.5 text-[10px] text-primary"

@@ -348,7 +348,8 @@ export default withHandler(
     const { data: playerRow, error: pErr } = await supabase
       .from("players")
       // Nivel desde el BLOB (`data`): la columna competitive_level la rellena el trigger
-      // de la 024 con 'Regional' cuando no hay nivel (residuo P2) ⇒ no es un dato.
+      // de players (024, redefinido en la 069:178) con 'Regional' cuando no hay nivel
+      // (residuo P2) ⇒ no es un dato.
       .select("id, tenant_id, name, age, position, foot, height_cm, weight_kg, nivel_registrado:data->>competitiveLevel, metric_speed, metric_technique, metric_vision, metric_stamina, metric_shooting, metric_defending, vsi, vsi_history")
       .eq("id", input.playerId)
       .single();

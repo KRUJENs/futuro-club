@@ -136,8 +136,13 @@ export function PlayerDetail({
 
       {(risk?.isMock || attendance?.isMock) && <DemoDataBanner messageKey="demoData.wellbeing" />}
 
+      {/* Sin evaluación real (sin registros, o fallo fuera del demo) el riesgo NO se pinta
+          como 0 · «bajo»: se dice que falta (P1 bloque 2, inv #2). */}
+      {risk === null && (
+        <p className="glass rounded-xl p-4 text-xs text-muted-foreground">{t("wellbeingDashboard.riskNotCalculated")}</p>
+      )}
+
       {risk && (
-        <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <DropoutRiskGauge
               score={risk.riskScore}
@@ -176,6 +181,10 @@ export function PlayerDetail({
               />
             </div>
           </div>
+      )}
+
+          {/* Los formularios de registro van FUERA del bloque del riesgo: sin registros
+              el riesgo está sin calcular y son justo lo que permite calcularlo. */}
 
           {/* Input MANUAL del entrenador: valorar el engagement observado. Al
               guardar, la mutación invalida engagement-history → el heatmap del
@@ -215,17 +224,21 @@ export function PlayerDetail({
             )
           )}
 
-          <InterventionPlanView
-            urgency={risk.intervention.urgency}
-            actions={risk.intervention.actions}
-            followUpDate={risk.intervention.followUpDate}
-            escalationNeeded={risk.intervention.escalationNeeded}
-            primaryFactor={risk.primaryFactor}
-          />
+          {/* Plan de intervención e informe de burnout solo con un riesgo REAL calculado
+              (antes recibían el relleno 0 · «bajo» y se lo mandaban al LLM). */}
+          {risk && (
+            <>
+              <InterventionPlanView
+                urgency={risk.intervention.urgency}
+                actions={risk.intervention.actions}
+                followUpDate={risk.intervention.followUpDate}
+                escalationNeeded={risk.intervention.escalationNeeded}
+                primaryFactor={risk.primaryFactor}
+              />
 
-          <BurnoutReportSection risk={risk} playerName={playerName} />
-        </>
-      )}
+              <BurnoutReportSection risk={risk} playerName={playerName} />
+            </>
+          )}
     </motion.div>
   );
 }

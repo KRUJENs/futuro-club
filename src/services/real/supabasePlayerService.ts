@@ -39,13 +39,15 @@ export function playerToColumns(p: Player) {
     age: p.age,
     position: p.position,
     secondary_positions: p.secondaryPositions ?? [],   // multi-posición · array text[]
-    foot: p.foot,
-    height_cm: p.height,
-    weight_kg: p.weight,
+    // `?? null` explícito: un undefined desaparece del JSON y el upsert dejaría en la
+    // columna el valor ANTERIOR (p. ej. un 165 cm inventado que el entrenador borró).
+    foot: p.foot ?? null,
+    height_cm: p.height ?? null,
+    weight_kg: p.weight ?? null,
     sitting_height: p.sittingHeight ?? null,
     leg_length: p.legLength ?? null,
-    // Sin nivel elegido se manda null. OJO: el trigger de la migración 024 lo rellena con
-    // 'Regional' en la base (residuo documentado en docs/pendientes-metricas.md, P2).
+    // Sin nivel elegido se manda null. OJO: el trigger de players (024, redefinido en la
+    // 069) lo rellena con 'Regional' en la base (residuo P2 en docs/pendientes-metricas.md).
     competitive_level: p.competitiveLevel ?? null,
     minutes_played: p.minutesPlayed ?? 0,
     gender: p.gender ?? null, // sin sexo registrado ⇒ null (no asumir masculino; invariante #5)

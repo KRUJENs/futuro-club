@@ -944,11 +944,12 @@ export default function PlayerHubPage() {
 
 function WellbeingTab({ playerId }: { playerId: string }) {
   const { t } = useTranslation();
-  const { data: risk } = useDropoutRisk(playerId);
+  const { data: risk, isLoading: riskLoading } = useDropoutRisk(playerId);
   const { data: engagement } = useEngagementHistory(playerId);
   const { data: attendance } = useAttendance(playerId);
 
-  if (!risk) {
+  // `risk === null` ⇒ SIN CALCULAR (sin registros reales): se dice, no se pinta 0 · «bajo».
+  if (riskLoading || risk === undefined) {
     return (
       <div className="glass rounded-xl p-6 text-center">
         <Heart size={24} className="text-muted-foreground mx-auto mb-2" />
@@ -964,24 +965,28 @@ function WellbeingTab({ playerId }: { playerId: string }) {
           fatiga real de vídeo pero sin cuestionario/asistencia → risk.isMock=false pero
           engagement/asistencia salen de fallback). Rotulamos si CUALQUIERA es mock,
           igual que el dashboard de Bienestar autónomo (WellbeingDashboard.tsx). */}
-      {(risk.isMock || engagement?.some((e) => e.isMock) || attendance?.isMock) && (
+      {(risk?.isMock || engagement?.some((e) => e.isMock) || attendance?.isMock) && (
         <DemoDataBanner messageKey="demoData.wellbeing" />
       )}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <DropoutRiskGauge
-          score={risk.riskScore}
-          riskLevel={risk.riskLevel}
-          primaryFactor={risk.primaryFactor}
-          factors={risk.factors}
-        />
-        <OvertrainingAlert
-          risk={risk.overtraining.risk}
-          riskLevel={risk.overtraining.riskLevel}
-          currentLoadAU={risk.overtraining.currentLoadAU}
-          recommendedLoadAU={risk.overtraining.recommendedLoadAU}
-          adjustmentPct={risk.overtraining.adjustmentPct}
-        />
-      </div>
+      {risk ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <DropoutRiskGauge
+            score={risk.riskScore}
+            riskLevel={risk.riskLevel}
+            primaryFactor={risk.primaryFactor}
+            factors={risk.factors}
+          />
+          <OvertrainingAlert
+            risk={risk.overtraining.risk}
+            riskLevel={risk.overtraining.riskLevel}
+            currentLoadAU={risk.overtraining.currentLoadAU}
+            recommendedLoadAU={risk.overtraining.recommendedLoadAU}
+            adjustmentPct={risk.overtraining.adjustmentPct}
+          />
+        </div>
+      ) : (
+        <p className="glass rounded-xl p-4 text-xs text-muted-foreground">{t("wellbeingDashboard.riskNotCalculated")}</p>
+      )}
 
       {engagement && engagement.length > 0 && (
         <EngagementTimeline

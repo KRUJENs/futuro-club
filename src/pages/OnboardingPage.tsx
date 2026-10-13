@@ -32,6 +32,7 @@ import { SupabasePlayerService } from "@/services/real/supabasePlayerService";
 import { OrganizationService } from "@/services/real/organizationService";
 import { DemoDataService } from "@/services/real/demoDataService";
 import { decimalAgeYears } from "@/lib/shared/age";
+import { completedYearsAt } from "@/lib/shared/videoConsent";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -108,9 +109,13 @@ const OnboardingPage = () => {
       toast.error(t("onboarding.birthDateRequired"));
       return;
     }
+    // Edad en AÑOS CUMPLIDOS por calendario (misma función que el control de menores,
+    // inv #7). No Math.floor(decimalAge): decimalAgeYears redondea a 2 decimales y daba
+    // un año de más los ~2 días antes del cumpleaños.
+    const wholeYears = creatingPlayer && decimalAge !== null ? completedYearsAt(playerBirthDate, new Date()) : null;
     // Fuera de 8-21 años el schema del jugador lo rechaza: se dice el motivo en vez del
     // error genérico de guardado.
-    if (creatingPlayer && decimalAge !== null && (Math.floor(decimalAge) < 8 || Math.floor(decimalAge) > 21)) {
+    if (creatingPlayer && (wholeYears === null || wholeYears < 8 || wholeYears > 21)) {
       toast.error(t("firstRun.ageRange"));
       return;
     }
@@ -132,10 +137,10 @@ const OnboardingPage = () => {
 
       // Crear primer jugador solo si NO se omite y se dio nombre (flag explícito,
       // no depende de setState asíncrono → "Omitir"/"demo" ya no crean jugador).
-      if (creatingPlayer && decimalAge !== null) {
+      if (creatingPlayer && wholeYears !== null) {
         const created = PlayerService.create({
           name: playerName.trim(),
-          age: Math.floor(decimalAge),
+          age: wholeYears,
           birthDate: playerBirthDate,
           position: playerPosition,
           gender: playerGender || undefined, // sexo real elegido en el paso 4; nunca "M" por defecto

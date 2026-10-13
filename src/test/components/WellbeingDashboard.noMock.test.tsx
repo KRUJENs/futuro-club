@@ -30,6 +30,7 @@ const state = vi.hoisted(() => ({
   mutate: vi.fn(),
   roster: [] as unknown[],
   teamRisk: [] as unknown[],
+  risk: undefined as unknown, // undefined ⇒ el RISK de abajo
 }));
 
 const RISK = vi.hoisted(() => ({
@@ -43,7 +44,7 @@ vi.mock("@/hooks/usePlayers", () => ({
 }));
 vi.mock("@/hooks/useWellbeing", async (orig) => ({
   ...(await orig<typeof import("@/hooks/useWellbeing")>()),
-  useDropoutRisk: () => ({ data: RISK }),
+  useDropoutRisk: () => ({ data: state.risk === undefined ? RISK : state.risk }),
   useEngagementHistory: () => ({ data: [] }),
   useAttendance: () => ({ data: state.attendance }),
   useBurnoutReport: () => ({ mutate: state.mutate, isPending: false, data: undefined, isError: false }),
@@ -54,8 +55,8 @@ vi.mock("@/components/wellbeing/AttendanceCalendar", () => ({ default: () => <di
 vi.mock("@/components/wellbeing/DropoutRiskGauge", () => ({ default: () => null }));
 vi.mock("@/components/wellbeing/OvertrainingAlert", () => ({ default: () => null }));
 vi.mock("@/components/wellbeing/InterventionPlanView", () => ({ default: () => null }));
-vi.mock("@/components/wellbeing/AttendanceLogForm", () => ({ default: () => null }));
-vi.mock("@/components/wellbeing/EngagementLogForm", () => ({ default: () => null }));
+vi.mock("@/components/wellbeing/AttendanceLogForm", () => ({ default: () => <div data-testid="attendance-form" /> }));
+vi.mock("@/components/wellbeing/EngagementLogForm", () => ({ default: () => <div data-testid="engagement-form" /> }));
 vi.mock("@/components/coaching/EngagementMiniCard", () => ({ default: () => null }));
 
 import WellbeingDashboard, { PlayerDetail } from "@/components/wellbeing/WellbeingDashboard";
@@ -63,7 +64,22 @@ import WellbeingDashboard, { PlayerDetail } from "@/components/wellbeing/Wellbei
 const NO_RECORDS = { playerId: "p1", rate: null, totalSessions: 0, records: [], isMock: false };
 
 describe("PlayerDetail (Bienestar)", () => {
-  beforeEach(() => state.mutate.mockReset());
+  beforeEach(() => {
+    state.mutate.mockReset();
+    state.risk = undefined;
+  });
+
+  it("riesgo SIN calcular (null): se dice; ni indicador, ni plan, ni burnout; los formularios de registro siguen", () => {
+    state.risk = null;
+    state.attendance = NO_RECORDS;
+    state.player = { id: "p1", birthDate: "2013-05-01" };
+    render(<PlayerDetail playerId="p1" playerName="Leo" onBack={() => {}} />);
+    expect(screen.getByText("wellbeingDashboard.riskNotCalculated")).toBeInTheDocument();
+    expect(screen.queryByText("burnoutReport.generate")).toBeNull();
+    // Sin registros, los formularios son justo lo que permite calcular el riesgo.
+    expect(screen.getByTestId("attendance-form")).toBeInTheDocument();
+    expect(screen.getByTestId("engagement-form")).toBeInTheDocument();
+  });
 
   it("sin asistencia registrada: ni calendario ni % inventados; se dice que no hay registros", () => {
     state.attendance = NO_RECORDS;
@@ -123,6 +139,17 @@ describe("WellbeingDashboard · vista de equipo", () => {
     expect(container.textContent).not.toMatch(/\b0\s*%/);
     expect(screen.queryByText("0")).toBeNull();
     // No se cuenta como «bajo» en los filtros.
+    expect(container.textContent).toContain("teamRiskOverview.filterLow (0)");
+  });
+
+  it("riesgo SIN calcular (null, p. ej. el servidor no tiene registros): ni «0» ni «bajo» ni «insufficient_data»", () => {
+    state.teamRisk = [{ data: null, isSuccess: true }];
+    const { container } = render(<WellbeingDashboard />);
+    expect(screen.getByText("teamRiskOverview.riskUnavailable")).toBeInTheDocument();
+    expect(container.textContent).toContain("teamRiskOverview.noAttendance");
+    expect(container.textContent).not.toContain("insufficient_data");
+    expect(container.textContent).not.toMatch(/\b0\s*%/);
+    expect(screen.queryByText("0")).toBeNull();
     expect(container.textContent).toContain("teamRiskOverview.filterLow (0)");
   });
 

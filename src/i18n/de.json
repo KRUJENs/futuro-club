@@ -4948,7 +4948,8 @@
     "teamWellbeingPanel": "Panel für das Wohlbefinden des Teams",
     "emptyTitle": "Noch keine Spieler",
     "emptyDescription": "Füge deinem Team Spieler hinzu, um das Abbruchrisiko und das Engagement pro Spieler zu sehen.",
-    "noAttendance": "Noch keine Anwesenheit erfasst"
+    "noAttendance": "Noch keine Anwesenheit erfasst",
+    "riskNotCalculated": "Abbruchrisiko nicht berechnet. Es wird berechnet, sobald es für diesen Spieler Einträge zu Anwesenheit, Wohlbefinden oder Belastung gibt."
   },
   "authContext": {
     "supabaseNotConfiguredWithKeys": "Supabase nicht konfiguriert — füge VITE_SUPABASE_URL und VITE_SUPABASE_ANON_KEY hinzu",

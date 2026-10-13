@@ -4949,7 +4949,8 @@
     "teamWellbeingPanel": "Team Wellbeing Panel",
     "emptyTitle": "No players yet",
     "emptyDescription": "Add players to your team to see per-player dropout risk and engagement.",
-    "noAttendance": "No attendance recorded yet"
+    "noAttendance": "No attendance recorded yet",
+    "riskNotCalculated": "Dropout risk not calculated. It is calculated once there are attendance, wellbeing or load records for this player."
   },
   "authContext": {
     "supabaseNotConfiguredWithKeys": "Supabase not configured — add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY",

@@ -188,9 +188,11 @@ export default withHandler(
           age: p.age,
           position: p.position,
           vsi: p.vsi == null ? null : Number(p.vsi), // no coaccionar null→0
-          // Nivel SOLO del blob (lo sobrescribe el spread de `data` de abajo si existe):
-          // la COLUMNA competitive_level la rellena el trigger de la 024 con 'Regional'
-          // cuando no hay nivel (residuo P2) ⇒ no se usa como dato (P1 bloque 2, inv #2).
+          // Nivel SOLO del blob (lo sobrescribe el spread de `data` de abajo si existe): el
+          // `competitive_level` que devuelve la RPC es `coalesce(data->>'competitiveLevel',
+          // 'Regional')` (059) ⇒ un nivel inventado cuando falta; no se usa como dato
+          // (P1 bloque 2, inv #2). El filtro por nivel y la lista de niveles de la RPC
+          // siguen con ese coalesce (residuo P2: cambiar la RPC).
           competitiveLevel: null,
           ageGroup: p.age_group,
           percentile: p.percentile == null ? null : Math.round(Number(p.percentile)),

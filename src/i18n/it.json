@@ -4948,7 +4948,8 @@
     "teamWellbeingPanel": "Pannello Benessere della squadra",
     "emptyTitle": "Ancora nessun giocatore",
     "emptyDescription": "Aggiungi giocatori alla tua squadra per vedere il rischio di abbandono e l'engagement per giocatore.",
-    "noAttendance": "Nessuna presenza registrata finora"
+    "noAttendance": "Nessuna presenza registrata finora",
+    "riskNotCalculated": "Rischio di abbandono non calcolato. Viene calcolato quando ci sono registrazioni di presenza, benessere o carico per questo giocatore."
   },
   "authContext": {
     "supabaseNotConfiguredWithKeys": "Supabase non configurato — aggiungi VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY",

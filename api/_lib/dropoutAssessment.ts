@@ -153,9 +153,10 @@ function buildEngagement(rows: SignalRow[]): {
 
 /**
  * Evaluación honesta "sin datos": todo neutro, source ≠ "computed".
- * (La forma de respuesta con riskScore 0 / "low" es la que el cliente ya consume y
- * marca isMock; convertirla a value null es el ítem P1 DROPOUT-NO-DATA-AS-LOW, fuera
- * de este cambio. El digest NUNCA la lista: solo lista source "computed".)
+ * El riskScore 0 / "low" / asistencia 0 de aquí NO es una evaluación: el cliente
+ * (fetchDropoutRisk en src/hooks/useWellbeing.ts) trata `source: "insufficient_data"`
+ * como «sin calcular» (null) y no pinta ninguno de estos números (P1 bloque 2). El
+ * digest NUNCA la lista: solo lista source "computed".
  */
 export function insufficientAssessment(playerId: string) {
   return {

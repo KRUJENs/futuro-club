@@ -4948,7 +4948,8 @@
     "teamWellbeingPanel": "Panneau de bien-être de l'équipe",
     "emptyTitle": "Pas encore de joueurs",
     "emptyDescription": "Ajoutez des joueurs à votre équipe pour voir le risque de décrochage et l'engagement par joueur.",
-    "noAttendance": "Aucune présence enregistrée pour l'instant"
+    "noAttendance": "Aucune présence enregistrée pour l'instant",
+    "riskNotCalculated": "Risque d'abandon non calculé. Il est calculé dès qu'il existe des relevés de présence, de bien-être ou de charge pour ce joueur."
   },
   "authContext": {
     "supabaseNotConfiguredWithKeys": "Supabase non configuré — ajoutez VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY",

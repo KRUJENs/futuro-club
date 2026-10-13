@@ -85,6 +85,23 @@ describe("OnboardingPage · primer jugador sin valores inventados", () => {
     expect(created.input).toBeNull();
   });
 
+  it("la víspera del cumpleaños la edad son los años CUMPLIDOS (antes Math.floor de un decimal redondeado daba uno más)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-13T12:00:00Z"));
+    try {
+      goToPlayerStep();
+      fireEvent.change(screen.getByPlaceholderText("onboarding.placeholders.playerName"), { target: { value: "Leo" } });
+      fireEvent.change(dateInput(), { target: { value: "2014-10-14" } }); // cumple 12 mañana
+      fireEvent.change(positionSelect(), { target: { value: "Pivote" } });
+      fireEvent.click(screen.getByText("common.male"));
+      fireEvent.click(screen.getByText("common.finish"));
+      await waitFor(() => expect(created.input).not.toBeNull());
+      expect(created.input!.age).toBe(11);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("menor de 8 años ⇒ se dice el rango de edad (antes error genérico de guardado) y no se crea", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-13T12:00:00Z"));

@@ -365,12 +365,15 @@ export default function PlayerReportPrint() {
           <div className="text-2xl font-black text-gray-800">{datedEvaluations.length}</div>
           <div className="text-xs text-gray-500">{t("playerReportPrint.datedEvaluations")}</div>
         </div>
-        <div className="text-center p-3 bg-gray-50 rounded-lg">
-          <div className="text-2xl font-black text-gray-800 capitalize">
-            {rawPlayer.foot === "right" ? t("playerReportPrint.footRight") : rawPlayer.foot === "left" ? t("playerReportPrint.footLeft") : rawPlayer.foot === "both" ? t("playerReportPrint.footBoth") : ""}
+        {/* Sin pie registrado no se imprime una tarjeta «Pie dominante» en blanco. */}
+        {(rawPlayer.foot === "right" || rawPlayer.foot === "left" || rawPlayer.foot === "both") && (
+          <div className="text-center p-3 bg-gray-50 rounded-lg">
+            <div className="text-2xl font-black text-gray-800 capitalize">
+              {rawPlayer.foot === "right" ? t("playerReportPrint.footRight") : rawPlayer.foot === "left" ? t("playerReportPrint.footLeft") : t("playerReportPrint.footBoth")}
+            </div>
+            <div className="text-xs text-gray-500">{t("playerReportPrint.dominantFoot")}</div>
           </div>
-          <div className="text-xs text-gray-500">{t("playerReportPrint.dominantFoot")}</div>
-        </div>
+        )}
       </div>
 
       {/* Footer */}

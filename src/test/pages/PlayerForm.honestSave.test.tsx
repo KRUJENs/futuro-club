@@ -97,6 +97,18 @@ describe("PlayerForm · editar · guardado honesto", () => {
     expect(await screen.findByText("hub")).toBeInTheDocument();
   });
 
+  it("jugador del alta rápida SIN pie: se guarda sin obligar a elegir uno (no se adivina) y la columna queda null", async () => {
+    const { foot: _f, height: _h, weight: _w, competitiveLevel: _l, ...quick } = BASE;
+    const p = PlayerService.create(quick);
+    renderEdit(p.id);
+    fireEvent.click(await screen.findByRole("button", { name: /players\.form\.submitEdit/ }));
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("toasts.playerUpdated"));
+    const row = db.rows.get(p.id)!;
+    expect(row.foot).toBeNull();
+    expect(row.height_cm).toBeNull();
+    expect(row.weight_kg).toBeNull();
+  });
+
   it("nube caída ⇒ NO «actualizado»: aviso «pendiente de sincronizar» y op en SyncQueue", async () => {
     const p = PlayerService.create(BASE);
     db.failUpsert = true;

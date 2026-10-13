@@ -3,8 +3,8 @@
  * Run: npx vitest run --config vitest.api.config.ts api/rankings/__tests__/list-no-defaults.test.ts
  *
  * Antes: la ruta en memoria devolvía competitiveLevel «Regional» y foot «right» a quien
- * no los tenía registrados; la ruta RPC tomaba el nivel de la COLUMNA, que el trigger de
- * la 024 rellena con 'Regional' cuando falta.
+ * no los tenía registrados; la ruta RPC usaba el `competitive_level` que devuelve la RPC,
+ * que es `coalesce(data->>'competitiveLevel', 'Regional')` (059).
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -35,7 +35,7 @@ beforeEach(() => {
       if (!rpcOk) return new Response("no rpc", { status: 404 });
       return new Response(JSON.stringify({
         players: [
-          // La columna trae el 'Regional' del trigger; el blob no tiene nivel.
+          // La RPC devuelve el 'Regional' de su coalesce; el blob no tiene nivel.
           { id: "quick", name: "Leo", vsi: null, competitive_level: "Regional", data: QUICK },
           { id: "lvl", name: "Ana", vsi: null, competitive_level: "Nacional", data: WITH_LEVEL },
         ],
@@ -62,7 +62,7 @@ async function listBody(): Promise<{ players: Array<Record<string, unknown>>; co
 }
 
 describe("rankings · nivel y pie sin valores por defecto", () => {
-  it("ruta RPC: el nivel sale del blob, no de la columna rellenada por el trigger", async () => {
+  it("ruta RPC: el nivel sale del blob, no del 'Regional' que pone el coalesce de la RPC", async () => {
     rpcOk = true;
     const { players } = await listBody();
     const quick = players.find((p) => p.id === "quick")!;

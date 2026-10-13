@@ -4949,7 +4949,8 @@
     "teamWellbeingPanel": "Welzijnspaneel van het team",
     "emptyTitle": "Nog geen spelers",
     "emptyDescription": "Voeg spelers aan je team toe om het uitvalrisico en het engagement per speler te zien.",
-    "noAttendance": "Nog geen aanwezigheid geregistreerd"
+    "noAttendance": "Nog geen aanwezigheid geregistreerd",
+    "riskNotCalculated": "Uitvalrisico niet berekend. Het wordt berekend zodra er registraties van aanwezigheid, welzijn of belasting voor deze speler zijn."
   },
   "authContext": {
     "supabaseNotConfiguredWithKeys": "Supabase niet geconfigureerd — voeg VITE_SUPABASE_URL en VITE_SUPABASE_ANON_KEY toe",

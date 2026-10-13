@@ -4949,7 +4949,8 @@
     "teamWellbeingPanel": "Panel de Bienestar del Equipo",
     "emptyTitle": "Aún no hay jugadores",
     "emptyDescription": "Añade jugadores a tu equipo para ver el riesgo de abandono y el engagement por jugador.",
-    "noAttendance": "Sin asistencia registrada todavía"
+    "noAttendance": "Sin asistencia registrada todavía",
+    "riskNotCalculated": "Riesgo de abandono sin calcular. Se calcula cuando hay registros de asistencia, bienestar o carga de este jugador."
   },
   "authContext": {
     "supabaseNotConfiguredWithKeys": "Supabase no configurado — agrega VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY",

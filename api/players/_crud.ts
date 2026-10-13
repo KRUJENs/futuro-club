@@ -246,8 +246,9 @@ export default withHandler(
         weight_kg: input.weight ?? null,
         sitting_height: input.sittingHeight ?? null,
         leg_length: input.legLength ?? null,
-        // Sin nivel ⇒ null. OJO: el trigger de la 024 rellena la COLUMNA con 'Regional'
-        // (residuo P2 en docs/pendientes-metricas.md); el blob `data` queda sin nivel.
+        // Sin nivel ⇒ null. OJO: el trigger de players (024, redefinido en la 069:178)
+        // rellena la COLUMNA con 'Regional' (residuo P2 en docs/pendientes-metricas.md);
+        // el blob `data` queda sin nivel.
         competitive_level: input.competitiveLevel ?? null,
         minutes_played: input.minutesPlayed,
         gender: input.gender ?? null, // no asumir masculino si falta el sexo (invariante #5)

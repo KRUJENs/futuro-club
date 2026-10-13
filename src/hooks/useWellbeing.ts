@@ -132,23 +132,32 @@ interface EngagementInput {
 
 const API_BASE = "/api/wellbeing";
 
-async function fetchDropoutRisk(playerId: string): Promise<DropoutRiskAssessment> {
+/**
+ * Riesgo de abandono del jugador. `null` = SIN CALCULAR (P1 bloque 2, inv #2):
+ *  - el servidor no tiene ninguna señal real (`source: "insufficient_data"`): su
+ *    respuesta trae un relleno con riesgo 0 · «low» · asistencia 0 que NO es una
+ *    evaluación (`insufficientAssessment`, api/_lib/dropoutAssessment.ts);
+ *  - o la llamada falla fuera del demo (antes: una evaluación de EJEMPLO por hash del id
+ *    para un jugador real).
+ * En el demo (la red está interceptada y responde `data: null`) se sigue mostrando el
+ * ejemplo, marcado isMock ⇒ con el rótulo «Datos de ejemplo».
+ */
+async function fetchDropoutRisk(playerId: string): Promise<DropoutRiskAssessment | null> {
+  const fallback = () => (IS_DEMO ? generateMockRiskAssessment(playerId) : null);
   try {
     const res = await fetch(`${API_BASE}/dropout-risk?playerId=${encodeURIComponent(playerId)}`, {
       headers: await getAuthHeaders(),
     });
-    if (!res.ok) return generateMockRiskAssessment(playerId);
+    if (!res.ok) return fallback();
     const data = await res.json();
     const assessment = data.data?.assessment;
-    if (!assessment) return generateMockRiskAssessment(playerId);
-    // El endpoint /dropout-risk todavía devuelve una evaluación de EJEMPLO
-    // (source "mock": derivada del id del jugador, no de asistencia/engagement
-    // reales). Se marca isMock para que la UI muestre el DemoDataBanner — un valor
-    // por hash del id es MOCK disfrazado (rules/metricas.md). Cuando el endpoint
-    // compute desde datos reales devolverá source "computed" y el banner se irá.
-    return { ...assessment, isMock: data.data?.source !== "computed" };
+    if (!assessment) return fallback();
+    const source = data.data?.source;
+    if (source === "insufficient_data") return null;
+    // Cualquier otra fuente que no sea "computed" es de ejemplo ⇒ isMock (con rótulo).
+    return { ...assessment, isMock: source !== "computed" };
   } catch {
-    return generateMockRiskAssessment(playerId);
+    return fallback();
   }
 }
 
