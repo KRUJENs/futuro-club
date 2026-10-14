@@ -28,24 +28,54 @@
  *      marca (el enlace sigue valiendo para reintentar);
  *   4. el marcado es condicional (sin retirar y aún pendiente). Si la evidencia ya estaba (un
  *      intento anterior no pudo marcar la fila), no se duplica: solo se marca.
+ *
+ * P1 bloque 3 (decisión del owner, 14 oct): este POST solo llega cuando el TUTOR pulsa
+ * «Confirmo como tutor legal» en la página (antes la página hacía el POST al abrirse: un
+ * escáner de enlaces del correo podía «firmar», CWE-650). Trae SU DNI (se guarda solo el hash) y
+ * su aceptación de las condiciones y la privacidad, que quedan en la evidencia. Al confirmar se
+ * le envía un segundo correo con un enlace de RETIRADA (api/auth/_guardian-withdraw.ts).
  */
 
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { createClient } from "@supabase/supabase-js";
+import { sha256Hex, randomHex } from "../_lib/edgeCrypto";
+import { sendEmail } from "../_lib/email";
+import { confirmationEmail } from "../_lib/consentEmails";
 import {
+  countConsentWithdrawTokens,
   findIssuedConsentToken,
   hasConsentVerification,
+  hasConsentWithdrawal,
   hashConsentToken,
+  recordConsentWithdrawTokenIssued,
   recordParentalConsentVerified,
   type IssuedConsentToken,
 } from "../_lib/parentalConsent";
 
 export const config = { runtime: "edge" };
 
+/** Versión de las condiciones y de la privacidad que acepta el tutor en la página. */
+export const GUARDIAN_CONSENT_VERSION = "v1.0";
+
+/**
+ * Tope de enlaces de RETIRADA por consentimiento. Volver a confirmar uno ya confirmado da un enlace
+ * nuevo; cada uno es una fila de gdpr_audit_log (de solo añadir), así que sin tope quien tenga el
+ * enlace de verificación podría llenarla (revisión 2 del PR #314). 10 sobra para un tutor real; al
+ * llegar, la página le dice que lo retire el responsable del jugador, y los anteriores siguen valiendo.
+ * Tope BLANDO (contar y luego emitir no es atómico): varias reconfirmaciones simultáneas pueden
+ * pasarlo por poco; basta para acotar el crecimiento (revisión 3).
+ */
+export const MAX_WITHDRAW_LINKS_PER_CONSENT = 10;
+
 const verifySchema = z.object({
   token: z.string().min(32).max(128),
+  // DNI/NIE o documento del tutor: lo escribe ÉL (nunca el responsable del jugador).
+  parentDni: z.string().trim().min(5).max(20).regex(/^[A-Z0-9]+$/i),
+  // Acción afirmativa del tutor (RGPD): ambas casillas marcadas en la página.
+  acceptedTerms: z.literal(true),
+  acceptedPrivacy: z.literal(true),
 });
 
 interface ConsentRow {
@@ -63,7 +93,7 @@ const invalidToken = () =>
 export default withHandler(
   { schema: verifySchema, requireAuth: false, maxRequests: 30 },
   async ({ body }) => {
-    const { token } = body as z.infer<typeof verifySchema>;
+    const { token, parentDni } = body as z.infer<typeof verifySchema>;
 
     // Misma precedencia que api/_lib/env.ts (SUPABASE_URL primero), la que usan la
     // evidencia (parentalConsent.ts) y el gate: la fila y su evidencia van al MISMO proyecto.
@@ -108,6 +138,18 @@ export default withHandler(
       });
     }
 
+    // ── 3b · ¿Ya retirado? (evidencia del servidor, aunque el PATCH de la retirada fallara a
+    //        mitad): no se dice «confirmado» a un consentimiento que no puede contar (revisión #314).
+    //        Queda una ventana: si el responsable lo retira JUSTO mientras el tutor confirma, el
+    //        tutor puede ver «confirmado» y el consentimiento acabar retirado. Falla en cerrado (no
+    //        cuenta: la evidencia de retirada manda) y la ficha muestra «retirado».
+    try {
+      if (await hasConsentWithdrawal(consent.id)) return invalidToken();
+    } catch (err) {
+      console.error("[verify-consent] no se pudo comprobar la retirada:", err instanceof Error ? err.message : err);
+      return verifyFailed("No se pudo comprobar el enlace. Inténtalo de nuevo más tarde.");
+    }
+
     // ── 4 · ¿Ya verificado con ESTE enlace? (evidencia del servidor, no la columna) ──
     let alreadyVerified: boolean;
     try {
@@ -116,6 +158,10 @@ export default withHandler(
       console.error("[verify-consent] no se pudo comprobar la evidencia:", err instanceof Error ? err.message : err);
       return verifyFailed("No se pudo comprobar el enlace. Inténtalo de nuevo más tarde.");
     }
+
+    // DNI del tutor: solo su hash (nunca en claro), igual que antes en sign-consent. Va SOLO a la
+    // fila (que se borra con el jugador), no a la evidencia de gdpr_audit_log (de solo añadir).
+    const dniHash = await sha256Hex(parentDni.toUpperCase());
 
     if (!alreadyVerified) {
       // ── 5 · Caducidad: la que guardó el servidor al emitir el enlace ──
@@ -126,14 +172,45 @@ export default withHandler(
           status: 410,
         });
       }
-      // ── 6 · Evidencia del servidor ANTES de marcar (si falla, no se marca) ──
+      // ── 6 · Evidencia del servidor ANTES de marcar (si falla, no se marca), con las
+      //       aceptaciones del TUTOR (y que aportó su DNI) ──
       try {
-        await recordParentalConsentVerified(issued);
+        await recordParentalConsentVerified(issued, { consentVersion: GUARDIAN_CONSENT_VERSION });
       } catch (err) {
         console.error("[verify-consent] no se pudo registrar la evidencia (no se marca):", err instanceof Error ? err.message : err);
         return verifyFailed("No se pudo registrar la verificación. Inténtalo de nuevo desde el enlace del email.");
       }
     }
+
+    // Enlace de RETIRADA para el tutor y, si `sendMail`, el correo de confirmación con él. Si algo
+    // falla aquí el consentimiento YA vale: se avisa en la respuesta y el responsable puede retirarlo.
+    const issueWithdrawLink = async (sendMail: boolean): Promise<{ withdrawToken: string | null; confirmationSent: boolean }> => {
+      const withdrawToken = randomHex(32);
+      try {
+        await recordConsentWithdrawTokenIssued({
+          consentId: consent.id,
+          playerId: issued.playerId,
+          parentEmail: issued.parentEmail,
+          tokenHash: await hashConsentToken(withdrawToken),
+          tenantId: issued.tenantId,
+        });
+      } catch (err) {
+        console.error("[verify-consent] no se pudo emitir el enlace de retirada:", err instanceof Error ? err.message : err);
+        return { withdrawToken: null, confirmationSent: false };
+      }
+      if (!sendMail) return { withdrawToken, confirmationSent: false };
+      const { data: player } = await supabase.from("players").select("name").eq("id", issued.playerId).maybeSingle();
+      const { data: row } = await supabase.from("parental_consents").select("parent_name").eq("id", consent.id).maybeSingle();
+      const baseUrl = process.env.VITAS_PUBLIC_URL ?? "https://futuro-club.vercel.app";
+      const mail = confirmationEmail({
+        locale: issued.locale,
+        parentName: ((row as { parent_name?: string } | null)?.parent_name as string | undefined) ?? "",
+        childName: ((player as { name?: string } | null)?.name as string | undefined) ?? "—",
+        // El código va tras «#»: el fragmento no viaja a ningún servidor (ni a sus registros).
+        withdrawLink: `${baseUrl}/auth/withdraw-consent#token=${withdrawToken}`,
+      });
+      return { withdrawToken, confirmationSent: await sendEmail({ to: issued.parentEmail, subject: mail.subject, html: mail.html }) };
+    };
 
     // ── 7 · Marcar como verificado (condicional: pendiente y sin retirar) ──
     const { data: updated, error: updateError } = await supabase
@@ -141,6 +218,8 @@ export default withHandler(
       .update({
         email_verified: true,
         email_verified_at: new Date().toISOString(),
+        parent_dni_hash: dniHash,
+        consent_version: GUARDIAN_CONSENT_VERSION,
         verification_token: null, // informativo: el que cuenta es el de la emisión
         verification_expires_at: null,
       })
@@ -152,22 +231,63 @@ export default withHandler(
     if (updateError) {
       return verifyFailed("No se pudo registrar la verificación. Inténtalo de nuevo desde el enlace del email.");
     }
-    if (alreadyVerified || !Array.isArray(updated) || updated.length === 0) {
-      // Ya verificado con este enlace (doble clic, o reintento tras un fallo al marcar), u otra
-      // petición la marcó entre la lectura y el UPDATE.
-      return successResponse({
-        consentId: consent.id,
-        playerId: issued.playerId,
-        alreadyVerified: true,
-        message: "Este consentimiento ya estaba verificado.",
-      });
+    if (!Array.isArray(updated) || updated.length === 0) {
+      // ESTA petición no marcó la fila. Se mira por qué (revisión #314): retirada o sustituida
+      // entre la lectura y el UPDATE ⇒ el enlace ya no vale; ya verificada (doble clic u otra
+      // petición) ⇒ «ya estaba confirmado» (el tutor tiene el enlace de retirada de la primera).
+      const { data: now, error: nowError } = await supabase
+        .from("parental_consents")
+        .select("id, player_id, parent_email, email_verified, withdrawn_at")
+        .eq("id", consent.id)
+        .maybeSingle();
+      if (nowError) return verifyFailed("No se pudo registrar la verificación. Inténtalo de nuevo desde el enlace del email.");
+      const row = now as ConsentRow | null;
+      if (!row || row.withdrawn_at) return invalidToken();
+      if (row.email_verified) {
+        // Ya confirmado (doble clic, otra pestaña o una confirmación anterior). El tutor recibe en
+        // la página un enlace de retirada NUEVO (los anteriores siguen valiendo), y el correo solo si
+        // nunca se le EMITIÓ ninguno: si la primera vez falló la emisión, antes se le remitía a un
+        // correo que no existía (revisión #314). Si se emitió pero el correo no salió, no se reenvía:
+        // el enlace está en la página. Retirar es lo seguro: dárselo a quien tiene SU enlace no abre
+        // nada. Tope por consentimiento (MAX_WITHDRAW_LINKS_PER_CONSENT); si no se puede contar, sin
+        // enlace nuevo (la página le dice cómo retirarlo).
+        let issuedCount: number | null = null;
+        try {
+          issuedCount = await countConsentWithdrawTokens(consent.id, MAX_WITHDRAW_LINKS_PER_CONSENT);
+        } catch (err) {
+          console.error("[verify-consent] no se pudo comprobar el enlace de retirada:", err instanceof Error ? err.message : err);
+        }
+        const link =
+          issuedCount === null || issuedCount >= MAX_WITHDRAW_LINKS_PER_CONSENT
+            ? { withdrawToken: null, confirmationSent: false }
+            : await issueWithdrawLink(issuedCount === 0);
+        return successResponse({
+          consentId: consent.id,
+          alreadyVerified: true,
+          withdrawToken: link.withdrawToken,
+          confirmationEmailSent: link.confirmationSent,
+          message: "Este consentimiento ya estaba verificado.",
+        });
+      }
+      return verifyFailed("No se pudo registrar la verificación. Inténtalo de nuevo desde el enlace del email.");
     }
+    // Desde aquí ESTA petición marcó la fila: primera confirmación o reintento tras un fallo al
+    // marcar (la evidencia ya estaba). En los dos casos el tutor recibe su enlace de retirada
+    // (antes, en el reintento, no se emitía: revisión #314, punto B).
+    void alreadyVerified;
+
+    // ── 8 · Enlace de RETIRADA para el tutor (correo de confirmación) ──
+    const link = await issueWithdrawLink(true);
 
     return successResponse({
       consentId: consent.id,
-      playerId: issued.playerId,
       verified: true,
-      message: "Consentimiento verificado · el menor ya puede usar VITAS",
+      // El tutor está en la página con SU enlace y su DNI: si el correo no sale, la página le
+      // ofrece el enlace de retirada igualmente. Si NO se pudo emitir (null), la página se lo dice
+      // y le indica que pida la retirada al responsable del jugador.
+      withdrawToken: link.withdrawToken,
+      confirmationEmailSent: link.confirmationSent,
+      message: "Consentimiento verificado.",
     });
   }
 );

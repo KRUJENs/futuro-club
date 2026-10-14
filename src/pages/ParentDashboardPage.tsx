@@ -35,11 +35,8 @@ import { usePHVProduct } from "@/hooks/usePHVProduct";
 import { phvGate } from "@/lib/phv/phvGate";
 import { PhvGateNotice } from "@/components/phv/PhvGateNotice";
 import { GrowthSpurtShieldAlert } from "@/components/phv/GrowthSpurtShieldAlert";
-import {
-  usePlayerConsent,
-  useGrantConsent,
-} from "@/hooks/useParentalConsent";
-import { Shield, CheckCircle2, AlertCircle } from "lucide-react";
+import { GuardianConsentCard } from "@/components/legal/GuardianConsentCard";
+import { Shield } from "lucide-react";
 import { PlayerTrackingService } from "@/services/real/playerTrackingService";
 import { computeVsiDelta } from "@/lib/scoring/vsiDelta";
 import { MetricValue } from "@/components/metrics/MetricValue";
@@ -227,8 +224,9 @@ export default function ParentDashboardPage() {
       </div>
 
       <div className="px-4 py-4 space-y-4 max-w-md mx-auto">
-        {/* Parental Consent banner — RGPD for minors */}
-        <ParentalConsentBanner playerId={player.id} playerAge={player.age} playerName={player.name} />
+        {/* Consentimiento del tutor (RGPD, menores de 14): estado REAL del servidor. Antes un
+            botón «Soy el tutor, conceder» escribía un rótulo que el gate nunca contaba. */}
+        <GuardianConsentCard playerId={player.id} playerName={player.name} birthDate={player.birthDate ?? null} />
 
         {/* VSI hero · grande, claro */}
         <motion.div
@@ -640,119 +638,5 @@ function SimpleStat({
       <div className="text-[8px] uppercase tracking-wider text-muted-foreground font-bold">{label}</div>
       <div className="text-sm font-display font-bold text-foreground">{value}</div>
     </div>
-  );
-}
-
-// ── Parental Consent Banner (RGPD for <14yo) ────────────────────────────
-function ParentalConsentBanner({
-  playerId,
-  playerAge,
-  playerName,
-}: {
-  playerId: string;
-  playerAge?: number;
-  playerName: string;
-}) {
-  const { t } = useTranslation();
-  const { data: consent } = usePlayerConsent(playerId);
-  const grant = useGrantConsent();
-  const [showForm, setShowForm] = useState(false);
-  const [guardianName, setGuardianName] = useState("");
-  const [guardianEmail, setGuardianEmail] = useState("");
-
-  // Don't show anything if player is >= 14 (not required)
-  if (playerAge !== undefined && playerAge >= 14) return null;
-  if (!consent) return null;
-
-  if (consent.status === "granted") {
-    return (
-      <div className="glass rounded-2xl p-3 border-l-4 border-emerald-500/60 bg-emerald-500/5 flex items-center gap-2">
-        <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />
-        <p className="text-[11px] text-foreground/80">
-          {t("parentDashboardPage.consentParental")} <strong className="text-emerald-500">{t("parentDashboardPage.consentGranted")}</strong>
-          {consent.guardianName && ` ${t("parentDashboardPage.consentBy", { name: consent.guardianName })}`}
-        </p>
-      </div>
-    );
-  }
-
-  if (consent.status === "denied") {
-    return (
-      <div className="glass rounded-2xl p-3 border-l-4 border-red-500/60 bg-red-500/5 flex items-center gap-2">
-        <AlertCircle size={14} className="text-red-500 shrink-0" />
-        <p className="text-[11px] text-foreground/80">
-          {t("parentDashboardPage.consentParental")} <strong className="text-red-500">{t("parentDashboardPage.consentDenied")}</strong> {t("parentDashboardPage.consentDeniedNote")}
-        </p>
-      </div>
-    );
-  }
-
-  // pending — show grant form
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -4 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass rounded-2xl p-4 border-l-4 border-amber-500/60 bg-amber-500/5 space-y-2"
-    >
-      <div className="flex items-start gap-2">
-        <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
-        <div className="flex-1">
-          <p className="text-[12px] font-display font-bold text-foreground">
-            {t("parentDashboardPage.consentPending")}
-          </p>
-          <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5">
-            {t("parentDashboardPage.consentPendingDesc", { name: playerName })}
-          </p>
-        </div>
-      </div>
-      {!showForm ? (
-        <button
-          onClick={() => setShowForm(true)}
-          className="w-full px-3 py-1.5 rounded-md bg-amber-500 text-white text-[11px] font-display font-semibold hover:bg-amber-600"
-        >
-          {t("parentDashboardPage.iAmGuardianGrant")}
-        </button>
-      ) : (
-        <div className="space-y-2">
-          <input
-            type="text"
-            value={guardianName}
-            onChange={(e) => setGuardianName(e.target.value)}
-            placeholder={t("parentDashboardPage.guardianNamePlaceholder")}
-            className="w-full bg-secondary/40 rounded-md px-2 py-1.5 text-xs border border-border focus:border-amber-500 focus:outline-none"
-          />
-          <input
-            type="email"
-            value={guardianEmail}
-            onChange={(e) => setGuardianEmail(e.target.value)}
-            placeholder={t("parentDashboardPage.guardianEmailPlaceholder")}
-            className="w-full bg-secondary/40 rounded-md px-2 py-1.5 text-xs border border-border focus:border-amber-500 focus:outline-none"
-          />
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowForm(false)}
-              className="flex-1 px-2 py-1 rounded-md text-[11px] text-muted-foreground hover:bg-secondary"
-            >
-              {t("parentDashboardPage.cancel")}
-            </button>
-            <button
-              onClick={() =>
-                guardianName.trim() &&
-                guardianEmail.trim() &&
-                grant.mutate({
-                  playerId,
-                  guardianName: guardianName.trim(),
-                  guardianEmail: guardianEmail.trim(),
-                })
-              }
-              disabled={!guardianName.trim() || !guardianEmail.trim() || grant.isPending}
-              className="flex-1 px-3 py-1 rounded-md bg-amber-500 text-white text-[11px] font-display font-semibold disabled:opacity-50"
-            >
-              {grant.isPending ? t("parentDashboardPage.saving") : t("parentDashboardPage.grant")}
-            </button>
-          </div>
-        </div>
-      )}
-    </motion.div>
   );
 }

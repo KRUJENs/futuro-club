@@ -1,9 +1,12 @@
 /**
  * i18n · copy del gate de consentimiento de clips (decisión del owner, 30 sep) en los 7
- * idiomas: namespace `clipConsent`, el aviso de /admin/consent de que su anotación NO
- * desbloquea el análisis de un menor de 14, y que ese formulario ya no promete un correo
- * de confirmación que no se envía (ParentalConsentPage solo actualiza players +
- * consent_audit_log). El texto de la declaración es el del job de partido completo.
+ * idiomas: namespace `clipConsent` y el texto de la declaración (el del job de partido
+ * completo).
+ *
+ * P1 bloque 3: /admin/consent ya NO anota nada a mano (antes «Autorizar» ponía un rótulo que el
+ * gate no contaba, y avisaba de que esa anotación «NO desbloquea»): ahora pide la firma al tutor
+ * por correo de verdad y el estado sale del servidor. Los textos de ese formulario se retiraron;
+ * el del nuevo flujo (guardianConsent) dice que el TUTOR confirma desde el enlace.
  */
 import { describe, it, expect } from "vitest";
 import es from "@/i18n/es.json";
@@ -27,7 +30,6 @@ describe("clipConsent · 7 idiomas", () => {
       expect(typeof v).toBe("string");
       expect((v as string).trim().length).toBeGreaterThan(3);
     }
-    expect(typeof get(dict, "parentalConsentPage.form.clipGateNotice")).toBe("string");
     // El texto versionado de la declaración existe (lo reutiliza la UI de clips).
     expect(typeof get(dict, "matchJob.attestation.text_2026_09_28_v1")).toBe("string");
   });
@@ -40,9 +42,14 @@ describe("clipConsent · 7 idiomas", () => {
     }
   });
 
-  it("el formulario de /admin/consent ya no promete un correo que no se envía", () => {
-    expect(get(es, "parentalConsentPage.form.emailNotice")).not.toMatch(/Se enviará/);
-    expect(get(en, "parentalConsentPage.form.emailNotice")).not.toMatch(/will be sent/);
-    expect(get(es, "parentalConsentPage.form.clipGateNotice")).toMatch(/NO desbloquea/);
+  it("P1 bloque 3: sin textos de anotación manual; el nuevo flujo dice que confirma el TUTOR (7 idiomas)", () => {
+    for (const [, dict] of Object.entries(LOCALES)) {
+      expect(get(dict, "parentalConsentPage.form.clipGateNotice")).toBeUndefined();
+      expect(get(dict, "parentalConsentPage.form.authorizeAI")).toBeUndefined();
+      expect(typeof get(dict, "guardianConsent.form.explainer")).toBe("string");
+      expect(typeof get(dict, "verifyConsentPage.confirm")).toBe("string");
+    }
+    expect(get(es, "guardianConsent.form.explainer")).toMatch(/enlace/);
+    expect(get(es, "guardianConsent.form.explainer")).toMatch(/DNI/);
   });
 });

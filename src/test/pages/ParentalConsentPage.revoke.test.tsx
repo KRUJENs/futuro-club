@@ -1,11 +1,15 @@
 /**
- * /admin/consent · Revocar (PR #308 ronda 6 + P1 bloque 0).
+ * /admin/consent · estado REAL del tutor + pedir la firma + retirar (P1 bloque 3).
  *
- * - La retirada se hace PRIMERO en el servidor (POST /api/auth/withdraw-consent). Si falla,
- *   error y NO se toca el rótulo del jugador.
- * - Si el servidor retira pero falla el rótulo (players.update), NO se dice «error al
- *   registrar»: aviso específico (la retirada vale) y se refresca la lista.
- * Supabase y fetch están simulados (mock), no es la base de datos real.
+ * Antes la pantalla leía y escribía players.parental_consent_status: «Autorizar» ponía el rótulo
+ * «concedido» sin el tutor (y el gate de análisis nunca lo contó), y «Solicitar de nuevo» solo
+ * cambiaba ese rótulo. Ahora:
+ *   - el estado sale del servidor (/api/auth/consent-status);
+ *   - «Pedir firma» manda de verdad el correo al tutor (/api/auth/sign-consent: solo nombre y email;
+ *     el DNI lo escribe el tutor al confirmar);
+ *   - «Retirar» lo hace el servidor (/api/auth/withdraw-consent); si falla, no se dice «retirado»;
+ *   - la pantalla NUNCA escribe en players.
+ * Supabase y fetch simulados (mock), no es la base de datos real.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -18,16 +22,23 @@ vi.mock("react-i18next", async () => {
   const lookup = (k: string) => k.split(".").reduce<unknown>((o, p) => (o as Record<string, unknown> | undefined)?.[p], es);
   return {
     useTranslation: () => ({
-      t: (k: string) => (typeof lookup(k) === "string" ? (lookup(k) as string) : k),
+      t: (k: string, o?: Record<string, unknown>) => {
+        // Plurales como i18next (clave_one / clave_other según count).
+        const v = lookup(k) ?? (typeof o?.count === "number" ? lookup(`${k}_${o.count === 1 ? "one" : "other"}`) : undefined);
+        return typeof v === "string" ? v.replace(/\{\{(\w+)\}\}/g, (_m, n) => String(o?.[n] ?? "")) : k;
+      },
       i18n: { language: "es" },
     }),
+    initReactI18next: { type: "3rdParty", init: () => {} },
   };
 });
 
 const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() }));
 vi.mock("sonner", () => ({ toast: toastMock }));
+vi.mock("@/lib/demoMode", async (orig) => ({ ...(await orig<typeof import("@/lib/demoMode")>()), IS_DEMO: false }));
 
-const sb = vi.hoisted(() => ({ updateError: null as null | { message: string }, updates: 0, playerReads: 0, auditInserts: [] as string[] }));
+const minor = (id: string, name = "Lucas Menor") => ({ id, name, birth_date: `${new Date().getUTCFullYear() - 11}-03-01` });
+const sb = vi.hoisted(() => ({ playerWrites: 0, auditInserts: [] as string[], players: [] as Array<Record<string, unknown>> }));
 
 vi.mock("@/lib/supabase", () => ({
   SUPABASE_CONFIGURED: true,
@@ -38,29 +49,13 @@ vi.mock("@/lib/supabase", () => ({
         return {
           select: () => ({
             not: () => ({
-              order: async () => {
-                sb.playerReads++;
-                return {
-                  data: [{
-                    id: "p-minor-1",
-                    name: "Lucas Menor",
-                    birth_date: "2015-03-01",
-                    parental_consent_status: "granted",
-                    parental_consent_granted_at: "2026-10-01T00:00:00Z",
-                    parental_consent_guardian_name: "Tutor",
-                    parental_consent_guardian_email: "tutor@x.test",
-                  }],
-                  error: null,
-                };
-              },
+              order: async () => ({ data: sb.players, error: null }),
             }),
           }),
-          update: () => ({
-            eq: async () => {
-              sb.updates++;
-              return { error: sb.updateError };
-            },
-          }),
+          update: () => {
+            sb.playerWrites++;
+            return { eq: async () => ({ error: null }) };
+          },
         };
       }
       // consent_audit_log
@@ -81,30 +76,47 @@ vi.mock("@/context/AuthContext", () => ({ useAuth: () => ({ user: { id: "user-1"
 
 import ParentalConsentPage from "@/pages/ParentalConsentPage";
 
-const P = (esJson as unknown as {
-  parentalConsentPage: { toast: Record<string, string>; tabs: Record<string, string>; list: Record<string, string>; form: Record<string, string> };
-}).parentalConsentPage;
+const G = (esJson as unknown as { guardianConsent: { state: Record<string, string>; actions: Record<string, string>; form: Record<string, string>; errors: Record<string, string>; withdrawn: string } }).guardianConsent;
+const P = (esJson as unknown as { parentalConsentPage: { tabs: Record<string, string> } }).parentalConsentPage;
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let consentState: Record<string, unknown>;
+/** Si se pone, el servidor devuelve ESTOS estados (los jugadores que falten no vienen). */
+let statusesOverride: Record<string, unknown> | null;
 let withdrawStatus = 200;
+let fetchMock: ReturnType<typeof vi.fn>;
+const bodyOf = (path: string) => {
+  const call = fetchMock.mock.calls.find(([u]) => String(u) === path);
+  return call ? JSON.parse(String((call[1] as RequestInit).body)) : null;
+};
 
 beforeEach(() => {
-  sb.updateError = null;
-  sb.updates = 0;
-  sb.playerReads = 0;
+  sb.playerWrites = 0;
   sb.auditInserts = [];
+  sb.players = [minor("p-minor-1")];
+  statusesOverride = null;
   withdrawStatus = 200;
+  consentState = { state: "verified", guardianName: "Tutor Uno", guardianEmail: "tutor@x.test", verifiedAt: "2026-10-01T00:00:00Z" };
   Object.values(toastMock).forEach((f) => f.mockReset());
-  fetchMock = vi.fn(async () =>
-    withdrawStatus === 200
-      ? new Response(JSON.stringify({ success: true, data: { withdrawn: 1 } }), { status: 200 })
-      : new Response(JSON.stringify({ success: false, error: "x" }), { status: withdrawStatus }),
-  );
+  fetchMock = vi.fn(async (input: string | URL | Request) => {
+    const url = String(input);
+    if (url === "/api/auth/consent-status") {
+      return Response.json({ success: true, data: { statuses: statusesOverride ?? { "p-minor-1": consentState } } });
+    }
+    if (url === "/api/auth/withdraw-consent") {
+      return withdrawStatus === 200
+        ? Response.json({ success: true, data: { withdrawn: 1 } })
+        : Response.json({ success: false, error: "x" }, { status: withdrawStatus });
+    }
+    if (url === "/api/auth/sign-consent") {
+      return Response.json({ success: true, data: { emailSent: true, status: "pending_verification" } });
+    }
+    throw new Error(`fetch no simulado: ${url}`);
+  });
   vi.stubGlobal("fetch", fetchMock);
 });
 afterEach(() => vi.unstubAllGlobals());
 
-async function revoke() {
+function renderPage() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
   render(
     <QueryClientProvider client={qc}>
@@ -113,41 +125,86 @@ async function revoke() {
       </MemoryRouter>
     </QueryClientProvider>,
   );
-  fireEvent.click(await screen.findByText(new RegExp(P.tabs.granted)));
-  fireEvent.click(await screen.findByText(P.list.revoke));
-  // El formulario se abre con «revocar» preseleccionado para un jugador concedido.
-  const readsBeforeSubmit = sb.playerReads;
-  fireEvent.click(await screen.findByText(P.form.registerDenial));
-  return readsBeforeSubmit;
 }
 
-describe("/admin/consent · revocar", () => {
-  it("revoca: primero el servidor, luego el rótulo, y avisa de éxito", async () => {
-    await revoke();
-    await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith(P.toast.consentSuccess));
-    expect(fetchMock).toHaveBeenCalledWith("/api/auth/withdraw-consent", expect.objectContaining({ method: "POST" }));
-    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({ playerId: "p-minor-1" });
-    expect(sb.updates).toBe(1);
+describe("/admin/consent · estado real del servidor", () => {
+  it("«Confirmado» sale del servidor (no de un rótulo) y la pantalla nunca escribe en players", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByText(new RegExp(P.tabs.granted)));
+    expect(await screen.findByText(G.state.verified)).toBeInTheDocument();
+    expect(screen.getByText(/tutor@x\.test/)).toBeInTheDocument();
+    expect(bodyOf("/api/auth/consent-status")).toEqual({ playerIds: ["p-minor-1"] });
+    expect(sb.playerWrites).toBe(0);
+  });
+});
+
+describe("/admin/consent · retirar", () => {
+  it("retira en el SERVIDOR, lo anota y avisa; ningún rótulo", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByText(new RegExp(P.tabs.granted)));
+    fireEvent.click(await screen.findByText(G.actions.withdraw));
+    fireEvent.click(await screen.findByText(G.actions.withdrawConfirm));
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith(G.withdrawn));
+    expect(bodyOf("/api/auth/withdraw-consent")).toEqual({ playerId: "p-minor-1" });
+    expect(sb.auditInserts).toEqual(["consent_revoked"]);
+    expect(sb.playerWrites).toBe(0);
   });
 
-  it("si el servidor NO retira → error y el rótulo no se toca", async () => {
+  it("si el servidor NO retira → error, sin anotar «retirado»", async () => {
     withdrawStatus = 500;
-    await revoke();
-    await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith(P.toast.consentError));
-    expect(sb.updates).toBe(0);
-    expect(sb.auditInserts).toEqual([]);
+    renderPage();
+    fireEvent.click(await screen.findByText(new RegExp(P.tabs.granted)));
+    fireEvent.click(await screen.findByText(G.actions.withdraw));
+    fireEvent.click(await screen.findByText(G.actions.withdrawConfirm));
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith(G.errors.withdraw));
     expect(toastMock.success).not.toHaveBeenCalled();
+    expect(sb.auditInserts).toEqual([]);
+  });
+});
+
+describe("/admin/consent · pedir la firma al tutor", () => {
+  it("sin solicitud: «Pedir firma» manda el correo de verdad con SOLO nombre y email (sin DNI)", async () => {
+    consentState = { state: "none" };
+    renderPage();
+    fireEvent.click(await screen.findByText(G.actions.request));
+    expect(document.querySelector('input[type="email"]')).not.toBeNull();
+    // El DNI lo escribe el TUTOR al confirmar, nunca el responsable aquí.
+    expect(screen.queryByLabelText(/DNI/i)).toBeNull();
+    fireEvent.change(screen.getByLabelText(G.form.nameLabel), { target: { value: "Marta Tutora" } });
+    fireEvent.change(screen.getByLabelText(G.form.emailLabel), { target: { value: "marta@familia.test" } });
+    fireEvent.click(screen.getByText(G.form.submit));
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
+    expect(bodyOf("/api/auth/sign-consent")).toMatchObject({ playerId: "p-minor-1", parentName: "Marta Tutora", parentEmail: "marta@familia.test" });
+    expect(Object.keys(bodyOf("/api/auth/sign-consent"))).not.toContain("parentDni");
+    expect(sb.auditInserts).toEqual(["consent_requested"]);
+    expect(sb.playerWrites).toBe(0);
   });
 
-  it("el servidor retira pero falla el rótulo → aviso específico (no «error al registrar») y se refresca la lista", async () => {
-    sb.updateError = { message: "rls" };
-    const readsBefore = await revoke();
-    await waitFor(() => expect(toastMock.warning).toHaveBeenCalledWith(P.toast.withdrawnLabelError));
-    expect(toastMock.error).not.toHaveBeenCalled();
-    await waitFor(() => expect(sb.playerReads).toBeGreaterThan(readsBefore));
-    // La revocación queda en el historial de la pantalla aunque falle el rótulo, y el
-    // formulario se cierra (no hay nada que reintentar).
-    expect(sb.auditInserts).toEqual(["consent_denied"]);
-    await waitFor(() => expect(screen.queryByText(P.form.registerDenial)).toBeNull());
+  it("retirado → «Pedir de nuevo» también manda el correo (antes solo cambiaba el rótulo)", async () => {
+    consentState = { state: "withdrawn", guardianName: "Tutor Uno", withdrawnAt: "2026-10-02T00:00:00Z" };
+    renderPage();
+    fireEvent.click(await screen.findByText(new RegExp(P.tabs.denied)));
+    fireEvent.click(await screen.findByText(G.actions.requestAgain));
+    fireEvent.change(screen.getByLabelText(G.form.emailLabel), { target: { value: "tutor@x.test" } });
+    fireEvent.click(screen.getByText(G.form.submit));
+    await waitFor(() => expect(bodyOf("/api/auth/sign-consent")).not.toBeNull());
+    expect(sb.playerWrites).toBe(0);
+  });
+});
+
+describe("/admin/consent · aviso de menores sin consentimiento", () => {
+  it("cuenta los que de verdad no lo tienen (sin pedir / pendiente / caducado), no los «no disponible»", async () => {
+    sb.players = [minor("p-a", "Ana"), minor("p-b", "Bea"), minor("p-c", "Cris"), minor("p-d", "Dani")];
+    // p-c no viene en la respuesta ⇒ «no disponible»; p-d confirmado.
+    statusesOverride = { "p-a": { state: "none" }, "p-b": { state: "unavailable" }, "p-d": { state: "verified" } };
+    renderPage();
+    expect(await screen.findByText("1 menor sin consentimiento parental")).toBeInTheDocument();
+  });
+
+  it("con varios sin consentimiento real los cuenta todos", async () => {
+    sb.players = [minor("p-a", "Ana"), minor("p-b", "Bea"), minor("p-c", "Cris")];
+    statusesOverride = { "p-a": { state: "none" }, "p-b": { state: "pending" }, "p-c": { state: "expired" } };
+    renderPage();
+    expect(await screen.findByText("3 menores sin consentimiento parental")).toBeInTheDocument();
   });
 });

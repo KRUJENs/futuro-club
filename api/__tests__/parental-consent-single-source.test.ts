@@ -59,10 +59,31 @@ describe("consentimiento parental · una sola fuente en el servidor", () => {
     expect(orch.src).not.toMatch(/from\("parental_consents"\)/);
   });
 
-  it("ningún código del servidor usa players.parental_consent_status (control positivo en src/)", () => {
+  it("ningún código del servidor usa players.parental_consent_status (control positivo: la migración que crea la columna)", () => {
     const offenders = files.filter((f) => /parental_consent_status/.test(f.src)).map((f) => f.file);
     expect(offenders).toEqual([]);
-    const page = stripComments(fs.readFileSync(path.join(ROOT, "src/pages/ParentalConsentPage.tsx"), "utf8"));
-    expect(/parental_consent_status/.test(page)).toBe(true);
+    // Control positivo: el detector SÍ ve la columna donde existe. (Hasta el P1 bloque 3 el
+    // control era src/pages/ParentalConsentPage.tsx; ahora esa pantalla tampoco la usa.)
+    const mig = fs.readFileSync(path.join(ROOT, "supabase/migrations/036_minor_consent_rgpd.sql"), "utf8");
+    expect(/parental_consent_status/.test(mig)).toBe(true);
   });
+
+  it("P1 bloque 3: el navegador tampoco lee ni escribe ya ese rótulo (estado real del servidor)", () => {
+    const srcFiles: string[] = [];
+    const walkSrc = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (["node_modules", "test", "i18n"].includes(e.name)) continue;
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walkSrc(p);
+        else if (/\.(ts|tsx)$/.test(e.name)) srcFiles.push(p);
+      }
+    };
+    walkSrc(path.join(ROOT, "src"));
+    expect(srcFiles.length).toBeGreaterThan(100);
+    const offenders = srcFiles
+      .filter((p) => /parental_consent_(status|granted_at|guardian_name|guardian_email)/.test(stripComments(fs.readFileSync(p, "utf8"))))
+      .map(rel);
+    expect(offenders).toEqual([]);
+    // Recorre todo src/ (~3 s solo): con la suite entera en paralelo pasaba de los 5 s por defecto.
+  }, 30_000);
 });

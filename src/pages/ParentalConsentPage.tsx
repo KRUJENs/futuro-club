@@ -1,28 +1,34 @@
 /**
  * VITAS · Parental Consent Management — /admin/consent
  *
- * Gestión de consentimiento parental para menores (<14 años RGPD España).
- * Conecta con las tablas creadas en migración 036:
- *   - players (parental_consent_* columns)
- *   - consent_audit_log
- *   - RPC dsar_export_player_data / dsar_request_deletion (reescritas en 072:
- *     firma TEXT; desde la 076, solo para el dueño del jugador, sin rama por tenant)
+ * Gestión del consentimiento del TUTOR para menores de 14 (RGPD / LOPDGDD).
+ *   - Menores: players con fecha de nacimiento y < 14 años cumplidos (misma regla que el gate).
+ *   - Estado: el REAL del servidor (/api/auth/consent-status, P1 bloque 3). Antes se leía y se
+ *     escribía players.parental_consent_status: un rótulo que esta pantalla ponía en «concedido»
+ *     sin el tutor y que el gate de análisis nunca contó.
+ *   - Acciones: pedir la firma al tutor (correo con enlace; el tutor confirma con SU DNI),
+ *     volver a pedirla, retirar (en el servidor). Nada se «concede» desde aquí.
+ *   - consent_audit_log (historial de esta pantalla) y RPC dsar_export_player_data /
+ *     dsar_request_deletion (072; desde la 076, solo el dueño del jugador).
  * (La vista v_players_ai_blocked de 036 NO se usa aquí; 072 la cierra a clientes.)
  *
- * Funciona con Supabase o con datos mock cuando no está configurado.
+ * Sin Supabase: datos de ejemplo, con su aviso.
  */
 
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Shield, UserCheck, UserX, Clock, AlertTriangle,
   Send, CheckCircle2, XCircle, Loader2, Info, Search,
   Baby, Mail, FileText, Download, Trash2, Eye,
 } from "lucide-react";
 import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabase";
-import { withdrawConsentOnServer } from "@/services/real/parentalConsentService";
+import type { GuardianConsentState, GuardianConsentStatus } from "@/services/real/parentalConsentService";
+import { useConsentStatus, useWithdrawGuardianConsent } from "@/hooks/useParentalConsent";
+import { ParentalConsentForm } from "@/components/legal/ParentalConsentForm";
+import { completedYearsAt, minorStatusFromBirthDate } from "@/lib/shared/videoConsent";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
@@ -35,11 +41,6 @@ interface ConsentPlayer {
   name: string;
   birth_date: string | null;
   age_years: number | null;
-  parental_consent_status: "pending" | "granted" | "denied" | "not_required";
-  parental_consent_granted_at: string | null;
-  parental_consent_guardian_name: string | null;
-  parental_consent_guardian_email: string | null;
-  ai_processing_status?: string;
 }
 
 interface AuditEntry {
@@ -53,18 +54,30 @@ interface AuditEntry {
 
 type ConsentTab = "pending" | "granted" | "denied" | "audit";
 
-/** El servidor retiró el consentimiento pero no se pudo actualizar el rótulo de la pantalla. */
-const WITHDRAWN_LABEL_FAILED = "withdrawn_label_update_failed";
+/** Pestaña de cada estado: confirmado → «concedidos»; retirado → «denegados»; el resto, pendientes. */
+function tabOf(state: GuardianConsentState): Exclude<ConsentTab, "audit"> {
+  if (state === "verified") return "granted";
+  if (state === "withdrawn") return "denied";
+  return "pending";
+}
 
-/* ── Mock data ─────────────────────────────────────────────────── */
+/* ── Mock data (solo sin Supabase, con aviso) ──────────────────── */
 
 const MOCK_PLAYERS: ConsentPlayer[] = [
-  { id: "m1", name: "Lucas Fernández", birth_date: "2014-03-15", age_years: 12, parental_consent_status: "pending", parental_consent_granted_at: null, parental_consent_guardian_name: null, parental_consent_guardian_email: null },
-  { id: "m2", name: "Martina López", birth_date: "2013-08-22", age_years: 12, parental_consent_status: "pending", parental_consent_granted_at: null, parental_consent_guardian_name: null, parental_consent_guardian_email: null },
-  { id: "m3", name: "Diego Ruiz", birth_date: "2013-11-05", age_years: 12, parental_consent_status: "granted", parental_consent_granted_at: "2026-04-10T10:30:00Z", parental_consent_guardian_name: "Ana Ruiz Martínez", parental_consent_guardian_email: "ana.ruiz@email.com" },
-  { id: "m4", name: "Sofía García", birth_date: "2014-06-18", age_years: 11, parental_consent_status: "denied", parental_consent_granted_at: null, parental_consent_guardian_name: "Carlos García", parental_consent_guardian_email: "carlos.garcia@email.com" },
-  { id: "m5", name: "Pablo Moreno", birth_date: "2013-01-30", age_years: 13, parental_consent_status: "pending", parental_consent_granted_at: null, parental_consent_guardian_name: null, parental_consent_guardian_email: null },
+  { id: "m1", name: "Lucas Fernández", birth_date: "2014-03-15", age_years: 12 },
+  { id: "m2", name: "Martina López", birth_date: "2013-08-22", age_years: 12 },
+  { id: "m3", name: "Diego Ruiz", birth_date: "2013-11-05", age_years: 12 },
+  { id: "m4", name: "Sofía García", birth_date: "2014-06-18", age_years: 11 },
+  { id: "m5", name: "Pablo Moreno", birth_date: "2013-01-30", age_years: 13 },
 ];
+
+const MOCK_STATUS: Record<string, GuardianConsentStatus> = {
+  m1: { state: "pending", guardianEmail: "tutor.lucas@email.com", expiresAt: "2026-04-06T09:00:00Z" },
+  m2: { state: "none" },
+  m3: { state: "verified", guardianName: "Ana Ruiz Martínez", guardianEmail: "ana.ruiz@email.com", verifiedAt: "2026-04-10T10:30:00Z" },
+  m4: { state: "withdrawn", guardianName: "Carlos García", withdrawnAt: "2026-04-08T14:15:00Z" },
+  m5: { state: "expired", guardianEmail: "tutor.pablo@email.com" },
+};
 
 const MOCK_AUDIT: AuditEntry[] = [
   { id: "a1", player_id: "m3", action: "consent_granted", actor_email: "ana.ruiz@email.com", details: { guardian_name: "Ana Ruiz Martínez" }, created_at: "2026-04-10T10:30:00Z" },
@@ -74,11 +87,14 @@ const MOCK_AUDIT: AuditEntry[] = [
 
 /* ── Status helpers ────────────────────────────────────────────── */
 
-const statusConfig = {
-  pending: { label: "parentalConsentPage.status.pending", icon: <Clock size={14} />, color: "text-amber-400", bg: "bg-amber-500/10", border: "border-amber-500/30" },
-  granted: { label: "parentalConsentPage.status.granted", icon: <CheckCircle2 size={14} />, color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
-  denied: { label: "parentalConsentPage.status.denied", icon: <XCircle size={14} />, color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/30" },
-  not_required: { label: "parentalConsentPage.status.notRequired", icon: <CheckCircle2 size={14} />, color: "text-muted-foreground", bg: "bg-muted/50", border: "border-border" },
+// Etiquetas: las mismas que la tarjeta de la ficha (guardianConsent.state.*), un solo texto por estado.
+const statusConfig: Record<GuardianConsentState, { label: string; icon: JSX.Element; color: string; bg: string; border: string }> = {
+  verified: { label: "guardianConsent.state.verified", icon: <CheckCircle2 size={14} />, color: "text-emerald-600", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
+  pending: { label: "guardianConsent.state.pending", icon: <Clock size={14} />, color: "text-amber-600", bg: "bg-amber-500/10", border: "border-amber-500/30" },
+  expired: { label: "guardianConsent.state.expired", icon: <Clock size={14} />, color: "text-red-600", bg: "bg-red-500/10", border: "border-red-500/30" },
+  withdrawn: { label: "guardianConsent.state.withdrawn", icon: <XCircle size={14} />, color: "text-red-600", bg: "bg-red-500/10", border: "border-red-500/30" },
+  none: { label: "guardianConsent.state.none", icon: <Info size={14} />, color: "text-muted-foreground", bg: "bg-muted/50", border: "border-border" },
+  unavailable: { label: "guardianConsent.state.unavailable", icon: <AlertTriangle size={14} />, color: "text-muted-foreground", bg: "bg-muted/50", border: "border-border" },
 };
 
 // Maps audit action codes to translation keys resolved with t() at render time.
@@ -97,18 +113,24 @@ async function fetchMinorPlayers(): Promise<ConsentPlayer[]> {
   if (!SUPABASE_CONFIGURED) return MOCK_PLAYERS;
   const { data, error } = await supabase
     .from("players")
-    .select("id, name, birth_date, parental_consent_status, parental_consent_granted_at, parental_consent_guardian_name, parental_consent_guardian_email")
+    .select("id, name, birth_date")
     .not("birth_date", "is", null)
     .order("name");
   if (error) throw error;
 
-  return (data ?? []).map((p: Record<string, unknown>) => {
-    const birthDate = p.birth_date as string | null;
-    const ageYears = birthDate
-      ? Math.floor((Date.now() - new Date(birthDate).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
-      : null;
-    return { ...p, age_years: ageYears } as ConsentPlayer;
-  }).filter(p => p.age_years !== null && p.age_years < 14);
+  // Menor = misma regla que el gate de análisis (años CUMPLIDOS < 14; inv #7). Antes se
+  // dividía por 365,25 días, que no coincide con el gate en los días del cumpleaños.
+  return (data ?? [])
+    .map((p: Record<string, unknown>) => {
+      const birthDate = typeof p.birth_date === "string" ? p.birth_date.slice(0, 10) : null;
+      return {
+        id: String(p.id),
+        name: String(p.name ?? ""),
+        birth_date: birthDate,
+        age_years: birthDate ? completedYearsAt(birthDate, new Date()) : null,
+      } as ConsentPlayer;
+    })
+    .filter((p) => minorStatusFromBirthDate(p.birth_date) === "minor");
 }
 
 async function fetchAuditLog(): Promise<AuditEntry[]> {
@@ -122,44 +144,34 @@ async function fetchAuditLog(): Promise<AuditEntry[]> {
   return (data ?? []) as AuditEntry[];
 }
 
-/* ── Consent Form Modal ────────────────────────────────────────── */
+/* ── Consent Action Modal ──────────────────────────────────────── */
 
-interface ConsentFormProps {
+type ConsentAction = "request" | "withdraw";
+
+interface ConsentActionProps {
   player: ConsentPlayer;
+  status: GuardianConsentStatus | undefined;
+  action: ConsentAction;
   onClose: () => void;
-  onSubmit: (data: ConsentFormData) => void;
-  submitting: boolean;
+  /** Firma pedida (con o sin correo enviado). */
+  onRequested: (r: { emailSent: boolean; email: string }) => void;
+  onWithdraw: () => void;
+  withdrawing: boolean;
 }
 
-interface ConsentFormData {
-  playerId: string;
-  guardianName: string;
-  guardianEmail: string;
-  action: "grant" | "deny";
-}
-
-function ConsentFormModal({ player, onClose, onSubmit, submitting }: ConsentFormProps) {
+/**
+ * Pedir la firma al tutor (solo nombre y email; el tutor confirma con SU DNI desde el correo) o
+ * retirar el consentimiento en el servidor. Antes este modal «Autorizaba» o «Denegaba» escribiendo
+ * un rótulo en players que el gate de análisis nunca contó (P1 bloque 3).
+ */
+function ConsentActionModal({ player, status, action, onClose, onRequested, onWithdraw, withdrawing }: ConsentActionProps) {
   const { t } = useTranslation();
-  const [guardianName, setGuardianName] = useState(player.parental_consent_guardian_name ?? "");
-  const [guardianEmail, setGuardianEmail] = useState(player.parental_consent_guardian_email ?? "");
-  // Preselecciona según el estado: si ya está concedido, la acción por defecto es
-  // REVOCAR ("deny"); antes salía "grant" preseleccionado y "Revocar" reconcedía
-  // el consentimiento de un menor (escritura RGPD incorrecta).
-  const [action, setAction] = useState<"grant" | "deny">(
-    player.parental_consent_status === "granted" ? "deny" : "grant",
-  );
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit({ playerId: player.id, guardianName, guardianEmail, action });
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-200/70 backdrop-blur-sm px-4"
       onClick={onClose}
     >
       <motion.div
@@ -167,151 +179,61 @@ function ConsentFormModal({ player, onClose, onSubmit, submitting }: ConsentForm
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
         onClick={(e) => e.stopPropagation()}
-        className="glass rounded-2xl p-6 max-w-lg w-full space-y-5 border border-border/40"
+        className="glass rounded-2xl p-6 max-w-lg w-full space-y-5 border border-border/40 bg-card"
+        role="dialog"
+        aria-modal="true"
       >
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Shield size={16} className="text-primary" />
             <h2 className="text-sm font-display font-bold text-foreground uppercase tracking-wider">
-              {t("parentalConsentPage.title")}
+              {t("guardianConsent.title")}
             </h2>
           </div>
-          <p className="text-xs text-muted-foreground">
-            {t("parentalConsentPage.form.legalRef")}
-          </p>
+          <p className="text-xs text-muted-foreground">{t("parentalConsentPage.form.legalRef")}</p>
         </div>
 
-        {/* Player info */}
         <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/20">
           <Baby size={18} className="text-primary" />
           <div>
             <p className="text-sm font-display font-bold text-foreground">{player.name}</p>
             <p className="text-[10px] text-muted-foreground">
-              {t("parentalConsentPage.form.playerMeta", {
-                age: player.age_years,
-                date: player.birth_date ? new Date(player.birth_date).toLocaleDateString("es-ES") : "—",
-              })}
+              {t("parentalConsentPage.list.ageYears", { age: player.age_years })}
             </p>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-display font-semibold text-foreground mb-1">
-              {t("parentalConsentPage.form.guardianNameLabel")}
-            </label>
-            <input
-              type="text"
-              required
-              minLength={2}
-              maxLength={120}
-              value={guardianName}
-              onChange={(e) => setGuardianName(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg bg-card border border-border text-sm font-display text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
-              placeholder={t("parentalConsentPage.form.guardianNamePlaceholder")}
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-display font-semibold text-foreground mb-1">
-              {t("parentalConsentPage.form.guardianEmailLabel")}
-            </label>
-            <input
-              type="email"
-              required
-              value={guardianEmail}
-              onChange={(e) => setGuardianEmail(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-lg bg-card border border-border text-sm font-display text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
-              placeholder={t("parentalConsentPage.form.guardianEmailPlaceholder")}
-            />
-            <p className="text-[9px] text-muted-foreground mt-1">
-              {t("parentalConsentPage.form.emailNotice")}
-            </p>
-          </div>
-
-          {/* Action selector */}
-          <div className="space-y-2">
-            <label className="block text-xs font-display font-semibold text-foreground">{t("parentalConsentPage.form.actionLabel")}</label>
-            <div className="grid grid-cols-2 gap-2">
+        {action === "request" ? (
+          <ParentalConsentForm
+            playerId={player.id}
+            initialName={status?.guardianName ?? ""}
+            initialEmail={status?.guardianEmail ?? ""}
+            onCancel={onClose}
+            onDone={onRequested}
+          />
+        ) : (
+          <div className="space-y-3">
+            <p className="text-xs text-foreground">{t("guardianConsent.withdrawConfirm", { name: player.name })}</p>
+            <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setAction("grant")}
-                className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-display font-semibold transition-all ${
-                  action === "grant"
-                    ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
-                    : "border-border bg-card text-muted-foreground hover:border-border/60"
-                }`}
+                onClick={onClose}
+                className="flex-1 py-2.5 rounded-lg border border-border text-xs font-display font-semibold text-muted-foreground hover:text-foreground"
               >
-                <UserCheck size={14} />
-                {t("parentalConsentPage.form.authorizeAI")}
+                {t("guardianConsent.form.cancel")}
               </button>
               <button
                 type="button"
-                onClick={() => setAction("deny")}
-                className={`flex items-center justify-center gap-2 p-3 rounded-lg border text-xs font-display font-semibold transition-all ${
-                  action === "deny"
-                    ? "border-red-500/50 bg-red-500/10 text-red-400"
-                    : "border-border bg-card text-muted-foreground hover:border-border/60"
-                }`}
+                onClick={onWithdraw}
+                disabled={withdrawing}
+                className="flex-1 py-2.5 rounded-lg bg-red-600 text-white text-xs font-display font-bold disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                <UserX size={14} />
-                {t("parentalConsentPage.form.denyAI")}
+                {withdrawing ? <Loader2 size={14} className="animate-spin" /> : <UserX size={14} />}
+                {t("guardianConsent.actions.withdrawConfirm")}
               </button>
             </div>
           </div>
-
-          {/* Legal notice */}
-          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 space-y-1">
-            <p className="text-[10px] text-foreground font-display font-semibold">{t("parentalConsentPage.form.includesTitle")}</p>
-            <ul className="text-[9px] text-muted-foreground space-y-0.5 list-disc list-inside">
-              <li>{t("parentalConsentPage.form.includes1")}</li>
-              <li>{t("parentalConsentPage.form.includes2")}</li>
-              <li>{t("parentalConsentPage.form.includes3")}</li>
-              <li>{t("parentalConsentPage.form.includes4")}</li>
-            </ul>
-            <p className="text-[9px] text-muted-foreground mt-1">
-              {t("parentalConsentPage.form.revocationNotice")}
-            </p>
-            {/* El gate de análisis de clips solo acepta el consentimiento firmado por el tutor
-                y confirmado desde su email (public.parental_consents), no esta anotación. */}
-            <p data-testid="consent-form-clip-gate-notice" className="text-[9px] text-foreground font-semibold mt-1">
-              {t("parentalConsentPage.form.clipGateNotice")}
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2.5 rounded-lg border border-border text-xs font-display font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t("parentalConsentPage.form.cancel")}
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className={`flex-1 py-2.5 rounded-lg text-xs font-display font-bold text-white transition-all disabled:opacity-50 flex items-center justify-center gap-2 ${
-                action === "grant"
-                  ? "bg-emerald-600 hover:bg-emerald-700"
-                  : "bg-red-600 hover:bg-red-700"
-              }`}
-            >
-              {submitting ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : action === "grant" ? (
-                <>
-                  <UserCheck size={14} />
-                  {t("parentalConsentPage.form.registerAuthorization")}
-                </>
-              ) : (
-                <>
-                  <UserX size={14} />
-                  {t("parentalConsentPage.form.registerDenial")}
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+        )}
       </motion.div>
     </motion.div>
   );
@@ -383,7 +305,7 @@ function DSARModal({ player, onClose }: DSARModalProps) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-200/70 backdrop-blur-sm px-4"
       onClick={onClose}
     >
       <motion.div
@@ -445,7 +367,7 @@ export default function ParentalConsentPage() {
   const [activeTab, setActiveTab] = useState<ConsentTab>("pending");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPlayer, setSelectedPlayer] = useState<ConsentPlayer | null>(null);
-  const [showConsentForm, setShowConsentForm] = useState(false);
+  const [consentAction, setConsentAction] = useState<ConsentAction | null>(null);
   const [showDSAR, setShowDSAR] = useState(false);
 
   const { data: players, isLoading: loadingPlayers } = useQuery({
@@ -460,90 +382,76 @@ export default function ParentalConsentPage() {
     staleTime: 30_000,
   });
 
-  // Mutation for updating consent
-  const consentMutation = useMutation({
-    mutationFn: async (data: ConsentFormData) => {
-      const newStatus = data.action === "grant" ? "granted" : "denied";
+  // Estado REAL del consentimiento del tutor (servidor). Sin Supabase: los de ejemplo (con aviso).
+  const { data: liveStatuses, isLoading: loadingStatuses } = useConsentStatus(
+    SUPABASE_CONFIGURED ? (players ?? []).map((p) => p.id) : [],
+  );
+  const statuses: Record<string, GuardianConsentStatus> = SUPABASE_CONFIGURED ? (liveStatuses ?? {}) : MOCK_STATUS;
+  // Sin respuesta del servidor para un jugador ⇒ «no disponible» (nunca «confirmado»).
+  const stateOf = (p: ConsentPlayer): GuardianConsentState => statuses[p.id]?.state ?? "unavailable";
 
-      if (SUPABASE_CONFIGURED) {
-        // El historial de ESTA pantalla es informativo: un fallo (error o excepción de red)
-        // no puede convertir una retirada ya hecha en el servidor en «error al registrar».
-        const logAudit = async () => {
-          try {
-            const { error: auditErr } = await supabase
-              .from("consent_audit_log")
-              .insert({
-                player_id: data.playerId,
-                action: data.action === "grant" ? "consent_granted" : "consent_denied",
-                actor_email: user?.email ?? "unknown",
-                details: { guardian_name: data.guardianName, guardian_email: data.guardianEmail },
-              });
-            if (auditErr) console.error("Audit log error:", auditErr);
-          } catch (err) {
-            console.error("Audit log error:", err);
-          }
-        };
+  const withdraw = useWithdrawGuardianConsent();
 
-        // Revocar: la retirada se hace PRIMERO en el servidor (marca el consentimiento como
-        // retirado; el gate de análisis no mira parental_consent_status). Si falla, se lanza y
-        // la pantalla no muestra «revocado». Si sale bien, se anota en el historial de esta
-        // pantalla ANTES del rótulo, para que quede aunque el rótulo falle.
-        if (data.action === "deny") {
-          await withdrawConsentOnServer(data.playerId);
-          await logAudit();
-        }
+  // Historial de ESTA pantalla (informativo): un fallo no cambia lo que ya hizo el servidor.
+  const logAudit = async (playerId: string, action: "consent_requested" | "consent_revoked", details: Record<string, unknown>) => {
+    if (!SUPABASE_CONFIGURED) return;
+    try {
+      const { error: auditErr } = await supabase
+        .from("consent_audit_log")
+        .insert({ player_id: playerId, action, actor_email: user?.email ?? "unknown", details });
+      if (auditErr) console.error("Audit log error:", auditErr);
+    } catch (err) {
+      console.error("Audit log error:", err);
+    }
+    queryClient.invalidateQueries({ queryKey: ["consent-audit"] });
+  };
 
-        // Update player consent status (solo rótulo de esta pantalla)
-        const { error: playerErr } = await supabase
-          .from("players")
-          .update({
-            parental_consent_status: newStatus,
-            parental_consent_granted_at: data.action === "grant" ? new Date().toISOString() : null,
-            parental_consent_guardian_name: data.guardianName,
-            parental_consent_guardian_email: data.guardianEmail,
-          })
-          .eq("id", data.playerId);
-        // Si el servidor YA retiró el consentimiento, un fallo del rótulo no puede presentarse
-        // como «no se ha registrado»: la retirada vale. Se avisa aparte y se refresca la lista.
-        if (playerErr && data.action === "deny") throw new Error(WITHDRAWN_LABEL_FAILED);
-        if (playerErr) throw playerErr;
+  const closeModal = () => {
+    setConsentAction(null);
+    setSelectedPlayer(null);
+  };
 
-        if (data.action === "grant") await logAudit();
-      }
+  const handleRequested = async (r: { emailSent: boolean; email: string }) => {
+    const player = selectedPlayer;
+    closeModal();
+    if (!player) return;
+    await logAudit(player.id, "consent_requested", { guardian_email: r.email, email_sent: r.emailSent });
+    if (r.emailSent) toast.success(t("guardianConsent.sent", { email: r.email }));
+    else toast.warning(t("guardianConsent.sentNoEmail"));
+  };
 
-      return { playerId: data.playerId, status: newStatus };
-    },
-    onSuccess: () => {
-      toast.success(t("parentalConsentPage.toast.consentSuccess"));
-      queryClient.invalidateQueries({ queryKey: ["consent-players"] });
-      queryClient.invalidateQueries({ queryKey: ["consent-audit"] });
-      setShowConsentForm(false);
-      setSelectedPlayer(null);
-    },
-    onError: (err) => {
-      if (err instanceof Error && err.message === WITHDRAWN_LABEL_FAILED) {
-        toast.warning(t("parentalConsentPage.toast.withdrawnLabelError"));
-        queryClient.invalidateQueries({ queryKey: ["consent-players"] });
-        queryClient.invalidateQueries({ queryKey: ["consent-audit"] });
-        // La retirada ya vale: se cierra el formulario (no hay nada que reintentar aquí).
-        setShowConsentForm(false);
-        setSelectedPlayer(null);
-        return;
-      }
-      toast.error(t("parentalConsentPage.toast.consentError"));
-    },
-  });
+  const handleWithdraw = async () => {
+    const player = selectedPlayer;
+    if (!player) return;
+    if (!SUPABASE_CONFIGURED) {
+      closeModal();
+      return;
+    }
+    try {
+      // La retirada la hace el SERVIDOR; si falla, se dice y no se muestra «retirado».
+      await withdraw.mutateAsync({ playerId: player.id });
+    } catch {
+      toast.error(t("guardianConsent.errors.withdraw"));
+      return;
+    }
+    closeModal();
+    await logAudit(player.id, "consent_revoked", {});
+    toast.success(t("guardianConsent.withdrawn"));
+  };
 
   // Filter players by tab and search
   const filteredPlayers = (players ?? []).filter(p => {
-    const matchesTab = activeTab === "audit" || p.parental_consent_status === activeTab;
+    const matchesTab = activeTab === "audit" || tabOf(stateOf(p)) === activeTab;
     const matchesSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
 
-  const pendingCount = players?.filter(p => p.parental_consent_status === "pending").length ?? 0;
-  const grantedCount = players?.filter(p => p.parental_consent_status === "granted").length ?? 0;
-  const deniedCount = players?.filter(p => p.parental_consent_status === "denied").length ?? 0;
+  const pendingCount = players?.filter(p => tabOf(stateOf(p)) === "pending").length ?? 0;
+  // Aviso «N menores sin consentimiento»: solo los que de verdad no lo tienen (sin pedir, pendiente,
+  // caducado), no los que no se pudieron comprobar (revisión del PR #314).
+  const blockedCount = players?.filter(p => ["none", "pending", "expired"].includes(stateOf(p))).length ?? 0;
+  const grantedCount = players?.filter(p => tabOf(stateOf(p)) === "granted").length ?? 0;
+  const deniedCount = players?.filter(p => tabOf(stateOf(p)) === "denied").length ?? 0;
 
   const tabs = [
     { id: "pending" as const, label: t("parentalConsentPage.tabs.pending"), count: pendingCount, icon: <Clock size={14} /> },
@@ -607,12 +515,12 @@ export default function ParentalConsentPage() {
         )}
 
         {/* Warning banner for pending */}
-        {pendingCount > 0 && activeTab === "pending" && (
+        {blockedCount > 0 && activeTab === "pending" && (
           <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
             <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
             <div>
               <p className="text-xs font-display font-bold text-amber-400">
-                {t("parentalConsentPage.pendingWarning.title", { count: pendingCount })}
+                {t("parentalConsentPage.pendingWarning.title", { count: blockedCount })}
               </p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 {t("parentalConsentPage.pendingWarning.desc")}
@@ -655,7 +563,11 @@ export default function ParentalConsentPage() {
               </div>
             ) : (
               filteredPlayers.map(player => {
-                const cfg = statusConfig[player.parental_consent_status];
+                const st = statuses[player.id];
+                const state = stateOf(player);
+                const cfg = statusConfig[state];
+                const fmt = (iso?: string | null) =>
+                  iso ? new Date(iso).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" }) : "";
                 return (
                   <motion.div
                     key={player.id}
@@ -671,22 +583,22 @@ export default function ParentalConsentPage() {
                         <p className="text-sm font-display font-bold text-foreground">{player.name}</p>
                         <p className="text-[10px] text-muted-foreground">
                           {t("parentalConsentPage.list.ageYears", { age: player.age_years })}
-                          {player.birth_date && ` · ${new Date(player.birth_date).toLocaleDateString("es-ES")}`}
+                          {player.birth_date && ` · ${fmt(player.birth_date)}`}
                         </p>
-                        {player.parental_consent_guardian_name && (
+                        {(st?.guardianName || st?.guardianEmail) && (
                           <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {t("parentalConsentPage.list.guardian", { name: player.parental_consent_guardian_name })}
-                            {player.parental_consent_guardian_email && ` · ${player.parental_consent_guardian_email}`}
+                            {t("parentalConsentPage.list.guardian", { name: st?.guardianName ?? "" })}
+                            {st?.guardianEmail && ` · ${st.guardianEmail}`}
                           </p>
                         )}
-                        {player.parental_consent_granted_at && (
+                        {state === "verified" && st?.verifiedAt && (
                           <p className="text-[9px] text-muted-foreground">
-                            {t("parentalConsentPage.list.grantedOn", { date: new Date(player.parental_consent_granted_at).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" }) })}
+                            {t("parentalConsentPage.list.grantedOn", { date: fmt(st.verifiedAt) })}
                           </p>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5">
-                        {/* Status badge */}
+                        {/* Status badge: el estado REAL del servidor */}
                         <span className={`flex items-center gap-1 text-[9px] font-display font-bold uppercase px-2 py-1 rounded ${cfg.bg} ${cfg.color}`}>
                           {cfg.icon}
                           {t(cfg.label)}
@@ -696,31 +608,24 @@ export default function ParentalConsentPage() {
 
                     {/* Actions */}
                     <div className="flex gap-2 mt-3 pt-3 border-t border-border/20">
-                      {player.parental_consent_status === "pending" && (
+                      {(loadingStatuses && SUPABASE_CONFIGURED) ? null : state !== "verified" && state !== "unavailable" ? (
                         <button
-                          onClick={() => { setSelectedPlayer(player); setShowConsentForm(true); }}
+                          onClick={() => { setSelectedPlayer(player); setConsentAction("request"); }}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[10px] font-display font-semibold hover:bg-primary/20 transition-colors"
                         >
                           <Send size={12} />
-                          {t("parentalConsentPage.list.manageConsent")}
+                          {state === "pending" ? t("guardianConsent.actions.resend")
+                            : state === "none" ? t("guardianConsent.actions.request")
+                            : t("guardianConsent.actions.requestAgain")}
                         </button>
-                      )}
-                      {player.parental_consent_status === "granted" && (
+                      ) : null}
+                      {(state === "verified" || state === "pending") && (
                         <button
-                          onClick={() => { setSelectedPlayer(player); setShowConsentForm(true); }}
+                          onClick={() => { setSelectedPlayer(player); setConsentAction("withdraw"); }}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted text-muted-foreground text-[10px] font-display font-semibold hover:text-foreground transition-colors"
                         >
                           <UserX size={12} />
-                          {t("parentalConsentPage.list.revoke")}
-                        </button>
-                      )}
-                      {player.parental_consent_status === "denied" && (
-                        <button
-                          onClick={() => { setSelectedPlayer(player); setShowConsentForm(true); }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-[10px] font-display font-semibold hover:bg-primary/20 transition-colors"
-                        >
-                          <UserCheck size={12} />
-                          {t("parentalConsentPage.list.requestAgain")}
+                          {state === "verified" ? t("guardianConsent.actions.withdraw") : t("guardianConsent.actions.cancelRequest")}
                         </button>
                       )}
                       <button
@@ -776,14 +681,17 @@ export default function ParentalConsentPage() {
         )}
       </div>
 
-      {/* Consent Form Modal */}
+      {/* Pedir la firma al tutor / retirar (acciones reales en el servidor) */}
       <AnimatePresence>
-        {showConsentForm && selectedPlayer && (
-          <ConsentFormModal
+        {consentAction && selectedPlayer && (
+          <ConsentActionModal
             player={selectedPlayer}
-            onClose={() => { setShowConsentForm(false); setSelectedPlayer(null); }}
-            onSubmit={(data) => consentMutation.mutate(data)}
-            submitting={consentMutation.isPending}
+            status={statuses[selectedPlayer.id]}
+            action={consentAction}
+            onClose={closeModal}
+            onRequested={handleRequested}
+            onWithdraw={handleWithdraw}
+            withdrawing={withdraw.isPending}
           />
         )}
       </AnimatePresence>
