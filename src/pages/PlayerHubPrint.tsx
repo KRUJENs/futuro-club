@@ -22,6 +22,7 @@ import { maturityStatusKey, maturityConfidenceKey } from "@/lib/phv/playerMaturi
 import { phvGate, blockedAssessment } from "@/lib/phv/phvGate";
 import { usePhvGateText } from "@/components/phv/PhvGateNotice";
 import VsiGauge from "@/components/VsiGauge";
+import { coachEvalTier, type CoachEvalTier } from "@/services/real/metricsService";
 import { PUBLIC_HOST } from "@/lib/publicUrl";
 
 export default function PlayerHubPrint() {
@@ -92,11 +93,11 @@ export default function PlayerHubPrint() {
   const strengths = sortedMetrics.slice(0, 3);
   const gaps = sortedMetrics.slice(-2).reverse();
 
-  // Tier badge
-  const tier = player.vsi >= 85 ? { label: t("playerHubPrint.tierElite"), color: "#3b82f6" } :
-               player.vsi >= 70 ? { label: t("playerHubPrint.tierPro"), color: "#a855f7" } :
-               player.vsi >= 50 ? { label: t("playerHubPrint.tierTalent"), color: "#f59e0b" } :
-               { label: t("playerHubPrint.tierDevelopment"), color: "#ef4444" };
+  // Tramo de la evaluación del entrenador: cortes ÚNICOS (coachEvalTier, P1 bloque 5b).
+  // Sin VSI de ficha no hay tramo (antes null >= 85 … caía en «Desarrollo»).
+  const TIER_HEX: Record<CoachEvalTier, string> = { elite: "#3b82f6", pro: "#a855f7", talent: "#f59e0b", develop: "#ef4444" };
+  const tierKey = player.vsi != null ? coachEvalTier(player.vsi) : null;
+  const tier = tierKey ? { label: t(`coachEval.tier.${tierKey}`), color: TIER_HEX[tierKey] } : null;
 
   return (
     <>
@@ -189,9 +190,11 @@ export default function PlayerHubPrint() {
                 {player.competitiveLevel && <Stat label={t("playerHubPrint.statLevel")} value={player.competitiveLevel} />}
               </div>
               <div style={{ marginTop: 20, display: "flex", gap: 8 }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, background: tier.color, color: "white", fontSize: 11, fontWeight: 800, letterSpacing: "0.08em" }}>
-                  {tier.label}
-                </span>
+                {tier && (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, background: tier.color, color: "white", fontSize: 11, fontWeight: 800, letterSpacing: "0.08em" }}>
+                    {tier.label}
+                  </span>
+                )}
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 6, background: phvColor, color: "white", fontSize: 11, fontWeight: 700 }}>
                   {phvLabel}
                 </span>
@@ -199,8 +202,10 @@ export default function PlayerHubPrint() {
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               <VsiGauge value={player.vsi} size="xl" showTier />
+              {/* Rótulo honesto (P1 bloque 5b): son las 6 barras del entrenador, no un
+                  «VITAS Score Index» del sistema. */}
               <div style={{ fontSize: 9, color: "#64748b", marginTop: 8, textTransform: "uppercase", letterSpacing: "0.15em", fontWeight: 700 }}>
-                VITAS Score Index
+                {t("coachEval.label")}
               </div>
             </div>
           </div>
@@ -275,7 +280,8 @@ export default function PlayerHubPrint() {
               <span style={{ fontSize: 10, color: "#64748b" }}>· {t("playerHubPrint.advancedAnalysis")}</span>
             </div>
             <div style={{ fontSize: 10, color: "#64748b" }}>
-              VSI <strong style={{ color: "#0f172a", fontVariantNumeric: "tabular-nums" }}>{player.vsi}</strong>
+              {t("coachEval.short")}{" "}
+              <strong style={{ color: "#0f172a", fontVariantNumeric: "tabular-nums" }}>{player.vsi ?? t("common.notEvaluated")}</strong>
             </div>
           </div>
 

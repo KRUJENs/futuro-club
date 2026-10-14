@@ -20,6 +20,8 @@ import {
 import { PlayerService } from "@/services/real/playerService";
 import { computeDashboardStats } from "@/services/real/adapters";
 import { percentilesAmong } from "@/lib/metrics/percentile";
+import { coachEvalTier, type CoachEvalTier } from "@/services/real/metricsService";
+import { COACH_EVAL_TIERS } from "../../config/coachEvaluation";
 import { gatedMaturity } from "@/lib/phv/phvGate";
 import { useTranslation } from "react-i18next";
 
@@ -37,12 +39,22 @@ const biasColors: Record<string, { bg: string; text: string; label: string }> = 
   high: { bg: "bg-destructive/20", text: "text-destructive", label: "HIGH BIAS ALERT" },
 };
 
-const VSI_TIERS = [
-  { label: "Elite", min: 80, color: "text-primary" },
-  { label: "High", min: 65, color: "text-gold" },
-  { label: "Medium", min: 50, color: "text-foreground" },
-  { label: "Developing", min: 0, color: "text-muted-foreground" },
-];
+// Tramos de la evaluación del entrenador: cortes ÚNICOS (config/coachEvaluation.ts vía
+// coachEvalTier, P1 bloque 5b). Antes 80/65/50 aquí y 85/70/50 en el indicador.
+const TIER_CLASS: Record<CoachEvalTier, string> = {
+  elite: "text-primary",
+  pro: "text-gold",
+  talent: "text-foreground",
+  develop: "text-muted-foreground",
+};
+
+/** «≥85», «70–84», «<50»: rango de cada tramo desde los cortes únicos. */
+function tierRange(i: number): string {
+  const { min } = COACH_EVAL_TIERS[i];
+  if (i === 0) return `≥${min}`;
+  const upper = COACH_EVAL_TIERS[i - 1].min - 1;
+  return min === 0 ? `<${upper + 1}` : `${min}–${upper}`;
+}
 
 const MasterDashboard = () => {
   const navigate = useNavigate();
@@ -99,12 +111,10 @@ const MasterDashboard = () => {
     // es "developing" (null < 50 daría true) — invariante #2. Se cuentan aparte,
     // así elite+high+medium+developing+unrated reconcilia con el total de plantilla.
     const ratedVsis = players.map((p) => p.vsi).filter((v): v is number => v != null);
-    const elite = ratedVsis.filter((v) => v >= 80).length;
-    const high = ratedVsis.filter((v) => v >= 65 && v < 80).length;
-    const medium = ratedVsis.filter((v) => v >= 50 && v < 65).length;
-    const developing = ratedVsis.filter((v) => v < 50).length;
+    const counts: Record<CoachEvalTier, number> = { elite: 0, pro: 0, talent: 0, develop: 0 };
+    for (const v of ratedVsis) counts[coachEvalTier(v)] += 1;
     const unrated = players.length - ratedVsis.length;
-    return { elite, high, medium, developing, unrated };
+    return { counts, unrated };
   }, [players]);
 
   // Position distribution
@@ -241,22 +251,14 @@ const MasterDashboard = () => {
                   {t("master.vsiDistribution")}
                 </h3>
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-display text-primary">Elite (≥80)</span>
-                    <span className="font-display font-bold text-sm text-primary">{vsiTiers.elite}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-display text-gold">High (65–79)</span>
-                    <span className="font-display font-bold text-sm text-gold">{vsiTiers.high}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-display text-foreground">Medium (50–64)</span>
-                    <span className="font-display font-bold text-sm text-foreground">{vsiTiers.medium}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-display text-muted-foreground">Developing (&lt;50)</span>
-                    <span className="font-display font-bold text-sm text-muted-foreground">{vsiTiers.developing}</span>
-                  </div>
+                  {COACH_EVAL_TIERS.map(({ tier }, i) => (
+                    <div key={tier} className="flex items-center justify-between">
+                      <span className={`text-xs font-display ${TIER_CLASS[tier]}`}>
+                        {t(`coachEval.tier.${tier}`)} ({tierRange(i)})
+                      </span>
+                      <span className={`font-display font-bold text-sm ${TIER_CLASS[tier]}`}>{vsiTiers.counts[tier]}</span>
+                    </div>
+                  ))}
                   {vsiTiers.unrated > 0 && (
                     <div className="flex items-center justify-between border-t border-border/40 pt-2 mt-1">
                       <span className="text-xs font-display text-muted-foreground/70">{t("common.notEvaluated")}</span>
@@ -380,11 +382,13 @@ const MasterDashboard = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-display font-bold text-xl text-foreground">
-                              {report.vsi != null ? report.vsi.toFixed(1) : "—"}
-                            </p>
+                            {report.vsi != null ? (
+                              <p className="font-display font-bold text-xl text-foreground">{report.vsi.toFixed(1)}</p>
+                            ) : (
+                              <p className="font-display font-semibold text-xs text-muted-foreground">{t("common.notEvaluated")}</p>
+                            )}
                             <p className="text-[9px] font-display uppercase tracking-wider text-muted-foreground">
-                              VSI Score
+                              {t("coachEval.label")}
                             </p>
                           </div>
                         </div>

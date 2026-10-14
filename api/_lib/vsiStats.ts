@@ -14,6 +14,9 @@
  * en la media, bajándola con jugadores nunca evaluados.
  */
 
+import { coachEvalTier } from "../../src/services/real/metricsService";
+import { COACH_EVAL_TIERS } from "../../config/coachEvaluation";
+
 /** VSI tal como llega de supabase: `numeric` puede venir como number o string. */
 export type RawVsi = number | string | null | undefined;
 
@@ -59,20 +62,22 @@ export function avgEvaluatedVsi(
 }
 
 /**
- * Nº de jugadores élite: evaluados con VSI ≥ umbral. Un jugador SIN evaluar
- * NO es élite (se excluye; no se cuenta como 0 < umbral ni infla denominadores).
+ * Nº de jugadores en el tramo «Élite» de la evaluación del entrenador: los cortes
+ * ÚNICOS de coachEvalTier (config/coachEvaluation.ts; P1 bloque 5b — antes aquí
+ * «élite» era ≥70 y en la ficha ≥85). Un jugador SIN evaluar NO es élite (se excluye;
+ * no se cuenta como 0 ni infla denominadores).
  */
-export function countElite(
-  players: ReadonlyArray<{ vsi: RawVsi }>,
-  threshold = 70,
-): number {
+export function countElite(players: ReadonlyArray<{ vsi: RawVsi }>): number {
   let n = 0;
   for (const p of players) {
     const v = toVsi(p.vsi);
-    if (v !== null && v >= threshold) n += 1;
+    if (v !== null && coachEvalTier(v) === "elite") n += 1;
   }
   return n;
 }
+
+/** Mínimo del tramo «Élite» (para rotularlo en textos: «≥85»). */
+export const ELITE_MIN = COACH_EVAL_TIERS[0].min;
 
 /**
  * Comparador para ordenar por VSI descendente con los NO evaluados (null)

@@ -117,9 +117,9 @@ function VSIPreview({ metrics }: { metrics: FormValues["metrics"] }) {
   const label = MetricsService.classifyVSI(vsi);
   const labelColors: Record<string, string> = {
     elite: "text-primary",
-    high: "text-electric",
-    medium: "text-gold",
-    developing: "text-muted-foreground",
+    pro: "text-electric",
+    talent: "text-gold",
+    develop: "text-muted-foreground",
   };
   return (
     <div className="glass rounded-xl p-4 flex items-center justify-between">
@@ -129,7 +129,7 @@ function VSIPreview({ metrics }: { metrics: FormValues["metrics"] }) {
         </p>
         <div className="flex items-baseline gap-2 mt-0.5">
           <span className={`font-display font-bold text-3xl ${labelColors[label]}`}>{vsi}</span>
-          <span className={`text-xs font-display font-semibold uppercase ${labelColors[label]}`}>{label}</span>
+          <span className={`text-xs font-display font-semibold uppercase ${labelColors[label]}`}>{t(`coachEval.tier.${label}`)}</span>
         </div>
       </div>
       <div className="w-16 h-16">

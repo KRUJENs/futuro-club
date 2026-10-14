@@ -101,6 +101,16 @@ beforeEach(() => {
   anthroRow = null;
 });
 
+describe("computeVsi · tramo del VSI de ficha guardado", () => {
+  it("P1 bloque 5b: tramo con los cortes ÚNICOS (85/70/50), no 85/70/55", async () => {
+    const { computeVsi } = await import("../baseline-analysis");
+    expect(computeVsi({ storedVsi: 52 }).tier).toBe("talent"); // antes «develop» (<55)
+    expect(computeVsi({ storedVsi: 70 }).tier).toBe("pro");
+    expect(computeVsi({ storedVsi: 85 }).tier).toBe("elite");
+    expect(computeVsi({ storedVsi: 49.9 }).tier).toBe("develop");
+  });
+});
+
 describe("phvBlock · el prompt solo afirma PHV con fila fiable", () => {
   it("bloqueado ⇒ «NO DISPONIBLE» + motivo y prohibición de afirmar maduración", async () => {
     const { phvBlock } = await import("../baseline-analysis");

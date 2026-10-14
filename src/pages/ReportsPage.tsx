@@ -5,6 +5,7 @@
  */
 
 import { useState } from "react";
+import { coachEvalInline } from "@/lib/metrics/coachEval";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Play, Search, Video, Upload, Zap, Clock, Trash2, ChevronDown, Brain } from "lucide-react";
@@ -198,7 +199,7 @@ const ReportsPage = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-display font-medium text-foreground truncate">{p.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{p.position} · VSI {p.vsi ?? "—"}</p>
+                          <p className="text-[10px] text-muted-foreground">{p.position} · {coachEvalInline(t, p.vsi)}</p>
                         </div>
                         <Zap size={10} className="text-primary shrink-0" />
                       </button>

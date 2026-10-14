@@ -240,8 +240,10 @@ describe("PlayerComparison · sin bonus PHV fijo y con el motivo del gate", () =
     expect(body).toContain(`${GATE_UNAVAILABLE} · maturity.gate.missing[`);
     expect(body).not.toContain("compare.phvLate");
     expect(body).not.toContain("playerComparison.maturationLate");
-    // Ganador = Samu (VSI 67.4 > 60): 67.4 × 0.95 = 64.0 (antes 69.0 con el +5).
-    expect(body).toContain("64.0%");
+    // P1 bloque 5b: ya no hay «probabilidad de llegar a élite en 36 meses» (era VSI × 0,95:
+    // 64.0% para Samu, antes 69.0% con el +5). Se compara la evaluación del entrenador.
+    expect(body).not.toContain("64.0%");
     expect(body).not.toContain("69.0%");
+    expect(body).toContain("playerComparison.coachEvalComparison");
   });
 });

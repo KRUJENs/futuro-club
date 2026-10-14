@@ -5,6 +5,7 @@
  * VSI, tipo de operación, precio, tags.
  */
 import { motion } from "framer-motion";
+import { coachEvalInline } from "@/lib/metrics/coachEval";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Euro, Calendar, MapPin, ChevronRight, BadgeCheck } from "lucide-react";
@@ -106,7 +107,7 @@ export function ListingCard({ listing, matchScore }: Props) {
             </Badge>
             {snap.vsi != null && (
               <Badge variant="outline" className="text-[10px] bg-cyan-500/10 text-cyan-300 border-cyan-500/30">
-                VSI {Math.round(snap.vsi)}
+                {coachEvalInline(t, snap.vsi)}
               </Badge>
             )}
             {/* PHV solo si el servidor lo marcó fiable (gate único · regla del owner). */}

@@ -51,7 +51,7 @@ interface AnalysisData {
     vsi?: number;
     tier?: string;
     tierLabel?: string;
-    /** Procedencia honesta (pipeline): fracción de sub-scores realmente medidos. */
+    /** Procedencia honesta (pipeline): fracción de sub-scores con procedencia real. */
     measuredFraction?: number;
     partiallyEstimated?: boolean;
     /** G4: compuesto BLOQUEADO (vsi:null) porque <4/5 dimensiones tienen procedencia real. */
@@ -231,7 +231,14 @@ export function AnalysisDashboard({ analysisId, shareToken, onLoaded }: Props) {
   }
 
   const vsi = analysis.vsi?.vsi ?? null;
-  const tier = analysis.vsi?.tierLabel ?? null;
+  // Análisis base (sin vídeo): su VSI es la EVALUACIÓN DEL ENTRENADOR (6 barras), no un
+  // VSI de vídeo; se rotula como tal y su tramo es el único traducido (P1 bloque 5b). El
+  // análisis base guarda un video_id centinela «baseline-…» (api/players/baseline-analysis.ts).
+  const isCoachEvaluation = typeof analysis.video_id === "string" && analysis.video_id.startsWith("baseline-");
+  const tierKey = analysis.vsi?.tier;
+  const tier = isCoachEvaluation && tierKey && (["elite", "pro", "talent", "develop"] as string[]).includes(tierKey)
+    ? t(`coachEval.tier.${tierKey}`)
+    : analysis.vsi?.tierLabel ?? null;
   const activeReport = reports.find((r) => r.report_type === activeTab);
   const ActiveIcon = activeReport ? REPORT_META[activeReport.report_type]?.Icon ?? Brain : Brain;
 
@@ -244,11 +251,17 @@ export function AnalysisDashboard({ analysisId, shareToken, onLoaded }: Props) {
         className="glass rounded-2xl p-5 text-center bg-gradient-to-br from-primary/15 via-electric/10 to-transparent border border-primary/20"
       >
         <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-1">
-          VSI Score
+          {isCoachEvaluation ? t("coachEval.label") : "VSI"}
         </div>
-        <div className="font-display font-bold text-5xl text-foreground leading-none">
-          {vsi ?? "—"}
-        </div>
+        {vsi !== null ? (
+          <div className="font-display font-bold text-5xl text-foreground leading-none">{vsi}</div>
+        ) : (
+          // Sin número: se nombra el hueco (nunca «—»); si está bloqueado, el motivo va debajo.
+          <div className="font-display font-semibold text-sm text-muted-foreground">{t("common.notEvaluated")}</div>
+        )}
+        {isCoachEvaluation && vsi !== null && (
+          <div className="text-[10px] mt-1 text-muted-foreground">{t("coachEval.hint")}</div>
+        )}
         {tier && (
           <div className="text-[11px] mt-1.5 text-muted-foreground">
             {t("analysisDashboard.tierLabel")} <span className="text-foreground font-semibold">{tier}</span>

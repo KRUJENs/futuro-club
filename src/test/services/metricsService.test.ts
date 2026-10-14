@@ -3,7 +3,8 @@
  * Verifica: VSI calculation, percentile, trend, classify, normalization
  */
 import { describe, it, expect } from "vitest";
-import { MetricsService } from "@/services/real/metricsService";
+import { coachEvalTier, MetricsService } from "@/services/real/metricsService";
+import { COACH_EVAL_TIERS, COACH_EVAL_TIERS_SOURCE } from "../../../config/coachEvaluation";
 
 // ── VSI Weights: speed 0.18, technique 0.22, vision 0.20, stamina 0.15, shooting 0.13, defending 0.12
 
@@ -67,25 +68,33 @@ describe("MetricsService", () => {
     expect((MetricsService as Record<string, unknown>).getVSIResult).toBeUndefined();
   });
 
-  describe("classifyVSI", () => {
-    it("elite >= 80", () => {
-      expect(MetricsService.classifyVSI(80)).toBe("elite");
-      expect(MetricsService.classifyVSI(99)).toBe("elite");
+  // P1 bloque 5b: un solo juego de cortes (config/coachEvaluation.ts, 85/70/50). Antes
+  // classifyVSI usaba 80/65/50 y el indicador 85/70/50: el mismo niño era «Élite» en una
+  // pantalla y «Pro» en otra.
+  describe("classifyVSI / coachEvalTier (cortes únicos)", () => {
+    it("elite >= 85", () => {
+      expect(MetricsService.classifyVSI(85)).toBe("elite");
+      expect(coachEvalTier(99)).toBe("elite");
+      expect(coachEvalTier(84.9)).toBe("pro");
     });
 
-    it("high >= 65 y < 80", () => {
-      expect(MetricsService.classifyVSI(65)).toBe("high");
-      expect(MetricsService.classifyVSI(79)).toBe("high");
+    it("pro >= 70 y < 85", () => {
+      expect(coachEvalTier(70)).toBe("pro");
+      expect(coachEvalTier(69.9)).toBe("talent");
     });
 
-    it("medium >= 50 y < 65", () => {
-      expect(MetricsService.classifyVSI(50)).toBe("medium");
-      expect(MetricsService.classifyVSI(64)).toBe("medium");
+    it("talent >= 50 y < 70", () => {
+      expect(coachEvalTier(50)).toBe("talent");
     });
 
-    it("developing < 50", () => {
-      expect(MetricsService.classifyVSI(49)).toBe("developing");
-      expect(MetricsService.classifyVSI(0)).toBe("developing");
+    it("develop < 50", () => {
+      expect(coachEvalTier(49.9)).toBe("develop");
+      expect(coachEvalTier(0)).toBe("develop");
+    });
+
+    it("los cortes salen de la config única con su procedencia", () => {
+      expect(COACH_EVAL_TIERS.map((x) => x.min)).toEqual([85, 70, 50, 0]);
+      expect(COACH_EVAL_TIERS_SOURCE).toBe("pendiente de validar");
     });
   });
 

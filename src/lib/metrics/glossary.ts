@@ -8,13 +8,19 @@ export interface GlossaryTerm {
   term: string;
   short: string;
   long: string;
+  /** Si existe, TermTooltip traduce term/short/long desde `<i18nKey>.term|short|long`
+   *  (7 idiomas); los textos de arriba son el respaldo en español. */
+  i18nKey?: string;
 }
 
 export const GLOSSARY: Record<string, GlossaryTerm> = {
+  // P1 bloque 5b: el VSI de ficha es la EVALUACIÓN DEL ENTRENADOR (6 barras subjetivas),
+  // no un «índice compuesto del rendimiento» medido por el sistema.
   vsi: {
-    term: "VSI",
-    short: "VITAS Scouting Index",
-    long: "Índice compuesto 0-100 del rendimiento del jugador (velocidad, técnica, visión, físico, tiro, defensa).",
+    term: "Evaluación del entrenador",
+    short: "VSI de ficha",
+    long: "Índice 0-100 que pondera las 6 barras que puntúa el entrenador (velocidad, técnica, visión, resistencia, tiro y defensa). Es una valoración subjetiva: no es una medida ni está corregida por maduración.",
+    i18nKey: "coachEval.glossary",
   },
   phv: {
     term: "PHV",

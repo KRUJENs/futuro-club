@@ -14,6 +14,7 @@
  */
 
 import { useEffect } from "react";
+import { coachEvalInline } from "@/lib/metrics/coachEval";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, Target, UserPlus, ChevronRight, Sparkles, Loader2 } from "lucide-react";
@@ -137,9 +138,7 @@ export default function IDPIndexPage() {
                           {p.position}
                         </Badge>
                         {p.age && <span>{t("idpIndexPage.years", { count: p.age })}</span>}
-                        {typeof p.vsi === "number" && (
-                          <span>· VSI {Math.round(p.vsi)}</span>
-                        )}
+                        <span>· {coachEvalInline(t, typeof p.vsi === "number" ? p.vsi : null)}</span>
                       </div>
                     </div>
                     <ChevronRight className="size-4 text-muted-foreground shrink-0" />

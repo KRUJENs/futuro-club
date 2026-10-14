@@ -274,7 +274,7 @@
       "activePlayersDesc": "Actieve academie",
       "drillsCompleted": "Voltooide drills",
       "drillsCompletedDesc": "Totaal historie",
-      "avgVsi": "Gemiddelde VSI",
+      "avgVsi": "Gem. beoordeling door de trainer",
       "avgVsiDesc": "Academie-index",
       "hiddenTalents": "Verborgen talenten",
       "hiddenTalentsDesc": "Laatrijp PHV + VSI<65"
@@ -341,7 +341,7 @@
       "competitiveLevel": "Niveau",
       "minutesPlayed": "Gespeelde minuten",
       "performanceMetrics": "Prestatiemetrics",
-      "vsiRealtime": "VSI in realtime berekend",
+      "vsiRealtime": "Beoordeling door de trainer (direct berekend)",
       "metricsConfirm": "Ik heb alle 6 dimensies beoordeeld: opslaan als beoordeling van de trainer",
       "metricsConfirmHint": "Zonder vinkje tellen de balken niet als beoordeling: de speler blijft ‘niet beoordeeld’ of houdt zijn laatste beoordeling.",
       "metricsConfirmRequired": "Je hebt balken verschoven: vink ‘Ik heb alle 6 dimensies beoordeeld’ aan om ze als beoordeling op te slaan, of laat ze zoals ze waren.",
@@ -469,9 +469,9 @@
     },
     "rankings": {
       "title": "Rankings",
-      "subtitle": "VSI gecorrigeerd voor biologische rijping",
+      "subtitle": "Op beoordeling door de trainer (subjectief)",
       "searchPlaceholder": "Speler zoeken…",
-      "sortVsi": "VSI",
+      "sortVsi": "Trainersbeoord.",
       "sortAge": "Leeftijd",
       "sortName": "Naam",
       "phvFilter": {
@@ -498,7 +498,7 @@
       "single_evaluation": "Er is pas één gedateerde beoordeling: de verandering verschijnt bij de volgende",
       "legacy_undated": "De eerdere geschiedenis heeft geen datum of herkomst: de verandering wordt niet berekend",
       "same_instant": "De laatste twee beoordelingen hebben dezelfde datum: de verandering wordt niet berekend",
-      "current_mismatch": "De huidige VSI komt niet overeen met de laatst geregistreerde beoordeling: de verandering wordt niet berekend"
+      "current_mismatch": "De huidige beoordeling door de trainer komt niet overeen met de laatst geregistreerde: de verandering wordt niet berekend"
     }
   },
   "scout": {
@@ -537,7 +537,7 @@
     "viewVideo": "Video bekijken",
     "benchmark": "Benchmark",
     "vsiDelta": {
-      "label": "VSI-verandering",
+      "label": "Verandering in beoordeling door de trainer",
       "between": "Tussen {{from}} ({{fromValue}}) en {{to}} ({{toValue}})",
       "tooltip": "Berekend door VITAS tussen de laatste twee gedateerde beoordelingen van de trainer (niet door de AI geschreven)"
     },
@@ -690,8 +690,8 @@
   "master": {
     "activePlayers": "Actieve spelers",
     "hiddenTalents": "Verborgen talenten",
-    "avgVsi": "Gemiddelde VSI academie",
-    "vsiDistribution": "VSI-verdeling",
+    "avgVsi": "Gem. beoordeling door de trainer (academie)",
+    "vsiDistribution": "Beoordeling door de trainer per niveau",
     "positionDistribution": "Positieverdeling",
     "noData": "Geen data",
     "activeAnalysis": "Actieve analyse",
@@ -703,7 +703,7 @@
     "noPlayersFound": "Geen spelers gevonden",
     "lastUpdates": "Laatste updates",
     "noRecentActivity": "Geen recente activiteit",
-    "vsiUpdated": "VSI bijgewerkt",
+    "vsiUpdated": "Beoordeling door de trainer bijgewerkt",
     "playerRegistered": "Speler geregistreerd",
     "globalTalentDist": "Globale talentverdeling",
     "systemReliability": "Systeembetrouwbaarheid",
@@ -774,7 +774,7 @@
     "pushTapToActivate": "Tik om native meldingen te activeren",
     "notifTypes": "Meldingstypes",
     "notifLowPerformance": "Waarschuwing lage prestaties",
-    "notifLowPerformanceDesc": "VSI van de speler < 50",
+    "notifLowPerformanceDesc": "Beoordeling door de trainer < 50",
     "notifInactivity": "Herinnering bij inactiviteit",
     "notifInactivityDesc": "Speler 30+ dagen niet bijgewerkt",
     "notifPlanLimit": "Waarschuwing abonnementslimiet",
@@ -804,7 +804,7 @@
     "welcome": "Welkom bij VITAS.",
     "welcomeDesc": "Het sportintelligentieplatform voor scouts, trainers en voetbalacademies.",
     "features": {
-      "vsiAnalysis": "AI-analyse van spelers met VSI",
+      "vsiAnalysis": "AI-spelersanalyse en beoordeling door de trainer",
       "vaep": "VAEP · Echte waarde per actie",
       "phv": "PHV · Peak Height Velocity",
       "comparisons": "Vergelijkingen en rolprofielen"
@@ -910,7 +910,9 @@
     "confidence": "Betrouwbaarheid",
     "ageAdjusted": "Leeftijdsgecorrigeerd",
     "positionSpecificPhv": "PHV per positie",
-    "weightedSimilarity": "Gewogen gelijkenis"
+    "weightedSimilarity": "Gewogen gelijkenis",
+    "sprintNoData": "Geen gemeten sprints (gekalibreerde tracking nodig)",
+    "ubiNoData": "Geen index berekend (rijpingsgegevens en geboortedatum ontbreken)"
   },
   "intelligence": {
     "currentState": "Huidige staat",
@@ -1288,10 +1290,10 @@
     "severityLow": "Laag",
     "severityLowDesc": "Geen actie",
     "allCategories": "Alle categorieën",
-    "allCategoriesDesc": "Afwijking t.o.v. het globale VSI-gemiddelde",
+    "allCategoriesDesc": "Afwijking t.o.v. de gemiddelde beoordeling door de trainer",
     "badgePosition": "Positie",
     "badgeAge": "Leeftijd",
-    "categoryStats": "{{count}} spelers · Gemiddelde VSI: {{avgVsi}} · σ {{stddev}}",
+    "categoryStats": "{{count}} spelers · Gem. trainersbeoord.: {{avgVsi}} · σ {{stddev}}",
     "howToInterpret": "Hoe interpreteren?",
     "interpretHighRange": "(>10 pts)",
     "interpretHighDesc": "— De AI scoort deze categorie significant anders. Controleer prompts en criteria.",
@@ -1299,18 +1301,18 @@
     "interpretMediumDesc": "— Opvallende afwijking. Monitor de komende weken.",
     "interpretLowRange": "(<5 pts)",
     "interpretLowDesc": "— Binnen het normale bereik. Geen actie nodig.",
-    "positionChartTitle": "Gemiddelde VSI per positie",
+    "positionChartTitle": "Gem. beoordeling door de trainer per positie",
     "positionChartDesc": "Scoren aanvallers altijd hoger dan verdedigers?",
-    "ageChartTitle": "Gemiddelde VSI per leeftijdsgroep",
+    "ageChartTitle": "Gem. beoordeling door de trainer per leeftijdsgroep",
     "ageChartDesc": "Bevoordeelt de AI bepaalde leeftijdsgroepen?",
-    "seriesAvgVsi": "Gemiddelde VSI",
+    "seriesAvgVsi": "Gem. trainersbeoord.",
     "seriesPlayers": "Spelers",
     "seriesAnalyses": "Analyses",
     "statPlayers": "Spelers",
-    "statAvgVsi": "Gemiddelde VSI",
+    "statAvgVsi": "Gem. trainersbeoord.",
     "statStddev": "Standaarddeviatie σ",
     "statVsGlobal": "vs globaal",
-    "visibilityChartTitle": "VSI vs aantal video's",
+    "visibilityChartTitle": "Beoordeling door de trainer vs aantal video's",
     "visibilityChartDesc": "Meer video's = opgeblazen score? (zichtbaarheidsbias)",
     "correlationMsgHigh": "Verschil van {{diff}} pts tussen uitersten — mogelijke zichtbaarheidsbias",
     "correlationMsgMedium": "Verschil van {{diff}} pts — trend monitoren",
@@ -1318,7 +1320,7 @@
     "correlationLabel": "Correlatie: {{level}}",
     "visibilityDetailTitle": "Detail per datavolume",
     "playersCount": "{{count}} spelers",
-    "recencyChartTitle": "Tijdstrend van de VSI",
+    "recencyChartTitle": "Tijdstrend van de beoordeling door de trainer",
     "recencyChartDesc": "Stijgen/dalen de scores in de tijd? (prompt drift)",
     "recencyDetailTitle": "Maandelijks detail",
     "analysesCount": "{{count}} analyses",
@@ -1511,7 +1513,7 @@
     "summaryLowNote": "geen actie",
     "colCohort": "Cohort",
     "colPlayers": "Spelers",
-    "colAvgVsi": "Gemiddelde VSI",
+    "colAvgVsi": "Gem. trainersbeoord.",
     "colDeviation": "Afw. vs globaal",
     "colSeverity": "Ernst",
     "colVolume": "Volume",
@@ -1571,18 +1573,18 @@
     "badgeConsistentTitle": "Consistentie",
     "badgeConsistentDesc": "5 of meer rapporten gegenereerd",
     "badgeImprovingTitle": "Stijgend",
-    "badgeImprovingDesc": "De VSI is met 2 punten of meer gestegen tussen twee gedateerde beoordelingen",
-    "badgeEliteTitle": "Talent",
-    "badgeEliteDesc": "VSI bereikte 70+",
+    "badgeImprovingDesc": "De beoordeling door de trainer is met 2 punten of meer gestegen tussen twee gedateerde beoordelingen",
+    "badgeEliteTitle": "Pro-niveau",
+    "badgeEliteDesc": "De beoordeling door de trainer bereikte het Pro-niveau of hoger ({{min}}+)",
     "noReportsShareInfo": "Nog geen rapporten · genereer de eerste om te delen",
     "linkGenerationError": "De link kon niet worden gegenereerd",
-    "shareText": "Bekijk de vooruitgang van {{name}}! 🏆\n\nVSI: {{vsi}}{{delta}}\n{{unlockedCount}}/{{totalBadges}} prestaties ontgrendeld\n\nBekijk de volledige analyse:\n{{url}}\n\n_Gedeeld vanuit VITAS · Football Intelligence_",
+    "shareText": "Bekijk de vooruitgang van {{name}}! 🏆\n\nBeoordeling door de trainer: {{vsi}}{{delta}}\n{{unlockedCount}}/{{totalBadges}} prestaties ontgrendeld\n\nBekijk de volledige analyse:\n{{url}}\n\n_Gedeeld vanuit VITAS · Football Intelligence_",
     "shared": "Gedeeld",
     "whatsappCopied": "WhatsApp-tekst gekopieerd · plak in de familiegroep",
     "genericError": "Fout",
     "familyViewProgress": "Familieweergave · voortgang",
     "currentLevel": "Zijn/haar huidige niveau",
-    "outOf100VsiScore": "van 100 · VSI-score",
+    "outOf100VsiScore": "van 100 · beoordeling door de trainer",
     "vsiDeltaBetween": "tussen {{from}} en {{to}}",
     "shareDelta": " ({{arrow}} {{value}} pts tussen {{from}} en {{to}})",
     "phaseLabel": "Fase:",
@@ -1678,8 +1680,7 @@
     "unlockDescription": "Ontgrendel passes, duels, balveroveringen, scannen, heatmap, VAEP, velddekking, DrillScore en rolprofiel.",
     "analyzeInLab": "Analyseren in VITAS Lab",
     "uploadVideo": "Video uploaden",
-    "vsiGlobal": "Globale VSI",
-    "updatesRecorded": "{{count}} updates geregistreerd",
+    "updatesRecorded": "{{count}} beoordelingen met datum",
     "baseMetrics": "Basismetrics",
     "statsFromLastVideo": "Statistieken van de laatst geanalyseerde video op {{date}}",
     "statsTitle": "Statistieken — {{name}}",
@@ -1724,10 +1725,6 @@
     "phvLabelLate": "Post-PHV (geconsolideerd)",
     "phvLabelOntime": "In PHV (groeispurt bezig)",
     "phvLabelNone": "Geen PHV-data",
-    "tierElite": "ELITE",
-    "tierPro": "PRO",
-    "tierTalent": "TALENT",
-    "tierDevelopment": "ONTWIKKELING",
     "toolbarTitle": "VITAS · Afdrukweergave",
     "downloadPdfPrint": "PDF downloaden / Afdrukken",
     "close": "Sluiten",
@@ -2461,11 +2458,11 @@
   "shareCard": {
     "button": "Delen",
     "shareWhatsapp": "Delen via WhatsApp",
-    "text": "VITAS-profiel van {{name}} — VSI gecorrigeerd voor rijping (PHV).",
+    "text": "VITAS-profiel van {{name}} — beoordeling door de trainer.",
     "years": "jaar",
     "leftFooted": "linksbenig",
     "pending": "Analyse in afwachting — upload een wedstrijdvideo",
-    "tagline": "VSI gecorrigeerd voor biologische rijping (PHV)",
+    "tagline": "Beoordeling door de trainer · subjectief",
     "sampleBadge": "Voorbeeldgegevens · geen echte beoordeling"
   },
   "sprintBestCard": {
@@ -3355,7 +3352,7 @@
     "generated": "Gegenereerd",
     "technicalProfile": "Technisch profiel",
     "values": "Waarden",
-    "vsiEvolution": "VSI-evolutie",
+    "vsiEvolution": "Verloop van de beoordeling door de trainer",
     "vsiChange": "Verandering",
     "vsiDeltaBetween": "tussen {{from}} en {{to}}",
     "datedEvaluationsCount": "{{count}} gedateerde beoordelingen",
@@ -3385,7 +3382,7 @@
     "evolution": "Evolutie",
     "viewFull": "Volledig bekijken",
     "baselineError": "Fout bij genereren van baseline-rapport",
-    "reportsGenerated": "✓ {{count}}/6 rapporten gegenereerd · VSI {{vsi}}",
+    "reportsGenerated": "✓ {{count}}/6 rapporten gegenereerd · Trainersbeoord. {{vsi}}",
     "generateError": "Fout bij genereren van rapport",
     "playerNotFound": "Speler niet gevonden",
     "reportHistory": "Rapporthistorie",
@@ -3684,7 +3681,7 @@
     "analyzingSquad": "Claude analyseert de selectie…",
     "errorLabel": "Fout",
     "statSquad": "Selectie",
-    "statVsiAvg": "VSI gem.",
+    "statVsiAvg": "Trainersbeoord. gem.",
     "statReports": "Rapporten",
     "phvEarly": "🌱 Vóór groeispurt",
     "phvOntime": "🚀 In groeispurt",
@@ -4070,24 +4067,20 @@
     "share": "Delen",
     "metric": "Metric",
     "comparativeAnalysis": "Vergelijkende analyse",
-    "analysisComparing": "Vergelijking van",
-    "analysisAnd": "en",
-    "analysisBiasFilter": ", het biologische bias-filter geeft aan dat",
-    "analysisHigherCeiling": "een hoger ontwikkelplafond heeft. Zijn/haar rijpingsstatus",
     "maturationLate": "LAATRIJP",
     "maturationEarly": "VROEGRIJP",
     "maturationNormal": "NORMAAL",
-    "analysisModelProjects": "geeft aan dat het model een kans projecteert van",
-    "analysisEliteIn36": "om binnen 36 maanden eliteniveau te bereiken.",
-    "recommendation": "Aanbeveling",
-    "highPriorityTracking": "Hoge prioriteit · Opvolging aanbevolen",
     "viewFullProfile": "Volledig profiel bekijken",
     "referencePlayers": "Referentiespelers",
     "cosineSimilarity": "· cosinusgelijkenis vs pro-database",
     "viewFullReport": "Volledig rapport bekijken",
     "exportVitasCard": "VITAS Card exporteren",
     "generateCard": "Card genereren",
-    "engineActive": "ACTIEF"
+    "engineActive": "ACTIEF",
+    "coachEvalComparison": "Bij vergelijking van {{a}} en {{b}} op beoordeling door de trainer (subjectief) heeft {{winner}} de hoogste beoordeling.",
+    "winnerMaturation": "Rijping:",
+    "noComparableEval": "Beide spelers hebben een beoordeling door de trainer nodig om te vergelijken.",
+    "higherCoachEval": "Hoogste beoordeling door de trainer"
   },
   "positionRollup": {
     "title": "Waargenomen veelzijdigheid",
@@ -4325,7 +4318,7 @@
     "tacticalAnalysisDesc": "5 AI-rapporten · 9 kwadranten · geen video nodig",
     "yourPlayers": "Jouw spelers ({{count}})",
     "addFirstPlayer": "Voeg je eerste speler toe",
-    "playerMetrics": "VSI · PHV · AI-analyse",
+    "playerMetrics": "Beoordeling door de trainer · PHV · AI-analyse",
     "prePhv": "Pre-PHV",
     "postPhv": "Post-PHV",
     "inPhv": "In PHV",
@@ -5145,7 +5138,7 @@
   },
   "rankingsPage": {
     "demoNotice": "Je bekijkt voorbeeldgegevens (geladen met «Voorbeeldgegevens laden»). Dit zijn geen echte spelers.",
-    "vsiHint": "De VSI (VITAS Scouting Index) vat het potentieel van de speler samen in één getal van 0 tot 100."
+    "vsiHint": "De beoordeling door de trainer vat de 6 balken die de trainer invult samen in één getal van 0 tot 100. Het is subjectief: geen meting en geen voorspelling van potentieel."
   },
   "requirePermission": {
     "canCreatePlayers": "spelers aanmaken",
@@ -5259,7 +5252,7 @@
     "age": "Leeftijd",
     "min": "Min",
     "max": "Max",
-    "minVSI": "Minimale VSI",
+    "minVSI": "Minimale beoordeling door de trainer",
     "minVSIPlaceholder": "bijv. 65",
     "maxBudget": "Maximaal budget (€)",
     "maxBudgetPlaceholder": "bijv. 500000",
@@ -5267,7 +5260,7 @@
     "clear": "Wissen",
     "minAgeBadge": "≥{{age}}j",
     "maxAgeBadge": "≤{{age}}j",
-    "minVSIBadge": "VSI≥{{vsi}}",
+    "minVSIBadge": "Trainersbeoord. ≥{{vsi}}",
     "maxPriceBadge": "≤€{{price}}k"
   },
   "vitasLabOneClick": {
@@ -5282,7 +5275,7 @@
     "playerLabel": "Speler",
     "selectPlayerPlaceholder": "Speler selecteren...",
     "noPlayers": "Geen spelers geregistreerd",
-    "playerSummary": "VSI {{vsi}} · {{position}} · {{age}}j",
+    "playerSummary": "Trainersbeoord. {{vsi}} · {{position}} · {{age}}j",
     "videoLabel": "Video",
     "selectVideoPlaceholder": "Video selecteren of uploaden...",
     "uploadNewVideo": "Nieuwe video uploaden",
@@ -5368,7 +5361,7 @@
     "tileTeamAnalysisSub": "9 AI-kwadranten",
     "tileUploadVideoSub": "Video uploaden",
     "tileMyPlayers": "Mijn spelers",
-    "tileMyPlayersSub": "VSI-ranking",
+    "tileMyPlayersSub": "Op beoordeling door de trainer",
     "tileGenerateReport": "Rapport genereren",
     "tileGenerateReportSub": "AI-baseline",
     "loadDemoData": "Voorbeeldgegevens laden"
@@ -5383,7 +5376,7 @@
     "factorEngagement": "Engagement",
     "factorMotivation": "Motivatie",
     "factorOvertraining": "Overtrain.",
-    "factorVsiStagnation": "VSI-stag.",
+    "factorVsiStagnation": "Beoord. stagneert",
     "factorAttendance": "Aanwezigheid",
     "factorInjuries": "Blessures",
     "factorGrowthSpurt": "Groeispurt",
@@ -5549,10 +5542,6 @@
     "emptyFilter": "Geen spelers met het geselecteerde filter",
     "noAttendance": "geen registraties",
     "riskUnavailable": "risico niet berekend"
-  },
-  "vsiHistoryChart": {
-    "notEnoughData": "Er zijn minstens 2 VSI-registraties nodig om de evolutie te tonen",
-    "today": "Vandaag"
   },
   "weekPlannerView": {
     "noWeeklyPlan": "Geen weekplan beschikbaar",
@@ -5780,7 +5769,6 @@
   "playerReport": {
     "noContent": "Geen spelergegevens",
     "summary": "Managementsamenvatting",
-    "vsiScore": "VSI",
     "phvTitle": "Biologische rijping · PHV",
     "strengths": "Sterke punten",
     "areasToImprove": "Verbeterpunten",
@@ -6557,6 +6545,22 @@
       "not_evaluated": "Geen beoordeling door de trainer: geen percentiel",
       "insufficient_peers": "Geen percentiel: te weinig vergelijkbare beoordeelde spelers ({{count}} van {{min}})",
       "insufficient_short": "Geen percentiel ({{count}}/{{min}} vergelijkbare spelers)"
+    }
+  },
+  "coachEval": {
+    "label": "Beoordeling door de trainer",
+    "short": "Trainersbeoord.",
+    "hint": "Subjectieve beoordeling: index 0-100 van de 6 balken die de trainer invult. Het is geen meting en niet gecorrigeerd voor rijping.",
+    "tier": {
+      "elite": "Elite",
+      "pro": "Pro",
+      "talent": "Talent",
+      "develop": "In ontwikkeling"
+    },
+    "glossary": {
+      "term": "Beoordeling door de trainer",
+      "short": "Profiel-VSI",
+      "long": "Index 0-100 die de 6 balken weegt die de trainer invult (snelheid, techniek, inzicht, uithoudingsvermogen, schieten en verdedigen). Het is een subjectieve beoordeling: geen meting en niet gecorrigeerd voor rijping."
     }
   }
 }

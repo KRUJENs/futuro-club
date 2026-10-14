@@ -274,7 +274,7 @@
       "activePlayersDesc": "Active academy",
       "drillsCompleted": "Drills Completed",
       "drillsCompletedDesc": "Total history",
-      "avgVsi": "Average VSI",
+      "avgVsi": "Average coach evaluation",
       "avgVsiDesc": "Academy index",
       "hiddenTalents": "Hidden Talents",
       "hiddenTalentsDesc": "Late PHV + VSI<65"
@@ -341,7 +341,7 @@
       "competitiveLevel": "Level",
       "minutesPlayed": "Minutes played",
       "performanceMetrics": "Performance Metrics",
-      "vsiRealtime": "VSI Calculated in real time",
+      "vsiRealtime": "Coach evaluation (calculated as you go)",
       "metricsConfirm": "I have rated all 6 dimensions: save as a coach evaluation",
       "metricsConfirmHint": "If unchecked, the bars do not count as an evaluation: the player stays “not evaluated” or keeps their last evaluation.",
       "metricsConfirmRequired": "You moved some bars: tick “I have rated all 6 dimensions” to save them as an evaluation, or leave them as they were.",
@@ -469,9 +469,9 @@
     },
     "rankings": {
       "title": "Rankings",
-      "subtitle": "VSI adjusted by biological maturation",
+      "subtitle": "By coach evaluation (subjective rating)",
       "searchPlaceholder": "Search player…",
-      "sortVsi": "VSI",
+      "sortVsi": "Coach eval.",
       "sortAge": "Age",
       "sortName": "Name",
       "phvFilter": {
@@ -498,7 +498,7 @@
       "single_evaluation": "Only one dated evaluation so far: the change will appear with the next one",
       "legacy_undated": "The earlier history has no date or origin: the change is not calculated",
       "same_instant": "The last two evaluations share the same date: the change is not calculated",
-      "current_mismatch": "The current VSI does not match the last recorded evaluation: the change is not calculated"
+      "current_mismatch": "The current coach evaluation does not match the last recorded one: the change is not calculated"
     }
   },
   "scout": {
@@ -537,7 +537,7 @@
     "viewVideo": "View video",
     "benchmark": "Benchmark",
     "vsiDelta": {
-      "label": "VSI change",
+      "label": "Coach evaluation change",
       "between": "Between {{from}} ({{fromValue}}) and {{to}} ({{toValue}})",
       "tooltip": "Calculated by VITAS between the coach's last two dated evaluations (not written by the AI)"
     },
@@ -690,8 +690,8 @@
   "master": {
     "activePlayers": "Active Players",
     "hiddenTalents": "Hidden Talents",
-    "avgVsi": "Academy Average VSI",
-    "vsiDistribution": "VSI Distribution",
+    "avgVsi": "Academy average coach evaluation",
+    "vsiDistribution": "Coach evaluation by tier",
     "positionDistribution": "Position Distribution",
     "noData": "No data",
     "activeAnalysis": "Active Analysis",
@@ -703,7 +703,7 @@
     "noPlayersFound": "No players found",
     "lastUpdates": "Latest Updates",
     "noRecentActivity": "No recent activity",
-    "vsiUpdated": "VSI updated",
+    "vsiUpdated": "Coach evaluation updated",
     "playerRegistered": "Player registered",
     "globalTalentDist": "Global Talent Distribution",
     "systemReliability": "System Reliability",
@@ -774,7 +774,7 @@
     "pushTapToActivate": "Tap to activate native notifications",
     "notifTypes": "Notification types",
     "notifLowPerformance": "Low performance alert",
-    "notifLowPerformanceDesc": "Player VSI < 50",
+    "notifLowPerformanceDesc": "Coach evaluation < 50",
     "notifInactivity": "Inactivity reminder",
     "notifInactivityDesc": "Player not updated for 30+ days",
     "notifPlanLimit": "Plan limit alert",
@@ -804,7 +804,7 @@
     "welcome": "Welcome to VITAS.",
     "welcomeDesc": "The sports intelligence platform for scouts, coaches, and football academies.",
     "features": {
-      "vsiAnalysis": "AI player analysis with VSI",
+      "vsiAnalysis": "AI player analysis and coach evaluation",
       "vaep": "VAEP · Real Event Value",
       "phv": "PHV · Peak Height Velocity",
       "comparisons": "Comparisons and role profiles"
@@ -910,7 +910,9 @@
     "confidence": "Confidence",
     "ageAdjusted": "Age-adjusted",
     "positionSpecificPhv": "Position-specific PHV",
-    "weightedSimilarity": "Weighted similarity"
+    "weightedSimilarity": "Weighted similarity",
+    "sprintNoData": "No measured sprints (needs calibrated tracking)",
+    "ubiNoData": "No index calculated (missing maturation data and birth date)"
   },
   "intelligence": {
     "currentState": "Current State",
@@ -1288,10 +1290,10 @@
     "severityLow": "Low",
     "severityLowDesc": "No action",
     "allCategories": "All categories",
-    "allCategoriesDesc": "Deviation from the global VSI average",
+    "allCategoriesDesc": "Deviation from the overall average coach evaluation",
     "badgePosition": "Position",
     "badgeAge": "Age",
-    "categoryStats": "{{count}} players · Avg VSI: {{avgVsi}} · σ {{stddev}}",
+    "categoryStats": "{{count}} players · Avg coach eval.: {{avgVsi}} · σ {{stddev}}",
     "howToInterpret": "How to interpret?",
     "interpretHighRange": "(>10 pts)",
     "interpretHighDesc": "— The AI scores this category significantly differently. Review prompts and criteria.",
@@ -1299,18 +1301,18 @@
     "interpretMediumDesc": "— Notable deviation. Monitor over the coming weeks.",
     "interpretLowRange": "(<5 pts)",
     "interpretLowDesc": "— Within the normal range. No action required.",
-    "positionChartTitle": "Average VSI by position",
+    "positionChartTitle": "Average coach evaluation by position",
     "positionChartDesc": "Do forwards always score higher than defenders?",
-    "ageChartTitle": "Average VSI by age group",
+    "ageChartTitle": "Average coach evaluation by age group",
     "ageChartDesc": "Does the AI favor certain age groups?",
-    "seriesAvgVsi": "Avg VSI",
+    "seriesAvgVsi": "Avg coach eval.",
     "seriesPlayers": "Players",
     "seriesAnalyses": "Analyses",
     "statPlayers": "Players",
-    "statAvgVsi": "Avg VSI",
+    "statAvgVsi": "Avg coach eval.",
     "statStddev": "Deviation σ",
     "statVsGlobal": "vs Global",
-    "visibilityChartTitle": "VSI vs number of videos",
+    "visibilityChartTitle": "Coach evaluation vs number of videos",
     "visibilityChartDesc": "More videos = inflated score? (visibility bias)",
     "correlationMsgHigh": "Difference of {{diff}} pts between extremes — possible visibility bias",
     "correlationMsgMedium": "Difference of {{diff}} pts — monitor the trend",
@@ -1318,7 +1320,7 @@
     "correlationLabel": "Correlation: {{level}}",
     "visibilityDetailTitle": "Detail by data volume",
     "playersCount": "{{count}} players",
-    "recencyChartTitle": "VSI trend over time",
+    "recencyChartTitle": "Coach evaluation trend over time",
     "recencyChartDesc": "Are scores rising/falling over time? (prompt drift)",
     "recencyDetailTitle": "Monthly detail",
     "analysesCount": "{{count}} analyses",
@@ -1511,7 +1513,7 @@
     "summaryLowNote": "no action",
     "colCohort": "Cohort",
     "colPlayers": "Players",
-    "colAvgVsi": "Avg. VSI",
+    "colAvgVsi": "Avg coach eval.",
     "colDeviation": "Dev. vs global",
     "colSeverity": "Severity",
     "colVolume": "Volume",
@@ -1571,18 +1573,18 @@
     "badgeConsistentTitle": "Consistency",
     "badgeConsistentDesc": "5 or more reports generated",
     "badgeImprovingTitle": "Rising",
-    "badgeImprovingDesc": "The VSI has risen 2 or more points between two dated evaluations",
-    "badgeEliteTitle": "Talent",
-    "badgeEliteDesc": "VSI reached 70+",
+    "badgeImprovingDesc": "The coach evaluation has risen 2 or more points between two dated evaluations",
+    "badgeEliteTitle": "Pro tier",
+    "badgeEliteDesc": "The coach evaluation reached the Pro tier or higher ({{min}}+)",
     "noReportsShareInfo": "No reports yet · generate the first one to share",
     "linkGenerationError": "Could not generate link",
-    "shareText": "Check out {{name}}'s progress! 🏆\n\nVSI: {{vsi}}{{delta}}\n{{unlockedCount}}/{{totalBadges}} achievements unlocked\n\nView full analysis:\n{{url}}\n\n_Shared from VITAS · Football Intelligence_",
+    "shareText": "Check out {{name}}'s progress! 🏆\n\nCoach evaluation: {{vsi}}{{delta}}\n{{unlockedCount}}/{{totalBadges}} achievements unlocked\n\nView full analysis:\n{{url}}\n\n_Shared from VITAS · Football Intelligence_",
     "shared": "Shared",
     "whatsappCopied": "WhatsApp text copied · paste it in the family group",
     "genericError": "Error",
     "familyViewProgress": "Family view · progress",
     "currentLevel": "Their current level",
-    "outOf100VsiScore": "out of 100 · VSI Score",
+    "outOf100VsiScore": "out of 100 · coach evaluation",
     "vsiDeltaBetween": "between {{from}} and {{to}}",
     "shareDelta": " ({{arrow}} {{value}} pts between {{from}} and {{to}})",
     "phaseLabel": "Phase:",
@@ -1678,8 +1680,7 @@
     "unlockDescription": "Unlock passes, duels, recoveries, scanning, heatmap, VAEP, field coverage, DrillScore and role profile.",
     "analyzeInLab": "Analyze in VITAS Lab",
     "uploadVideo": "Upload video",
-    "vsiGlobal": "Global VSI",
-    "updatesRecorded": "{{count}} updates recorded",
+    "updatesRecorded": "{{count}} dated evaluations",
     "baseMetrics": "Base metrics",
     "statsFromLastVideo": "Stats from the last video analyzed on {{date}}",
     "statsTitle": "Stats — {{name}}",
@@ -1724,10 +1725,6 @@
     "phvLabelLate": "Post-PHV (consolidated)",
     "phvLabelOntime": "In PHV (growth spurt in progress)",
     "phvLabelNone": "No PHV data",
-    "tierElite": "ELITE",
-    "tierPro": "PRO",
-    "tierTalent": "TALENT",
-    "tierDevelopment": "DEVELOPMENT",
     "toolbarTitle": "VITAS · Print view",
     "downloadPdfPrint": "Download PDF / Print",
     "close": "Close",
@@ -2461,11 +2458,11 @@
   "shareCard": {
     "button": "Share",
     "shareWhatsapp": "Share on WhatsApp",
-    "text": "{{name}}'s VITAS card — VSI corrected for biological maturity (PHV).",
+    "text": "{{name}}'s VITAS card — coach evaluation.",
     "years": "yrs",
     "leftFooted": "left-footed",
     "pending": "Analysis pending — upload a match video",
-    "tagline": "VSI corrected for biological maturity (PHV)",
+    "tagline": "Coach evaluation · subjective rating",
     "sampleBadge": "Sample data · not a real assessment"
   },
   "sprintBestCard": {
@@ -3355,7 +3352,7 @@
     "generated": "Generated",
     "technicalProfile": "Technical Profile",
     "values": "Values",
-    "vsiEvolution": "VSI Evolution",
+    "vsiEvolution": "Coach evaluation over time",
     "vsiChange": "Change",
     "vsiDeltaBetween": "between {{from}} and {{to}}",
     "datedEvaluationsCount": "{{count}} dated evaluations",
@@ -3385,7 +3382,7 @@
     "evolution": "Evolution",
     "viewFull": "View Full",
     "baselineError": "Error generating baseline report",
-    "reportsGenerated": "✓ {{count}}/6 reports generated · VSI {{vsi}}",
+    "reportsGenerated": "✓ {{count}}/6 reports generated · Coach eval. {{vsi}}",
     "generateError": "Error generating report",
     "playerNotFound": "Player not found",
     "reportHistory": "Report History",
@@ -3684,7 +3681,7 @@
     "analyzingSquad": "Claude analyzing squad…",
     "errorLabel": "Error",
     "statSquad": "Squad",
-    "statVsiAvg": "VSI avg",
+    "statVsiAvg": "Avg coach eval.",
     "statReports": "Reports",
     "phvEarly": "🌱 Pre-spurt",
     "phvOntime": "🚀 In spurt",
@@ -4070,24 +4067,20 @@
     "share": "Share",
     "metric": "Metric",
     "comparativeAnalysis": "Comparative Analysis",
-    "analysisComparing": "Comparing",
-    "analysisAnd": "and",
-    "analysisBiasFilter": ", the biological bias filter indicates that",
-    "analysisHigherCeiling": "has a higher development ceiling. Their maturation status",
     "maturationLate": "LATE",
     "maturationEarly": "EARLY",
     "maturationNormal": "NORMAL",
-    "analysisModelProjects": "indicates that the model projects a",
-    "analysisEliteIn36": "probability of reaching elite level in 36 months.",
-    "recommendation": "Recommendation",
-    "highPriorityTracking": "High priority · Tracking recommended",
     "viewFullProfile": "View Full Profile",
     "referencePlayers": "Reference Players",
     "cosineSimilarity": "· cosine similarity vs pro base",
     "viewFullReport": "View full report",
     "exportVitasCard": "Export VITAS Card",
     "generateCard": "Generate card",
-    "engineActive": "ACTIVE"
+    "engineActive": "ACTIVE",
+    "coachEvalComparison": "Comparing {{a}} and {{b}} by coach evaluation (subjective rating), {{winner}} has the higher evaluation.",
+    "winnerMaturation": "Their maturation:",
+    "noComparableEval": "Both players need a coach evaluation to be compared.",
+    "higherCoachEval": "Higher coach evaluation"
   },
   "positionRollup": {
     "title": "Observed versatility",
@@ -4325,7 +4318,7 @@
     "tacticalAnalysisDesc": "5 AI reports · 9 quadrants · no video needed",
     "yourPlayers": "Your players ({{count}})",
     "addFirstPlayer": "Add your first player",
-    "playerMetrics": "VSI · PHV · AI analysis",
+    "playerMetrics": "Coach evaluation · PHV · AI analysis",
     "prePhv": "Pre-PHV",
     "postPhv": "Post-PHV",
     "inPhv": "In PHV",
@@ -5145,7 +5138,7 @@
   },
   "rankingsPage": {
     "demoNotice": "You're viewing example data (loaded with \"Load sample data\"). These are not real players.",
-    "vsiHint": "The VSI (VITAS Scouting Index) summarizes a player's potential in a single number from 0 to 100."
+    "vsiHint": "The coach evaluation summarises in one 0-100 number the 6 bars the coach scores. It is a subjective rating: not a measurement and not a prediction of potential."
   },
   "requirePermission": {
     "canCreatePlayers": "create players",
@@ -5259,7 +5252,7 @@
     "age": "Age",
     "min": "Min",
     "max": "Max",
-    "minVSI": "Minimum VSI",
+    "minVSI": "Minimum coach evaluation",
     "minVSIPlaceholder": "e.g. 65",
     "maxBudget": "Maximum budget (€)",
     "maxBudgetPlaceholder": "e.g. 500000",
@@ -5267,7 +5260,7 @@
     "clear": "Clear",
     "minAgeBadge": "≥{{age}}y",
     "maxAgeBadge": "≤{{age}}y",
-    "minVSIBadge": "VSI≥{{vsi}}",
+    "minVSIBadge": "Coach eval. ≥{{vsi}}",
     "maxPriceBadge": "≤€{{price}}k"
   },
   "vitasLabOneClick": {
@@ -5282,7 +5275,7 @@
     "playerLabel": "Player",
     "selectPlayerPlaceholder": "Select player...",
     "noPlayers": "No players registered",
-    "playerSummary": "VSI {{vsi}} · {{position}} · {{age}}y",
+    "playerSummary": "Coach eval. {{vsi}} · {{position}} · {{age}}y",
     "videoLabel": "Video",
     "selectVideoPlaceholder": "Select or upload video...",
     "uploadNewVideo": "Upload new video",
@@ -5368,7 +5361,7 @@
     "tileTeamAnalysisSub": "9 AI quadrants",
     "tileUploadVideoSub": "Upload video",
     "tileMyPlayers": "My players",
-    "tileMyPlayersSub": "VSI ranking",
+    "tileMyPlayersSub": "By coach evaluation",
     "tileGenerateReport": "Generate report",
     "tileGenerateReportSub": "AI baseline",
     "loadDemoData": "Load sample data"
@@ -5383,7 +5376,7 @@
     "factorEngagement": "Engagement",
     "factorMotivation": "Motivation",
     "factorOvertraining": "Overtraining",
-    "factorVsiStagnation": "VSI Stagn.",
+    "factorVsiStagnation": "Eval. stagnant",
     "factorAttendance": "Attendance",
     "factorInjuries": "Injuries",
     "factorGrowthSpurt": "Growth Spurt",
@@ -5549,10 +5542,6 @@
     "emptyFilter": "No players match the selected filter",
     "noAttendance": "no records",
     "riskUnavailable": "risk not calculated"
-  },
-  "vsiHistoryChart": {
-    "notEnoughData": "At least 2 VSI records are needed to show evolution",
-    "today": "Today"
   },
   "weekPlannerView": {
     "noWeeklyPlan": "No weekly plan available",
@@ -5780,7 +5769,6 @@
   "playerReport": {
     "noContent": "No player data",
     "summary": "Executive summary",
-    "vsiScore": "VSI",
     "phvTitle": "Biological maturation · PHV",
     "strengths": "Strengths",
     "areasToImprove": "Areas to improve",
@@ -6557,6 +6545,22 @@
       "not_evaluated": "No coach evaluation: no percentile",
       "insufficient_peers": "No percentile: not enough comparable evaluated players ({{count}} of {{min}})",
       "insufficient_short": "No percentile ({{count}}/{{min}} peers)"
+    }
+  },
+  "coachEval": {
+    "label": "Coach evaluation",
+    "short": "Coach eval.",
+    "hint": "Subjective rating: a 0-100 index of the 6 bars the coach scores. It is not a measurement and is not corrected for maturation.",
+    "tier": {
+      "elite": "Elite",
+      "pro": "Pro",
+      "talent": "Talent",
+      "develop": "Developing"
+    },
+    "glossary": {
+      "term": "Coach evaluation",
+      "short": "Profile VSI",
+      "long": "A 0-100 index weighting the 6 bars the coach scores (speed, technique, vision, stamina, shooting and defending). It is a subjective rating: not a measurement and not corrected for maturation."
     }
   }
 }

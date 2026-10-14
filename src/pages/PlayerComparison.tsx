@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
@@ -236,8 +236,19 @@ const PlayerComparison = () => {
   const phvTagA = phvTag(gateA);
   const phvTagB = phvTag(gateB);
 
-  // Métricas de comparación
-  const metrics = [
+  // Métricas de comparación: SOLO cifras reales (P1 bloque 5b). Antes, sin dato, se
+  // fabricaban desde las barras del entrenador: VAEP = f(técnica, visión), «sprints
+  // >25 km/h» = velocidad × 0,26 + 1 y UBI = VSI × 0,85. Sin dato ⇒ null + su motivo.
+  const metrics: Array<{
+    id: string;
+    name: string;
+    description: string;
+    icon: ReactNode;
+    getValueA: () => number | null;
+    getValueB: () => number | null;
+    noData: string;
+    format?: (v: number) => string;
+  }> = [
     {
       id: "vaep",
       name: t("compare.vaepPer90"),
@@ -245,10 +256,9 @@ const PlayerComparison = () => {
         ? t("compare.vaepRealDesc")
         : t("compare.vaepRegisterDesc"),
       icon: <TrendingUp size={18} className="text-primary" />,
-      getValueA: () => vaepA.vaep90 !== null ? vaepA.vaep90
-        : +(((playerA.stats.technique + playerA.stats.vision) / 200) * 0.9 + 0.1).toFixed(3),
-      getValueB: () => vaepB.vaep90 !== null ? vaepB.vaep90
-        : +(((playerB.stats.technique + playerB.stats.vision) / 200) * 0.9 + 0.1).toFixed(3),
+      getValueA: () => vaepA.vaep90,
+      getValueB: () => vaepB.vaep90,
+      noData: t("compare.vaepRegisterDesc"),
       format: (v: number) => v.toFixed(3),
     },
     {
@@ -256,8 +266,10 @@ const PlayerComparison = () => {
       name: t("compare.sprintCount"),
       description: t("compare.sprintDesc"),
       icon: <Zap size={18} className="text-gold" />,
-      getValueA: () => +(playerA.stats.speed * 0.26 + 1).toFixed(1),
-      getValueB: () => +(playerB.stats.speed * 0.26 + 1).toFixed(1),
+      // No hay ninguna fuente real de sprints >25 km/h por jugador en esta pantalla.
+      getValueA: () => null,
+      getValueB: () => null,
+      noData: t("compare.sprintNoData"),
       format: (v: number) => v.toFixed(1),
     },
     {
@@ -268,12 +280,9 @@ const PlayerComparison = () => {
       // Sin bonus PHV fijo (+5 / −3 por el phvCategory persistido): era un ajuste
       // de maduración paralelo al motor canónico (inv #7) y se aplicaba sin
       // medidas. La corrección por maduración vive SOLO en el factor gateado.
-      getValueA: () => advA?.ubi
-        ? Math.round(advA.ubi.ubi * 100)
-        : Math.round(playerA.vsi * 0.85),
-      getValueB: () => advB?.ubi
-        ? Math.round(advB.ubi.ubi * 100)
-        : Math.round(playerB.vsi * 0.85),
+      getValueA: () => (advA?.ubi ? Math.round(advA.ubi.ubi * 100) : null),
+      getValueB: () => (advB?.ubi ? Math.round(advB.ubi.ubi * 100) : null),
+      noData: t("compare.ubiNoData"),
     },
   ];
 
@@ -286,11 +295,12 @@ const PlayerComparison = () => {
     return isWinner ? t("compare.superior") : t("compare.below");
   };
 
-  // IA winner. Sin el +5 fijo por phvCategory "early" persistido (antes: todo
-  // pre-púber, con o sin medidas, sumaba 5 puntos de «probabilidad de élite»).
+  // «Ganador» = el de evaluación del entrenador más alta, y SOLO si ambos están
+  // evaluados (P1 bloque 5b). Antes: «el modelo proyecta un X% de llegar a élite en 36
+  // meses» con X = VSI × 0,95, y «mayor techo de desarrollo» por tener más VSI.
+  const bothEvaluated = typeof playerA.vsi === "number" && typeof playerB.vsi === "number";
   const aiWinner = playerA.vsi >= playerB.vsi ? playerA : playerB;
   const winnerGate = aiWinner === playerA ? gateA : gateB;
-  const probabilityElite = (aiWinner.vsi * 0.95).toFixed(1);
 
   // Informe REAL del ganador (el más reciente). Si no tiene análisis generado, la
   // exportación avisa y lleva a generarlo — nunca un informe fabricado (invariante #2).
@@ -506,9 +516,35 @@ const PlayerComparison = () => {
           {metrics.map((metric) => {
             const valA = metric.getValueA();
             const valB = metric.getValueB();
+            const fmt = metric.format || ((v: number) => String(v));
+            // Sin dato en algún lado no hay comparación: se dice por qué (nunca un 0).
+            if (valA === null || valB === null) {
+              return (
+                <div
+                  key={metric.id}
+                  className="grid grid-cols-[2fr_1fr_1fr_1fr] gap-4 px-6 py-5 border-b border-border last:border-b-0 items-center"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center">
+                      {metric.icon}
+                    </div>
+                    <div>
+                      <h4 className="font-display font-bold text-sm text-foreground">{metric.name}</h4>
+                      <p className="text-[10px] text-muted-foreground">{metric.description}</p>
+                    </div>
+                  </div>
+                  <div className="text-center text-sm font-display font-bold text-foreground">
+                    {valA !== null ? fmt(valA) : <span className="text-[10px] font-normal text-muted-foreground">{metric.noData}</span>}
+                  </div>
+                  <div />
+                  <div className="text-center text-sm font-display font-bold text-foreground">
+                    {valB !== null ? fmt(valB) : <span className="text-[10px] font-normal text-muted-foreground">{metric.noData}</span>}
+                  </div>
+                </div>
+              );
+            }
             const diff = +(valA - valB).toFixed(2);
             const aWins = valA >= valB;
-            const fmt = metric.format || ((v: number) => String(v));
 
             return (
               <div
@@ -577,11 +613,10 @@ const PlayerComparison = () => {
               </div>
               <h3 className="font-display font-bold text-lg text-foreground">{t("playerComparison.comparativeAnalysis")}</h3>
             </div>
+            {bothEvaluated ? (
             <p className="text-sm text-muted-foreground leading-relaxed">
-              {t("playerComparison.analysisComparing")}{" "}
-              <span className="font-semibold text-foreground">{playerA.name}</span> {t("playerComparison.analysisAnd")}{" "}
-              <span className="font-semibold text-foreground">{playerB.name}</span>{t("playerComparison.analysisBiasFilter")}{" "}
-              <span className="text-primary font-bold">{aiWinner.name}</span> {t("playerComparison.analysisHigherCeiling")}{" "}
+              {t("playerComparison.coachEvalComparison", { a: playerA.name, b: playerB.name, winner: aiWinner.name })}{" "}
+              {t("playerComparison.winnerMaturation")}{" "}
               <span className="font-bold text-foreground">
                 {!winnerGate.ok
                   ? phvGateText({ gate: winnerGate })
@@ -592,15 +627,17 @@ const PlayerComparison = () => {
                   : winnerGate.assessment.timing === "on_time"
                   ? t("playerComparison.maturationNormal")
                   : t("maturity.timing.unknown")}
-              </span>{" "}
-              {t("playerComparison.analysisModelProjects")}{" "}
-              <span className="text-primary font-bold">{probabilityElite}%</span> {t("playerComparison.analysisEliteIn36")}
+              </span>
             </p>
+            ) : (
+              <p className="text-sm text-muted-foreground leading-relaxed">{t("playerComparison.noComparableEval")}</p>
+            )}
           </div>
 
+          {bothEvaluated && (
           <div className="glass rounded-2xl p-6 flex flex-col items-center justify-center text-center">
             <span className="text-[10px] font-display font-semibold uppercase tracking-widest text-muted-foreground mb-3">
-              {t("playerComparison.recommendation")}
+              {t("playerComparison.higherCoachEval")}
             </span>
             <h2 className="font-display font-bold text-4xl text-electric leading-tight mb-1">
               {aiWinner.name.split(" ")[0].toUpperCase()}
@@ -608,9 +645,7 @@ const PlayerComparison = () => {
             <h2 className="font-display font-bold text-2xl text-electric leading-tight mb-3">
               {(aiWinner.name.split(" ")[1] ?? "").toUpperCase()}
             </h2>
-            <p className="text-[10px] font-display font-semibold uppercase tracking-widest text-muted-foreground mb-4">
-              {t("playerComparison.highPriorityTracking")}
-            </p>
+            <p className="text-[10px] text-muted-foreground mb-4">{t("coachEval.hint")}</p>
             <button
               onClick={() => navigate(`/players/${aiWinner.id}`)}
               className="w-full px-4 py-2.5 rounded-lg border border-border text-sm font-display font-bold text-foreground hover:bg-secondary transition-colors uppercase tracking-wider"
@@ -618,6 +653,7 @@ const PlayerComparison = () => {
               {t("playerComparison.viewFullProfile")}
             </button>
           </div>
+          )}
         </motion.div>
 
         {/* ── CLONES LADO A LADO ── */}

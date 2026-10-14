@@ -12,6 +12,7 @@
  */
 
 import { useState } from "react";
+import { coachEvalInline } from "@/lib/metrics/coachEval";
 import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -223,7 +224,7 @@ export default function VitasLabOneClick({
                 >
                   <span>{p.name}</span>
                   <span className="text-[10px] text-muted-foreground">
-                    {p.position} · VSI {p.vsi ?? "—"}
+                    {p.position} · {coachEvalInline(t, p.vsi)}
                   </span>
                 </button>
               ))}
@@ -235,7 +236,7 @@ export default function VitasLabOneClick({
             <div className="w-1.5 h-1.5 rounded-full bg-primary" />
             <span className="text-[10px] font-display text-primary">
               {t("vitasLabOneClick.playerSummary", {
-                vsi: selectedPlayer.vsi,
+                vsi: selectedPlayer.vsi ?? t("common.notEvaluated"),
                 position: selectedPlayer.position,
                 age: selectedPlayer.age,
               })}

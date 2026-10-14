@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from "react";
+import { coachEvalInline } from "@/lib/metrics/coachEval";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -335,7 +336,7 @@ export default function TeamPage() {
                       {p.name} <span className="text-muted-foreground font-normal">· {p.age}a · {p.position}{p.secondaryPositions && p.secondaryPositions.length > 0 ? ` / ${p.secondaryPositions.join(" / ")}` : ""}</span>
                     </p>
                     <p className="text-[10px] text-muted-foreground">
-                      VSI {p.vsi == null ? "—" : Number(p.vsi).toFixed(0)} {phvIcon(phv.category)}
+                      {coachEvalInline(t, p.vsi == null ? null : Number(p.vsi))} {phvIcon(phv.category)}
                       {phv.ok
                         ? ` · ${phv.category === "early" ? t("teamPage.prePhv") : phv.category === "late" ? t("teamPage.postPhv") : t("teamPage.inPhv")}`
                         : <span data-testid="phv-gate-notice"> · {phvGateText({ gate: phv })}</span>}

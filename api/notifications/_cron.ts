@@ -21,6 +21,7 @@ import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { RESEND_FROM } from "../_lib/email";
 import { env } from "../_lib/env";
+import { fichaVsiFromBlob } from "../../src/services/real/metricsService";
 
 interface PushSub {
   user_id: string;
@@ -144,40 +145,20 @@ export default withHandler(
       return dedupSet.has(`${userId}:${type}:${playerId ?? ""}`);
     }
 
-    // ─── VSI Weights (match MetricsService) ─────────────────────────────
-    const VSI_WEIGHTS: Record<string, number> = {
-      speed: 0.18, shooting: 0.13, vision: 0.20,
-      technique: 0.22, defending: 0.12, stamina: 0.15,
-    };
-
-    // ─── Trigger 1: Low VSI ─────────────────────────────────────────────
+    // ─── Trigger 1: evaluación del entrenador baja ──────────────────────
+    // P1 bloque 5b: el VSI de ficha es la EVALUACIÓN DEL ENTRENADOR (6 barras subjetivas)
+    // y se lee del valor guardado (calculateFichaVsi al guardar las barras, fuente única).
+    // Antes este cron copiaba los pesos y, si faltaba alguno, usaba una MEDIA SIMPLE: un
+    // segundo VSI distinto para el mismo niño (invariante #7). Sin evaluación, no avisa.
     for (const p of players) {
-      const m = p.data?.metrics ?? {};
-      const keys = Object.keys(m);
-      if (keys.length === 0) continue;
-
-      let vsi: number;
-      if (typeof p.data?.vsi === "number") {
-        vsi = p.data.vsi;
-      } else {
-        const hasWeights = keys.some(k => k in VSI_WEIGHTS);
-        if (hasWeights) {
-          let sum = 0;
-          for (const [k, w] of Object.entries(VSI_WEIGHTS)) {
-            if (k in m) sum += (m[k] as number) * w;
-          }
-          vsi = Math.round(sum);
-        } else {
-          const values = Object.values(m) as number[];
-          vsi = Math.round(values.reduce((a, b) => a + b, 0) / values.length);
-        }
-      }
+      const vsi = fichaVsiFromBlob(p.data);
+      if (vsi === null) continue;
 
       if (vsi < 50 && isEnabled(p.user_id, "rendimientoBajo") && !isDuplicate(p.user_id, "rendimientoBajo", p.data?.name)) {
         notifications.push({
           userId: p.user_id,
-          title: "Alerta de rendimiento",
-          body: `${p.data?.name ?? "Jugador"} tiene un VSI de ${vsi}. Revisa su perfil.`,
+          title: "Evaluación del entrenador baja",
+          body: `${p.data?.name ?? "Jugador"} tiene una evaluación del entrenador de ${Math.round(vsi)} (valoración subjetiva). Revisa su perfil.`,
           triggerType: "rendimientoBajo",
           playerId: p.data?.name,
           critical: vsi < 40,

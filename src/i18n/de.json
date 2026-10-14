@@ -274,7 +274,7 @@
       "activePlayersDesc": "Aktive Akademie",
       "drillsCompleted": "Abgeschlossene Drills",
       "drillsCompletedDesc": "Gesamtverlauf",
-      "avgVsi": "Durchschnittlicher VSI",
+      "avgVsi": "Durchschn. Trainerbewertung",
       "avgVsiDesc": "Akademie-Index",
       "hiddenTalents": "Versteckte Talente",
       "hiddenTalentsDesc": "Später PHV + VSI<65"
@@ -341,7 +341,7 @@
       "competitiveLevel": "Niveau",
       "minutesPlayed": "Gespielte Minuten",
       "performanceMetrics": "Leistungskennzahlen",
-      "vsiRealtime": "VSI in Echtzeit berechnet",
+      "vsiRealtime": "Trainerbewertung (wird sofort berechnet)",
       "metricsConfirm": "Ich habe alle 6 Dimensionen bewertet: als Trainerbewertung speichern",
       "metricsConfirmHint": "Ohne Häkchen zählen die Balken nicht als Bewertung: der Spieler bleibt „nicht bewertet“ oder behält seine letzte Bewertung.",
       "metricsConfirmRequired": "Du hast Balken verschoben: hake „Ich habe alle 6 Dimensionen bewertet“ an, um sie als Bewertung zu speichern, oder lass sie, wie sie waren.",
@@ -469,9 +469,9 @@
     },
     "rankings": {
       "title": "Rankings",
-      "subtitle": "VSI korrigiert nach biologischer Reifung",
+      "subtitle": "Nach Trainerbewertung (subjektive Einschätzung)",
       "searchPlaceholder": "Spieler suchen…",
-      "sortVsi": "VSI",
+      "sortVsi": "Trainerbew.",
       "sortAge": "Alter",
       "sortName": "Name",
       "phvFilter": {
@@ -498,7 +498,7 @@
       "single_evaluation": "Bisher nur eine datierte Bewertung: die Veränderung erscheint mit der nächsten",
       "legacy_undated": "Der frühere Verlauf hat weder Datum noch Herkunft: die Veränderung wird nicht berechnet",
       "same_instant": "Die letzten zwei Bewertungen haben dasselbe Datum: die Veränderung wird nicht berechnet",
-      "current_mismatch": "Der aktuelle VSI stimmt nicht mit der letzten erfassten Bewertung überein: die Veränderung wird nicht berechnet"
+      "current_mismatch": "Die aktuelle Trainerbewertung stimmt nicht mit der zuletzt erfassten überein: die Veränderung wird nicht berechnet"
     }
   },
   "scout": {
@@ -536,7 +536,7 @@
     "viewVideo": "Video ansehen",
     "benchmark": "Benchmark",
     "vsiDelta": {
-      "label": "VSI-Veränderung",
+      "label": "Veränderung der Trainerbewertung",
       "between": "Zwischen {{from}} ({{fromValue}}) und {{to}} ({{toValue}})",
       "tooltip": "Von VITAS zwischen den letzten zwei datierten Bewertungen des Trainers berechnet (nicht von der KI geschrieben)"
     },
@@ -689,8 +689,8 @@
   "master": {
     "activePlayers": "Aktive Spieler",
     "hiddenTalents": "Versteckte Talente",
-    "avgVsi": "Durchschnittlicher VSI der Akademie",
-    "vsiDistribution": "VSI-Verteilung",
+    "avgVsi": "Durchschn. Trainerbewertung der Akademie",
+    "vsiDistribution": "Trainerbewertung nach Stufe",
     "positionDistribution": "Positionsverteilung",
     "noData": "Keine Daten",
     "activeAnalysis": "Active Analysis",
@@ -702,7 +702,7 @@
     "noPlayersFound": "Keine Spieler gefunden",
     "lastUpdates": "Letzte Aktualisierungen",
     "noRecentActivity": "Keine aktuelle Aktivität",
-    "vsiUpdated": "VSI aktualisiert",
+    "vsiUpdated": "Trainerbewertung aktualisiert",
     "playerRegistered": "Spieler registriert",
     "globalTalentDist": "Global Talent Distribution",
     "systemReliability": "System Reliability",
@@ -773,7 +773,7 @@
     "pushTapToActivate": "Tippe, um native Benachrichtigungen zu aktivieren",
     "notifTypes": "Benachrichtigungstypen",
     "notifLowPerformance": "Warnung bei niedriger Leistung",
-    "notifLowPerformanceDesc": "VSI des Spielers < 50",
+    "notifLowPerformanceDesc": "Trainerbewertung < 50",
     "notifInactivity": "Inaktivitäts-Erinnerung",
     "notifInactivityDesc": "Spieler seit 30+ Tagen nicht aktualisiert",
     "notifPlanLimit": "Warnung bei Plan-Limit",
@@ -803,7 +803,7 @@
     "welcome": "Willkommen bei VITAS.",
     "welcomeDesc": "Die Sportintelligenz-Plattform für Scouts, Trainer und Fußballakademien.",
     "features": {
-      "vsiAnalysis": "KI-Analyse von Spielern mit VSI",
+      "vsiAnalysis": "KI-Spieleranalyse und Trainerbewertung",
       "vaep": "VAEP · Echter Wert pro Aktion",
       "phv": "PHV · Peak Height Velocity",
       "comparisons": "Vergleiche und Rollenprofile"
@@ -909,7 +909,9 @@
     "confidence": "Konfidenz",
     "ageAdjusted": "Alterskorrigiert",
     "positionSpecificPhv": "PHV nach Position",
-    "weightedSimilarity": "Gewichtete Ähnlichkeit"
+    "weightedSimilarity": "Gewichtete Ähnlichkeit",
+    "sprintNoData": "Keine gemessenen Sprints (kalibriertes Tracking nötig)",
+    "ubiNoData": "Kein Index berechnet (Reifungsdaten und Geburtsdatum fehlen)"
   },
   "intelligence": {
     "currentState": "Aktueller Zustand",
@@ -1287,10 +1289,10 @@
     "severityLow": "Niedrig",
     "severityLowDesc": "Keine Maßnahme",
     "allCategories": "Alle Kategorien",
-    "allCategoriesDesc": "Abweichung vom globalen VSI-Durchschnitt",
+    "allCategoriesDesc": "Abweichung von der durchschnittlichen Trainerbewertung",
     "badgePosition": "Position",
     "badgeAge": "Alter",
-    "categoryStats": "{{count}} Spieler · Durchschn. VSI: {{avgVsi}} · σ {{stddev}}",
+    "categoryStats": "{{count}} Spieler · Durchschn. Trainerbew.: {{avgVsi}} · σ {{stddev}}",
     "howToInterpret": "Wie interpretieren?",
     "interpretHighRange": "(>10 Pkt)",
     "interpretHighDesc": "— Die KI bewertet diese Kategorie deutlich anders. Prüfe Prompts und Kriterien.",
@@ -1298,18 +1300,18 @@
     "interpretMediumDesc": "— Merkliche Abweichung. Beobachte sie in den kommenden Wochen.",
     "interpretLowRange": "(<5 Pkt)",
     "interpretLowDesc": "— Im Normalbereich. Keine Maßnahme erforderlich.",
-    "positionChartTitle": "Durchschn. VSI nach Position",
+    "positionChartTitle": "Durchschn. Trainerbewertung nach Position",
     "positionChartDesc": "Punkten Stürmer immer höher als Verteidiger?",
-    "ageChartTitle": "Durchschn. VSI nach Altersgruppe",
+    "ageChartTitle": "Durchschn. Trainerbewertung nach Altersgruppe",
     "ageChartDesc": "Bevorzugt die KI bestimmte Altersgruppen?",
-    "seriesAvgVsi": "Durchschn. VSI",
+    "seriesAvgVsi": "Durchschn. Trainerbew.",
     "seriesPlayers": "Spieler",
     "seriesAnalyses": "Analysen",
     "statPlayers": "Spieler",
-    "statAvgVsi": "Durchschn. VSI",
+    "statAvgVsi": "Durchschn. Trainerbew.",
     "statStddev": "Abweichung σ",
     "statVsGlobal": "vs. Global",
-    "visibilityChartTitle": "VSI vs. Anzahl der Videos",
+    "visibilityChartTitle": "Trainerbewertung vs. Anzahl der Videos",
     "visibilityChartDesc": "Mehr Videos = aufgeblähter Score? (Sichtbarkeits-Bias)",
     "correlationMsgHigh": "Differenz von {{diff}} Pkt zwischen den Extremen — möglicher Sichtbarkeits-Bias",
     "correlationMsgMedium": "Differenz von {{diff}} Pkt — Trend beobachten",
@@ -1317,7 +1319,7 @@
     "correlationLabel": "Korrelation: {{level}}",
     "visibilityDetailTitle": "Detail nach Datenvolumen",
     "playersCount": "{{count}} Spieler",
-    "recencyChartTitle": "Zeitlicher Trend des VSI",
+    "recencyChartTitle": "Zeitlicher Trend der Trainerbewertung",
     "recencyChartDesc": "Steigen/fallen die Scores über die Zeit? (Prompt Drift)",
     "recencyDetailTitle": "Monatliches Detail",
     "analysesCount": "{{count}} Analysen",
@@ -1510,7 +1512,7 @@
     "summaryLowNote": "keine Maßnahme",
     "colCohort": "Kohorte",
     "colPlayers": "Spieler",
-    "colAvgVsi": "Durchschn. VSI",
+    "colAvgVsi": "Durchschn. Trainerbew.",
     "colDeviation": "Abw. vs. global",
     "colSeverity": "Schweregrad",
     "colVolume": "Volumen",
@@ -1570,18 +1572,18 @@
     "badgeConsistentTitle": "Beständigkeit",
     "badgeConsistentDesc": "5 oder mehr Berichte erstellt",
     "badgeImprovingTitle": "Aufsteigend",
-    "badgeImprovingDesc": "Der VSI ist zwischen zwei datierten Bewertungen um 2 oder mehr Punkte gestiegen",
-    "badgeEliteTitle": "Talent",
-    "badgeEliteDesc": "VSI hat 70+ erreicht",
+    "badgeImprovingDesc": "Die Trainerbewertung ist zwischen zwei datierten Bewertungen um 2 oder mehr Punkte gestiegen",
+    "badgeEliteTitle": "Profi-Stufe",
+    "badgeEliteDesc": "Die Trainerbewertung hat die Profi-Stufe oder höher erreicht ({{min}}+)",
     "noReportsShareInfo": "Noch keine Berichte · erstelle den ersten zum Teilen",
     "linkGenerationError": "Link konnte nicht generiert werden",
-    "shareText": "Schau dir den Fortschritt von {{name}} an! 🏆\n\nVSI: {{vsi}}{{delta}}\n{{unlockedCount}}/{{totalBadges}} Erfolge freigeschaltet\n\nVollständige Analyse ansehen:\n{{url}}\n\n_Geteilt über VITAS · Football Intelligence_",
+    "shareText": "Schau dir den Fortschritt von {{name}} an! 🏆\n\nTrainerbewertung: {{vsi}}{{delta}}\n{{unlockedCount}}/{{totalBadges}} Erfolge freigeschaltet\n\nVollständige Analyse ansehen:\n{{url}}\n\n_Geteilt über VITAS · Football Intelligence_",
     "shared": "Geteilt",
     "whatsappCopied": "WhatsApp-Text kopiert · füge ihn in die Familiengruppe ein",
     "genericError": "Fehler",
     "familyViewProgress": "Familienansicht · Fortschritt",
     "currentLevel": "Sein aktuelles Niveau",
-    "outOf100VsiScore": "von 100 · VSI Score",
+    "outOf100VsiScore": "von 100 · Trainerbewertung",
     "vsiDeltaBetween": "zwischen {{from}} und {{to}}",
     "shareDelta": " ({{arrow}} {{value}} Pkt zwischen {{from}} und {{to}})",
     "phaseLabel": "Phase:",
@@ -1677,8 +1679,7 @@
     "unlockDescription": "Schaltet Pässe, Zweikämpfe, Balleroberungen, Umblicken, Heatmap, VAEP, Feldabdeckung, DrillScore und Rollenprofil frei.",
     "analyzeInLab": "Im VITAS Lab analysieren",
     "uploadVideo": "Video hochladen",
-    "vsiGlobal": "VSI Gesamt",
-    "updatesRecorded": "{{count}} Aktualisierungen erfasst",
+    "updatesRecorded": "{{count}} datierte Bewertungen",
     "baseMetrics": "Basiskennzahlen",
     "statsFromLastVideo": "Statistiken aus dem letzten am {{date}} analysierten Video",
     "statsTitle": "Statistiken — {{name}}",
@@ -1723,10 +1724,6 @@
     "phvLabelLate": "Nach PHV (abgeschlossen)",
     "phvLabelOntime": "Im PHV (Wachstumsschub läuft)",
     "phvLabelNone": "Keine PHV-Daten",
-    "tierElite": "ELITE",
-    "tierPro": "PRO",
-    "tierTalent": "TALENT",
-    "tierDevelopment": "ENTWICKLUNG",
     "toolbarTitle": "VITAS · Druckansicht",
     "downloadPdfPrint": "PDF herunterladen / Drucken",
     "close": "Schließen",
@@ -2460,11 +2457,11 @@
   "shareCard": {
     "button": "Teilen",
     "shareWhatsapp": "Per WhatsApp teilen",
-    "text": "VITAS-Profil von {{name}} — VSI korrigiert nach Reifung (PHV).",
+    "text": "VITAS-Profil von {{name}} — Trainerbewertung.",
     "years": "Jahre",
     "leftFooted": "linksfüßig",
     "pending": "Analyse ausstehend — lade ein Spielvideo hoch",
-    "tagline": "VSI korrigiert nach biologischer Reifung (PHV)",
+    "tagline": "Trainerbewertung · subjektive Einschätzung",
     "sampleBadge": "Beispieldaten · keine echte Bewertung"
   },
   "sprintBestCard": {
@@ -3354,7 +3351,7 @@
     "generated": "Erstellt",
     "technicalProfile": "Technisches Profil",
     "values": "Werte",
-    "vsiEvolution": "VSI-Verlauf",
+    "vsiEvolution": "Verlauf der Trainerbewertung",
     "vsiChange": "Veränderung",
     "vsiDeltaBetween": "zwischen {{from}} und {{to}}",
     "datedEvaluationsCount": "{{count}} datierte Bewertungen",
@@ -3384,7 +3381,7 @@
     "evolution": "Verlauf",
     "viewFull": "Vollständig ansehen",
     "baselineError": "Fehler beim Erstellen des Baseline-Berichts",
-    "reportsGenerated": "✓ {{count}}/6 Berichte erstellt · VSI {{vsi}}",
+    "reportsGenerated": "✓ {{count}}/6 Berichte erstellt · Trainerbew. {{vsi}}",
     "generateError": "Fehler beim Erstellen des Berichts",
     "playerNotFound": "Spieler nicht gefunden",
     "reportHistory": "Berichtsverlauf",
@@ -3683,7 +3680,7 @@
     "analyzingSquad": "Claude analysiert den Kader…",
     "errorLabel": "Fehler",
     "statSquad": "Kader",
-    "statVsiAvg": "VSI Durchschn.",
+    "statVsiAvg": "Trainerbew. Durchschn.",
     "statReports": "Berichte",
     "phvEarly": "🌱 Vor dem Wachstumsschub",
     "phvOntime": "🚀 Im Wachstumsschub",
@@ -4069,24 +4066,20 @@
     "share": "Teilen",
     "metric": "Kennzahl",
     "comparativeAnalysis": "Vergleichsanalyse",
-    "analysisComparing": "Vergleich von",
-    "analysisAnd": "und",
-    "analysisBiasFilter": ", der biologische Bias-Filter zeigt, dass",
-    "analysisHigherCeiling": "ein höheres Entwicklungsmaximum hat. Sein Reifungsstatus",
     "maturationLate": "SPÄT",
     "maturationEarly": "FRÜH",
     "maturationNormal": "NORMAL",
-    "analysisModelProjects": "zeigt, dass das Modell eine Wahrscheinlichkeit von",
-    "analysisEliteIn36": "prognostiziert, in 36 Monaten Elite-Niveau zu erreichen.",
-    "recommendation": "Empfehlung",
-    "highPriorityTracking": "Hohe Priorität · Beobachtung empfohlen",
     "viewFullProfile": "Vollständiges Profil ansehen",
     "referencePlayers": "Referenzspieler",
     "cosineSimilarity": "· Kosinus-Ähnlichkeit vs. Profi-Basis",
     "viewFullReport": "Vollständigen Bericht ansehen",
     "exportVitasCard": "VITAS Card exportieren",
     "generateCard": "Karte generieren",
-    "engineActive": "AKTIV"
+    "engineActive": "AKTIV",
+    "coachEvalComparison": "Im Vergleich von {{a}} und {{b}} nach Trainerbewertung (subjektive Einschätzung) hat {{winner}} die höhere Bewertung.",
+    "winnerMaturation": "Reifung:",
+    "noComparableEval": "Beide Spieler brauchen eine Trainerbewertung, um verglichen zu werden.",
+    "higherCoachEval": "Höhere Trainerbewertung"
   },
   "positionRollup": {
     "title": "Beobachtete Vielseitigkeit",
@@ -4324,7 +4317,7 @@
     "tacticalAnalysisDesc": "5 KI-Reports · 9 Quadranten · ganz ohne Video",
     "yourPlayers": "Deine Spieler ({{count}})",
     "addFirstPlayer": "Füge deinen ersten Spieler hinzu",
-    "playerMetrics": "VSI · PHV · KI-Analyse",
+    "playerMetrics": "Trainerbewertung · PHV · KI-Analyse",
     "prePhv": "Vor PHV",
     "postPhv": "Nach PHV",
     "inPhv": "Im PHV",
@@ -5144,7 +5137,7 @@
   },
   "rankingsPage": {
     "demoNotice": "Du siehst Beispieldaten (geladen über «Beispieldaten laden»). Es sind keine echten Spieler.",
-    "vsiHint": "Der VSI (VITAS Scouting Index) fasst das Potenzial des Spielers in einer einzigen Zahl von 0 bis 100 zusammen."
+    "vsiHint": "Die Trainerbewertung fasst die 6 vom Trainer bewerteten Balken in einer Zahl von 0 bis 100 zusammen. Eine subjektive Einschätzung: keine Messung und keine Prognose des Potenzials."
   },
   "requirePermission": {
     "canCreatePlayers": "Spieler erstellen",
@@ -5258,7 +5251,7 @@
     "age": "Alter",
     "min": "Min",
     "max": "Max",
-    "minVSI": "Mindest-VSI",
+    "minVSI": "Mindest-Trainerbewertung",
     "minVSIPlaceholder": "z. B. 65",
     "maxBudget": "Maximales Budget (€)",
     "maxBudgetPlaceholder": "z. B. 500000",
@@ -5266,7 +5259,7 @@
     "clear": "Zurücksetzen",
     "minAgeBadge": "≥{{age}}J",
     "maxAgeBadge": "≤{{age}}J",
-    "minVSIBadge": "VSI≥{{vsi}}",
+    "minVSIBadge": "Trainerbew. ≥{{vsi}}",
     "maxPriceBadge": "≤{{price}}k€"
   },
   "vitasLabOneClick": {
@@ -5281,7 +5274,7 @@
     "playerLabel": "Spieler",
     "selectPlayerPlaceholder": "Spieler auswählen...",
     "noPlayers": "Keine Spieler erfasst",
-    "playerSummary": "VSI {{vsi}} · {{position}} · {{age}}J",
+    "playerSummary": "Trainerbew. {{vsi}} · {{position}} · {{age}}J",
     "videoLabel": "Video",
     "selectVideoPlaceholder": "Video auswählen oder hochladen...",
     "uploadNewVideo": "Neues Video hochladen",
@@ -5367,7 +5360,7 @@
     "tileTeamAnalysisSub": "9 KI-Quadranten",
     "tileUploadVideoSub": "Video hochladen",
     "tileMyPlayers": "Meine Spieler",
-    "tileMyPlayersSub": "VSI-Ranking",
+    "tileMyPlayersSub": "Nach Trainerbewertung",
     "tileGenerateReport": "Bericht erstellen",
     "tileGenerateReportSub": "KI-Baseline",
     "loadDemoData": "Beispieldaten laden"
@@ -5382,7 +5375,7 @@
     "factorEngagement": "Engagement",
     "factorMotivation": "Motivation",
     "factorOvertraining": "Übertraining",
-    "factorVsiStagnation": "VSI-Stagnation",
+    "factorVsiStagnation": "Bew. stagniert",
     "factorAttendance": "Anwesenheit",
     "factorInjuries": "Verletzungen",
     "factorGrowthSpurt": "Wachstumsschub",
@@ -5548,10 +5541,6 @@
     "emptyFilter": "Keine Spieler mit dem ausgewählten Filter",
     "noAttendance": "keine Einträge",
     "riskUnavailable": "Risiko nicht berechnet"
-  },
-  "vsiHistoryChart": {
-    "notEnoughData": "Für die Anzeige des Verlaufs sind mindestens 2 VSI-Einträge nötig",
-    "today": "Heute"
   },
   "weekPlannerView": {
     "noWeeklyPlan": "Kein Wochenplan verfügbar",
@@ -5779,7 +5768,6 @@
   "playerReport": {
     "noContent": "Keine Spielerdaten",
     "summary": "Kurzzusammenfassung",
-    "vsiScore": "VSI",
     "phvTitle": "Biologische Reifung · PHV",
     "strengths": "Stärken",
     "areasToImprove": "Verbesserungsfelder",
@@ -6556,6 +6544,22 @@
       "not_evaluated": "Keine Trainerbewertung: kein Perzentil",
       "insufficient_peers": "Kein Perzentil: zu wenige vergleichbare bewertete Spieler ({{count}} von {{min}})",
       "insufficient_short": "Kein Perzentil ({{count}}/{{min}} Vergleichsspieler)"
+    }
+  },
+  "coachEval": {
+    "label": "Trainerbewertung",
+    "short": "Trainerbew.",
+    "hint": "Subjektive Einschätzung: Index 0-100 aus den 6 Balken, die der Trainer bewertet. Keine Messung und nicht nach Reifung korrigiert.",
+    "tier": {
+      "elite": "Elite",
+      "pro": "Profi",
+      "talent": "Talent",
+      "develop": "In Entwicklung"
+    },
+    "glossary": {
+      "term": "Trainerbewertung",
+      "short": "Profil-VSI",
+      "long": "Index 0-100, der die 6 vom Trainer bewerteten Balken gewichtet (Schnelligkeit, Technik, Spielübersicht, Ausdauer, Schuss und Verteidigung). Eine subjektive Einschätzung: keine Messung und nicht nach Reifung korrigiert."
     }
   }
 }
