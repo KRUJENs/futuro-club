@@ -13,7 +13,8 @@ import type { Player } from "@/services/real/playerService";
 import { normalizeLocale, pickLocale, type ReportLocale } from "@/lib/shared/locale";
 import i18n from "@/i18n";
 import type { ValuationData } from "@/components/valuation/ValuationCard";
-import type { InjuryRiskData } from "@/components/injury/InjuryRiskCard";
+import type { InjuryRiskReport } from "@/lib/injury/injuryRiskTypes";
+import { mock } from "@/lib/metrics/MetricResult";
 
 const clamp = (n: number) => Math.max(2, Math.min(96, Math.round(n)));
 
@@ -53,50 +54,41 @@ export function buildDemoValuation(
   };
 }
 
+/**
+ * Riesgo de lesión de EJEMPLO (P1 bloque 4b): valores FIJOS con procedencia MOCK
+ * (la tarjeta los rotula «Datos de ejemplo» y la pestaña lleva el banner del demo).
+ * Antes salía de un HASH del id del jugador (prohibido incluso con banner,
+ * rules/metricas.md) y la ventana PHV se deducía de la EDAD (≤ 15), contra la regla
+ * de no usar PHV sin todas las medidas. Sin «apto para volver a jugar».
+ */
 export function buildDemoInjuryRisk(
   player: Player,
   locale: ReportLocale = normalizeLocale(i18n.language),
-): InjuryRiskData {
-  const seed = ([...player.id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) || 7) % 8;
-  const inWindow = player.age <= 15;
-  const overallRisk = clamp(20 + (inWindow ? 12 : 2) + seed);
-  const riskCategory = overallRisk < 25 ? "low" : overallRisk < 45 ? "moderate" : "high";
+): InjuryRiskReport {
+  const ex = (v: number) => mock(v, { confidence: 0, source_ref: "demo:ejemplo-fijo" });
+  const desc = pickLocale(locale, { es: "Dato de ejemplo (demo)", en: "Example data (demo)" });
   return {
     playerId: player.id,
-    overallRisk,
-    riskCategory,
-    riskFactors: [
-      {
-        factor: pickLocale(locale, { es: "Ventana de maduración (PHV)", en: "Maturation window (PHV)" }),
-        weight: 0.4,
-        score: inWindow ? 60 : 25,
-        description: pickLocale(locale, {
-          es: "Durante el estirón el riesgo de sobrecarga en tendones y cartílagos de crecimiento sube.",
-          en: "During the growth spurt, overload risk on tendons and growth plates rises.",
-        }),
-      },
-      {
-        factor: pickLocale(locale, { es: "Carga acumulada (ACWR)", en: "Accumulated load (ACWR)" }),
-        weight: 0.35,
-        score: 30,
-        description: pickLocale(locale, { es: "Sin serie de carga real en la demo.", en: "No real load series in the demo." }),
-      },
-      {
-        factor: pickLocale(locale, { es: "Historial de lesiones", en: "Injury history" }),
-        weight: 0.25,
-        score: 15,
-        description: pickLocale(locale, { es: "Sin lesiones registradas.", en: "No injuries logged." }),
-      },
+    // = (15·.30 + 50·.25 + 20·.12 + 25·.08 + 5·.15 + 30·.10) = 25 → «low» (coherente con los factores).
+    composite: ex(25),
+    category: "low",
+    coverage: 1,
+    factors: [
+      { factor: "acwr", weight: 0.3, applicable: true, result: ex(15), description: desc },
+      { factor: "phvWindow", weight: 0.25, applicable: true, result: ex(50), description: desc },
+      { factor: "asymmetry", weight: 0.12, applicable: true, result: ex(20), description: desc },
+      { factor: "biomechanics", weight: 0.08, applicable: true, result: ex(25), description: desc },
+      { factor: "injuryHistory", weight: 0.15, applicable: true, result: ex(5), description: desc },
+      { factor: "fatigue", weight: 0.1, applicable: true, result: ex(30), description: desc },
     ],
-    acuteChronicRatio: null,
-    phvRiskMultiplier: inWindow ? 1.2 : 1.0,
     recommendations: [
-      pickLocale(locale, { es: "Priorizar coordinación y técnica sobre fuerza máxima durante el estirón.", en: "Prioritise coordination and technique over max strength during the growth spurt." }),
-      pickLocale(locale, { es: "Vigilar molestias en rodilla/talón (Osgood-Schlatter / Sever).", en: "Watch knee/heel discomfort (Osgood-Schlatter / Sever)." }),
+      pickLocale(locale, { es: "Ejemplo: priorizar coordinación y técnica sobre fuerza máxima durante el estirón.", en: "Example: prioritise coordination and technique over max strength during the growth spurt." }),
+      pickLocale(locale, { es: "Ejemplo: vigilar molestias en rodilla/talón (Osgood-Schlatter / Sever).", en: "Example: watch knee/heel discomfort (Osgood-Schlatter / Sever)." }),
     ],
-    returnToPlayReady: true,
-    confidenceLevel: 0.4,
-    dataPointsUsed: 0,
+    growthShieldLevel: null,
+    daysSinceLastInjury: null,
+    injuryHistoryCount: 0,
     coldStartWarning: true,
+    isMock: true,
   };
 }

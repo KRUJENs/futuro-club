@@ -6529,5 +6529,42 @@
     "noLoad": "Nessun carico registrato",
     "maturationUnknown": "Maturazione non registrata: il rischio di sovraccarico non viene valutato (niente semaforo). Viene mostrato solo il carico registrato.",
     "noData": "Nessuna sessione con indice di fatica registrato: il sovrallenamento non può essere valutato."
+  },
+  "injuryRiskCard": {
+    "title": "Rischio di infortunio",
+    "subtitle": "Modello deterministico VITAS · pesi in attesa di validazione",
+    "notComputedTitle": "Rischio non calcolato",
+    "viewDetails": "Vedi dettagli",
+    "coldStart": "Meno di 4 sessioni di carico registrate: il calcolo migliorerà con più dati.",
+    "factors": "Fattori di rischio",
+    "factor": {
+      "acwr": "Carico acuto/cronico",
+      "phvWindow": "Finestra di crescita (PHV)",
+      "asymmetry": "Asimmetria",
+      "biomechanics": "Biomeccanica",
+      "injuryHistory": "Storico infortuni",
+      "fatigue": "Fatica"
+    },
+    "severity": {
+      "low": "bassa",
+      "medium": "media",
+      "high": "alta"
+    },
+    "notApplicable": "non applicabile",
+    "noData": "nessun dato",
+    "recommendations": "Raccomandazioni",
+    "growthWindowTitle": "Finestra di crescita attiva",
+    "growthWindowBody": "Maggior rischio di lesione ossea da crescita (Osgood-Schlatter, Sever). Limitare gli impatti.",
+    "lastInjury_one": "Infortunio registrato {{count}} giorno fa.",
+    "lastInjury_other": "Infortunio registrato {{count}} giorni fa.",
+    "clearanceIsClinical": "Il rientro all'attività completa lo decide il medico o il fisioterapista.",
+    "confidence": "Affidabilità:",
+    "weightsPending": "Pesi del modello in attesa di validazione",
+    "fullDashboard": "Dashboard completa"
+  },
+  "valuationCard": {
+    "title": "Valutazione predittiva",
+    "notComputedTitle": "Valutazione non calcolata",
+    "noData": "nessun dato"
   }
 }

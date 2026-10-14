@@ -5,10 +5,19 @@
  * Saves a metric snapshot after each completed analysis.
  * Called by pipeline-orchestrator after all reports are generated.
  *
- * Input: { playerId, analysisId, vsi, phvOffset, phvCategory,
+ * Input: { playerId, analysisId, vsi,
  *          injuryRisk, fatigueIndex, acwr, eventSummary, xgAccumulated }
  *
  * Deterministic — no LLM calls. Cost: $0.
+ *
+ * P1 bloque 4b:
+ *   - SOLO servidor (serviceOnly): escribe con la service key en datos de menores y no
+ *     comprueba de quién es el jugador; antes bastaba cualquier sesión iniciada.
+ *   - ya no recibe ni escribe PHV: su historia vive en player_anthropometrics, tras la
+ *     puerta del PHV (antes podía guardar un offset sin pasar por ella).
+ *   - injuryRisk es SOLO el riesgo compuesto del modelo de lesión (o null).
+ * Sigue exigiendo un playerId uuid y players.id es texto: hoy no escribe filas
+ * (documentado en docs/pendientes-metricas.md).
  */
 
 import { z } from "zod";
@@ -26,8 +35,6 @@ const snapshotSchema = z.object({
   playerId: z.string().uuid(),
   analysisId: z.string().uuid().optional(),
   vsi: z.number().nullable().optional(),
-  phvOffset: z.number().nullable().optional(),
-  phvCategory: z.string().nullable().optional(),
   injuryRisk: z.number().min(0).max(100).nullable().optional(),
   fatigueIndex: z.number().min(0).max(100).nullable().optional(),
   acwr: z.number().nullable().optional(),
@@ -43,7 +50,7 @@ const snapshotSchema = z.object({
 });
 
 export default withHandler(
-  { schema: snapshotSchema, requireAuth: true, allowServiceToken: true, maxRequests: 100 },
+  { schema: snapshotSchema, serviceOnly: true, maxRequests: 100 },
   async ({ body }) => {
     const input = body as z.infer<typeof snapshotSchema>;
 
@@ -61,8 +68,6 @@ export default withHandler(
           player_id: input.playerId,
           snapshot_date: today,
           vsi: input.vsi ?? null,
-          phv_offset: input.phvOffset ?? null,
-          phv_category: input.phvCategory ?? null,
           injury_risk: input.injuryRisk ?? null,
           fatigue_index: input.fatigueIndex ?? null,
           acwr: input.acwr ?? null,

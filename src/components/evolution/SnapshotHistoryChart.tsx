@@ -2,8 +2,12 @@
  * VITAS · SnapshotHistoryChart (Sprint 5.4)
  *
  * Curva longitudinal real desde player_metric_snapshots: VSI + riesgo de lesión
- * + PHV offset a lo largo del tiempo. Se puebla con cada análisis (progression
- * tracker). Estado vacío mientras no haya histórico.
+ * a lo largo del tiempo. Se puebla con cada análisis (progression tracker). Estado
+ * vacío mientras no haya histórico.
+ *
+ * P1 bloque 4b: ya NO pinta el «PHV offset» de los snapshots. El tracker dejó de
+ * escribirlo (su historia vive en player_anthropometrics, tras la puerta del PHV):
+ * un offset en un snapshot solo puede ser antiguo y sin pasar por la puerta.
  */
 import { useMemo } from "react";
 import { motion } from "framer-motion";
@@ -37,7 +41,6 @@ export function SnapshotHistoryChart({ playerId, height = 240 }: Props) {
         date: fmtDate(s.snapshotDate),
         VSI: s.vsi != null ? Math.round(s.vsi) : null,
         risk: s.injuryRisk != null ? Math.round(s.injuryRisk) : null,
-        "PHV offset": s.phvOffset != null ? Number(s.phvOffset.toFixed(2)) : null,
       })),
     [snapshots],
   );
@@ -83,14 +86,12 @@ export function SnapshotHistoryChart({ playerId, height = 240 }: Props) {
               <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
               <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 10 }} stroke="rgba(255,255,255,0.1)" />
               <YAxis yAxisId="pct" domain={[0, 100]} tick={{ fill: "#64748b", fontSize: 9 }} stroke="rgba(255,255,255,0.1)" width={30} />
-              <YAxis yAxisId="phv" orientation="right" domain={[-3, 3]} tick={{ fill: "#64748b", fontSize: 9 }} stroke="rgba(255,255,255,0.1)" width={28} />
               <Tooltip
                 contentStyle={{ background: "rgba(15,23,42,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, fontSize: 12 }}
               />
               <Legend wrapperStyle={{ fontSize: 10 }} />
               <Area yAxisId="pct" type="monotone" dataKey="risk" name={t("snapshotHistoryChart.seriesRisk")} stroke="#f43f5e" fill="rgba(244,63,94,0.12)" strokeWidth={1.5} connectNulls />
               <Line yAxisId="pct" type="monotone" dataKey="VSI" stroke="#22d3ee" strokeWidth={2.5} dot={{ r: 2 }} connectNulls />
-              <Line yAxisId="phv" type="monotone" dataKey="PHV offset" stroke="#f59e0b" strokeWidth={1.5} strokeDasharray="4 3" dot={{ r: 2 }} connectNulls />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

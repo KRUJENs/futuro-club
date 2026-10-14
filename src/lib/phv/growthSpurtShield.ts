@@ -37,7 +37,12 @@ export interface GrowthSpurtShield {
   parentMessage: string;
 }
 
-function levelFromOffset(offset: number): { level: ShieldLevel; risk: number } {
+/**
+ * Nivel de la ventana de estirón a partir del offset PHV (de la puerta). Exportado
+ * para que el modelo de riesgo de lesión use ESTA definición y no una propia
+ * (P1 bloque 4b, inv #7). Los valores no cambian.
+ */
+export function levelFromOffset(offset: number): { level: ShieldLevel; risk: number } {
   const a = Math.abs(offset);
   if (a <= 0.5) return { level: "peak", risk: 90 };
   if (a <= 1.0) return { level: "high", risk: 70 };

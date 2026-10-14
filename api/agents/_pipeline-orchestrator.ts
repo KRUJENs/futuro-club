@@ -27,6 +27,8 @@ import { normalizeLocale, localeSchema, pickLocale, type ReportLocale } from "..
 import { resolveCategory } from "../../src/lib/shared/category";
 import { gateAnthropometricsRow } from "../../src/lib/phv/phvGate";
 import { maturationKnown } from "../../src/lib/fatigue/phvFatigueAdjuster";
+import { fatigueRowForAgents } from "../../src/lib/fatigue/fatigueRowGate";
+import { injuryRiskValue, type InjuryRiskReport } from "../../src/lib/injury/injuryRiskTypes";
 import {
   buildVsiSubscores,
   gateVsiComposite,
@@ -578,6 +580,8 @@ export default withHandler(
 
     // ── 4b. Lookup fatigue session for fatigue-report agent (Sprint 7) ──
     let fatigueReport: unknown = null;
+    // Fila CRUDA (solo para decidir aquí); a los agentes va fatigueRowForAgents (P1 bloque 4b).
+    let fatigueRow: Record<string, unknown> | null = null;
     let fatigueHistory: unknown[] = [];
     try {
       const { data: fatigueSessions } = await supabase
@@ -588,7 +592,8 @@ export default withHandler(
         .limit(10);
 
       if (fatigueSessions && fatigueSessions.length > 0) {
-        fatigueReport = fatigueSessions[0];
+        fatigueRow = fatigueSessions[0] as Record<string, unknown>;
+        fatigueReport = fatigueRowForAgents(fatigueRow);
         // P1 bloque 4 (revisión del PR #315): el ÍNDICE de una sesión sin maduración
         // registrada no viaja (dependía de umbrales que no corresponden); la sesión sí
         // cuenta y su carga también. Mismo predicado que dropoutAssessment (inv #7).
@@ -658,27 +663,40 @@ export default withHandler(
     // Gate de fiabilidad: ACWR necesita ~4 semanas de carga. Con menos sesiones,
     // pasar acwr/fatiga crudos produciría un riesgo de lesión "sólido" con datos
     // insuficientes → se pasan como null y el calculador marca "datos insuficientes".
+    // P1 bloque 4b: zona e índice solo con historial suficiente Y la maduración de esa
+    // sesión registrada (la zona dependía de umbrales por maduración). La biomecánica
+    // llega del cliente en camelCase (antes se leía en snake_case: siempre null).
     const fatigueReliable = fatigueIsReliable(fatigueHistory.length);
-    const fr = fatigueReport as Record<string, unknown> | null;
-    let injuryRiskResult: unknown = null;
+    const fr = fatigueRow;
+    const fatigueUsable = fatigueReliable && !!fr && maturationKnown(fr.maturation_band, fr.phv_offset);
+    const bmRaw = (analysis.biomechanics ?? {}) as Record<string, unknown>;
+    const bmNum = (...keys: string[]): number | null => {
+      for (const k of keys) {
+        const v = bmRaw[k];
+        if (typeof v === "number" && Number.isFinite(v)) return v;
+      }
+      return null;
+    };
+    let injuryRiskResult: InjuryRiskReport | null = null;
     try {
       const injuryCalcRes = await callInternal("/api/agents/injury-risk-calculator", {
         playerId: analysis.player_id,
         age: anthro?.chronological_age ?? null,
+        // Offset de la PUERTA (gateAnthropometricsRow): null si el PHV está bloqueado.
         phvOffset: anthro?.maturity_offset ?? null,
-        phvCategory: anthro?.phv_category ?? null,
-        acwrValue: fatigueReliable ? (fr?.acwr_value ?? null) : null,
-        acwrZone: fatigueReliable ? (fr?.acwr_zone ?? null) : null,
-        fatigueIndex: fatigueReliable ? (fr?.fatigue_index ?? null) : null,
-        fatigueSeverity: fatigueReliable ? (fr?.fatigue_severity ?? null) : null,
-        biomechanicsInjuryRisk: bm.injury_risk ?? null,
-        asymmetryPct: bm.asymmetry_pct ?? null,
+        acwrValue: fatigueUsable ? (fr?.acwr_value ?? null) : null,
+        acwrZone: fatigueUsable ? (fr?.acwr_zone ?? null) : null,
+        fatigueIndex: fatigueUsable ? (fr?.fatigue_index ?? null) : null,
+        biomechanicsInjuryRisk: bmNum("injuryRisk", "injury_risk"),
+        asymmetryPct: bmNum("asymmetryPct", "asymmetry_pct"),
+        biomechanicsFrames: bmNum("framesAnalyzed", "frames_analyzed"),
+        biomechanicsConfidence: bmNum("confidence"),
         injuryHistory,
         daysSinceLastInjury,
         sessionsLast28Days: fatigueHistory.length,
       });
       if (injuryCalcRes.success) {
-        injuryRiskResult = injuryCalcRes.data?.data?.report ?? injuryCalcRes.data?.data ?? null;
+        injuryRiskResult = (injuryCalcRes.data?.data?.report ?? null) as InjuryRiskReport | null;
       }
     } catch {
       // Injury risk is non-blocking — pipeline continues
@@ -695,8 +713,9 @@ export default withHandler(
         vsiHistory,
         phvOffset: anthro?.maturity_offset ?? null,
         phvCategory: anthro?.phv_category ?? null,
-        injuryRisk: (injuryRiskResult as Record<string, unknown> | null)?.overallRisk ?? null,
-        injuryCategory: (injuryRiskResult as Record<string, unknown> | null)?.riskCategory ?? null,
+        // Riesgo COMPUESTO real o null (antes overallRisk, que siempre traía un número).
+        injuryRisk: injuryRiskValue(injuryRiskResult),
+        injuryCategory: injuryRiskResult?.category ?? null,
         positionFitScores: [],
         sessionCount: fatigueHistory.length,
         analysisCount: 1, // Single analysis context
@@ -838,7 +857,7 @@ export default withHandler(
             },
             labels: {
               vsi: vsiValue,
-              injuryRisk: (injuryRiskResult as Record<string, unknown> | null)?.overallRisk ?? null,
+              injuryRisk: injuryRiskValue(injuryRiskResult),
               valuation: valuationResult ?? null,
               reportTypes: successfulReports.map((r) => r.name),
             },
@@ -854,13 +873,14 @@ export default withHandler(
     // ── 6b. Save metric snapshot for progression tracking (Sprint 9) ──
     try {
       const fatigueData = fatigueReport as Record<string, unknown> | null;
+      // P1 bloque 4b: el seguimiento ya no recibe PHV (su historia vive en
+      // player_anthropometrics, tras la puerta) y el riesgo es SOLO el compuesto
+      // (antes caía a la biomecánica: dos conceptos en la misma columna).
       await callInternal("/api/agents/progression-tracker", {
         playerId: analysis.player_id,
         analysisId: analysis.id,
         vsi: vsiValue,
-        phvOffset: anthro?.maturity_offset ?? null,
-        phvCategory: anthro?.phv_category ?? null,
-        injuryRisk: (injuryRiskResult as Record<string, unknown> | null)?.overallRisk ?? bm.injury_risk ?? null,
+        injuryRisk: injuryRiskValue(injuryRiskResult),
         fatigueIndex: fatigueData?.fatigue_index ?? null,
         acwr: fatigueData?.acwr_value ?? null,
         xgAccumulated: null, // xG comes from client-side accumulator

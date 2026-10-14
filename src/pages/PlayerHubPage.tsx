@@ -815,18 +815,23 @@ export default function PlayerHubPage() {
                   {/* En demo la valoración deriva de datos de ejemplo, no de mercado real. */}
                   {IS_DEMO && <DemoDataBanner />}
                   <ValuationCard data={valuationData} />
-                  <div className="glass rounded-2xl p-4">
-                    <ProbabilityDisplay
-                      probabilities={valuationData.probabilities}
-                      tierColor={valuationData.tierColor}
-                    />
-                  </div>
-                  <div className="glass rounded-2xl p-4">
-                    <TierProgressionChart data={[]} />
-                  </div>
-                  <div className="glass rounded-2xl p-4">
-                    <CeilingComparison comparables={[]} tier={valuationData.tier} tierColor={valuationData.tierColor} />
-                  </div>
+                  {/* P1 bloque 4b: sin valoración calculada no hay probabilidades ni tier. */}
+                  {valuationData.overallScore !== null && valuationData.probabilities && valuationData.tier && (
+                    <>
+                      <div className="glass rounded-2xl p-4">
+                        <ProbabilityDisplay
+                          probabilities={valuationData.probabilities}
+                          tierColor={valuationData.tierColor}
+                        />
+                      </div>
+                      <div className="glass rounded-2xl p-4">
+                        <TierProgressionChart data={[]} />
+                      </div>
+                      <div className="glass rounded-2xl p-4">
+                        <CeilingComparison comparables={[]} tier={valuationData.tier} tierColor={valuationData.tierColor} />
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="glass rounded-xl p-6 text-center">

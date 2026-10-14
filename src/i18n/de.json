@@ -6529,5 +6529,42 @@
     "noLoad": "Keine Belastung erfasst",
     "maturationUnknown": "Reifestatus nicht erfasst: Das Überlastungsrisiko wird nicht bewertet (keine Ampel). Nur die erfasste Belastung wird angezeigt.",
     "noData": "Keine Einheiten mit erfasstem Ermüdungsindex: Übertraining kann nicht bewertet werden."
+  },
+  "injuryRiskCard": {
+    "title": "Verletzungsrisiko",
+    "subtitle": "Deterministisches VITAS-Modell · Gewichtungen noch nicht validiert",
+    "notComputedTitle": "Risiko nicht berechnet",
+    "viewDetails": "Details ansehen",
+    "coldStart": "Weniger als 4 erfasste Belastungseinheiten: Die Berechnung wird mit mehr Daten besser.",
+    "factors": "Risikofaktoren",
+    "factor": {
+      "acwr": "Akute/chronische Belastung",
+      "phvWindow": "Wachstumsfenster (PHV)",
+      "asymmetry": "Asymmetrie",
+      "biomechanics": "Biomechanik",
+      "injuryHistory": "Verletzungshistorie",
+      "fatigue": "Ermüdung"
+    },
+    "severity": {
+      "low": "niedrig",
+      "medium": "mittel",
+      "high": "hoch"
+    },
+    "notApplicable": "nicht zutreffend",
+    "noData": "keine Daten",
+    "recommendations": "Empfehlungen",
+    "growthWindowTitle": "Aktives Wachstumsfenster",
+    "growthWindowBody": "Höheres Risiko wachstumsbedingter Knochenverletzungen (Osgood-Schlatter, Sever). Stöße begrenzen.",
+    "lastInjury_one": "Verletzung vor {{count}} Tag erfasst.",
+    "lastInjury_other": "Verletzung vor {{count}} Tagen erfasst.",
+    "clearanceIsClinical": "Über die Rückkehr zur vollen Belastung entscheidet der Arzt oder Physiotherapeut.",
+    "confidence": "Vertrauen:",
+    "weightsPending": "Modellgewichtungen noch nicht validiert",
+    "fullDashboard": "Vollständiges Dashboard"
+  },
+  "valuationCard": {
+    "title": "Prädiktive Bewertung",
+    "notComputedTitle": "Bewertung nicht berechnet",
+    "noData": "keine Daten"
   }
 }

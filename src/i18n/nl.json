@@ -6530,5 +6530,42 @@
     "noLoad": "Geen belasting geregistreerd",
     "maturationUnknown": "Rijping niet geregistreerd: het overbelastingsrisico wordt niet beoordeeld (geen stoplicht). Alleen de geregistreerde belasting wordt getoond.",
     "noData": "Geen sessies met een geregistreerde vermoeidheidsindex: overtraining kan niet worden beoordeeld."
+  },
+  "injuryRiskCard": {
+    "title": "Blessurerisico",
+    "subtitle": "Deterministisch VITAS-model · gewichten nog niet gevalideerd",
+    "notComputedTitle": "Risico niet berekend",
+    "viewDetails": "Details bekijken",
+    "coldStart": "Minder dan 4 belastingssessies geregistreerd: de berekening wordt beter met meer gegevens.",
+    "factors": "Risicofactoren",
+    "factor": {
+      "acwr": "Acute/chronische belasting",
+      "phvWindow": "Groeivenster (PHV)",
+      "asymmetry": "Asymmetrie",
+      "biomechanics": "Biomechanica",
+      "injuryHistory": "Blessuregeschiedenis",
+      "fatigue": "Vermoeidheid"
+    },
+    "severity": {
+      "low": "laag",
+      "medium": "gemiddeld",
+      "high": "hoog"
+    },
+    "notApplicable": "niet van toepassing",
+    "noData": "geen gegevens",
+    "recommendations": "Aanbevelingen",
+    "growthWindowTitle": "Actief groeivenster",
+    "growthWindowBody": "Hoger risico op groeigerelateerd botletsel (Osgood-Schlatter, Sever). Beperk impacts.",
+    "lastInjury_one": "Blessure {{count}} dag geleden geregistreerd.",
+    "lastInjury_other": "Blessure {{count}} dagen geleden geregistreerd.",
+    "clearanceIsClinical": "Over de terugkeer naar volledige activiteit beslist de arts of fysiotherapeut.",
+    "confidence": "Betrouwbaarheid:",
+    "weightsPending": "Modelgewichten nog niet gevalideerd",
+    "fullDashboard": "Volledig dashboard"
+  },
+  "valuationCard": {
+    "title": "Voorspellende waardering",
+    "notComputedTitle": "Waardering niet berekend",
+    "noData": "geen gegevens"
   }
 }

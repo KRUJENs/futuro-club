@@ -22,6 +22,13 @@
  *   - 2% of U14 academy players reach 1st division by 18
  *   - 0.3% reach top-5 leagues
  *   - VSI percentile adjusts these probabilities
+ *
+ * P1 bloque 4b: el «techo PHV» (antes 50 fijo sin offset) y el «riesgo de lesión»
+ * (antes 60 fijo sin riesgo calculado) se ABSTIENEN (null con motivo). Mientras
+ * falte cualquier factor no se calcula la puntuación, el tier ni las
+ * probabilidades (gate_reason): repartir el peso entre el resto subiría el peso
+ * de los factores que aún llevan valores por defecto (bloque 5). El resto de
+ * defaults (versatilidad, contexto, consistencia, probabilidades) es del bloque 5.
  */
 
 import { z } from "zod";
@@ -32,7 +39,8 @@ export const config = { runtime: "edge" };
 
 const valuationSchema = z.object({
   playerId: z.string(),
-  age: z.number().min(6).max(25).optional(),
+  // Sin tope (todas las categorías) y nullable: antes un null daba 400.
+  age: z.number().nonnegative().nullable().optional(),
   position: z.string().optional(),
 
   // VSI data
@@ -126,14 +134,19 @@ function vsiTrendScore(
 
 // ── PHV Ceiling score ───────────────────────────────────────────────────────
 
+const PHV_CEILING_GATE = "Techo PHV no calculado: PHV bloqueado por falta de medidas (no se usa un 50 por defecto).";
+const INJURY_GATE = "Riesgo de lesión no calculado (no se usa un 60 por defecto).";
+
 function phvCeilingScore(
   phvOffset: number | null,
   chronologicalAge: number | null,
-): number {
+): number | null {
   // Early developers often appear better but have less growth ceiling
   // Late developers are undervalued but have more ceiling
+  // (Bloque 5: esta función lee un offset negativo —un ESTADO pre-PHV— como
+  // «madurador tardío», que es TIMING; pendiente de revisar allí.)
 
-  if (phvOffset == null) return 50; // Unknown
+  if (phvOffset == null) return null; // sin PHV de la puerta: se abstiene
 
   // Late maturers (negative offset, still growing) → higher ceiling
   if (phvOffset < -1.0) return 75; // Lots of growth left → high potential
@@ -172,8 +185,8 @@ function versatilityScore(
 function injuryAdjustmentScore(
   injuryRisk: number | null,
   injuryCategory: string | null,
-): number {
-  if (injuryRisk == null) return 60; // Unknown → slight penalty
+): number | null {
+  if (injuryRisk == null) return null; // sin riesgo calculado: se abstiene
 
   // Inverse: low injury risk = high valuation factor
   // High injury risk = significant penalty
@@ -282,38 +295,35 @@ export default withHandler(
       input.speedTrend ?? null,
     );
 
-    // Weighted composite
-    const overallScore = Math.round(
-      vsiScore * WEIGHTS.vsiTrend +
-      phvScore * WEIGHTS.phvCeiling +
-      versScore * WEIGHTS.versatility +
-      injScore * WEIGHTS.injuryAdjusted +
-      ctxScore * WEIGHTS.context +
-      consScore * WEIGHTS.consistency,
-    );
+    // Factors breakdown. Un factor que se abstiene lleva score null + gate_reason.
+    const factors: Array<{ factor: string; weight: number; score: number | null; label: string; gate_reason: string | null }> = [
+      { factor: "vsiTrend", weight: WEIGHTS.vsiTrend, score: vsiScore, label: "Tendencia VSI", gate_reason: null },
+      { factor: "phvCeiling", weight: WEIGHTS.phvCeiling, score: phvScore, label: "Techo PHV", gate_reason: phvScore === null ? PHV_CEILING_GATE : null },
+      { factor: "versatility", weight: WEIGHTS.versatility, score: versScore, label: "Versatilidad", gate_reason: null },
+      { factor: "injuryAdjusted", weight: WEIGHTS.injuryAdjusted, score: injScore, label: "Riesgo lesion (inv)", gate_reason: injScore === null ? INJURY_GATE : null },
+      { factor: "context", weight: WEIGHTS.context, score: ctxScore, label: "Contexto", gate_reason: null },
+      { factor: "consistency", weight: WEIGHTS.consistency, score: consScore, label: "Consistencia", gate_reason: null },
+    ];
+    const contribution = (f: (typeof factors)[number]) => (f.score === null ? -1 : f.score * f.weight);
+    factors.sort((a, b) => contribution(b) - contribution(a));
 
-    const clampedScore = Math.max(0, Math.min(100, overallScore));
-
-    // Determine tier
-    const tier = TIERS.find((t) => clampedScore >= t.minScore) ?? TIERS[TIERS.length - 1];
-
-    // Calculate probabilities
-    const probabilities = calculateProbabilities(
-      clampedScore,
-      tier,
-      input.age ?? null,
-      input.phvOffset ?? null,
-    );
-
-    // Factors breakdown (sorted by contribution)
-    const factors = [
-      { factor: "vsiTrend", weight: WEIGHTS.vsiTrend, score: vsiScore, label: "Tendencia VSI" },
-      { factor: "phvCeiling", weight: WEIGHTS.phvCeiling, score: phvScore, label: "Techo PHV" },
-      { factor: "versatility", weight: WEIGHTS.versatility, score: versScore, label: "Versatilidad" },
-      { factor: "injuryAdjusted", weight: WEIGHTS.injuryAdjusted, score: injScore, label: "Riesgo lesion (inv)" },
-      { factor: "context", weight: WEIGHTS.context, score: ctxScore, label: "Contexto" },
-      { factor: "consistency", weight: WEIGHTS.consistency, score: consScore, label: "Consistencia" },
-    ].sort((a, b) => (b.score * b.weight) - (a.score * a.weight));
+    // Mientras falte un factor NO hay puntuación, tier ni probabilidades.
+    const missing = factors.filter((f) => f.score === null);
+    let clampedScore: number | null = null;
+    let tier: Tier | null = null;
+    let probabilities: ReturnType<typeof calculateProbabilities> | null = null;
+    let gate_reason: string | null = null;
+    if (missing.length > 0) {
+      gate_reason = `Valoración no calculada: falta ${missing.map((f) => f.label).join(", ")}.`;
+    } else {
+      const overallScore = Math.round(
+        factors.reduce((acc, f) => acc + (f.score as number) * f.weight, 0),
+      );
+      clampedScore = Math.max(0, Math.min(100, overallScore));
+      const t = TIERS.find((x) => (clampedScore as number) >= x.minScore) ?? TIERS[TIERS.length - 1];
+      tier = t;
+      probabilities = calculateProbabilities(clampedScore, t, input.age ?? null, input.phvOffset ?? null);
+    }
 
     // Cold start detection
     const coldStartWarning = input.analysisCount < 3;
@@ -339,17 +349,18 @@ export default withHandler(
       report: {
         playerId: input.playerId,
         overallScore: clampedScore,
-        tier: tier.name,
-        tierColor: tier.color,
-        tierDescription: tier.description,
+        tier: tier ? tier.name : null,
+        tierColor: tier ? tier.color : null,
+        tierDescription: tier ? tier.description : null,
         factors,
         probabilities,
+        gate_reason,
         coldStartWarning,
         confidenceLevel,
         dataPointsUsed: dataPoints,
         analysisCount: input.analysisCount,
       },
-      promptVersion: "v1.0.0-deterministic",
+      promptVersion: "v1.1.0-deterministic", // P1 bloque 4b: factores que se abstienen ⇒ sin puntuación
     });
   },
 );

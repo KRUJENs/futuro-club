@@ -6530,5 +6530,42 @@
     "noLoad": "No load recorded",
     "maturationUnknown": "Maturation not recorded: overload risk is not assessed (no traffic light). Only the recorded load is shown.",
     "noData": "No sessions with a recorded fatigue index: overtraining cannot be assessed."
+  },
+  "injuryRiskCard": {
+    "title": "Injury risk",
+    "subtitle": "VITAS deterministic model · weights pending validation",
+    "notComputedTitle": "Risk not calculated",
+    "viewDetails": "View details",
+    "coldStart": "Fewer than 4 load sessions recorded: the estimate will improve with more data.",
+    "factors": "Risk factors",
+    "factor": {
+      "acwr": "Acute/chronic load",
+      "phvWindow": "Growth window (PHV)",
+      "asymmetry": "Asymmetry",
+      "biomechanics": "Biomechanics",
+      "injuryHistory": "Injury history",
+      "fatigue": "Fatigue"
+    },
+    "severity": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    },
+    "notApplicable": "not applicable",
+    "noData": "no data",
+    "recommendations": "Recommendations",
+    "growthWindowTitle": "Active growth window",
+    "growthWindowBody": "Higher risk of growth-related bone injury (Osgood-Schlatter, Sever). Limit impacts.",
+    "lastInjury_one": "Injury recorded {{count}} day ago.",
+    "lastInjury_other": "Injury recorded {{count}} days ago.",
+    "clearanceIsClinical": "Clearance to return to full activity is decided by the doctor or physiotherapist.",
+    "confidence": "Confidence:",
+    "weightsPending": "Model weights pending validation",
+    "fullDashboard": "Full dashboard"
+  },
+  "valuationCard": {
+    "title": "Predictive valuation",
+    "notComputedTitle": "Valuation not calculated",
+    "noData": "no data"
   }
 }
