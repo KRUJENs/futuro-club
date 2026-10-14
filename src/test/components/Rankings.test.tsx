@@ -244,6 +244,25 @@ describe("Rankings", () => {
     }
   });
 
+  // P1 bloque 5: con menos de 10 pares evaluados el servidor no da percentil (antes P0
+  // por la RPC o P100 con un solo valor): la fila lo dice, nunca un «P0».
+  it("percentil bloqueado por pocos pares ⇒ motivo corto en la fila, sin «P»", () => {
+    const fewPeers = {
+      ...mockPlayers[0], id: "few", name: "Pocos Pares",
+      percentile: null, percentileInAgeGroup: null,
+      percentileGate: { code: "insufficient_peers", peers: 2, min: 10 },
+      percentileInAgeGroupGate: { code: "insufficient_peers", peers: 0, min: 10 },
+    };
+    mockUseRankedPlayers.mockReturnValue({
+      data: { ...mockRankingsResponse, players: [fewPeers], total: 1, totalUnfiltered: 1 },
+      isLoading: false,
+      isError: false,
+    });
+    render(<Rankings />);
+    expect(screen.getAllByText("percentile.gate.insufficient_short").length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^P\d+$/)).toBeNull();
+  });
+
   it("muestra skeleton mientras carga", () => {
     mockUseRankedPlayers.mockReturnValue({
       data: null,

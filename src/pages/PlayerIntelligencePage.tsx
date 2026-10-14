@@ -42,8 +42,6 @@ import TrackingSnapshotPanel from "@/components/TrackingSnapshotPanel";
 import { PlayerTrackingService, type TrackingSnapshot } from "@/services/real/playerTrackingService";
 import PlayerHeatmap from "@/components/PlayerHeatmap";
 import DrillRecommendations from "@/components/intelligence/DrillRecommendations";
-import BenchmarkBadge from "@/components/intelligence/BenchmarkBadge";
-import { calculateReportBenchmark, type ReportBenchmark, DIMENSION_TO_METRIC } from "@/services/real/benchmarkService";
 import { usePlan } from "@/hooks/usePlan";
 import UpgradePrompt from "@/components/UpgradePrompt";
 
@@ -108,16 +106,17 @@ function SectionHeader({ icon: Icon, title, subtitle }: {
 
 // ─── Secciones del informe ────────────────────────────────────────────────────
 
-function EstadoActual({ data, benchmark }: {
+function EstadoActual({ data }: {
   data: VideoIntelligenceOutput["estadoActual"];
-  benchmark?: ReportBenchmark | null;
 }) {
   const { t } = useTranslation();
   if (!data) return null;
   const levelColor = LEVEL_COLORS[data.nivelActual] ?? "#3B82F6";
   // #dimensiones fabricadas: el pipeline de vídeo aún NO puntúa por dimensión.
-  // Solo mostramos los anillos de score (y su benchmark) cuando el informe
-  // declara medición real. Acceso cast-safe y null-safe al flag del informe.
+  // Solo mostramos los anillos de score cuando el informe declara medición real.
+  // Sin «percentil vs pares» por dimensión (P1 bloque 5): comparaba la nota del vídeo
+  // (IA, 0-10) con las barras del entrenador /10 leyendo un campo que los jugadores no
+  // tienen ⇒ P100 fabricado. Acceso cast-safe y null-safe al flag del informe.
   const dimensionesMedidas =
     ((data as Record<string, unknown> | undefined)?.dimensionesMedidas === true);
 
@@ -153,7 +152,7 @@ function EstadoActual({ data, benchmark }: {
         <p className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-4">
           {t("intelligence.sixDimensions")}
         </p>
-        {/* #dimensiones fabricadas: anillos de score + benchmark solo si el
+        {/* #dimensiones fabricadas: anillos de score solo si el
            informe declara medición real; si no, se ocultan (nunca pintar un 0
            fabricado). Las observaciones cualitativas siguen abajo. */}
         {dimensionesMedidas && (
@@ -166,23 +165,12 @@ function EstadoActual({ data, benchmark }: {
                 [t("intelligence.dimensions.physical")]:    { dim: data.dimensiones?.capacidadFisica, key: "capacidadFisica" },
                 [t("intelligence.dimensions.leadership")]:  { dim: data.dimensiones?.liderazgoPresencia, key: "liderazgoPresencia" },
                 [t("intelligence.dimensions.efficiency")]:  { dim: data.dimensiones?.eficaciaCompetitiva, key: "eficaciaCompetitiva" },
-              }).filter(([, v]) => v.dim).map(([label, { dim, key }]) => {
-                const bench = benchmark?.dimensions.find(d => d.dimensionKey === key);
-                return (
-                  <div key={label} className="flex flex-col items-center gap-0.5">
-                    <ScoreRing score={dim!.score ?? 0} label={label} />
-                    {bench && bench.sampleSize > 0 && (
-                      <BenchmarkBadge percentile={bench.percentile} isSmallSample={bench.isSmallSample} />
-                    )}
-                  </div>
-                );
-              })}
+              }).filter(([, v]) => v.dim).map(([label, { dim }]) => (
+                <div key={label} className="flex flex-col items-center gap-0.5">
+                  <ScoreRing score={dim!.score ?? 0} label={label} />
+                </div>
+              ))}
             </div>
-            {benchmark && benchmark.sampleSize > 0 && (
-              <p className="text-[9px] text-muted-foreground text-center mt-2">
-                {t("playerIntelligencePage.benchmarkLabel", { group: benchmark.groupDescription })}
-              </p>
-            )}
           </>
         )}
         {/* Observaciones expandibles */}
@@ -975,14 +963,7 @@ export default function PlayerIntelligencePage() {
                 )}
 
                 {/* Estado Actual */}
-                <EstadoActual
-                  data={latestReport.estadoActual}
-                  benchmark={
-                    player && latestReport.estadoActual?.dimensiones
-                      ? calculateReportBenchmark(player.age, player.position, latestReport.estadoActual.dimensiones)
-                      : null
-                  }
-                />
+                <EstadoActual data={latestReport.estadoActual} />
 
                 {/* Panel de Estadísticas — Wyscout Premium */}
                 {latestReport.metricasCuantitativas ? (

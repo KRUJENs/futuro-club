@@ -1,6 +1,7 @@
 /**
  * VITAS Metrics Service — DETERMINISTA
- * Cálculos matemáticos puros: VSI, percentiles, tendencias.
+ * Cálculos matemáticos puros: VSI de ficha y tendencias. (Los percentiles entre pares
+ * viven en src/lib/metrics/percentile.ts, implementación única.)
  * No usa IA. Algoritmos fijos y reproducibles.
  */
 
@@ -11,14 +12,6 @@ export interface PlayerMetrics {
   stamina: number;
   shooting: number;
   defending: number;
-}
-
-export interface VSIResult {
-  raw: number;
-  adjusted: number;
-  percentile: number;
-  trend: "up" | "down" | "stable";
-  label: "elite" | "high" | "medium" | "developing";
 }
 
 /**
@@ -73,19 +66,9 @@ export const MetricsService = {
     return "stable";
   },
 
-  /**
-   * Calcula el percentil de un jugador dentro de un grupo
-   */
-  calculatePercentile(playerVSI: number | null, allVSIs: (number | null)[]): number | null {
-    // Un jugador sin evaluar (vsi null) no tiene percentil: no se le fabrica uno
-    // (invariante #2). Y los null del grupo se excluyen de la población para no
-    // ensuciar el percentil del resto (v < null daría v < 0 → false para todos).
-    if (playerVSI == null) return null;
-    const pop = allVSIs.filter((v): v is number => v != null);
-    if (pop.length === 0) return 50;
-    const below = pop.filter((v) => v < playerVSI).length;
-    return Math.round((below / pop.length) * 100);
-  },
+  // (Sin calculatePercentile: el percentil entre pares tiene una implementación única,
+  //  src/lib/metrics/percentile.ts, con mínimo de pares; esta devolvía 50 con el grupo
+  //  vacío. P1 bloque 5, invariante #7.)
 
   /**
    * Clasifica el VSI en etiqueta semántica
@@ -95,29 +78,6 @@ export const MetricsService = {
     if (vsi >= 65) return "high";
     if (vsi >= 50) return "medium";
     return "developing";
-  },
-
-  /**
-   * Resultado VSI completo
-   */
-  getVSIResult(
-    metrics: PlayerMetrics,
-    previousVSI: number | null,
-    allVSIs: number[]
-  ): VSIResult {
-    const raw = MetricsService.calculateVSI(metrics);
-    const trend = previousVSI !== null
-      ? MetricsService.calculateTrend(raw, previousVSI)
-      : "stable";
-    return {
-      raw,
-      adjusted: raw,
-      // raw nunca es null aquí; el ?? 50 solo satisface el contrato null-safe
-      // (grupo vacío ya devuelve 50 dentro de calculatePercentile).
-      percentile: MetricsService.calculatePercentile(raw, allVSIs) ?? 50,
-      trend,
-      label: MetricsService.classifyVSI(raw),
-    };
   },
 
   /**

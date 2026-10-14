@@ -12,6 +12,7 @@
  * (age_source='birth_date', migración 069) y el VSI baseline no lleva ajuste PHV.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { calculateFichaVsi } from "../../../src/services/real/metricsService";
 
 vi.mock("../../_lib/rateLimit", () => ({
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 9, limit: 10, resetAt: Date.now() + 60000 }),
@@ -65,7 +66,8 @@ vi.mock("@supabase/supabase-js", () => ({
 }));
 
 const METRICS = { speed: 70, technique: 70, vision: 65, stamina: 65, shooting: 60, defending: 55 };
-const AVG = Math.round((70 + 70 + 65 + 65 + 60 + 55) / 6); // 64
+// VSI de ficha (calculateFichaVsi, fuente única): ya no la media simple (64).
+const FICHA = calculateFichaVsi(METRICS);
 
 function post(body: Record<string, unknown>) {
   return new Request("https://x.test/api/players/baseline-analysis", {
@@ -90,7 +92,8 @@ beforeEach(() => {
   playerRow = {
     id: "samu", tenant_id: "t1", name: "Samu", age: 9, position: "DC", foot: "right",
     height_cm: 135, weight_kg: 30, competitive_level: "Regional",
-    metric_speed: 70, metric_technique: 70, metric_vision: 65, metric_stamina: 65, metric_shooting: 60, metric_defending: 55,
+    // Barras del entrenador del blob (alias metrics:data->metrics del select).
+    metrics: METRICS,
     vsi: 67.4, vsi_history: [57.5, 67.4],
     // Columna persistida naive (caso Samu): NO debe llegar a los prompts.
     phv_category: "early", phv_offset: -1.2,
@@ -98,13 +101,16 @@ beforeEach(() => {
   anthroRow = null;
 });
 
-describe("computeVsi · sin ajuste PHV ±5", () => {
-  it("la categoría (early/late/ontme/null) NO mueve el VSI baseline", async () => {
+describe("computeVsi · VSI de ficha (fuente única), sin ajuste PHV ±5", () => {
+  it("sin VSI guardado ⇒ calculateFichaVsi de las 6 barras (antes: media simple, 64)", async () => {
     const { computeVsi } = await import("../baseline-analysis");
-    for (const category of ["early", "late", "ontme", null]) {
-      const r = computeVsi({ metrics: METRICS, phv: { category, offset: -1.2, chronologicalAge: 12.3, gate_reason: null } });
-      expect(r.vsi).toBe(AVG);
-    }
+    expect(computeVsi({ metrics: METRICS }).vsi).toBe(FICHA);
+    expect(FICHA).not.toBe(64);
+  });
+
+  it("con VSI de ficha guardado ⇒ ese (el que enseña la app); la PHV ya no entra", async () => {
+    const { computeVsi } = await import("../baseline-analysis");
+    expect(computeVsi({ metrics: METRICS, storedVsi: 67.4 }).vsi).toBe(67.4);
   });
 });
 
@@ -130,7 +136,7 @@ describe("handler · la categoría persistida NO llega a los 6 prompts", () => {
   it("sin fila antropométrica: players.phv_category='early' se ignora y el VSI no lleva −5", async () => {
     const { status, json } = await run();
     expect(status).toBe(200);
-    expect(json.data.vsi).toBe(AVG);
+    expect(json.data.vsi).toBe(67.4); // el VSI de ficha guardado, sin −5
     expect(sentPrompts.length).toBe(6);
     for (const p of sentPrompts) {
       expect(p).toContain("NO DISPONIBLE");

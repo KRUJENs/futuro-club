@@ -1,29 +1,34 @@
 /**
- * VITAS · Cross-club Peer Benchmark (Sprint B4 · día 3-4)
+ * VITAS · Comparación con pares (percentil entre los PROPIOS jugadores)
  * GET /api/benchmark/peer?playerId=<id>
  *
- * Compara un jugador contra el pool ANONIMIZADO cross-tenant de jugadores
- * con misma posición + edad±1 + (opcional) misma fase PHV. Solo expone
- * agregados estadísticos · jamás IDs, nombres ni datos personales.
+ * Compara a un jugador con los jugadores del MISMO DUEÑO (players.user_id) de su misma
+ * posición y edad ±1 (y misma fase PHV si la tiene, salvo withPhv=false). Solo expone
+ * agregados: jamás ids, nombres ni datos personales.
  *
- * Network effect moat: cuanto más clubes usen VITAS, mejor el benchmark
- * para todos. Defendible vs Wyscout/Hudl que cobran €5K/año.
+ * P1 bloque 5 (decisiones del dueño, 14 oct 2026):
+ *  - Población: SOLO los jugadores propios hasta que exista el acceso de clubes. Antes
+ *    era un pool «cross-club» de TODAS las cuentas (service key sin filtro de dueño).
+ *  - Mínimo 10 pares evaluados (sin contar al propio); si no, null + motivo.
+ *  - Implementación única del percentil y de los cuantiles: src/lib/metrics/percentile.ts.
+ *  - Un jugador sin evaluar NO tiene percentil (antes su valor ausente valía 0 ⇒ «P0»
+ *    que veía su familia). Un par sin evaluar no cuenta (antes tampoco el 0, pero el
+ *    mínimo se contaba sobre filas, evaluadas o no).
+ *  - Las barras del entrenador se leen del blob `data->metrics`, no de las columnas
+ *    `metric_*`: el trigger de players (069) y el DEFAULT de la columna (024) ponen 0
+ *    a quien no está evaluado (corregir esas columnas es del bloque 7).
+ *  - Reales y de ejemplo (`isDemo`) no se mezclan: un real solo se compara con reales.
  *
- * Response shape:
+ * Response:
  *   {
  *     stratum: { position, ageMin, ageMax, phvCategory },
- *     peerCount: number,
- *     vsi: { player: number, percentile: number, mean: number,
- *            p25: number, p50: number, p75: number, p90: number },
- *     byMetric: { speed: {...}, technique: {...}, ... },
- *     dataQuality: "high|medium|low|insufficient"
+ *     scope: "owner_only",
+ *     minPeers: 10,
+ *     vsi:      PeerMetric,
+ *     byMetric: { speed: PeerMetric, technique: …, … },
  *   }
- *
- * Data quality:
- *   - high:        peerCount >= 50
- *   - medium:      peerCount >= 20
- *   - low:         peerCount >= 10
- *   - insufficient peerCount < 10  (devuelve sin percentiles, solo count)
+ *   PeerMetric = { player: number|null, percentile: MetricResult, gate: {code,peers,min}|null,
+ *                  distribution: {mean,p25,p50,p75,p90}|null }
  */
 
 import { z } from "zod";
@@ -31,6 +36,15 @@ import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { ownsPlayer } from "../_lib/ownership";
 import { createClient } from "@supabase/supabase-js";
+import {
+  peerPercentile,
+  peerDistribution,
+  percentileGateInfo,
+  type PercentileGateInfo,
+  type PeerDistributionValue,
+} from "../../src/lib/metrics/percentile";
+import type { MetricResult } from "../../src/lib/metrics/MetricResult";
+import { PERCENTILE_MIN_PEERS, PERCENTILE_POOL_SCOPE } from "../../config/percentiles";
 
 export const config = { runtime: "edge" };
 
@@ -42,40 +56,41 @@ const querySchema = z.object({
   withPhv: z.enum(["true", "false"]).default("true"),
 });
 
-const METRICS = [
-  "vsi", "metric_speed", "metric_technique", "metric_vision",
-  "metric_stamina", "metric_shooting", "metric_defending",
-] as const;
+/** Las 6 barras de la evaluación del entrenador (claves del blob `data.metrics`). */
+const METRIC_KEYS = ["speed", "technique", "vision", "stamina", "shooting", "defending"] as const;
+type MetricKey = (typeof METRIC_KEYS)[number];
 
-interface MetricStats {
-  player: number;
-  percentile: number | null;
-  mean: number;
-  p25: number;
-  p50: number;
-  p75: number;
-  p90: number;
+export interface PeerMetric {
+  player: number | null;
+  percentile: MetricResult<number>;
+  gate: PercentileGateInfo | null;
+  distribution: PeerDistributionValue | null;
 }
 
-function computeStats(values: number[], playerValue: number): MetricStats | null {
-  if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const n = sorted.length;
-  const mean = sorted.reduce((a, b) => a + b, 0) / n;
-  const pct = (p: number) => {
-    const idx = Math.floor(n * p);
-    return Number(sorted[Math.min(n - 1, idx)].toFixed(1));
-  };
-  const below = sorted.filter((v) => v <= playerValue).length;
-  const percentile = n > 0 ? Math.round((below / n) * 100) : null;
+interface PoolRow {
+  vsi: number | string | null;
+  metrics: Record<string, unknown> | null;
+  is_demo: string | null;
+}
+
+function finite(v: unknown): number | null {
+  const n = typeof v === "string" ? Number(v) : v;
+  return typeof n === "number" && Number.isFinite(n) ? n : null;
+}
+
+function metricOf(metrics: Record<string, unknown> | null | undefined, key: MetricKey): number | null {
+  return metrics && typeof metrics === "object" ? finite(metrics[key]) : null;
+}
+
+function compare(player: number | null, peers: Array<number | null>): PeerMetric {
+  const pct = peerPercentile(player, peers);
+  const dist = peerDistribution(peers);
   return {
-    player: Number(playerValue.toFixed(1)),
-    percentile,
-    mean: Number(mean.toFixed(1)),
-    p25: pct(0.25),
-    p50: pct(0.5),
-    p75: pct(0.75),
-    p90: pct(0.9),
+    player,
+    percentile: pct.result,
+    gate: percentileGateInfo(pct),
+    // Sin valor del jugador la distribución sola no se enseña (no hay con qué compararla).
+    distribution: player === null ? null : dist.result.value,
   };
 }
 
@@ -91,8 +106,7 @@ export default withHandler(
       });
     }
 
-    // El jugador OBJETIVO debe pertenecer al usuario (el pool de peers es
-    // anonimizado cross-tenant a propósito — solo agregados, sin IDs).
+    // El jugador OBJETIVO debe pertenecer al usuario.
     if (!isServiceCall && !(await ownsPlayer(params.data.playerId, userId))) {
       return errorResponse({ code: "forbidden", message: "No autorizado para este jugador", status: 403 });
     }
@@ -104,7 +118,7 @@ export default withHandler(
     // ── 1. Cargar jugador ─────────────────────────────────────
     const { data: player, error: pErr } = await supabase
       .from("players")
-      .select("id, age, position, phv_category, vsi, metric_speed, metric_technique, metric_vision, metric_stamina, metric_shooting, metric_defending")
+      .select("id, user_id, age, position, phv_category, vsi, metrics:data->metrics, is_demo:data->>isDemo")
       .eq("id", params.data.playerId)
       .single();
 
@@ -115,16 +129,22 @@ export default withHandler(
     if (!player.age || !player.position) {
       return errorResponse({
         code: "missing_player_data",
-        message: "Jugador necesita edad + posición para benchmark",
+        message: "Jugador necesita edad + posición para compararlo",
         status: 400,
       });
     }
 
-    // ── 2. Query pool anonimizado cross-tenant ────────────────
+    // Sin dueño no hay población propia que comparar (nunca se cae al pool global).
+    if (!player.user_id) {
+      return errorResponse({ code: "player_without_owner", message: "Jugador sin dueño registrado", status: 409 });
+    }
+
+    // ── 2. Pares: SOLO jugadores del mismo dueño ──────────────
     let q = supabase
       .from("players")
-      .select("vsi, metric_speed, metric_technique, metric_vision, metric_stamina, metric_shooting, metric_defending")
-      .neq("id", player.id)                    // excluir el propio jugador
+      .select("vsi, metrics:data->metrics, is_demo:data->>isDemo")
+      .eq("user_id", player.user_id)
+      .neq("id", player.id) // el propio nunca es par de sí mismo
       .gte("age", player.age - 1)
       .lte("age", player.age + 1)
       .eq("position", player.position);
@@ -133,19 +153,14 @@ export default withHandler(
       q = q.eq("phv_category", player.phv_category);
     }
 
-    const { data: peers, error: qErr } = await q.limit(2000);
+    const { data: rows, error: qErr } = await q.limit(2000);
     if (qErr) {
       return errorResponse({ code: "db_error", message: qErr.message, status: 500 });
     }
 
-    const peerCount = peers?.length ?? 0;
-
-    // ── 3. Determinar data quality ────────────────────────────
-    let dataQuality: "high" | "medium" | "low" | "insufficient";
-    if (peerCount >= 50) dataQuality = "high";
-    else if (peerCount >= 20) dataQuality = "medium";
-    else if (peerCount >= 10) dataQuality = "low";
-    else dataQuality = "insufficient";
+    // Reales y de ejemplo no se mezclan (misma regla que percentilesAmong).
+    const targetIsDemo = player.is_demo === "true";
+    const peers = ((rows ?? []) as PoolRow[]).filter((r) => (r.is_demo === "true") === targetIsDemo);
 
     const stratum = {
       position: player.position,
@@ -154,42 +169,17 @@ export default withHandler(
       phvCategory: params.data.withPhv === "true" ? player.phv_category : null,
     };
 
-    if (dataQuality === "insufficient" || !peers) {
-      return successResponse({
-        stratum,
-        peerCount,
-        dataQuality,
-        message: `Solo ${peerCount} jugadores comparables · necesitamos ≥10 para percentiles fiables.`,
-      });
-    }
-
-    // ── 4. Computar stats por métrica ─────────────────────────
-    const byMetric: Record<string, MetricStats | null> = {};
-    for (const m of METRICS) {
-      const playerVal = Number((player as Record<string, unknown>)[m] ?? 0);
-      const peerVals = peers
-        .map((p) => Number((p as Record<string, unknown>)[m] ?? 0))
-        .filter((v) => v > 0);          // ignorar 0 (sin medir)
-      if (peerVals.length < 5) {
-        byMetric[m] = null;
-        continue;
-      }
-      byMetric[m] = computeStats(peerVals, playerVal);
-    }
+    const playerMetrics = player.metrics as Record<string, unknown> | null;
+    const byMetric = Object.fromEntries(
+      METRIC_KEYS.map((k) => [k, compare(metricOf(playerMetrics, k), peers.map((r) => metricOf(r.metrics, k)))]),
+    ) as Record<MetricKey, PeerMetric>;
 
     return successResponse({
       stratum,
-      peerCount,
-      dataQuality,
-      vsi: byMetric.vsi,
-      byMetric: {
-        speed:     byMetric.metric_speed,
-        technique: byMetric.metric_technique,
-        vision:    byMetric.metric_vision,
-        stamina:   byMetric.metric_stamina,
-        shooting:  byMetric.metric_shooting,
-        defending: byMetric.metric_defending,
-      },
+      scope: PERCENTILE_POOL_SCOPE,
+      minPeers: PERCENTILE_MIN_PEERS,
+      vsi: compare(finite(player.vsi), peers.map((r) => finite(r.vsi))),
+      byMetric,
     });
-  }
+  },
 );

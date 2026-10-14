@@ -81,8 +81,8 @@ const g = phvGate(COMPLETE);
 const expectedCat = g.ok ? (g.category === "ontme" ? "on-time" : g.category) : null;
 
 describe.each([
-  ["RPC", true],
-  ["fallback en memoria", false],
+  // P1 bloque 5: sin la RPC get_ranked_players (daba P0); la ruta en memoria es la única.
+  ["ruta única en memoria", false],
 ])("rankings (%s)", (_label, useRpc) => {
   it("el phvCategory persistido de Samu (sin medidas) NO llega: null + motivo", async () => {
     rpcOk = useRpc as boolean;
@@ -108,8 +108,8 @@ describe.each([
 // salía al filtrar «early» rotulado «PHV no disponible») y la ruta en memoria por
 // el recálculo. Ahora ambas filtran DESPUÉS del gate: lo que se filtra = lo que se ve.
 describe.each([
-  ["RPC", true],
-  ["fallback en memoria", false],
+  // P1 bloque 5: sin la RPC get_ranked_players (daba P0); la ruta en memoria es la única.
+  ["ruta única en memoria", false],
 ])("rankings (%s) · filtro PHV sobre la categoría gateada", (_label, useRpc) => {
   it.each(["early", "on-time", "late"])("phv=%s devuelve solo quien el gate clasifica así", async (phv) => {
     rpcOk = useRpc as boolean;
@@ -120,21 +120,16 @@ describe.each([
     expect(ids).toEqual(expectedCat === phv ? ["full"] : []);
     expect(total).toBe(ids.length);
     for (const p of players) expect(p.phvCategory).toBe(phv);
-    if (useRpc) {
-      // La RPC ya no filtra por la categoría persistida: lista completa, sin p_phv.
-      expect(lastRpcBody?.p_phv).toBeNull();
-      expect(lastRpcBody?.p_offset).toBe(0);
-    }
+    // P1 bloque 5: la RPC (percent_rank ⇒ P0) ya no se llama nunca.
+    expect(lastRpcBody).toBeNull();
   });
 
-  it("sin filtro PHV la RPC conserva su paginación", async () => {
+  it("pagina en memoria (limit/offset) sin llamar a la RPC", async () => {
     rpcOk = useRpc as boolean;
-    await listPage("?limit=10&offset=5");
-    if (useRpc) {
-      expect(lastRpcBody?.p_phv).toBeNull();
-      expect(lastRpcBody?.p_limit).toBe(10);
-      expect(lastRpcBody?.p_offset).toBe(5);
-    }
+    const { players, total } = await listPage("?limit=1&offset=1");
+    expect(total).toBe(2);
+    expect(players).toHaveLength(1);
+    expect(lastRpcBody).toBeNull();
   });
 });
 
@@ -143,8 +138,8 @@ describe.each([
 // filtraba la FASE (early = pre-PHV): el tardío en PHV quedaba oculto y el pre-PHV
 // «en fase» aparecía. Casos del hallazgo, gate de la rama a 2026-09-29.
 describe.each([
-  ["RPC", true],
-  ["fallback en memoria", false],
+  // P1 bloque 5: sin la RPC get_ranked_players (daba P0); la ruta en memoria es la única.
+  ["ruta única en memoria", false],
 ])("rankings (%s) · filtro de timing = lo que rotula la fila", (_label, useRpc) => {
   const LATE_IN_PHV = {
     name: "Tardío en PHV", age: 15, position: "MC", height: 160, weight: 48, sittingHeight: 80, legLength: 80,

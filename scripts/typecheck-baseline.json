@@ -1,6 +1,6 @@
 {
   "_comment": "Baseline de errores tsc conocidos (tsconfig.app.json). NO editar a mano: regenerar con `node scripts/typecheck-baseline.mjs --update`. Objetivo: que solo baje. Ver scripts/typecheck-baseline.mjs.",
-  "total": 66,
+  "total": 65,
   "errors": {
     "api/_lib/budgetGuard.ts::TS2591::Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.": 4,
     "api/_lib/usageGuard.ts::TS2591::Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.": 3,
@@ -27,7 +27,6 @@
     "src/lib/tracking/eventDetectionEngine.ts::TS2345::Argument of type '{ type: \"cross\"; timestampMs: number; frameIndex: number; actorTrackId: number; startPosition: { fx: number; fy: number; }; endPosition: { fx: number; fy: number; }; confidence: number; metadata: { fromSide: string; }; }' is not assignable to parameter of type 'Omit<TacticalEvent, \"id\"> & { id?: string; }'.": 1,
     "src/lib/tracking/eventDetectionEngine.ts::TS2345::Argument of type '{ type: \"carry\"; timestampMs: number; frameIndex: number; actorTrackId: number; startPosition: { fx: number; fy: number; }; endPosition: { fx: number; fy: number; }; outcome: \"success\"; confidence: number; metadata: { ...; }; }' is not assignable to parameter of type 'Omit<TacticalEvent, \"id\"> & { id?: string; }'.": 1,
     "src/pages/LiveSummaryPage.tsx::TS2352::Conversion of type 'AnalysisResult' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.": 1,
-    "src/pages/PlayerIntelligencePage.tsx::TS2345::Argument of type '{ velocidadDecision?: { score?: number; observacion?: string; }; tecnicaConBalon?: { score?: number; observacion?: string; }; inteligenciaTactica?: { score?: number; observacion?: string; }; capacidadFisica?: { ...; }; liderazgoPresencia?: { ...; }; eficaciaCompetitiva?: { ...; }; }' is not assignable to parameter of type 'Record<string, { score: number; observacion?: string; }>'.": 1,
     "src/pages/PlayerIntelligencePage.tsx::TS2322::Type '{ fx?: number; fy?: number; }[]' is not assignable to type 'Position[]'.": 1,
     "src/pages/PlayerIntelligencePage.tsx::TS2322::Type '{ club?: string; score?: number; proPlayerId?: string; nombre?: string; posicion?: string; razonamiento?: string; }[]' is not assignable to type 'SimilarityMatch[]'.": 1,
     "src/pages/PlayerIntelligencePage.tsx::TS2739::Type '{ club?: string; score?: number; proPlayerId?: string; nombre?: string; posicion?: string; narrativa?: string; }' is missing the following properties from type 'SimilarityMatch': player, positionMatch": 1,

@@ -17,7 +17,6 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
-import { calculateReportBenchmark, type ReportBenchmark } from "@/services/real/benchmarkService";
 import { computeVsiDelta, realVsiEvaluations } from "@/lib/scoring/vsiDelta";
 import { MetricValue } from "@/components/metrics/MetricValue";
 
@@ -350,8 +349,9 @@ export default function PlayerReportPrint() {
         </div>
       )}
 
-      {/* Benchmark vs Peers */}
-      <BenchmarkSection age={rawPlayer.age} position={rawPlayer.position} metrics={rawPlayer.metrics as unknown as Record<string, number>} />
+      {/* Sin «Benchmark vs pares» (P1 bloque 5): comparaba las barras del entrenador /10
+          con un campo que los jugadores no tienen (`stats`), así que imprimía P100 en cada
+          dimensión. La comparación con pares es /api/benchmark/peer (percentil único). */}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-8">
@@ -384,85 +384,6 @@ export default function PlayerReportPrint() {
         </div>
         <div className="text-xs text-gray-400">© {new Date().getFullYear()}</div>
       </div>
-    </div>
-  );
-}
-
-// ─── Benchmark Section ────────────────────────────────────────────────────────
-
-const dimLabelKeys: Record<string, string> = {
-  velocidadDecision: "playerReportPrint.dimDecisionSpeed",
-  tecnicaConBalon: "playerReportPrint.dimTechnique",
-  inteligenciaTactica: "playerReportPrint.dimTacticalIntelligence",
-  capacidadFisica: "playerReportPrint.dimPhysicalCapacity",
-  liderazgoPresencia: "playerReportPrint.dimLeadership",
-  eficaciaCompetitiva: "playerReportPrint.dimEffectiveness",
-};
-
-function BenchmarkSection({
-  age,
-  position,
-  metrics,
-}: {
-  age: number;
-  position: string;
-  metrics: Record<string, number>;
-}) {
-  const { t } = useTranslation();
-  // Convert player metrics (0-100) to dimension-like scores (0-10) for benchmark
-  const dimensionScores: Record<string, { score: number }> = {
-    velocidadDecision: { score: metrics.speed / 10 },
-    tecnicaConBalon: { score: metrics.technique / 10 },
-    inteligenciaTactica: { score: metrics.vision / 10 },
-    capacidadFisica: { score: metrics.stamina / 10 },
-    liderazgoPresencia: { score: metrics.vision / 10 },
-    eficaciaCompetitiva: { score: metrics.shooting / 10 },
-  };
-
-  let benchmark: ReportBenchmark | null = null;
-  try {
-    benchmark = calculateReportBenchmark(age, position, dimensionScores);
-  } catch {
-    // benchmarkService may fail if no players in storage
-  }
-
-  if (!benchmark || benchmark.sampleSize === 0) return null;
-
-  return (
-    <div className="mb-6">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">
-        {t("playerReportPrint.benchmarkVsPeers")}
-      </h2>
-      <p className="text-[10px] text-gray-400 mb-2">{benchmark.groupDescription}</p>
-      <div className="space-y-1.5">
-        {benchmark.dimensions.map((d) => (
-          <div key={d.dimensionKey} className="flex items-center gap-2">
-            <span className="text-[10px] text-gray-500 w-24 shrink-0">
-              {dimLabelKeys[d.dimensionKey] ? t(dimLabelKeys[d.dimensionKey]) : d.dimensionKey}
-            </span>
-            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden relative">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${d.percentile}%`,
-                  backgroundColor:
-                    d.percentile >= 75 ? "#10b981" :
-                    d.percentile >= 50 ? "#7c3aed" :
-                    d.percentile >= 25 ? "#f59e0b" : "#ef4444",
-                }}
-              />
-            </div>
-            <span className="text-[10px] font-bold w-8 text-right text-gray-700">
-              P{d.percentile}
-            </span>
-          </div>
-        ))}
-      </div>
-      {benchmark.sampleSize < 5 && (
-        <p className="text-[9px] text-amber-500 mt-1">
-          ⚠ {t("playerReportPrint.smallSampleWarning", { count: benchmark.sampleSize })}
-        </p>
-      )}
     </div>
   );
 }

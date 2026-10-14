@@ -224,7 +224,10 @@ export async function execTool(
       const q = ((input.name_query as string) ?? "").toLowerCase().trim();
       const { data: matches } = await supabase
         .from("players")
-        .select("id, name, age, position, foot, height_cm, weight_kg, vsi, vsi_history, phv_category, phv_offset, metric_speed, metric_technique, metric_vision, metric_stamina, metric_shooting, metric_defending")
+        // Barras del entrenador del BLOB (null si no está evaluado): las columnas metric_*
+        // valen 0 para quien no lo está (trigger 069 + DEFAULT 0 de la 024) y el modelo
+        // leía «velocidad 0» de un niño sin evaluar (P1 bloque 5).
+        .select("id, name, age, position, foot, height_cm, weight_kg, vsi, vsi_history, phv_category, phv_offset, evaluacion_entrenador:data->metrics")
         .eq("user_id", ctx.userId)
         .ilike("name", `%${q}%`)
         .limit(3);

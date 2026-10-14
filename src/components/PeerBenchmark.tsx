@@ -1,35 +1,33 @@
 /**
- * VITAS · Peer Benchmark (Sprint B4 · día 3-4)
+ * VITAS · Comparación con pares (percentil entre los propios jugadores)
  *
- * Muestra cómo se compara el jugador vs el pool federado anonimizado.
- * Render selectivo según data quality:
- *   - high/medium/low → barras p25-p75 + dot del jugador + label percentil
- *   - insufficient    → mensaje motivacional + invitación a esperar
+ * Muestra cómo se compara el jugador con los jugadores del MISMO dueño de su posición
+ * y edad ±1 (api/benchmark/peer.ts). El percentil sale de la implementación única
+ * (src/lib/metrics/percentile.ts): sin evaluar o con menos de 10 pares evaluados se
+ * muestra el MOTIVO, nunca un «P0» (P1 bloque 5). Lo ven las familias
+ * (ParentDashboardPage) y el panel de análisis.
  */
 
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Loader2, Users, Globe, AlertCircle } from "lucide-react";
+import { Loader2, Users, Info } from "lucide-react";
 import { getAuthHeaders } from "@/lib/apiAuth";
+import type { MetricResult } from "@/lib/metrics/MetricResult";
+import type { PercentileGateInfo, PeerDistributionValue } from "@/lib/metrics/percentile";
 
-interface MetricStats {
-  player: number;
-  percentile: number | null;
-  mean: number;
-  p25: number;
-  p50: number;
-  p75: number;
-  p90: number;
+interface PeerMetric {
+  player: number | null;
+  percentile: MetricResult<number>;
+  gate: PercentileGateInfo | null;
+  distribution: PeerDistributionValue | null;
 }
 
 interface BenchmarkResponse {
   stratum: { position: string; ageMin: number; ageMax: number; phvCategory: string | null };
-  peerCount: number;
-  dataQuality: "high" | "medium" | "low" | "insufficient";
-  vsi?: MetricStats | null;
-  byMetric?: Record<string, MetricStats | null>;
-  message?: string;
+  minPeers: number;
+  vsi: PeerMetric;
+  byMetric: Record<string, PeerMetric>;
 }
 
 interface Props {
@@ -76,42 +74,38 @@ export default function PeerBenchmark({ playerId, variant = "full" }: Props) {
     );
   }
 
-  if (error || !data) {
+  if (error || !data?.vsi) {
     return null; // silencioso · es info adicional
   }
 
-  if (data.dataQuality === "insufficient") {
+  const gateText = (gate: PercentileGateInfo) =>
+    t(`percentile.gate.${gate.code}`, { count: gate.peers, min: gate.min });
+
+  // Sin percentil del VSI (sin evaluar o pocos pares): se dice por qué y no se pinta nada más.
+  if (data.vsi.percentile.value === null) {
     return (
       <div className="rounded-lg bg-secondary/30 border border-border p-3 flex items-start gap-2">
-        <Globe size={12} className="text-muted-foreground shrink-0 mt-0.5" />
+        <Info size={12} className="text-muted-foreground shrink-0 mt-0.5" />
         <div>
           <p className="text-[11px] font-display font-bold text-foreground">
-            {t("peerBenchmark.crossClubBenchmark")}
+            {t("peerBenchmark.title")}
           </p>
           <p className="text-[10px] text-muted-foreground leading-relaxed">
-            {data.message ?? t("peerBenchmark.insufficientData", { count: data.peerCount })}
+            {data.vsi.gate ? gateText(data.vsi.gate) : data.vsi.percentile.gate_reason}
           </p>
         </div>
       </div>
     );
   }
 
-  const qualityColor = data.dataQuality === "high" ? "text-green-400" : data.dataQuality === "medium" ? "text-electric" : "text-amber-400";
-  const qualityDots = data.dataQuality === "high" ? "●●●" : data.dataQuality === "medium" ? "●●○" : "●○○";
-
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <Globe size={11} className="text-primary" />
+          <Users size={11} className="text-primary" />
           <span className="text-[10px] uppercase tracking-wider text-primary font-bold">
-            {t("peerBenchmark.crossClubBenchmarkLabel")}
+            {t("peerBenchmark.title")}
           </span>
-        </div>
-        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <Users size={10} />
-          <span>{data.peerCount} peers</span>
-          <span className={qualityColor} title={`Data quality: ${data.dataQuality}`}>{qualityDots}</span>
         </div>
       </div>
 
@@ -121,45 +115,55 @@ export default function PeerBenchmark({ playerId, variant = "full" }: Props) {
         {data.stratum.phvCategory && <> · PHV <span className="text-foreground">{data.stratum.phvCategory}</span></>}
       </div>
 
-      {/* VSI principal */}
-      {data.vsi && data.vsi.percentile !== null && (
-        <div className="rounded-xl bg-primary/10 border border-primary/30 p-3">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-display font-bold text-foreground">VSI vs peers</span>
-            <span className="font-display font-bold text-2xl text-primary">P{data.vsi.percentile}</span>
-          </div>
-          <BenchmarkBar stats={data.vsi} max={100} />
-          <div className="text-[9px] text-muted-foreground mt-1.5 flex justify-between">
-            <span>P25: <span className="text-foreground">{data.vsi.p25}</span></span>
-            <span>{t("peerBenchmark.mean")}: <span className="text-foreground">{data.vsi.mean}</span></span>
-            <span>P75: <span className="text-foreground">{data.vsi.p75}</span></span>
-            <span>P90: <span className="text-foreground">{data.vsi.p90}</span></span>
-          </div>
+      {/* Evaluación del entrenador frente a sus pares */}
+      <div className="rounded-xl bg-primary/10 border border-primary/30 p-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs font-display font-bold text-foreground">{t("peerBenchmark.vsiVsPeers")}</span>
+          <span className="font-display font-bold text-2xl text-primary">P{data.vsi.percentile.value}</span>
         </div>
-      )}
+        {data.vsi.distribution && data.vsi.player !== null && (
+          <>
+            <BenchmarkBar player={data.vsi.player} dist={data.vsi.distribution} max={100} />
+            <div className="text-[9px] text-muted-foreground mt-1.5 flex justify-between">
+              <span>P25: <span className="text-foreground">{data.vsi.distribution.p25}</span></span>
+              <span>{t("peerBenchmark.mean")}: <span className="text-foreground">{data.vsi.distribution.mean}</span></span>
+              <span>P75: <span className="text-foreground">{data.vsi.distribution.p75}</span></span>
+              <span>P90: <span className="text-foreground">{data.vsi.distribution.p90}</span></span>
+            </div>
+          </>
+        )}
+      </div>
 
-      {/* Por métrica · solo si full y datos */}
-      {variant === "full" && data.byMetric && (
+      {/* Por métrica · solo en la variante completa; sin percentil ⇒ su motivo */}
+      {variant === "full" && (
         <div className="space-y-1.5">
           {METRIC_KEYS.map((key) => {
             const m = data.byMetric?.[key];
-            if (!m || m.percentile === null) return null;
+            if (!m) return null;
             return (
               <div key={key} className="flex items-center gap-2">
                 <span className="w-16 shrink-0 text-[10px] text-muted-foreground font-display font-bold uppercase tracking-wider">
                   {t(`peerBenchmark.metric.${key}`)}
                 </span>
-                <div className="flex-1 min-w-0">
-                  <BenchmarkBar stats={m} max={100} small />
-                </div>
-                <span className={`shrink-0 text-[10px] font-display font-bold ${
-                  m.percentile >= 75 ? "text-green-400"
-                  : m.percentile >= 50 ? "text-electric"
-                  : m.percentile >= 25 ? "text-amber-400"
-                  : "text-muted-foreground"
-                }`}>
-                  P{m.percentile}
-                </span>
+                {m.percentile.value !== null && m.distribution && m.player !== null ? (
+                  <>
+                    <div className="flex-1 min-w-0">
+                      <BenchmarkBar player={m.player} dist={m.distribution} max={100} small />
+                    </div>
+                    <span className={`shrink-0 text-[10px] font-display font-bold ${
+                      m.percentile.value >= 75 ? "text-green-600"
+                      : m.percentile.value >= 50 ? "text-electric"
+                      : m.percentile.value >= 25 ? "text-amber-600"
+                      : "text-muted-foreground"
+                    }`}>
+                      P{m.percentile.value}
+                    </span>
+                  </>
+                ) : (
+                  <span className="flex-1 min-w-0 text-[10px] text-muted-foreground">
+                    {m.gate ? gateText(m.gate) : m.percentile.gate_reason}
+                  </span>
+                )}
               </div>
             );
           })}
@@ -171,7 +175,17 @@ export default function PeerBenchmark({ playerId, variant = "full" }: Props) {
 
 // ─── BenchmarkBar ─────────────────────────────────────────────────
 
-function BenchmarkBar({ stats, max, small }: { stats: MetricStats; max: number; small?: boolean }) {
+function BenchmarkBar({
+  player,
+  dist,
+  max,
+  small,
+}: {
+  player: number;
+  dist: PeerDistributionValue;
+  max: number;
+  small?: boolean;
+}) {
   const { t } = useTranslation();
   const pct = (v: number) => Math.max(0, Math.min(100, (v / max) * 100));
   return (
@@ -179,20 +193,20 @@ function BenchmarkBar({ stats, max, small }: { stats: MetricStats; max: number; 
       {/* P25-P75 band */}
       <div
         className="absolute top-0 bottom-0 bg-primary/25"
-        style={{ left: `${pct(stats.p25)}%`, width: `${pct(stats.p75) - pct(stats.p25)}%` }}
+        style={{ left: `${pct(dist.p25)}%`, width: `${pct(dist.p75) - pct(dist.p25)}%` }}
       />
       {/* P50 line */}
       <div
         className="absolute top-0 bottom-0 w-px bg-primary/60"
-        style={{ left: `${pct(stats.p50)}%` }}
+        style={{ left: `${pct(dist.p50)}%` }}
       />
       {/* Player dot */}
       <motion.div
         initial={{ left: "0%" }}
-        animate={{ left: `calc(${pct(stats.player)}% - ${small ? 4 : 6}px)` }}
+        animate={{ left: `calc(${pct(player)}% - ${small ? 4 : 6}px)` }}
         transition={{ duration: 0.6, ease: "easeOut" }}
         className={`absolute top-1/2 -translate-y-1/2 ${small ? "w-2 h-2" : "w-3 h-3"} rounded-full bg-primary ring-2 ring-background`}
-        title={t("peerBenchmark.playerValue", { value: stats.player })}
+        title={t("peerBenchmark.playerValue", { value: player })}
       />
     </div>
   );

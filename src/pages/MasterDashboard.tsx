@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { PlayerService } from "@/services/real/playerService";
 import { computeDashboardStats } from "@/services/real/adapters";
-import { MetricsService } from "@/services/real/metricsService";
+import { percentilesAmong } from "@/lib/metrics/percentile";
 import { gatedMaturity } from "@/lib/phv/phvGate";
 import { useTranslation } from "react-i18next";
 
@@ -60,7 +60,11 @@ const MasterDashboard = () => {
 
   // Player reports reales con bias calculado — TODOS los jugadores
   const playerReports = useMemo(() => {
-    const allVSIs = players.map((p) => p.vsi);
+    // Percentil con la implementación única (src/lib/metrics/percentile.ts): entre los
+    // propios jugadores, sin demo para uno real y con mínimo de 10 pares; si no, null.
+    const percentiles = percentilesAmong(
+      players.map((p) => ({ id: p.id, value: p.vsi, isDemo: p.isDemo === true })),
+    );
     return players
       .filter((p) =>
         searchQuery
@@ -69,14 +73,14 @@ const MasterDashboard = () => {
           : true
       )
       .map((p) => {
-        const pct = MetricsService.calculatePercentile(p.vsi, allVSIs);
+        const pct = percentiles.get(p.id)?.result.value ?? null;
         // Sesgo desde el motor canónico, con gating: solo marcamos "high" (talento
         // infravalorado) a un madurador TARDÍO con confianza suficiente, no a
         // cualquier pre-púber (evita falso positivo).
         const mat = gatedMaturity(p);
         const matFirm = mat.confidence === "high" || mat.confidence === "moderate";
-        // pct es null para un jugador sin evaluar (no tiene percentil): en ese caso
-        // no se marca sesgo por percentil, queda "med" salvo señal de maduración.
+        // pct es null sin evaluar o con menos de 10 pares: en ese caso no se marca
+        // sesgo por percentil, queda "med" salvo señal de maduración.
         const biasAlert: "low" | "med" | "high" =
           matFirm && mat.timing === "late" ? "high"
           : matFirm && mat.timing === "early" ? "low"

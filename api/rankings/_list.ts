@@ -6,8 +6,18 @@
  * - Server-side pagination (limit/offset)
  * - Sort by VSI, age, name
  * - Filter by PHV category, position, age group, competitive level
- * - Percentile calculation per age group
+ * - Percentiles entre pares (implementación ÚNICA src/lib/metrics/percentile.ts): solo
+ *   los jugadores del propio usuario, sin jugadores de ejemplo para uno real y con un
+ *   mínimo de 10 pares; si no, null + motivo (P1 bloque 5)
  * - Total count for pagination
+ *
+ * Sin la RPC SQL get_ranked_players (P1 bloque 5): su `percent_rank()` daba P0 al
+ * jugador evaluado que estaba solo en su grupo de edad y al último de cada grupo (el
+ * mismo niño salía P0 por la RPC y P100 por esta ruta). La ruta en memoria ya cargaba
+ * todos los jugadores del usuario, filtraba y paginaba tras la puerta PHV; ahora es la
+ * única. La función SQL queda en la base sin uso (sin EXECUTE para clientes, 072).
+ * Sin caché de módulo de 5 minutos: con una sola ruta, la lista no puede ir por detrás
+ * de lo que el entrenador acaba de guardar.
  */
 
 import { withHandler } from "../_lib/withHandler";
@@ -15,6 +25,7 @@ import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { calculateFichaVsi } from "../../src/services/real/metricsService";
 import { phvGate, matchesTimingFilter, type MaturityTiming, type PhvGateInput } from "../../src/lib/phv/phvGate";
 import { vsiTrendArrow } from "../../src/lib/scoring/vsiDelta";
+import { percentilesAmong, percentileGateInfo, type PercentileGateInfo } from "../../src/lib/metrics/percentile";
 
 export const config = { runtime: "edge" };
 
@@ -57,15 +68,6 @@ function getAgeGroup(age: number): string {
   return "Sub-21";
 }
 
-/** Calculate percentile rank within a sorted array of values */
-function percentileRank(value: number, allValues: number[]): number {
-  if (allValues.length <= 1) return 100;
-  const below = allValues.filter((v) => v < value).length;
-  const equal = allValues.filter((v) => v === value).length;
-  return Math.round(((below + equal * 0.5) / allValues.length) * 100);
-}
-
-// ── Module-level cache (persists across requests in same Edge instance) ──
 type PlayerRow = {
   id: string;
   name: string;
@@ -81,15 +83,20 @@ type PlayerRow = {
   competitiveLevel: string | null; // null ⇒ nivel no registrado
   ageGroup: string;
   trending: "up" | "down" | "stable";
-  percentile: number | null;         // null si sin evaluar
-  percentileInAgeGroup: number | null; // null si sin evaluar
+  // null si sin evaluar o con menos de 10 pares; el motivo va en *Gate.
+  percentile: number | null;
+  percentileInAgeGroup: number | null;
+  percentileGate: PercentileGateInfo | null;
+  percentileInAgeGroupGate: PercentileGateInfo | null;
+  /** Jugador de ejemplo: en los percentiles solo se compara con otros de ejemplo. */
+  isDemo: boolean;
   updatedAt: string;
   metrics: Record<string, number>;
   foot: string | null; // null ⇒ pie no registrado
   height: number | null;
   weight: number | null;
   // Campos de maduración para que el cliente compute el timing canónico
-  // (resolveMaturity) con la misma fuente en ambas rutas (RPC/fallback).
+  // (resolveMaturity) con la misma fuente que esta ruta.
   // gender puede ser null: sexo no registrado ⇒ resolveMaturity abstiene (invariante #5).
   gender: "M" | "F" | null;
   birthDate: string | null;
@@ -98,16 +105,6 @@ type PlayerRow = {
   motherHeightCm: number | null;
   fatherHeightCm: number | null;
 };
-
-/**
- * p_limit de la RPC cuando hay filtro PHV: la lista COMPLETA del usuario (el
- * filtro y la paginación se aplican aquí tras el gate). La ruta en memoria ya
- * carga todos los jugadores del usuario; esto no amplía qué se lee.
- */
-const RPC_ALL_ROWS = 100_000;
-
-const rankingsCache = new Map<string, { data: PlayerRow[]; timestamp: number }>();
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 // ── Handler ──────────────────────────────────────────────────────────────
 
@@ -153,96 +150,11 @@ export default withHandler(
       "Content-Type": "application/json",
     };
 
-    // Try RPC first (server-side percentiles, O(n) in Postgres)
-    try {
-      // La RPC filtra PHV por el phvCategory PERSISTIDO del blob (con default
-      // 'ontme', 059) mientras la fila muestra el recálculo del gate: filtrar por
-      // «early» devolvía a un pre-púber sin medidas rotulado «PHV no disponible».
-      // Con filtro PHV se pide la lista completa ordenada SIN p_phv y se filtra +
-      // pagina aquí, DESPUÉS del gate (misma fuente que muestra la fila y que la
-      // ruta en memoria). Los percentiles siguen siendo los de la RPC.
-      const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/get_ranked_players`, {
-        method: "POST",
-        headers: { ...headers, Prefer: "return=representation" },
-        body: JSON.stringify({
-          p_user_id: userId,
-          p_sort_by: sortBy,
-          p_sort_dir: sortDir,
-          p_limit: gatedFilter ? RPC_ALL_ROWS : limit,
-          p_offset: gatedFilter ? 0 : offset,
-          p_search: search || null,
-          p_phv: null,
-          p_position: posFilter || null,
-          p_age_group: ageGroupFilter || null,
-          p_level: levelFilter || null,
-        }),
-      });
-
-      if (rpcRes.ok) {
-        const rpcData = await rpcRes.json();
-        // RPC returns the full response object directly
-        // Map player data format to match existing API contract
-        const mapped: Array<Record<string, unknown>> = (rpcData.players || []).map((p: Record<string, unknown>) => ({
-          id: p.id,
-          name: p.name,
-          age: p.age,
-          position: p.position,
-          vsi: p.vsi == null ? null : Number(p.vsi), // no coaccionar null→0
-          // Nivel SOLO del blob (lo sobrescribe el spread de `data` de abajo si existe): el
-          // `competitive_level` que devuelve la RPC es `coalesce(data->>'competitiveLevel',
-          // 'Regional')` (059) ⇒ un nivel inventado cuando falta; no se usa como dato
-          // (P1 bloque 2, inv #2). El filtro por nivel y la lista de niveles de la RPC
-          // siguen con ese coalesce (residuo P2: cambiar la RPC).
-          competitiveLevel: null,
-          ageGroup: p.age_group,
-          percentile: p.percentile == null ? null : Math.round(Number(p.percentile)),
-          percentileInAgeGroup:
-            p.percentile_in_age_group == null ? null : Math.round(Number(p.percentile_in_age_group)),
-          updatedAt: p.updated_at,
-          ...((p.data || {}) as Record<string, unknown>),
-          // DESPUÉS del spread del blob: el phvCategory/phvOffset persistido del
-          // blob NO llega al cliente; solo el recálculo gateado (o null + motivo).
-          ...gatedPhvFields((p.data || {}) as Record<string, unknown>),
-        }));
-        // Filtros fase/timing sobre lo GATEADO (lo que se muestra), no lo persistido.
-        const matching = gatedFilter
-          ? mapped.filter(
-              (p) =>
-                (!phvFilter || p.phvCategory === phvFilter) &&
-                matchesTimingFilter(p.phvTiming as MaturityTiming | null, timingFilter),
-            )
-          : mapped;
-        const players = gatedFilter ? matching.slice(offset, offset + limit) : mapped;
-
-        return successResponse({
-          players,
-          total: gatedFilter ? matching.length : rpcData.total || 0,
-          limit,
-          offset,
-          totalUnfiltered: rpcData.totalUnfiltered || 0,
-          ageGroups: rpcData.ageGroups || [],
-          ageGroupStats: rpcData.ageGroupStats || {},
-          competitiveLevels: rpcData.competitiveLevels || [],
-        });
-      }
-      // RPC failed — fall through to in-memory approach
-      console.warn("[rankings] RPC failed, falling back to in-memory:", rpcRes.status);
-    } catch (rpcErr) {
-      console.warn("[rankings] RPC exception, falling back to in-memory:", rpcErr);
-    }
-
-    // ── Fallback: in-memory approach ──
-    // Fetch ALL players for this user (needed for percentile calculations)
-    // This is intentional — percentiles require the full dataset
-    // Use module-level cache to avoid repeated DB fetches within the same Edge instance
+    // TODOS los jugadores del usuario (players.user_id): son la población de los
+    // percentiles (solo los propios, decisión del dueño 14 oct 2026) y el filtro y la
+    // paginación se aplican después, sobre lo que se muestra.
     let allPlayers: PlayerRow[];
-
-    const cacheKey = `rankings:${userId}`;
-    const cached = rankingsCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-      // Use cached data — skip DB fetch
-      allPlayers = cached.data;
-    } else {
+    {
       const allUrl = `${supabaseUrl}/rest/v1/players?user_id=eq.${userId}&select=id,data,updated_at`;
       const allRes = await fetch(allUrl, { headers: { ...headers, Prefer: "count=exact" } });
 
@@ -290,8 +202,11 @@ export default withHandler(
           competitiveLevel: typeof d.competitiveLevel === "string" && d.competitiveLevel ? d.competitiveLevel : null,
           ageGroup: getAgeGroup(age),
           trending,
-          percentile: 0, // calculated below
-          percentileInAgeGroup: 0, // calculated below
+          percentile: null, // calculated below
+          percentileInAgeGroup: null, // calculated below
+          percentileGate: null,
+          percentileInAgeGroupGate: null,
+          isDemo: d.isDemo === true,
           updatedAt: row.updated_at,
           metrics,
           // Sin pie registrado ⇒ null, no «right» (P1 bloque 2, inv #2).
@@ -301,7 +216,7 @@ export default withHandler(
           height: typeof d.height === "number" ? d.height : null,
           weight: typeof d.weight === "number" ? d.weight : null,
           // Sin fallback "M": sexo ausente ⇒ null → playerMaturity reenvía sex:undefined
-          // y resolveMaturity abstiene ("Sexo no registrado"), igual que la ruta RPC (invariante #5).
+          // y resolveMaturity abstiene ("Sexo no registrado") (invariante #5).
           gender: d.gender === "M" || d.gender === "F" ? d.gender : null,
           birthDate: (d.birthDate as string) ?? null,
           sittingHeight: (d.sittingHeight as number) ?? null,
@@ -311,35 +226,24 @@ export default withHandler(
         };
       });
 
-      // Second pass: calculate percentiles against full unfiltered dataset.
-      // Los jugadores SIN evaluar (vsi null) se excluyen del cálculo y quedan
-      // con percentil null: un hueco no compite ni cuenta como 0.
-      const allVSIsForCache = allPlayers
-        .map((p) => p.vsi)
-        .filter((v): v is number => v !== null);
-      const vsiByAgeGroupForCache: Record<string, number[]> = {};
+      // Second pass: percentiles contra el conjunto completo SIN filtrar, con la
+      // implementación única (src/lib/metrics/percentile.ts): sin evaluar ⇒ null +
+      // motivo; menos de 10 pares evaluados ⇒ null + motivo; un jugador de ejemplo
+      // y uno real no se mezclan. Antes: «≤1 valor ⇒ P100» aquí y P0 en la RPC.
+      const members = allPlayers.map((p) => ({ id: p.id, value: p.vsi, isDemo: p.isDemo, group: p.ageGroup }));
+      const global = percentilesAmong(members);
+      const inGroup = percentilesAmong(members, { byGroup: true });
       for (const p of allPlayers) {
-        if (p.vsi === null) continue;
-        if (!vsiByAgeGroupForCache[p.ageGroup]) vsiByAgeGroupForCache[p.ageGroup] = [];
-        vsiByAgeGroupForCache[p.ageGroup].push(p.vsi);
+        const g = global.get(p.id)!;
+        const ag = inGroup.get(p.id)!;
+        p.percentile = g.result.value;
+        p.percentileGate = percentileGateInfo(g);
+        p.percentileInAgeGroup = ag.result.value;
+        p.percentileInAgeGroupGate = percentileGateInfo(ag);
       }
-      for (const p of allPlayers) {
-        if (p.vsi === null) {
-          p.percentile = null;
-          p.percentileInAgeGroup = null;
-          continue;
-        }
-        p.percentile = percentileRank(p.vsi, allVSIsForCache);
-        p.percentileInAgeGroup = percentileRank(
-          p.vsi,
-          vsiByAgeGroupForCache[p.ageGroup] ?? allVSIsForCache
-        );
-      }
-
-      rankingsCache.set(cacheKey, { data: allPlayers, timestamp: Date.now() });
     }
 
-    // Build vsiByAgeGroup from current allPlayers (cached or fresh) for stats.
+    // Build vsiByAgeGroup from allPlayers for stats.
     // avgVsi/min/max solo sobre evaluados (vsi null excluido); el conteo del
     // grupo sí cuenta a todos (un jugador sin evaluar sigue siendo del grupo).
     const vsiByAgeGroup: Record<string, number[]> = {};

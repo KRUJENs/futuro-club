@@ -57,7 +57,6 @@ interface AnalysisData {
     /** G4: compuesto BLOQUEADO (vsi:null) porque <4/5 dimensiones tienen procedencia real. */
     blocked?: boolean;
     gate_reason?: string | null;
-    peer?: { percentile: number | null; peerCount: number; stratum: string } | null;
     trend?: {
       slope: number | null;
       momentum: "up" | "flat" | "down" | null;
@@ -274,22 +273,11 @@ export function AnalysisDashboard({ analysisId, shareToken, onLoaded }: Props) {
             })}
           </div>
         )}
-        {((analysis.vsi?.peer?.percentile !== null && analysis.vsi?.peer?.percentile !== undefined) ||
-          (analysis.vsi?.trend?.momentum && analysis.vsi.trend.samples >= 2)) && (
+        {/* Sin el percentil guardado `vsi.peer` (P1 bloque 5): se calculaba contra
+            jugadores de todas las cuentas y con los no evaluados como 0. La comparación
+            con pares es <PeerBenchmark> (más abajo), con la implementación única. */}
+        {analysis.vsi?.trend?.momentum && analysis.vsi.trend.samples >= 2 && (
           <div className="mt-3 pt-3 border-t border-border/40 flex items-center justify-center gap-3 flex-wrap text-[10px]">
-            {analysis.vsi?.peer?.percentile !== null && analysis.vsi?.peer?.percentile !== undefined && (
-              <div className="flex items-center gap-1.5">
-                <span className="font-display font-bold text-primary text-base">
-                  P{analysis.vsi.peer.percentile}
-                </span>
-                <span className="text-muted-foreground">
-                  {t("analysisDashboard.vs")} {analysis.vsi.peer.stratum}
-                  {analysis.vsi.peer.peerCount > 0 && (
-                    <span className="text-foreground/60"> · {analysis.vsi.peer.peerCount}</span>
-                  )}
-                </span>
-              </div>
-            )}
             {analysis.vsi?.trend?.momentum && analysis.vsi.trend.samples >= 2 && (
               <TrendBadge trend={analysis.vsi.trend} />
             )}
@@ -382,7 +370,7 @@ export function AnalysisDashboard({ analysisId, shareToken, onLoaded }: Props) {
         })}
       </div>
 
-      {/* Cross-club Peer Benchmark · oculto en print, network effect display */}
+      {/* Comparación con los propios jugadores (percentil único) · oculta en print */}
       <div className="glass rounded-2xl p-4 print:hidden">
         <PeerBenchmark playerId={analysis.player_id} variant="compact" />
       </div>

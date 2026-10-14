@@ -7,6 +7,7 @@
 import { StorageService } from "./storageService";
 import { PlayerService } from "./playerService";
 import { MetricsService } from "./metricsService";
+import { peerPercentile } from "@/lib/metrics/percentile";
 
 // ─── Tipos de resultado ───────────────────────────────────────────────────────
 
@@ -272,17 +273,19 @@ function auditMetricsService(): AuditSection {
     })
   );
 
-  // ¿calculatePercentile funciona?
+  // ¿El percentil entre pares (implementación única) se calcula y se bloquea bien?
   checks.push(
-    check("calculatePercentile correcto", () => {
-      const all = [50, 60, 70, 80, 90];
-      const pct = MetricsService.calculatePercentile(80, all);
-      const valid = pct === 60; // 3 de 5 debajo → 60%
+    check("peerPercentile correcto", () => {
+      const tenPeers = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+      const pct = peerPercentile(55, tenPeers).result.value; // 5 de 10 debajo → 50
+      const fewPeers = peerPercentile(80, [50, 60, 70]).result.value; // < 10 pares → null
+      const unrated = peerPercentile(null, tenPeers).result.value; // sin evaluar → null
+      const valid = pct === 50 && fewPeers === null && unrated === null;
       return {
         status: valid ? "ok" : "warning",
         message: valid
-          ? `calculatePercentile correcto: ${pct}%`
-          : `Resultado inesperado: ${pct}% (esperado 60%)`,
+          ? `peerPercentile correcto: ${pct}%; bloqueado con menos de 10 pares y sin evaluar`
+          : `Resultado inesperado: ${pct} / ${fewPeers} / ${unrated} (esperado 50 / null / null)`,
         detail: pct,
       };
     })

@@ -50,7 +50,6 @@ vi.mock("@/hooks/usePlayers", () => ({
   useRawPlayerById: () => ({ data: mockRawPlayer(), isLoading: false }),
 }));
 vi.mock("@/services/real/adapters", () => ({ adaptPlayerForUI: () => ({}) }));
-vi.mock("@/services/real/benchmarkService", () => ({ calculateReportBenchmark: () => null }));
 
 import PlayerReportPrint from "@/pages/PlayerReportPrint";
 

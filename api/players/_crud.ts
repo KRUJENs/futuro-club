@@ -376,12 +376,15 @@ export default withHandler(
         competitive_level: ud.competitiveLevel,
         minutes_played: ud.minutesPlayed,
         gender: ud.gender ?? null, // preserva el sexo real del blob; si falta ⇒ null (invariante #5)
-        metric_speed: m?.speed ?? 0,
-        metric_technique: m?.technique ?? 0,
-        metric_vision: m?.vision ?? 0,
-        metric_stamina: m?.stamina ?? 0,
-        metric_shooting: m?.shooting ?? 0,
-        metric_defending: m?.defending ?? 0,
+        // Sin evaluar ⇒ null, no 0 (P1 bloque 5). OJO: el trigger de players (069) y el
+        // DEFAULT de la columna (024) siguen poniendo 0: los lectores usan el blob
+        // `data->metrics` (corregir las columnas es del bloque 7).
+        metric_speed: m?.speed ?? null,
+        metric_technique: m?.technique ?? null,
+        metric_vision: m?.vision ?? null,
+        metric_stamina: m?.stamina ?? null,
+        metric_shooting: m?.shooting ?? null,
+        metric_defending: m?.defending ?? null,
         vsi: ud.vsi,
         vsi_history: ud.vsiHistory ?? [],
         phv_category: ud.phvCategory ?? null,

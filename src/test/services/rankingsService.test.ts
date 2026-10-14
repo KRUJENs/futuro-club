@@ -75,19 +75,65 @@ describe("fetchRankedPlayers (local fallback)", () => {
 
   // ── Percentile calculation ──────────────────────────────────────────
 
-  it("assigns percentile to each player", async () => {
+  // P1 bloque 5: percentil con la implementación única (src/lib/metrics/percentile.ts):
+  // mínimo 10 pares evaluados además del propio. Con 5 jugadores NO hay percentil (antes
+  // se daba uno contra 4 compañeros, y P100 con 1).
+  it("con 5 jugadores no hay percentil: null + motivo (mínimo 10 pares)", async () => {
     const result = await fetchRankedPlayers("vsi", "desc", {});
     for (const p of result.players) {
-      expect(p.percentile).toBeGreaterThanOrEqual(0);
-      expect(p.percentile).toBeLessThanOrEqual(100);
+      expect(p.percentile).toBeNull();
+      expect(p.percentileGate).toEqual({ code: "insufficient_peers", peers: 4, min: 10 });
+      expect(p.percentileInAgeGroup).toBeNull();
+      expect(p.percentileInAgeGroupGate?.code).toBe("insufficient_peers");
     }
   });
 
-  it("highest VSI gets highest percentile", async () => {
+  it("con 11 evaluados sí hay percentil (punto medio) y el más alto tiene el más alto", async () => {
+    const many = Array.from({ length: 11 }, (_, i) => ({
+      ...mockPlayers[0],
+      id: `m${i}`,
+      name: `J${i}`,
+      vsi: 50 + i, // 50..60, todos Sub-14
+    }));
+    vi.mocked(PlayerService.getAll).mockReturnValueOnce(many as never);
     const result = await fetchRankedPlayers("vsi", "desc", {});
-    const bruno = result.players.find(p => p.name === "Bruno")!; // VSI 82
-    const carlos = result.players.find(p => p.name === "Carlos")!; // VSI 68
-    expect(bruno.percentile).toBeGreaterThan(carlos.percentile);
+    const top = result.players.find((p) => p.name === "J10")!;
+    const low = result.players.find((p) => p.name === "J0")!;
+    expect(top.percentile).toBe(100); // 10 de 10 por debajo
+    expect(low.percentile).toBe(0);
+    expect(top.percentileInAgeGroup).toBe(100);
+    expect(top.percentileGate).toBeNull();
+  });
+
+  it("un jugador sin evaluar no tiene percentil ni cuenta como par", async () => {
+    const many = Array.from({ length: 11 }, (_, i) => ({
+      ...mockPlayers[0],
+      id: `m${i}`,
+      name: `J${i}`,
+      vsi: i === 0 ? null : 50 + i, // 10 evaluados + 1 sin evaluar
+    }));
+    vi.mocked(PlayerService.getAll).mockReturnValueOnce(many as never);
+    const result = await fetchRankedPlayers("vsi", "desc", {});
+    const unrated = result.players.find((p) => p.name === "J0")!;
+    expect(unrated.percentile).toBeNull();
+    expect(unrated.percentileGate?.code).toBe("not_evaluated");
+    // cada evaluado tiene solo 9 pares evaluados ⇒ bloqueado
+    expect(result.players.find((p) => p.name === "J10")!.percentile).toBeNull();
+  });
+
+  it("los jugadores de ejemplo no son pares de los reales", async () => {
+    const demos = Array.from({ length: 10 }, (_, i) => ({
+      ...mockPlayers[0],
+      id: `d${i}`,
+      name: `D${i}`,
+      vsi: 40 + i,
+      isDemo: true,
+    }));
+    vi.mocked(PlayerService.getAll).mockReturnValueOnce([...demos, { ...mockPlayers[0] }] as never);
+    const result = await fetchRankedPlayers("vsi", "desc", {});
+    const real = result.players.find((p) => p.name === "Ana")!;
+    expect(real.percentile).toBeNull();
+    expect(real.percentileGate).toEqual({ code: "insufficient_peers", peers: 0, min: 10 });
   });
 
   // ── Age groups ──────────────────────────────────────────────────────

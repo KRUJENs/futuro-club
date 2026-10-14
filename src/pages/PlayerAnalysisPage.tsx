@@ -23,7 +23,7 @@ import { getAuthHeaders } from "@/lib/apiAuth";
 
 interface LoadedData {
   analysis: {
-    vsi?: { vsi?: number; tierLabel?: string; peer?: { percentile: number | null } | null; trend?: { delta: number | null } | null } | null;
+    vsi?: { vsi?: number; tierLabel?: string; trend?: { delta: number | null } | null } | null;
   };
   reports: Array<{ report_type: string; content: Record<string, unknown> }>;
 }
@@ -33,7 +33,6 @@ function buildWhatsAppText(playerName: string, data: LoadedData | null, url: str
 
   const vsi = data.analysis.vsi?.vsi ?? null;
   const tier = data.analysis.vsi?.tierLabel ?? "";
-  const percentile = data.analysis.vsi?.peer?.percentile ?? null;
   const delta = data.analysis.vsi?.trend?.delta ?? null;
 
   const playerReport = data.reports.find((r) => r.report_type === "player-report")?.content as
@@ -49,7 +48,7 @@ function buildWhatsAppText(playerName: string, data: LoadedData | null, url: str
   if (vsi !== null) {
     let vsiLine = `*VSI ${vsi}*`;
     if (tier) vsiLine += ` · ${tier}`;
-    if (percentile !== null && percentile !== undefined) vsiLine += ` · P${percentile}`;
+    // Sin «· P{n}»: el percentil guardado en el análisis se retiró (P1 bloque 5).
     lines.push(vsiLine);
   }
   if (delta !== null && delta !== undefined) {

@@ -1836,8 +1836,7 @@
     "newAnalysis": "Nieuwe analyse",
     "noAnalysisYet": "Nog geen analyse",
     "generateFirstReport": "Genereer het eerste intelligence-rapport voor {{name}}",
-    "generateReport": "Rapport genereren",
-    "benchmarkLabel": "Benchmark: {{group}}"
+    "generateReport": "Rapport genereren"
   },
   "playerPhvSection": {
     "parentalTitle": "Rijpingsgegevens (speler en ouders)",
@@ -2401,7 +2400,6 @@
     "tierLabel": "Tier ·",
     "partiallyEstimated": "Gedeeltelijk geschat · {{measured}}/5 dimensies gemeten",
     "vsiBlocked": "VSI niet beschikbaar · slechts {{measured}}/5 dimensies gemeten",
-    "vs": "vs",
     "technicalData": "Technische gegevens (geavanceerd)",
     "biomechanics": "Biomechanica",
     "reportTitle": {
@@ -2936,7 +2934,6 @@
       "liderazgoPresencia": "Leiderschap en aanwezigheid",
       "eficaciaCompetitiva": "Competitieve effectiviteit"
     },
-    "benchmarkVsPeers": "Benchmark vs leeftijdsgenoten",
     "noInconsistencies": "Geen inconsistenties gedetecteerd",
     "issuesSummary": "{{errors}} fouten, {{warnings}} waarschuwingen",
     "statsPanel": "Statistiekenpaneel",
@@ -3378,15 +3375,7 @@
     "footRight": "Rechts",
     "footLeft": "Links",
     "footBoth": "Tweevoetig",
-    "dominantFoot": "Voorkeursvoet",
-    "benchmarkVsPeers": "Benchmark vs leeftijdsgenoten",
-    "smallSampleWarning": "Kleine steekproef ({{count}} spelers). Indicatieve percentielen.",
-    "dimDecisionSpeed": "Beslissnelh.",
-    "dimTechnique": "Techniek",
-    "dimTacticalIntelligence": "Tact. intell.",
-    "dimPhysicalCapacity": "Fysieke capaciteit",
-    "dimLeadership": "Leiderschap",
-    "dimEffectiveness": "Effectiviteit"
+    "dominantFoot": "Voorkeursvoet"
   },
   "playerReportsPage": {
     "video": "Video",
@@ -3984,10 +3973,7 @@
     "statDefense": "Verdediging"
   },
   "peerBenchmark": {
-    "comparing": "Vergelijken met VITAS-netwerk…",
-    "crossClubBenchmark": "Cross-club-benchmark",
-    "insufficientData": "Slechts {{count}} vergelijkbare spelers. Hoe meer academies VITAS gebruiken, hoe betrouwbaarder het wordt.",
-    "crossClubBenchmarkLabel": "Cross-club-benchmark",
+    "comparing": "Vergelijken met je spelers…",
     "stratum": "Stratum",
     "age": "leeftijd",
     "mean": "gemiddelde",
@@ -3999,7 +3985,9 @@
       "stamina": "Uithoudingsvermogen",
       "shooting": "Afwerking",
       "defending": "Verdediging"
-    }
+    },
+    "title": "Vergelijking met je spelers",
+    "vsiVsPeers": "Trainersbeoordeling vs vergelijkbare spelers"
   },
   "phvProductCard": {
     "title": "Biologische rijping (PHV)",
@@ -5582,10 +5570,6 @@
     "intensityMedium": "Gemiddeld",
     "intensityHigh": "Hoog"
   },
-  "benchmarkBadge": {
-    "titleSmallSample": "Percentiel {{percentile}} (steekproef < 5 spelers)",
-    "titleVsGroup": "Percentiel {{percentile}} vs leeftijds-/positiegroep"
-  },
   "drillRecommendations": {
     "title": "Aanbevolen oefeningen",
     "titleRag": "Aanbevolen oefeningen (RAG)",
@@ -6567,5 +6551,12 @@
     "title": "Voorspellende waardering",
     "notComputedTitle": "Waardering niet berekend",
     "noData": "geen gegevens"
+  },
+  "percentile": {
+    "gate": {
+      "not_evaluated": "Geen beoordeling door de trainer: geen percentiel",
+      "insufficient_peers": "Geen percentiel: slechts {{count}} vergelijkbare beoordeelde spelers (minimaal {{min}})",
+      "insufficient_short": "Geen percentiel ({{count}}/{{min}} vergelijkbare spelers)"
+    }
   }
 }

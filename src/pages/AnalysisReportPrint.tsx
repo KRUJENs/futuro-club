@@ -12,7 +12,6 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
 } from "recharts";
 import { validatePlayerReport, type ValidationResult } from "@/services/real/reportValidator";
-import { calculateReportBenchmark, type ReportBenchmark } from "@/services/real/benchmarkService";
 import {
   computeMatchStats,
   RATING_LABEL_ES,
@@ -260,12 +259,13 @@ export default function AnalysisReportPrint() {
       }))
     : [];
 
-  // Quality validation + Benchmark: AMBOS derivan de los `dim.score` (fabricados si el
-  // pipeline no mide dimensiones) → solo se calculan si dimensionesMedidas===true; si no,
-  // quedan null y sus secciones (guardadas por `validation &&` / `benchmark &&`) se ocultan.
-  // No presentar un percentil/quality score derivado de una constante (inv #2).
+  // Quality validation: deriva de los `dim.score` (fabricados si el pipeline no mide
+  // dimensiones) → solo se calcula si dimensionesMedidas===true; si no, queda null y su
+  // sección (guardada por `validation &&`) se oculta (inv #2).
+  // Sin «Benchmark vs pares» (P1 bloque 5): comparaba la nota del vídeo (IA, 0-10) con las
+  // barras del entrenador /10 —instrumentos distintos— de jugadores de 14 años fijos,
+  // leyendo un campo que los jugadores no tienen (P100 en cada dimensión).
   let validation: ValidationResult | null = null;
-  let benchmark: ReportBenchmark | null = null;
   if (dimensionesMedidas) {
     try {
       validation = validatePlayerReport(
@@ -274,11 +274,6 @@ export default function AnalysisReportPrint() {
       );
     } catch {
       // validator may fail if report structure is partial
-    }
-    try {
-      benchmark = calculateReportBenchmark(14, playerPosition || "MC", dims);
-    } catch {
-      // may fail if no players in storage
     }
   }
 
@@ -409,36 +404,6 @@ export default function AnalysisReportPrint() {
             </div>
           </div>
         </section>
-        )}
-
-        {/* ── 3b. Benchmark vs Pares ────────────────────────────────── */}
-        {mode === "technical" && benchmark && benchmark.sampleSize > 0 && (
-          <section className="mb-6 no-break">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t("analysisReportPrint.benchmarkVsPeers")}</h2>
-            <p className="text-[9px] text-gray-400 mb-2">{benchmark.groupDescription}</p>
-            <div className="grid grid-cols-3 gap-2">
-              {benchmark.dimensions.map((d) => (
-                <div key={d.dimensionKey} className="flex items-center gap-1.5">
-                  <span className="text-[9px] text-gray-500 w-16 shrink-0">
-                    {dimLabel(d.dimensionKey).split(" ")[0]}
-                  </span>
-                  <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${d.percentile}%`,
-                        backgroundColor:
-                          d.percentile >= 75 ? "#10b981" :
-                          d.percentile >= 50 ? "#7c3aed" :
-                          d.percentile >= 25 ? "#f59e0b" : "#ef4444",
-                      }}
-                    />
-                  </div>
-                  <span className="text-[9px] font-bold text-gray-600 w-6 text-right">P{d.percentile}</span>
-                </div>
-              ))}
-            </div>
-          </section>
         )}
 
         {/* ── 3c. Quality Score ──────────────────────────────────────── */}

@@ -435,12 +435,27 @@ const Rankings = () => {
                       <span className={cls}>{timingLabel(mat.timing)}</span>
                     );
                   })()}
-                  {/* Percentile badge — oculto si el jugador no está evaluado (percentil null) */}
-                  {player.percentileInAgeGroup != null && (
+                  {/* Percentil entre pares del grupo de edad (implementación única,
+                      src/lib/metrics/percentile.ts). Sin evaluar: el gauge ya lo dice.
+                      Menos de 10 pares: se dice, nunca un P0/P100 de 1-2 niños. */}
+                  {player.percentileInAgeGroup != null ? (
                     <span className="text-primary font-mono font-semibold">
                       P{player.percentileInAgeGroup}
                     </span>
-                  )}
+                  ) : player.percentileInAgeGroupGate?.code === "insufficient_peers" ? (
+                    <span
+                      className="text-muted-foreground"
+                      title={t("percentile.gate.insufficient_peers", {
+                        count: player.percentileInAgeGroupGate.peers,
+                        min: player.percentileInAgeGroupGate.min,
+                      })}
+                    >
+                      {t("percentile.gate.insufficient_short", {
+                        count: player.percentileInAgeGroupGate.peers,
+                        min: player.percentileInAgeGroupGate.min,
+                      })}
+                    </span>
+                  ) : null}
                   {/* Tendencia */}
                   {player.trending === "up" && <span className="text-primary">↑</span>}
                   {player.trending === "down" && <span className="text-destructive">↓</span>}
