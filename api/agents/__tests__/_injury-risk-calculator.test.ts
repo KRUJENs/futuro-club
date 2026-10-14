@@ -138,4 +138,15 @@ describe("riesgo de lesión · con datos suficientes", () => {
     const f = (json.data!.report!.factors as Array<{ factor: string; result: { value: number | null } }>).find((x) => x.factor === "asymmetry")!;
     expect(f.result.value).toBe(100);
   });
+
+  it("un número infinito (1e999 en el JSON) se rechaza (400), no se pinta «Infinity°»", async () => {
+    const res = await handler(
+      new Request("https://x.test/api/agents/injury-risk-calculator", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer cron-test" },
+        body: '{"playerId":"p1","asymmetryPct":1e999,"biomechanicsFrames":20,"biomechanicsConfidence":0.8}',
+      }),
+    );
+    expect(res.status).toBe(400);
+  });
 });

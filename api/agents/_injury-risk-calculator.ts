@@ -55,14 +55,14 @@ const SOURCE_REF = `api/agents/_injury-risk-calculator.ts ${INJURY_RISK_PROMPT_V
 const injuryRiskSchema = z.object({
   playerId: z.string(),
   /** Edad (decimal si se conoce). Solo decide si la ventana PHV aplica (adultos no). Sin tope: VITAS evalúa todas las categorías. */
-  age: z.number().nonnegative().nullable().optional(),
+  age: z.number().finite().nonnegative().nullable().optional(),
   /** Offset PHV de la PUERTA del PHV (null si está cerrada). */
-  phvOffset: z.number().nullable().optional(),
+  phvOffset: z.number().finite().nullable().optional(),
   /** Aceptado por compatibilidad; ya no se usa (era la banda de fatiga, que no es una categoría PHV). */
   phvCategory: z.string().nullable().optional(),
 
   /** Ratio ACWR: solo descriptivo (la puntuación sale de la zona). */
-  acwrValue: z.number().nullable().optional(),
+  acwrValue: z.number().finite().nullable().optional(),
   /** Zona que decidió acwrService con ≥4 sesiones y la maduración registrada. */
   acwrZone: z.enum(["undertrained", "optimal", "caution", "danger"]).nullable().optional(),
 
@@ -78,22 +78,22 @@ const injuryRiskSchema = z.object({
    * en el esquema (un valor alto ya no tumba la llamada entera); el factor se acota a
    * 100. Unidad y escala ×5 pendientes de calibrar (docs/pendientes-metricas.md).
    */
-  asymmetryPct: z.number().min(0).nullable().optional(),
+  asymmetryPct: z.number().finite().min(0).nullable().optional(),
   /** Fotogramas con pose y confianza media del motor de biomecánica (2D, sin calibrar). */
-  biomechanicsFrames: z.number().nonnegative().nullable().optional(),
+  biomechanicsFrames: z.number().finite().nonnegative().nullable().optional(),
   biomechanicsConfidence: z.number().min(0).max(1).nullable().optional(),
 
   injuryHistory: z.array(z.object({
     type: z.string(),
     severity: z.string(),
-    daysOut: z.number().nullable().optional(),
+    daysOut: z.number().finite().nullable().optional(),
     date: z.string(),
     bodyPart: z.string().optional(),
   })).optional().default([]),
 
-  daysSinceLastInjury: z.number().nullable().optional(),
-  sessionsLast28Days: z.number().optional().default(0),
-  matchesLast7Days: z.number().optional().default(0),
+  daysSinceLastInjury: z.number().finite().nullable().optional(),
+  sessionsLast28Days: z.number().finite().optional().default(0),
+  matchesLast7Days: z.number().finite().optional().default(0),
 });
 
 type Input = z.infer<typeof injuryRiskSchema>;
