@@ -146,23 +146,37 @@ export const OVERTRAINING_NO_DATA_REASON =
 export const OVERTRAINING_MATURATION_REASON =
   "Maduración no registrada: no se valora el riesgo de sobrecarga (sin semáforo). Se muestra solo la carga registrada.";
 
-/** Última carga registrada (total_load numérico) de cualquier sesión; null si no hay. */
+/**
+ * Carga REAL de una sesión: total_load > 0. La columna es NOT NULL DEFAULT 0 (043), así
+ * que un 0 es «sin carga registrada», no una carga (revisión del PR #315).
+ */
+function realLoad(row: SignalRow | undefined): number | null {
+  const v = row?.total_load;
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : null;
+}
+
+/** Última carga real de cualquier sesión; null si no hay ninguna. */
 function latestLoad(rows: SignalRow[]): number | null {
-  const r = rows.find((x) => typeof x.total_load === "number" && Number.isFinite(x.total_load as number));
-  return r ? Math.round(r.total_load as number) : null;
+  for (const r of rows) {
+    const v = realLoad(r);
+    if (v !== null) return v;
+  }
+  return null;
 }
 
 function overtrainingView(
   rows: SignalRow[],
   fromRisk: OvertrainingAssessment | null,
+  riskRow: SignalRow | undefined,
   unknownMaturity: boolean,
 ): OvertrainingView {
-  const currentLoadAU = latestLoad(rows);
   if (fromRisk) {
     return {
       risk: fromRisk.overtrainingRisk,
       riskLevel: fromRisk.riskLevel,
-      currentLoadAU,
+      // La carga de la MISMA sesión que el riesgo (antes: la última fila con número,
+      // que podía ser un 0 por defecto de otra sesión junto a un riesgo crítico).
+      currentLoadAU: realLoad(riskRow),
       recommendedLoadAU: null,
       adjustmentPct: null,
       gate_reason: null,
@@ -172,7 +186,7 @@ function overtrainingView(
   return {
     risk: null,
     riskLevel: null,
-    currentLoadAU,
+    currentLoadAU: latestLoad(rows),
     recommendedLoadAU: null,
     adjustmentPct: null,
     gate_reason: unknownMaturity ? OVERTRAINING_MATURATION_REASON : OVERTRAINING_NO_DATA_REASON,
@@ -390,7 +404,7 @@ export function computeDropoutAssessment(playerId: string, rows: DropoutSignalRo
   // redistribuye; en la VISTA queda sin calcular, nunca «0/100 bajo»).
   const overtrainingRisk = hasFat ? overtrainingFromFatigue(playerId, realFatRows) : null;
   const overtraining = overtrainingRisk ?? neutralOvertraining(playerId);
-  const overtrainingShown = overtrainingView(rows.fatigue, overtrainingRisk, fatigueUnknownMaturity);
+  const overtrainingShown = overtrainingView(rows.fatigue, overtrainingRisk, realFatRows[0], fatigueUnknownMaturity);
 
   const out = scoreDropoutRisk({
     playerId,

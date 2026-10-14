@@ -256,6 +256,12 @@ export interface FatigueEngineConfig {
     metabolicDecay: number;
     accelDecay: number;
   };
+  /**
+   * Minimum share of the FI weights that must come from components actually
+   * computed (missing ones are left out and the rest renormalised). Below it the
+   * index is null. 0.7 = pendiente de validar (same pattern as the video VSI, G4).
+   */
+  minWeightCoverage: number;
   /** Severity thresholds for FI */
   severityThresholds: {
     moderate: number; // FI >= this → moderate
@@ -274,6 +280,7 @@ export const DEFAULT_FATIGUE_CONFIG: FatigueEngineConfig = {
     metabolicDecay: 0.15,
     accelDecay: 0.10,
   },
+  minWeightCoverage: 0.7,
   severityThresholds: {
     moderate: 25,
     high: 50,

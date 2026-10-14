@@ -405,6 +405,14 @@ export class FatigueEngine {
       return blocked("No se pudo comparar ninguna métrica entre la primera y la segunda parte de la sesión.");
     }
     const wsum = present.reduce((acc, k) => acc + cfg.weights[k], 0);
+    // Sin cobertura mínima no se rellena con la media de las demás (revisión del PR #315):
+    // con un solo componente del 10 % ya salían índice, severidad y alertas.
+    // (Comparación directa: con los pesos actuales la frontera 0.25+0.20+0.15+0.10 = 0.7 exacto.)
+    if (wsum < cfg.minWeightCoverage) {
+      return blocked(
+        "Índice no calculado: no se pudieron comparar suficientes métricas entre la primera y la segunda parte de la sesión.",
+      );
+    }
     const value = round2(present.reduce((acc, k) => acc + (parts[k] as number) * cfg.weights[k], 0) / wsum);
 
     const clamped = Math.max(0, Math.min(100, value));

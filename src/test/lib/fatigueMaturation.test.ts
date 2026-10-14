@@ -33,6 +33,26 @@ function track(minutes: number): TrackingPosition[] {
   return out;
 }
 
+/**
+ * Recorrido SIN sprints (máx. 5 m/s < 5.83): la caída de sprints no se puede calcular.
+ * Con `gentle` además sin aceleraciones fuertes ni alta intensidad: faltan 3 componentes.
+ */
+function trackNoSprint(minutes: number, gentle = false): TrackingPosition[] {
+  const out: TrackingPosition[] = [];
+  let x = 0;
+  const steps = minutes * 60;
+  for (let i = 0; i <= steps; i++) {
+    const firstHalf = i < steps / 2;
+    // gentle: arranque suave (sin una aceleración fuerte desde parado) y luego 3-3.6 m/s.
+    const v = gentle
+      ? i < 4 ? i * 0.9 : (i % 2 ? 3.6 : 3) * (firstHalf ? 1 : 0.9)
+      : i % 4 < 2 ? (firstHalf ? 5 : 4.2) : 2;
+    x += v;
+    out.push({ x, y: 0, timestampMs: i * 1000 });
+  }
+  return out;
+}
+
 describe("umbrales sin maduración", () => {
   it("offset desconocido ⇒ banda \"unknown\" (antes \"post_phv\"), sin umbrales ACWR, con motivo", () => {
     expect(classifyBand(null)).toBe("unknown");
@@ -105,6 +125,23 @@ describe("índice de fatiga", () => {
     const out = engine.analyze({ positions: track(10), durationSec: 10 * 60, thresholds: adjustFatigueThresholds(2) });
     expect(out.fatigueIndex.value).toBeNull();
     expect(out.fatigueIndex.gate_reason).toMatch(/demasiado corta/);
+  });
+
+  it("falta solo un componente (sprints, 30 % del peso): se calcula con los demás (cobertura 70 %)", () => {
+    const out = engine.analyze({ positions: trackNoSprint(40), durationSec: 40 * 60, thresholds: adjustFatigueThresholds(2) });
+    expect(out.fatigueIndex.decay.sprintDecayPct).toBeNull();
+    expect(out.fatigueIndex.decay.accelDecayPct).not.toBeNull();
+    expect(typeof out.fatigueIndex.value).toBe("number");
+  });
+
+  it("faltan varios componentes (cobertura < 70 %): índice null, sin severidad ni alertas (antes salía con uno del 10 %)", () => {
+    const out = engine.analyze({ positions: trackNoSprint(40, true), durationSec: 40 * 60, thresholds: adjustFatigueThresholds(2) });
+    expect(out.fatigueIndex.decay.sprintDecayPct).toBeNull();
+    expect(out.fatigueIndex.decay.accelDecayPct).toBeNull();
+    expect(out.fatigueIndex.value).toBeNull();
+    expect(out.fatigueIndex.severity).toBeNull();
+    expect(out.fatigueIndex.gate_reason).toMatch(/suficientes métricas/);
+    expect(out.alerts.filter((a) => a.source === "fatigue_index")).toEqual([]);
   });
 
   it("sin posiciones: índice null (antes 0 «normal») y sin carga", () => {

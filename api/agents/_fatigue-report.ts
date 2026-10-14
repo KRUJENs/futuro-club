@@ -11,8 +11,10 @@
  * P1 bloque 4 (decisión del owner): si la sesión de fatiga NO tiene la maduración
  * registrada (banda ausente, o "post_phv" sin offset = valor por defecto antiguo),
  * el informe NO clasifica: sin índice, severidad, zona ACWR ni riesgo de lesión
- * (sin semáforo). Se aplica DESPUÉS del modelo y en el fallback, no solo en el
- * prompt: un modelo puede desobedecer. La carga (ratio ACWR) sí se mantiene.
+ * (sin semáforo). Ese informe se construye de forma DETERMINISTA, sin llamar al
+ * modelo: la fila de la sesión trae severidad, zona y alertas calculadas con otros
+ * umbrales, y un texto libre (resumen, recomendaciones) podría repetirlas aunque
+ * se le pida lo contrario (revisión del PR #315). Se muestra la carga registrada.
  */
 
 import { z } from "zod";
@@ -23,6 +25,7 @@ import { normalizeLocale, languageDirective, localeSchema } from "../../src/lib/
 import { resolveCategory, categoryDirective } from "../../src/lib/shared/category";
 import { maturationKnown } from "../../src/lib/fatigue/phvFatigueAdjuster";
 import { DEFAULT_FATIGUE_CONFIG } from "../../src/lib/fatigue/types";
+import { fatigueIsReliable } from "../_lib/metricsProvenance";
 
 export const config = { runtime: "edge" };
 
@@ -68,25 +71,48 @@ export function fatigueMaturationKnown(data: z.infer<typeof fatigueReportSchema>
   return maturationKnown(fr.maturation_band ?? fr.maturationBand, fr.phv_offset ?? fr.phvOffset);
 }
 
+/** Qué hacer para activar el informe cuando falta la maduración. */
+export const MATURATION_UNKNOWN_NEXT_STEP =
+  "Registra las medidas de crecimiento del jugador (talla, peso, talla sentado, longitud de pierna, fecha de nacimiento y sexo) para activar la valoración de fatiga y carga.";
+
 /**
- * Sin maduración registrada: quita del informe toda clasificación de riesgo (índice,
- * severidad, zona, nivel de lesión, umbrales por banda) y lo declara en
- * not_evaluated. Determinista: se aplica a la salida del modelo y al fallback.
+ * Informe de fatiga sin maduración registrada: DETERMINISTA (no pasa por el modelo).
+ * Sin índice, severidad, zona ni riesgo de lesión; solo la carga registrada (si es
+ * real: total_load > 0, la columna es NOT NULL DEFAULT 0) y el ratio agudo:crónico
+ * cuando hay historial suficiente, sin calificarlo.
  */
-export function applyMaturationGate(report: Record<string, unknown>): Record<string, unknown> {
-  const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
-  const notEvaluated = Array.isArray(report.not_evaluated) ? (report.not_evaluated as unknown[]).filter((x) => typeof x === "string") : [];
+export function maturationGatedFatigueReport(data: z.infer<typeof fatigueReportSchema>): Record<string, unknown> {
+  const fr = data.fatigueReport as Record<string, unknown> | null | undefined;
+  const load = fr && typeof fr.total_load === "number" && Number.isFinite(fr.total_load) && fr.total_load > 0
+    ? Math.round(fr.total_load)
+    : null;
+  const history = Array.isArray(data.fatigueHistory) ? data.fatigueHistory : [];
+  const ratio = fr && typeof fr.acwr_value === "number" && Number.isFinite(fr.acwr_value) && fatigueIsReliable(history.length)
+    ? Math.round(fr.acwr_value * 100) / 100
+    : null;
   return {
-    ...report,
-    estadoActual: { ...obj(report.estadoActual), indice: null, severidad: MATURATION_UNKNOWN_LABEL },
-    cargaACWR: { ...obj(report.cargaACWR), zona: MATURATION_UNKNOWN_LABEL },
+    estadoActual: { indice: null, severidad: MATURATION_UNKNOWN_LABEL, indicadores: [], señalesPosturales: [] },
+    cargaACWR: {
+      valor: ratio,
+      zona: MATURATION_UNKNOWN_LABEL,
+      tendencia: "sin datos",
+      recomendacionProximaSesion: MATURATION_UNKNOWN_NEXT_STEP,
+    },
     riesgoLesion: { nivel: MATURATION_UNKNOWN_LABEL, factores: [], zonasExpuestas: [] },
-    ajustesPHV: { ...obj(report.ajustesPHV), banda: "unknown", umbralesModificados: [] },
+    ajustesPHV: { banda: "unknown", umbralesModificados: [], recomendaciones: [] },
+    protocoloRecuperacion: { plan48h: [], indicadoresRetorno: [], ejerciciosComplementarios: [] },
+    resumenEjecutivo:
+      "Maduración no registrada: no se valoran la fatiga, la carga ni el riesgo de lesión, porque sus umbrales dependen de la maduración." +
+      (load !== null ? ` Carga registrada en la última sesión: ${load} UA.` : ""),
+    confidence_score: 0,
+    data_completeness: 0,
     not_evaluated: [
-      ...notEvaluated,
-      "Índice, severidad, zona de carga y riesgo de lesión: maduración no registrada (los umbrales dependen de ella)",
+      "Índice y severidad de fatiga: maduración no registrada",
+      "Zona de carga (ACWR): maduración no registrada",
+      "Riesgo de lesión por fatiga: maduración no registrada",
     ],
-    _maturation_gate: true,
+    _gated: true,
+    _gate_reason: "maturation_unknown",
   };
 }
 
@@ -110,10 +136,6 @@ function buildPrompt(data: z.infer<typeof fatigueReportSchema>): string {
 
 ## DATOS DE FATIGA DE LA SESIÓN
 ${JSON.stringify(fatigue, null, 2)}
-${fatigueMaturationKnown(data) ? "" : `
-## MADURACIÓN NO REGISTRADA
-La maduración de este jugador NO está registrada en esta sesión. Los umbrales de fatiga y carga dependen de ella, así que NO clasifiques: "indice": null, "severidad", "zona" y "riesgoLesion.nivel" = "${MATURATION_UNKNOWN_LABEL}", sin factores de riesgo ni umbrales por banda. Puedes describir la carga registrada sin calificarla.
-`}
 
 ## HISTORIAL DE SESIONES (últimas 4 semanas)
 ${data.fatigueHistory ? JSON.stringify(data.fatigueHistory.slice(-10), null, 2) : "Sin historial disponible"}
@@ -187,13 +209,20 @@ export default withHandler(
       });
     }
 
-    // Sin maduración registrada: ninguna salida (modelo o fallback) lleva semáforo.
-    const gate = (r: Record<string, unknown>) => (fatigueMaturationKnown(data) ? r : applyMaturationGate(r));
+    // Sin maduración registrada: informe determinista, SIN modelo (P1 bloque 4).
+    if (!fatigueMaturationKnown(data)) {
+      return successResponse({
+        report: maturationGatedFatigueReport(data),
+        promptVersion: PROMPT_VERSION,
+        model: "gated",
+        source: "maturation_unknown",
+      });
+    }
 
     if (!ANTHROPIC_API_KEY) {
       // Fallback: generate mock report
       return successResponse({
-        report: gate(generateMockReport(data)),
+        report: generateMockReport(data),
         promptVersion: PROMPT_VERSION,
         model: "mock",
         source: "fallback",
@@ -222,7 +251,7 @@ export default withHandler(
         const errText = await response.text().catch(() => "");
         console.error("[fatigue-report] Anthropic error:", response.status, errText.slice(0, 200));
         return successResponse({
-          report: gate(generateMockReport(data)),
+          report: generateMockReport(data),
           promptVersion: PROMPT_VERSION,
           model: "mock",
           source: "fallback_api_error",
@@ -246,7 +275,7 @@ export default withHandler(
       }
 
       return successResponse({
-        report: gate(report),
+        report,
         promptVersion: PROMPT_VERSION,
         model: MODELS.fast,
         inputTokens: result.usage?.input_tokens ?? 0,
@@ -255,7 +284,7 @@ export default withHandler(
     } catch (err) {
       console.error("[fatigue-report] Error:", err);
       return successResponse({
-        report: gate(generateMockReport(data)),
+        report: generateMockReport(data),
         promptVersion: PROMPT_VERSION,
         model: "mock",
         source: "fallback_exception",

@@ -3886,7 +3886,7 @@
     "countingDefinitions": "Gezählt mit Standarddefinitionen, ohne Anpassung an die Reife: Sprint ≥ {{sprint}} km/h · hohe Intensität ≥ {{hid}} km/h.",
     "fiNotComputedMaturity": "Index nicht berechnet: Er hängt von reifeabhängigen Schwellen ab, und der Reifestatus ist nicht erfasst.",
     "fiTooShort": "Index nicht berechnet: Die Einheit muss mindestens {{count}} Min. dauern.",
-    "fiNoComponents": "Index nicht berechnet: Keine Kennzahl ließ sich zwischen erstem und zweitem Teil vergleichen.",
+    "fiNoComponents": "Index nicht berechnet: Zu wenige Kennzahlen ließen sich zwischen erstem und zweitem Teil vergleichen.",
     "acwrNoChronic": "Verhältnis nicht berechnet: Keine chronische Belastung erfasst.",
     "acwrNoZone": "Keine Risikozone: Der Reifestatus ist nicht erfasst."
   },
@@ -5748,7 +5748,8 @@
     "recoveryProtocol": "Erholungsprotokoll",
     "plan48h": "Plan 48-72h",
     "returnIndicators": "Rückkehr-Indikatoren",
-    "complementaryExercises": "Ergänzende Übungen"
+    "complementaryExercises": "Ergänzende Übungen",
+    "notCalculated": "Nicht berechnet"
   },
   "injuryReport": {
     "noContent": "Kein Inhalt",

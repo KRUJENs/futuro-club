@@ -3887,7 +3887,7 @@
     "countingDefinitions": "Geteld met standaarddefinities, niet aangepast aan de rijping: sprint ≥ {{sprint}} km/u · hoge intensiteit ≥ {{hid}} km/u.",
     "fiNotComputedMaturity": "Index niet berekend: hij hangt af van drempels die met de rijping veranderen, en de rijping is niet geregistreerd.",
     "fiTooShort": "Index niet berekend: de sessie moet minstens {{count}} min duren.",
-    "fiNoComponents": "Index niet berekend: geen enkele meting kon tussen het eerste en tweede deel worden vergeleken.",
+    "fiNoComponents": "Index niet berekend: te weinig metingen konden tussen het eerste en tweede deel worden vergeleken.",
     "acwrNoChronic": "Verhouding niet berekend: geen chronische belasting geregistreerd.",
     "acwrNoZone": "Geen risicozone: de rijping is niet geregistreerd."
   },
@@ -5749,7 +5749,8 @@
     "recoveryProtocol": "Herstelprotocol",
     "plan48h": "Plan 48-72u",
     "returnIndicators": "Terugkeerindicatoren",
-    "complementaryExercises": "Aanvullende oefeningen"
+    "complementaryExercises": "Aanvullende oefeningen",
+    "notCalculated": "Niet berekend"
   },
   "injuryReport": {
     "noContent": "Geen inhoud",

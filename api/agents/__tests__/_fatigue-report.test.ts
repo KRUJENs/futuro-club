@@ -16,8 +16,6 @@ import {
   blockedFatigueReport,
   generateMockReport,
   fatigueMaturationKnown,
-  applyMaturationGate,
-  MATURATION_UNKNOWN_LABEL,
 } from "../_fatigue-report";
 
 describe("Fatigue Report · gate de datos (inv #2)", () => {
@@ -81,24 +79,6 @@ describe("Fatigue Report · sin maduración registrada no hay semáforo (P1 bloq
     expect(fatigueMaturationKnown({ playerId: "p1", fatigueReport: { fatigue_index: 40, maturation_band: null } } as never)).toBe(false);
     expect(fatigueMaturationKnown({ playerId: "p1", fatigueReport: { fatigue_index: 40, maturation_band: "post_phv", phv_offset: null } } as never)).toBe(false);
     expect(fatigueMaturationKnown({ playerId: "p1", fatigueHistory: [{ fatigue_index: 30 }] } as never)).toBe(false);
-  });
-
-  it("applyMaturationGate quita índice, severidad, zona y riesgo (también lo que diga el modelo) y lo declara", () => {
-    const llm = {
-      estadoActual: { indice: 81, severidad: "alto", indicadores: ["caída de sprints"], señalesPosturales: [] },
-      cargaACWR: { valor: 1.42, zona: "peligro", tendencia: "subiendo", recomendacionProximaSesion: "bajar" },
-      riesgoLesion: { nivel: "muy alto", factores: ["carga"], zonasExpuestas: ["rodilla"] },
-      ajustesPHV: { banda: "circa", umbralesModificados: ["sprint 18 km/h"], recomendaciones: ["x"] },
-      not_evaluated: ["historial"],
-    };
-    const g = applyMaturationGate(llm) as Record<string, Record<string, unknown>> & { not_evaluated: string[]; _maturation_gate: boolean };
-    expect(g.estadoActual).toMatchObject({ indice: null, severidad: MATURATION_UNKNOWN_LABEL, indicadores: ["caída de sprints"] });
-    expect(g.cargaACWR).toMatchObject({ valor: 1.42, zona: MATURATION_UNKNOWN_LABEL }); // la carga se muestra, sin semáforo
-    expect(g.riesgoLesion).toEqual({ nivel: MATURATION_UNKNOWN_LABEL, factores: [], zonasExpuestas: [] });
-    expect(g.ajustesPHV).toMatchObject({ banda: "unknown", umbralesModificados: [] });
-    expect(g.not_evaluated).toContain("historial");
-    expect(g.not_evaluated.some((x) => /maduración no registrada/.test(x))).toBe(true);
-    expect(g._maturation_gate).toBe(true);
   });
 
   it("el fallback usa los cortes del índice de fatiga (una sola definición), no 66/33", () => {

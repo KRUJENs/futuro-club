@@ -3887,7 +3887,7 @@
     "countingDefinitions": "Counted with standard definitions, not adjusted for maturation: sprint ≥ {{sprint}} km/h · high intensity ≥ {{hid}} km/h.",
     "fiNotComputedMaturity": "Index not calculated: it depends on thresholds that change with maturation, and maturation is not recorded.",
     "fiTooShort": "Index not calculated: the session must last at least {{count}} min.",
-    "fiNoComponents": "Index not calculated: no metric could be compared between the first and second part.",
+    "fiNoComponents": "Index not calculated: not enough metrics could be compared between the first and second part.",
     "acwrNoChronic": "Ratio not calculated: no chronic load recorded.",
     "acwrNoZone": "No risk zone: maturation is not recorded."
   },
@@ -5749,7 +5749,8 @@
     "recoveryProtocol": "Recovery protocol",
     "plan48h": "48-72h plan",
     "returnIndicators": "Return-to-play indicators",
-    "complementaryExercises": "Complementary exercises"
+    "complementaryExercises": "Complementary exercises",
+    "notCalculated": "Not calculated"
   },
   "injuryReport": {
     "noContent": "No content",

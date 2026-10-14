@@ -3886,7 +3886,7 @@
     "countingDefinitions": "Conteggio con definizioni standard, senza adattamento alla maturazione: sprint ≥ {{sprint}} km/h · alta intensità ≥ {{hid}} km/h.",
     "fiNotComputedMaturity": "Indice non calcolato: dipende da soglie che cambiano con la maturazione, e la maturazione non è registrata.",
     "fiTooShort": "Indice non calcolato: la sessione deve durare almeno {{count}} min.",
-    "fiNoComponents": "Indice non calcolato: nessuna metrica è confrontabile tra la prima e la seconda parte.",
+    "fiNoComponents": "Indice non calcolato: troppo poche metriche confrontabili tra la prima e la seconda parte.",
     "acwrNoChronic": "Rapporto non calcolato: nessun carico cronico registrato.",
     "acwrNoZone": "Nessuna zona di rischio: la maturazione non è registrata."
   },
@@ -5748,7 +5748,8 @@
     "recoveryProtocol": "Protocollo di recupero",
     "plan48h": "Piano 48-72h",
     "returnIndicators": "Indicatori di rientro",
-    "complementaryExercises": "Esercizi complementari"
+    "complementaryExercises": "Esercizi complementari",
+    "notCalculated": "Non calcolato"
   },
   "injuryReport": {
     "noContent": "Nessun contenuto",

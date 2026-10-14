@@ -71,6 +71,30 @@ describe("sobreentrenamiento · sin maduración no hay semáforo (P1 bloque 4)",
     }
   });
 
+  it("la carga es la de la MISMA sesión que el riesgo; un 0 (DEFAULT de la columna) no es carga", () => {
+    const r = computeDropoutAssessment("p1", {
+      ...EMPTY,
+      attendance: ATT,
+      fatigue: [
+        { session_date: day(5), total_load: 0, fatigue_index: null },
+        { session_date: day(4), total_load: 420, fatigue_index: 80, maturation_band: "circa_phv", phv_offset: 0.2 },
+      ],
+    });
+    if (r.source !== "computed") throw new Error("esperaba computed");
+    // Antes: { risk: 80, riskLevel: "critical", currentLoadAU: 0 } (el 0 de otra sesión).
+    expect(r.assessment.overtraining).toMatchObject({ risk: 80, riskLevel: "critical", currentLoadAU: 420 });
+  });
+
+  it("sin maduración y solo cargas 0 → carga null (nunca «0 UA»)", () => {
+    const r = computeDropoutAssessment("p1", {
+      ...EMPTY,
+      attendance: ATT,
+      fatigue: [{ session_date: day(3), total_load: 0, fatigue_index: 70, maturation_band: null, phv_offset: null }],
+    });
+    if (r.source !== "computed") throw new Error("esperaba computed");
+    expect(r.assessment.overtraining).toMatchObject({ risk: null, currentLoadAU: null, gate_code: "maturation_unknown" });
+  });
+
   it("sin implicación real registrada → engagement null (antes current 0 ⇒ «disfrute bajo» en rojo)", () => {
     const r = computeDropoutAssessment("p1", { ...EMPTY, attendance: ATT });
     expect(r.source).toBe("computed");
