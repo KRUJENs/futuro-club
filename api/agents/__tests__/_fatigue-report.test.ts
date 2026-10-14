@@ -46,8 +46,9 @@ describe("Fatigue Report · gate de datos (inv #2)", () => {
     expect(r.cargaACWR.valor).toBeNull();
     expect(r.riesgoLesion.nivel).toBe("sin datos");
     expect(r._gated).toBe(true);
-    expect(r.confidence_score).toBe(0);
-    expect(r.data_completeness).toBe(0);
+    // Sin evaluación no hay cifra de confianza (el chip no se pinta; nunca «0 %»).
+    expect(r).not.toHaveProperty("confidence_score");
+    expect(r).not.toHaveProperty("data_completeness");
     // Regresión: los valores fabricados del bug de demo NO aparecen.
     expect(r.estadoActual.indice).not.toBe(35);
     expect(r.cargaACWR.valor).not.toBe(1.1);

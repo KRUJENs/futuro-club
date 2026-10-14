@@ -104,8 +104,8 @@ export function maturationGatedFatigueReport(data: z.infer<typeof fatigueReportS
     resumenEjecutivo:
       "Maduración no registrada: no se valoran la fatiga, la carga ni el riesgo de lesión, porque sus umbrales dependen de la maduración." +
       (load !== null ? ` Carga registrada en la última sesión: ${load} UA.` : ""),
-    confidence_score: 0,
-    data_completeness: 0,
+    // Sin confidence_score/data_completeness: el chip de confianza no se pinta (un «0 %»
+    // en rojo sugería una evaluación mala, no una que no se hizo; revisión del PR #315).
     not_evaluated: [
       "Índice y severidad de fatiga: maduración no registrada",
       "Zona de carga (ACWR): maduración no registrada",
@@ -335,8 +335,8 @@ export function blockedFatigueReport(data: z.infer<typeof fatigueReportSchema>):
     ajustesPHV: { banda, umbralesModificados: [], recomendaciones: [] },
     protocoloRecuperacion: { plan48h: [], indicadoresRetorno: [], ejerciciosComplementarios: [] },
     resumenEjecutivo: "Sin datos de sesión de fatiga registrados. No es posible evaluar el estado de fatiga, la carga (ACWR) ni el riesgo de lesión sin sesiones de entrenamiento o tracking de vídeo. Registra sesiones para activar este informe.",
-    confidence_score: 0,
-    data_completeness: 0,
+    // Sin confidence_score/data_completeness: el chip de confianza no se pinta (un «0 %»
+    // en rojo sugería una evaluación mala, no una que no se hizo; revisión del PR #315).
     not_evaluated: [
       "Índice de fatiga: sin datos de sesión",
       "ACWR (carga aguda:crónica): sin historial de carga",
