@@ -64,6 +64,8 @@ export const GUARDIAN_CONSENT_VERSION = "v1.0";
  * nuevo; cada uno es una fila de gdpr_audit_log (de solo añadir), así que sin tope quien tenga el
  * enlace de verificación podría llenarla (revisión 2 del PR #314). 10 sobra para un tutor real; al
  * llegar, la página le dice que lo retire el responsable del jugador, y los anteriores siguen valiendo.
+ * Tope BLANDO (contar y luego emitir no es atómico): varias reconfirmaciones simultáneas pueden
+ * pasarlo por poco; basta para acotar el crecimiento (revisión 3).
  */
 export const MAX_WITHDRAW_LINKS_PER_CONSENT = 10;
 
