@@ -690,14 +690,16 @@ export async function hasConsentWithdrawal(consentId: string): Promise<boolean> 
 }
 
 /**
- * ¿Se emitió ya algún enlace de RETIRADA para este consentimiento? La usa verify-consent cuando el
- * tutor confirma de nuevo un consentimiento ya verificado: si la primera vez no se llegó a emitir
- * (o no salió el correo), ahora sí se le manda. Lanza si no se puede comprobar.
+ * Cuántos enlaces de RETIRADA se han emitido ya para este consentimiento, contando como mucho hasta
+ * `upTo`. La usa verify-consent cuando el tutor confirma de nuevo un consentimiento ya verificado:
+ * 0 ⇒ la primera vez no se llegó a emitir y ahora se le manda también el correo; `upTo` ⇒ tope
+ * alcanzado, no se emite otro (cada uno es una fila de gdpr_audit_log, de solo añadir). Lanza si no
+ * se puede comprobar.
  */
-export async function hasConsentWithdrawToken(consentId: string): Promise<boolean> {
+export async function countConsentWithdrawTokens(consentId: string, upTo: number): Promise<number> {
   const rows = await getRows<{ resource_id: unknown }>(
     `gdpr_audit_log?action=eq.${CONSENT_WITHDRAW_TOKEN_ISSUED_ACTION}&resource_type=eq.${CONSENT_RESOURCE_TYPE}` +
-      `&resource_id=eq.${encodeURIComponent(consentId)}&select=resource_id&limit=1`,
+      `&resource_id=eq.${encodeURIComponent(consentId)}&select=resource_id&limit=${Math.max(1, Math.floor(upTo))}`,
   );
-  return rows.length > 0;
+  return rows.length;
 }

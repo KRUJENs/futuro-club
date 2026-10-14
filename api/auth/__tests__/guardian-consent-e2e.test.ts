@@ -50,6 +50,9 @@ const st = vi.hoisted(() => ({
   raceVerifyId: null as string | null,
   /** Carrera simulada: la fila con este id queda RETIRADA justo antes del UPDATE de verify-consent. */
   raceWithdrawId: null as string | null,
+  /** Fallos simulados de gdpr_audit_log: contar los enlaces de retirada (GET) / emitir uno (POST). */
+  failWithdrawCount: false,
+  failWithdrawIssue: false,
 }));
 
 const yearsAgo = (n: number) => `${new Date().getUTCFullYear() - n}-01-01`;
@@ -131,7 +134,7 @@ vi.mock("@supabase/supabase-js", () => {
 });
 
 import signConsent from "../sign-consent";
-import verifyConsent from "../verify-consent";
+import verifyConsent, { MAX_WITHDRAW_LINKS_PER_CONSENT } from "../verify-consent";
 import guardianWithdraw from "../_guardian-withdraw";
 import consentStatus from "../_consent-status";
 import { findActiveParentalConsent } from "../../_lib/parentalConsent";
@@ -156,6 +159,8 @@ beforeEach(() => {
   st.emails = [];
   st.raceVerifyId = null;
   st.raceWithdrawId = null;
+  st.failWithdrawCount = false;
+  st.failWithdrawIssue = false;
   vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const href = String(input instanceof Request ? input.url : input);
     if (href === "https://api.resend.com/emails") {
@@ -174,6 +179,9 @@ beforeEach(() => {
       return sel && sel !== "*" ? out.map((r) => Object.fromEntries(sel.split(",").map((k) => [k, r[k]]))) : out;
     };
     if (method === "GET") {
+      if (st.failWithdrawCount && table === "gdpr_audit_log" && url.searchParams.get("action") === "eq.consent_withdraw_token_issued" && url.searchParams.has("resource_id")) {
+        return new Response("boom", { status: 500 });
+      }
       let out = filterRows(rows, url.searchParams);
       const order = url.searchParams.get("order");
       if (order) {
@@ -191,6 +199,9 @@ beforeEach(() => {
       return Response.json(body);
     }
     if (method === "POST") {
+      if (st.failWithdrawIssue && table === "gdpr_audit_log" && (JSON.parse(String(init?.body)) as Row).action === "consent_withdraw_token_issued") {
+        return new Response("boom", { status: 500 });
+      }
       rows.push(JSON.parse(String(init?.body)));
       return new Response(null, { status: 201 });
     }
@@ -424,6 +435,61 @@ describe("revisión 2 del PR #314", () => {
     expect(withdrawIssuances()).toHaveLength(0);
     expect(st.emails).toHaveLength(1);
     expect(await findActiveParentalConsent("pMinor")).toBeNull();
+  });
+});
+
+describe("revisión 3 del PR #314 · reconfirmar con tope y fallos", () => {
+  const withdrawIssuances = () => st.audit.filter((a) => a.action === "consent_withdraw_token_issued");
+  const confirmedOnce = async () => {
+    await requestSignature();
+    const token = linkToken(st.emails[0].html, "verify-consent");
+    await confirm(token);
+    return token;
+  };
+  const reconfirm = async (token: string) => {
+    const res = await confirm(token);
+    expect(res.status).toBe(200);
+    return (await res.json()).data as { alreadyVerified: boolean; withdrawToken: string | null; confirmationEmailSent: boolean };
+  };
+
+  it(`tope: con ${MAX_WITHDRAW_LINKS_PER_CONSENT} enlaces ya emitidos no se emite otro (sin fila nueva ni correo); el consentimiento sigue valiendo`, async () => {
+    const token = await confirmedOnce();
+    for (let i = withdrawIssuances().length; i < MAX_WITHDRAW_LINKS_PER_CONSENT; i++) {
+      expect((await reconfirm(token)).withdrawToken).toMatch(/^[0-9a-f]{64}$/);
+    }
+    expect(withdrawIssuances()).toHaveLength(MAX_WITHDRAW_LINKS_PER_CONSENT);
+    const emails = st.emails.length;
+    expect(await reconfirm(token)).toMatchObject({ alreadyVerified: true, withdrawToken: null, confirmationEmailSent: false });
+    expect(withdrawIssuances()).toHaveLength(MAX_WITHDRAW_LINKS_PER_CONSENT);
+    expect(st.emails).toHaveLength(emails);
+    expect(await findActiveParentalConsent("pMinor")).not.toBeNull();
+  });
+
+  it("si no se pueden contar los enlaces emitidos → sin enlace nuevo ni correo (nunca correos repetidos); sigue valiendo", async () => {
+    const token = await confirmedOnce();
+    st.failWithdrawCount = true;
+    expect(await reconfirm(token)).toMatchObject({ alreadyVerified: true, withdrawToken: null, confirmationEmailSent: false });
+    expect(withdrawIssuances()).toHaveLength(1);
+    expect(st.emails).toHaveLength(2);
+    expect(await findActiveParentalConsent("pMinor")).not.toBeNull();
+  });
+
+  it("si emitir el enlace nuevo falla → withdrawToken null y sin correo (la página dice cómo retirarlo)", async () => {
+    const token = await confirmedOnce();
+    st.failWithdrawIssue = true;
+    expect(await reconfirm(token)).toMatchObject({ alreadyVerified: true, withdrawToken: null, confirmationEmailSent: false });
+    expect(withdrawIssuances()).toHaveLength(1);
+    expect(st.emails).toHaveLength(2);
+  });
+
+  it("primera confirmación con la emisión del enlace fallando → confirmado igualmente, sin enlace ni correo de confirmación", async () => {
+    await requestSignature();
+    st.failWithdrawIssue = true;
+    const res = await confirm(linkToken(st.emails[0].html, "verify-consent"));
+    expect(res.status).toBe(200);
+    expect((await res.json()).data).toMatchObject({ verified: true, withdrawToken: null, confirmationEmailSent: false });
+    expect(st.emails).toHaveLength(1);
+    expect(await findActiveParentalConsent("pMinor")).not.toBeNull();
   });
 });
 

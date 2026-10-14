@@ -44,10 +44,10 @@ import { sha256Hex, randomHex } from "../_lib/edgeCrypto";
 import { sendEmail } from "../_lib/email";
 import { confirmationEmail } from "../_lib/consentEmails";
 import {
+  countConsentWithdrawTokens,
   findIssuedConsentToken,
   hasConsentVerification,
   hasConsentWithdrawal,
-  hasConsentWithdrawToken,
   hashConsentToken,
   recordConsentWithdrawTokenIssued,
   recordParentalConsentVerified,
@@ -58,6 +58,14 @@ export const config = { runtime: "edge" };
 
 /** Versión de las condiciones y de la privacidad que acepta el tutor en la página. */
 export const GUARDIAN_CONSENT_VERSION = "v1.0";
+
+/**
+ * Tope de enlaces de RETIRADA por consentimiento. Volver a confirmar uno ya confirmado da un enlace
+ * nuevo; cada uno es una fila de gdpr_audit_log (de solo añadir), así que sin tope quien tenga el
+ * enlace de verificación podría llenarla (revisión 2 del PR #314). 10 sobra para un tutor real; al
+ * llegar, la página le dice que lo retire el responsable del jugador, y los anteriores siguen valiendo.
+ */
+export const MAX_WITHDRAW_LINKS_PER_CONSENT = 10;
 
 const verifySchema = z.object({
   token: z.string().min(32).max(128),
@@ -236,15 +244,21 @@ export default withHandler(
       if (row.email_verified) {
         // Ya confirmado (doble clic, otra pestaña o una confirmación anterior). El tutor recibe en
         // la página un enlace de retirada NUEVO (los anteriores siguen valiendo), y el correo solo si
-        // nunca se le emitió uno: si la primera vez falló, antes se le remitía a un correo que no
-        // existía (revisión #314). Retirar es lo seguro: dárselo a quien tiene SU enlace no abre nada.
-        let issuedBefore = true; // si no se puede comprobar, sin correo (nunca correos repetidos)
+        // nunca se le EMITIÓ ninguno: si la primera vez falló la emisión, antes se le remitía a un
+        // correo que no existía (revisión #314). Si se emitió pero el correo no salió, no se reenvía:
+        // el enlace está en la página. Retirar es lo seguro: dárselo a quien tiene SU enlace no abre
+        // nada. Tope por consentimiento (MAX_WITHDRAW_LINKS_PER_CONSENT); si no se puede contar, sin
+        // enlace nuevo (la página le dice cómo retirarlo).
+        let issuedCount: number | null = null;
         try {
-          issuedBefore = await hasConsentWithdrawToken(consent.id);
+          issuedCount = await countConsentWithdrawTokens(consent.id, MAX_WITHDRAW_LINKS_PER_CONSENT);
         } catch (err) {
           console.error("[verify-consent] no se pudo comprobar el enlace de retirada:", err instanceof Error ? err.message : err);
         }
-        const link = await issueWithdrawLink(!issuedBefore);
+        const link =
+          issuedCount === null || issuedCount >= MAX_WITHDRAW_LINKS_PER_CONSENT
+            ? { withdrawToken: null, confirmationSent: false }
+            : await issueWithdrawLink(issuedCount === 0);
         return successResponse({
           consentId: consent.id,
           alreadyVerified: true,

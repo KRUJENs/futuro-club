@@ -10,7 +10,7 @@
  *     (decisión del owner, 14 oct: el DNI y la aceptación son del tutor, no del entrenador);
  *   - al confirmar recibe el enlace para RETIRAR el consentimiento (también se muestra aquí, por
  *     si el correo de confirmación no llega). Si vuelve a confirmar uno ya confirmado, recibe aquí
- *     un enlace nuevo (y el correo solo si nunca se le mandó);
+ *     un enlace nuevo (y el correo solo si nunca se le emitió ninguno; con tope por consentimiento);
  *   - textos en los 7 idiomas.
  */
 import { useEffect, useRef, useState } from "react";
