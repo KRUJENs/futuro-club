@@ -1629,7 +1629,11 @@
     "fatigue_high_label": "High fatigue",
     "fatigue_critical_label": "Critical fatigue",
     "injuryRiskLoadHigh": "The training load is very high. We recommend active rest.",
-    "injuryRiskFatigueHigh": "The fatigue level is elevated. It's good for them to rest today."
+    "injuryRiskFatigueHigh": "The fatigue level is elevated. It's good for them to rest today.",
+    "physicalNotComputed": "Not calculated",
+    "physicalMaturityUnknown": "Without recorded growth measurements, load and fatigue are not assessed. The coach can record them in the player's profile.",
+    "physicalNotEnoughData": "There is not enough data yet to assess load and fatigue.",
+    "enjoymentNoData": "The coach has not recorded any engagement ratings yet."
   },
   "playerForm": {
     "stepProgress": "Step {{current}} of 3",
@@ -3860,7 +3864,7 @@
     "metabolicPower": "Metabolic power",
     "accelerations": "Accelerations",
     "acwrTitle": "ACWR (ACUTE/CHRONIC LOAD)",
-    "acwrUnreliable": "* Based on {{count}} sessions. 4+ are needed for maximum reliability.",
+    "acwrUnreliable": "Ratio not calculated: {{count}} of the 4 recorded sessions needed.",
     "posturalSignals": "POSTURAL SIGNALS",
     "maturationAdjustedThresholds": "Maturation-adjusted thresholds",
     "acwrDanger": "ACWR danger",
@@ -3877,7 +3881,15 @@
     "signalStrideShortening": "Stride shortening",
     "signalRecoveryTimeIncrease": "Longer recovery time",
     "signalArmSwingDecay": "Reduced arm swing",
-    "signalHeadDrop": "Head drop"
+    "signalHeadDrop": "Head drop",
+    "maturationUnknownTitle": "Maturation not recorded",
+    "maturationUnknownBody": "Without the measurements for PHV we don't know which load thresholds apply to this player, so the risk is not classified (no traffic light, no alerts). The load is still shown.",
+    "countingDefinitions": "Counted with standard definitions, not adjusted for maturation: sprint ≥ {{sprint}} km/h · high intensity ≥ {{hid}} km/h.",
+    "fiNotComputedMaturity": "Index not calculated: it depends on thresholds that change with maturation, and maturation is not recorded.",
+    "fiTooShort": "Index not calculated: the session must last at least {{count}} min.",
+    "fiNoComponents": "Index not calculated: not enough metrics could be compared between the first and second part.",
+    "acwrNoChronic": "Ratio not calculated: no chronic load recorded.",
+    "acwrNoZone": "No risk zone: maturation is not recorded."
   },
   "highlightDetailPage": {
     "reelNotFound": "Reel not found",
@@ -5737,7 +5749,8 @@
     "recoveryProtocol": "Recovery protocol",
     "plan48h": "48-72h plan",
     "returnIndicators": "Return-to-play indicators",
-    "complementaryExercises": "Complementary exercises"
+    "complementaryExercises": "Complementary exercises",
+    "notCalculated": "Not calculated"
   },
   "injuryReport": {
     "noContent": "No content",
@@ -6506,5 +6519,16 @@
       "generic": "Could not withdraw. Try again from the link in the email.",
       "network": "Connection error. Try again."
     }
+  },
+  "overtrainingAlert": {
+    "title": "Overtraining",
+    "lastSessionLoad": "Last session load",
+    "units": "AU",
+    "recommended": "Recommended",
+    "reduceBy": "Reduce load by {{pct}}%",
+    "fromTo": "From {{from}} AU to {{to}} AU this week",
+    "noLoad": "No load recorded",
+    "maturationUnknown": "Maturation not recorded: overload risk is not assessed (no traffic light). Only the recorded load is shown.",
+    "noData": "No sessions with a recorded fatigue index: overtraining cannot be assessed."
   }
 }

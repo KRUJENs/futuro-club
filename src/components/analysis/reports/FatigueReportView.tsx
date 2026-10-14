@@ -17,6 +17,7 @@
  */
 
 import { useTranslation } from "react-i18next";
+import { DEFAULT_FATIGUE_CONFIG } from "@/lib/fatigue/types";
 import {
   HeartPulse, Gauge, ShieldAlert, Dna, Activity,
   TrendingUp, TrendingDown, Minus,
@@ -50,11 +51,12 @@ function toneForLevel(value?: string): Tone {
   return TONE_ELECTRIC;
 }
 
-/** Tono del índice de fatiga 0-100 (más alto = peor). */
+/** Tono del índice de fatiga 0-100 (más alto = peor). Cortes = los del índice
+ *  (DEFAULT_FATIGUE_CONFIG): una sola definición (P1 bloque 4; antes 60/30). */
 function toneForIndex(n?: number): Tone {
   if (typeof n !== "number") return TONE_ELECTRIC;
-  if (n >= 60) return TONE_RED;
-  if (n >= 30) return TONE_AMBER;
+  if (n >= DEFAULT_FATIGUE_CONFIG.severityThresholds.high) return TONE_RED;
+  if (n >= DEFAULT_FATIGUE_CONFIG.severityThresholds.moderate) return TONE_AMBER;
   return TONE_GREEN;
 }
 
@@ -232,10 +234,15 @@ export default function FatigueReportView({ report }: { report: Record<string, u
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">
               {t("fatigueReport.fatigueIndex")}
             </div>
-            <div className={`font-display font-bold text-4xl leading-none ${indexTone.text}`}>
-              {indice ?? "—"}
-              <span className="text-sm text-muted-foreground font-normal">/100</span>
-            </div>
+            {/* Sin índice se dice «no calculado» (el motivo va en «no evaluado»); nunca un guion. */}
+            {indice !== null && indice !== undefined ? (
+              <div className={`font-display font-bold text-4xl leading-none ${indexTone.text}`}>
+                {indice}
+                <span className="text-sm text-muted-foreground font-normal">/100</span>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground italic">{t("fatigueReport.notCalculated")}</div>
+            )}
           </div>
           {estado.severidad && (
             <div className="text-right">
@@ -268,7 +275,7 @@ export default function FatigueReportView({ report }: { report: Record<string, u
               {t("fatigueReport.acwrValue")}
             </div>
             <div className="font-display font-bold text-2xl text-foreground leading-none">
-              {acwrValor !== null && acwrValor !== undefined ? acwrValor : "—"}
+              {acwrValor !== null && acwrValor !== undefined ? acwrValor : <span className="text-sm text-muted-foreground italic font-normal">{t("fatigueReport.notCalculated")}</span>}
             </div>
           </div>
           {carga.zona && (

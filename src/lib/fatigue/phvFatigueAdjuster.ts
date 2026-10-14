@@ -11,6 +11,11 @@
  * - Circa-PHV (-2 to +1): Active growth spurt, vulnerable tendons/ligaments,
  *   increased injury risk. Sprint threshold ×0.85, ACWR danger at 1.4.
  * - Post-PHV (>+1): Approaching adult physiology. Standard adult thresholds.
+ * - Unknown (no PHV offset: maturation not registered, the PHV gate is closed):
+ *   NOT treated as adult any more (P1 block 4). The standard definitions are kept
+ *   only to COUNT (what a sprint is), and every risk classification is blocked
+ *   with MATURATION_UNKNOWN_REASON — owner decision: no maturation ⇒ no traffic
+ *   light, the load is still shown.
  *
  * References:
  * - Mirwald et al. 2002 (PHV calculation)
@@ -23,7 +28,7 @@ import type { FatigueThresholds, MaturationBand } from "./types";
 
 // ─── Adult Baseline Thresholds ──────────────────────────────────────────────
 
-const ADULT_THRESHOLDS: Omit<FatigueThresholds, "band" | "phvOffset"> = {
+const ADULT_THRESHOLDS: Omit<FatigueThresholds, "band" | "phvOffset" | "adjusted" | "gate_reason"> = {
   sprintThresholdMs: 5.83,         // ~21 km/h
   highIntensityThresholdMs: 4.0,   // ~14.4 km/h
   metabolicWarningWkg: 25.5,       // W/kg (di Prampero 2005)
@@ -44,7 +49,7 @@ interface BandAdjustment {
   accelMultiplier: number;
 }
 
-const BAND_ADJUSTMENTS: Record<MaturationBand, BandAdjustment> = {
+const BAND_ADJUSTMENTS: Record<Exclude<MaturationBand, "unknown">, BandAdjustment> = {
   pre_phv: {
     sprintMultiplier: 0.75,     // 5.83 × 0.75 = 4.37 m/s
     hidMultiplier: 0.80,        // 4.0 × 0.80 = 3.2 m/s
@@ -73,19 +78,43 @@ const BAND_ADJUSTMENTS: Record<MaturationBand, BandAdjustment> = {
 
 // ─── Main Function ──────────────────────────────────────────────────────────
 
+/** Why every fatigue/load risk classification is blocked when maturation is unknown. */
+export const MATURATION_UNKNOWN_REASON =
+  "Maduración no registrada: sin las medidas para el PHV no se sabe qué umbrales de carga corresponden " +
+  "a este jugador, así que no se clasifica el riesgo (sin semáforo). La carga se muestra igualmente.";
+
 /**
  * Compute fatigue thresholds adjusted for biological maturation.
  *
- * @param phvOffset - PHV offset in years (negative = pre-PHV, positive = post-PHV).
- *                    null → use adult defaults.
+ * @param phvOffset - PHV offset in years (negative = pre-PHV, positive = post-PHV),
+ *                    from the PHV gate. null → band "unknown": standard counting
+ *                    definitions, no ACWR thresholds, gate_reason set.
  */
 export function adjustFatigueThresholds(phvOffset: number | null): FatigueThresholds {
   const band = classifyBand(phvOffset);
+  if (band === "unknown") {
+    return {
+      band,
+      phvOffset: null,
+      adjusted: false,
+      gate_reason: MATURATION_UNKNOWN_REASON,
+      // Standard measurement definitions, used ONLY to count (not to classify risk).
+      sprintThresholdMs: ADULT_THRESHOLDS.sprintThresholdMs,
+      highIntensityThresholdMs: ADULT_THRESHOLDS.highIntensityThresholdMs,
+      metabolicWarningWkg: ADULT_THRESHOLDS.metabolicWarningWkg,
+      acwrDangerThreshold: null,
+      acwrCautionThreshold: null,
+      accelThresholdMs2: ADULT_THRESHOLDS.accelThresholdMs2,
+      decelThresholdMs2: ADULT_THRESHOLDS.decelThresholdMs2,
+    };
+  }
   const adj = BAND_ADJUSTMENTS[band];
 
   return {
     band,
     phvOffset,
+    adjusted: band !== "post_phv",
+    gate_reason: null,
     sprintThresholdMs: round3(ADULT_THRESHOLDS.sprintThresholdMs * adj.sprintMultiplier),
     highIntensityThresholdMs: round3(ADULT_THRESHOLDS.highIntensityThresholdMs * adj.hidMultiplier),
     metabolicWarningWkg: round3(ADULT_THRESHOLDS.metabolicWarningWkg * adj.metabolicMultiplier),
@@ -97,10 +126,11 @@ export function adjustFatigueThresholds(phvOffset: number | null): FatigueThresh
 }
 
 /**
- * Classify a PHV offset into a maturation band.
+ * Classify a PHV offset into a maturation band. No offset ⇒ "unknown" (before P1
+ * block 4 it was "post_phv", i.e. adult thresholds applied in silence).
  */
 export function classifyBand(phvOffset: number | null): MaturationBand {
-  if (phvOffset === null || phvOffset === undefined) return "post_phv";
+  if (phvOffset === null || phvOffset === undefined || !Number.isFinite(phvOffset)) return "unknown";
   if (phvOffset < -2) return "pre_phv";
   if (phvOffset <= 1) return "circa_phv";
   return "post_phv";
@@ -117,7 +147,21 @@ export function bandDescription(band: MaturationBand): string {
       return "Pico de crecimiento activo — umbrales ajustados por vulnerabilidad musculoesquelética";
     case "post_phv":
       return "Post-pico de crecimiento — umbrales estándar de adulto";
+    case "unknown":
+      return "Maduración no registrada — conteo con definiciones estándar, sin clasificar el riesgo";
   }
+}
+
+/**
+ * ¿La banda guardada (sesión de fatiga, snapshot) corresponde a una maduración
+ * CONOCIDA? Antes del bloque 4 un offset desconocido se guardaba como "post_phv"
+ * con offset null: ese par se trata como desconocido. Una banda ausente o no
+ * reconocida, también.
+ */
+export function maturationKnown(band: unknown, phvOffset: unknown): boolean {
+  if (band === "pre_phv" || band === "circa_phv") return true;
+  if (band === "post_phv") return typeof phvOffset === "number" && Number.isFinite(phvOffset);
+  return false;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

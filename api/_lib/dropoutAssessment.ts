@@ -16,6 +16,13 @@
  *     DEFAULT de la columna (no medido), y una sesión de fatiga puede no tener
  *     `fatigue_index` (columna nullable, 043). Ninguna de las dos cuenta como señal.
  *   - Señal ausente → entrada NEUTRA (contribución 0), nunca un valor típico.
+ *
+ * P1 bloque 4 (decisión del owner): el SOBREENTRENAMIENTO que ve el usuario
+ * (OvertrainingAlert) es la alerta de sobrecarga. Sin índice de fatiga real, o con
+ * la maduración NO registrada en esa sesión, no hay riesgo ni nivel (sin semáforo,
+ * value null + gate_reason): se muestra solo la carga registrada. Antes salía
+ * «0/100 bajo» en verde sin datos, y el riesgo se tomaba del índice sin mirar la
+ * maduración. Tampoco se inventa una «carga recomendada» (era la misma carga).
  */
 
 import { calculateAttendanceProfile } from "../../src/lib/wellbeing/attendanceTracker";
@@ -28,6 +35,8 @@ import type { MotivationProfile } from "../../src/lib/wellbeing/motivationClassi
 import type { OvertrainingAssessment } from "../../src/lib/wellbeing/overtrainingDetector";
 import type { DropoutRiskOutput } from "../../src/lib/wellbeing/dropoutRiskScorer";
 import type { EngagementSnapshot } from "../../src/lib/shared/sessionTypes";
+import { maturationKnown } from "../../src/lib/fatigue/phvFatigueAdjuster";
+import { DEFAULT_FATIGUE_CONFIG } from "../../src/lib/fatigue/types";
 
 export type SignalRow = Record<string, unknown>;
 
@@ -62,7 +71,7 @@ export async function fetchDropoutSignals(playerId: string, select: RowSelector)
   const [attendance, engagement, fatigue] = await Promise.all([
     select(`attendance_records?player_id=eq.${pid}&select=player_id,date,status,source,session_id&order=date.desc&limit=90`),
     select(`engagement_snapshots?player_id=eq.${pid}&select=session_id,date,physical,social,emotional,composite,trend,weekly_avg&order=date.desc&limit=60`),
-    select(`fatigue_sessions?player_id=eq.${pid}&select=session_date,total_load,fatigue_index,fatigue_severity,acwr_value&order=session_date.desc&limit=28`),
+    select(`fatigue_sessions?player_id=eq.${pid}&select=session_date,total_load,fatigue_index,fatigue_severity,acwr_value,maturation_band,phv_offset&order=session_date.desc&limit=28`),
   ]);
   return { attendance, engagement, fatigue };
 }
@@ -98,19 +107,90 @@ function neutralMotivation(playerId: string): MotivationProfile {
   };
 }
 
-/** Overtraining a partir del fatigue_index REAL más reciente (dato almacenado). */
+/**
+ * Overtraining a partir del fatigue_index REAL más reciente de una sesión con
+ * maduración CONOCIDA (las filas llegan ya filtradas). Los cortes del nivel son los
+ * del índice de fatiga (DEFAULT_FATIGUE_CONFIG, una sola definición: inv #7).
+ */
 function overtrainingFromFatigue(playerId: string, realRows: SignalRow[]): OvertrainingAssessment {
   const latest = realRows[0] ?? {};
-  const fi = typeof latest.fatigue_index === "number" ? latest.fatigue_index : 0;
-  const risk = clamp(Math.round(fi));
-  const load = typeof latest.total_load === "number" ? Math.round(latest.total_load) : 0;
+  const risk = clamp(Math.round(latest.fatigue_index as number));
+  const cut = DEFAULT_FATIGUE_CONFIG.severityThresholds;
   return {
     playerId,
     overtrainingRisk: risk,
-    riskLevel: risk >= 75 ? "critical" : risk >= 50 ? "high" : risk >= 25 ? "moderate" : "low",
+    riskLevel: risk >= cut.critical ? "critical" : risk >= cut.high ? "high" : risk >= cut.moderate ? "moderate" : "low",
     factors: { acwrRisk: 0, fatigueRisk: risk, loadRisk: 0, phvRisk: 0, injuryRisk: 0 },
     recommendations: [],
-    loadAdjustment: { currentLoadAU: load, recommendedLoadAU: load, adjustmentPct: 0 },
+    loadAdjustment: { currentLoadAU: 0, recommendedLoadAU: 0, adjustmentPct: 0 },
+  };
+}
+
+/** Lo que ve el usuario del sobreentrenamiento (OvertrainingAlert, burnout-report). */
+export interface OvertrainingView {
+  /** 0-100; null = sin calcular (ver gate_reason). Nunca un 0 por falta de dato. */
+  risk: number | null;
+  riskLevel: OvertrainingAssessment["riskLevel"] | null;
+  /** Carga registrada de la última sesión (total_load); null si no hay. */
+  currentLoadAU: number | null;
+  /** Nada calcula hoy una carga recomendada: null (antes repetía la actual). */
+  recommendedLoadAU: number | null;
+  adjustmentPct: number | null;
+  gate_reason: string | null;
+  /** Código estable del motivo (la UI lo traduce): null cuando hay riesgo. */
+  gate_code: "maturation_unknown" | "no_data" | null;
+}
+
+export const OVERTRAINING_NO_DATA_REASON =
+  "Sin sesiones con índice de fatiga registradas: no se puede valorar el sobreentrenamiento.";
+export const OVERTRAINING_MATURATION_REASON =
+  "Maduración no registrada: no se valora el riesgo de sobrecarga (sin semáforo). Se muestra solo la carga registrada.";
+
+/**
+ * Carga REAL de una sesión: total_load > 0. La columna es NOT NULL DEFAULT 0 (043), así
+ * que un 0 es «sin carga registrada», no una carga (revisión del PR #315).
+ */
+function realLoad(row: SignalRow | undefined): number | null {
+  const v = row?.total_load;
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? Math.round(v) : null;
+}
+
+/** Última carga real de cualquier sesión; null si no hay ninguna. */
+function latestLoad(rows: SignalRow[]): number | null {
+  for (const r of rows) {
+    const v = realLoad(r);
+    if (v !== null) return v;
+  }
+  return null;
+}
+
+function overtrainingView(
+  rows: SignalRow[],
+  fromRisk: OvertrainingAssessment | null,
+  riskRow: SignalRow | undefined,
+  unknownMaturity: boolean,
+): OvertrainingView {
+  if (fromRisk) {
+    return {
+      risk: fromRisk.overtrainingRisk,
+      riskLevel: fromRisk.riskLevel,
+      // La carga de la MISMA sesión que el riesgo (antes: la última fila con número,
+      // que podía ser un 0 por defecto de otra sesión junto a un riesgo crítico).
+      currentLoadAU: realLoad(riskRow),
+      recommendedLoadAU: null,
+      adjustmentPct: null,
+      gate_reason: null,
+      gate_code: null,
+    };
+  }
+  return {
+    risk: null,
+    riskLevel: null,
+    currentLoadAU: latestLoad(rows),
+    recommendedLoadAU: null,
+    adjustmentPct: null,
+    gate_reason: unknownMaturity ? OVERTRAINING_MATURATION_REASON : OVERTRAINING_NO_DATA_REASON,
+    gate_code: unknownMaturity ? "maturation_unknown" : "no_data",
   };
 }
 
@@ -176,8 +256,16 @@ export function insufficientAssessment(playerId: string) {
     },
     hasBehavioralData: false,
     intervention: { urgency: "monitor", actions: [], followUpDate: "", escalationNeeded: false },
-    engagement: { current: 0, historical: 0, trend: "stable", consecutiveDeclines: 0 },
-    overtraining: { risk: 0, riskLevel: "low", currentLoadAU: 0, recommendedLoadAU: 0, adjustmentPct: 0 },
+    engagement: null,
+    overtraining: {
+      risk: null,
+      riskLevel: null,
+      currentLoadAU: null,
+      recommendedLoadAU: null,
+      adjustmentPct: null,
+      gate_reason: OVERTRAINING_NO_DATA_REASON,
+      gate_code: "no_data",
+    } satisfies OvertrainingView,
     motivation: { type: "mixed", dropoutRisk: 0, confidence: 0 },
     attendance: { rate: 0, consecutiveAbsences: 0, recentTrend: "stable" },
   };
@@ -210,8 +298,9 @@ function buildComputedAssessment(
   playerId: string,
   out: DropoutRiskOutput,
   proto: ReturnType<typeof generateIntervention>,
-  eng: ReturnType<typeof buildEngagement>["summary"],
-  overtraining: OvertrainingAssessment,
+  /** null = sin implicación real registrada (la UI dice «sin datos», nunca 0). */
+  eng: ReturnType<typeof buildEngagement>["summary"] | null,
+  overtraining: OvertrainingView,
   motivation: MotivationProfile,
   attendance: ReturnType<typeof calculateAttendanceProfile>,
 ) {
@@ -234,19 +323,13 @@ function buildComputedAssessment(
       followUpDate: proto.followUpDate,
       escalationNeeded: proto.escalationNeeded,
     },
-    engagement: {
+    engagement: eng && {
       current: eng.current,
       historical: eng.historical,
       trend: eng.trend,
       consecutiveDeclines: eng.consecutiveDeclines,
     },
-    overtraining: {
-      risk: overtraining.overtrainingRisk,
-      riskLevel: overtraining.riskLevel,
-      currentLoadAU: overtraining.loadAdjustment.currentLoadAU,
-      recommendedLoadAU: overtraining.loadAdjustment.recommendedLoadAU,
-      adjustmentPct: overtraining.loadAdjustment.adjustmentPct,
-    },
+    overtraining,
     motivation: {
       type: motivation.type,
       dropoutRisk: motivation.inherentDropoutRisk,
@@ -276,8 +359,14 @@ export function computeDropoutAssessment(playerId: string, rows: DropoutSignalRo
   const hasEng = realEngRows.length > 0;
   // Guarda de VALOR: fatigue_index es nullable (043) → una sesión sin índice NO es
   // señal de sobrecarga. Se usa el índice real más reciente, no la última fila.
-  const realFatRows = rows.fatigue.filter((r) => typeof r.fatigue_index === "number");
+  // P1 bloque 4: y solo de sesiones con la maduración CONOCIDA (el índice depende de
+  // umbrales por maduración). "post_phv" sin offset = valor por defecto antiguo.
+  const withIndex = rows.fatigue.filter(
+    (r) => typeof r.fatigue_index === "number" && Number.isFinite(r.fatigue_index as number),
+  );
+  const realFatRows = withIndex.filter((r) => maturationKnown(r.maturation_band, r.phv_offset));
   const hasFat = realFatRows.length > 0;
+  const fatigueUnknownMaturity = !hasFat && withIndex.length > 0;
   const hasMotivation = realEngRows.length >= 3;
 
   const signals: SignalCoverage = {
@@ -311,7 +400,11 @@ export function computeDropoutAssessment(playerId: string, rows: DropoutSignalRo
     : neutralMotivation(playerId);
 
   // Overtraining desde fatigue_index real; si no hay, neutro (no inventa 12).
-  const overtraining = hasFat ? overtrainingFromFatigue(playerId, realFatRows) : neutralOvertraining(playerId);
+  // (deuda documentada: en el SCORER la ausencia entra neutra y su peso no se
+  // redistribuye; en la VISTA queda sin calcular, nunca «0/100 bajo»).
+  const overtrainingRisk = hasFat ? overtrainingFromFatigue(playerId, realFatRows) : null;
+  const overtraining = overtrainingRisk ?? neutralOvertraining(playerId);
+  const overtrainingShown = overtrainingView(rows.fatigue, overtrainingRisk, realFatRows[0], fatigueUnknownMaturity);
 
   const out = scoreDropoutRisk({
     playerId,
@@ -331,7 +424,9 @@ export function computeDropoutAssessment(playerId: string, rows: DropoutSignalRo
 
   return {
     source: "computed",
-    assessment: buildComputedAssessment(playerId, out, proto, eng.summary, overtraining, motivation, attendance),
+    // Sin implicación real el resumen es null (P1 bloque 4): antes current 0 ⇒ el padre
+    // veía «el nivel de disfrute es bajo» en rojo sin un solo dato.
+    assessment: buildComputedAssessment(playerId, out, proto, hasEng ? eng.summary : null, overtrainingShown, motivation, attendance),
     out,
     signals,
   };

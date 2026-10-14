@@ -11,7 +11,12 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { hasRealFatigueData, blockedFatigueReport, generateMockReport } from "../_fatigue-report";
+import {
+  hasRealFatigueData,
+  blockedFatigueReport,
+  generateMockReport,
+  fatigueMaturationKnown,
+} from "../_fatigue-report";
 
 describe("Fatigue Report · gate de datos (inv #2)", () => {
   it("hasRealFatigueData = false sin sesión ni historial", () => {
@@ -41,8 +46,9 @@ describe("Fatigue Report · gate de datos (inv #2)", () => {
     expect(r.cargaACWR.valor).toBeNull();
     expect(r.riesgoLesion.nivel).toBe("sin datos");
     expect(r._gated).toBe(true);
-    expect(r.confidence_score).toBe(0);
-    expect(r.data_completeness).toBe(0);
+    // Sin evaluación no hay cifra de confianza (el chip no se pinta; nunca «0 %»).
+    expect(r).not.toHaveProperty("confidence_score");
+    expect(r).not.toHaveProperty("data_completeness");
     // Regresión: los valores fabricados del bug de demo NO aparecen.
     expect(r.estadoActual.indice).not.toBe(35);
     expect(r.cargaACWR.valor).not.toBe(1.1);
@@ -64,5 +70,24 @@ describe("Fatigue Report · gate de datos (inv #2)", () => {
     const noIdx = generateMockReport({ playerId: "p1", fatigueReport: { total_load: 350 } } as never) as Record<string, Record<string, unknown>>;
     expect(noIdx.estadoActual.indice).toBeNull();        // sin índice real → null, no 35
     expect(noIdx.estadoActual.severidad).toBe("sin datos");
+  });
+});
+
+describe("Fatigue Report · sin maduración registrada no hay semáforo (P1 bloque 4)", () => {
+  it("fatigueMaturationKnown: banda real sí; sin banda, sin sesión o \"post_phv\" sin offset (valor antiguo) no", () => {
+    expect(fatigueMaturationKnown({ playerId: "p1", fatigueReport: { fatigue_index: 40, maturation_band: "circa_phv", phv_offset: 0.3 } } as never)).toBe(true);
+    expect(fatigueMaturationKnown({ playerId: "p1", fatigueReport: { fatigue_index: 40, maturation_band: "post_phv", phv_offset: 1.4 } } as never)).toBe(true);
+    expect(fatigueMaturationKnown({ playerId: "p1", fatigueReport: { fatigue_index: 40, maturation_band: null } } as never)).toBe(false);
+    expect(fatigueMaturationKnown({ playerId: "p1", fatigueReport: { fatigue_index: 40, maturation_band: "post_phv", phv_offset: null } } as never)).toBe(false);
+    expect(fatigueMaturationKnown({ playerId: "p1", fatigueHistory: [{ fatigue_index: 30 }] } as never)).toBe(false);
+  });
+
+  it("el fallback usa los cortes del índice de fatiga (una sola definición), no 66/33", () => {
+    const at = (fatigue_index: number) =>
+      (generateMockReport({ playerId: "p1", fatigueReport: { fatigue_index } } as never) as Record<string, Record<string, unknown>>).estadoActual.severidad;
+    expect(at(80)).toBe("crítico");
+    expect(at(55)).toBe("alto");
+    expect(at(30)).toBe("moderado");
+    expect(at(10)).toBe("bajo");
   });
 });

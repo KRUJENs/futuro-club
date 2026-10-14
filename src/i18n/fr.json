@@ -1628,7 +1628,11 @@
     "fatigue_high_label": "Fatigue élevée",
     "fatigue_critical_label": "Fatigue critique",
     "injuryRiskLoadHigh": "La charge d'entraînement est très élevée. Nous recommandons un repos actif.",
-    "injuryRiskFatigueHigh": "Le niveau de fatigue est élevé. Il est bon qu'il se repose aujourd'hui."
+    "injuryRiskFatigueHigh": "Le niveau de fatigue est élevé. Il est bon qu'il se repose aujourd'hui.",
+    "physicalNotComputed": "Non calculé",
+    "physicalMaturityUnknown": "Sans mesures de croissance enregistrées, la charge et la fatigue ne sont pas évaluées. L'entraîneur peut les saisir dans la fiche du joueur.",
+    "physicalNotEnoughData": "Il n'y a pas encore assez de données pour évaluer la charge et la fatigue.",
+    "enjoymentNoData": "L'entraîneur n'a encore enregistré aucune évaluation de l'implication."
   },
   "playerForm": {
     "stepProgress": "Étape {{current}} sur 3",
@@ -3859,7 +3863,7 @@
     "metabolicPower": "Puissance métabolique",
     "accelerations": "Accélérations",
     "acwrTitle": "ACWR (CHARGE AIGUË/CHRONIQUE)",
-    "acwrUnreliable": "* Basé sur {{count}} séances. Il en faut 4+ pour une fiabilité maximale.",
+    "acwrUnreliable": "Ratio non calculé : {{count}} des 4 séances enregistrées nécessaires.",
     "posturalSignals": "SIGNAUX POSTURAUX",
     "maturationAdjustedThresholds": "Seuils ajustés par maturation",
     "acwrDanger": "ACWR danger",
@@ -3876,7 +3880,15 @@
     "signalStrideShortening": "Raccourcissement de la foulée",
     "signalRecoveryTimeIncrease": "Temps de récupération accru",
     "signalArmSwingDecay": "Réduction du balancement des bras",
-    "signalHeadDrop": "Tête basse"
+    "signalHeadDrop": "Tête basse",
+    "maturationUnknownTitle": "Maturation non enregistrée",
+    "maturationUnknownBody": "Sans les mesures du PHV, on ne sait pas quels seuils de charge s'appliquent à ce joueur : le risque n'est donc pas classé (ni code couleur, ni alertes). La charge est tout de même affichée.",
+    "countingDefinitions": "Comptage avec les définitions standard, sans ajustement à la maturation : sprint ≥ {{sprint}} km/h · haute intensité ≥ {{hid}} km/h.",
+    "fiNotComputedMaturity": "Indice non calculé : il dépend de seuils qui varient avec la maturation, et la maturation n'est pas enregistrée.",
+    "fiTooShort": "Indice non calculé : la séance doit durer au moins {{count}} min.",
+    "fiNoComponents": "Indice non calculé : trop peu de mesures ont pu être comparées entre la première et la seconde partie.",
+    "acwrNoChronic": "Ratio non calculé : aucune charge chronique enregistrée.",
+    "acwrNoZone": "Pas de zone de risque : la maturation n'est pas enregistrée."
   },
   "highlightDetailPage": {
     "reelNotFound": "Reel introuvable",
@@ -5736,7 +5748,8 @@
     "recoveryProtocol": "Protocole de récupération",
     "plan48h": "Plan 48-72h",
     "returnIndicators": "Indicateurs de retour",
-    "complementaryExercises": "Exercices complémentaires"
+    "complementaryExercises": "Exercices complémentaires",
+    "notCalculated": "Non calculé"
   },
   "injuryReport": {
     "noContent": "Aucun contenu",
@@ -6505,5 +6518,16 @@
       "generic": "Impossible de retirer. Réessayez depuis le lien de l'e-mail.",
       "network": "Erreur de connexion. Réessayez."
     }
+  },
+  "overtrainingAlert": {
+    "title": "Surentraînement",
+    "lastSessionLoad": "Charge de la dernière séance",
+    "units": "UA",
+    "recommended": "Recommandée",
+    "reduceBy": "Réduire la charge de {{pct}} %",
+    "fromTo": "De {{from}} UA à {{to}} UA cette semaine",
+    "noLoad": "Aucune charge enregistrée",
+    "maturationUnknown": "Maturation non enregistrée : le risque de surcharge n'est pas évalué (pas de code couleur). Seule la charge enregistrée est affichée.",
+    "noData": "Aucune séance avec un indice de fatigue enregistré : le surentraînement ne peut pas être évalué."
   }
 }

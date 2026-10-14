@@ -20,6 +20,10 @@
  *   > 1.5      → Danger (high injury risk)
  *   < 0.8      → Undertrained (fitness loss)
  *
+ * P1 block 4 (invariant 2): no ratio below MIN_SESSIONS_RELIABLE sessions or with
+ * no chronic load (value null + gate_reason; before: 0 / "optimal"), and no zone
+ * (traffic light) when maturation is unknown — the ratio is still shown.
+ *
  * References:
  * - Hulin et al. 2014 (The ACWR in sport)
  * - Blanch & Gabbett 2016 (Has the athlete trained enough?)
@@ -42,7 +46,8 @@ export interface SessionLoad {
 
 const LAMBDA_ACUTE = 2 / (7 + 1);     // 0.25  — 7-day decay
 const LAMBDA_CHRONIC = 2 / (28 + 1);  // 0.069 — 28-day decay
-const MIN_SESSIONS_RELIABLE = 4;       // Minimum sessions for reliable ACWR
+/** Minimum sessions for a reliable ACWR. One definition, shared with the server (api/_lib/metricsProvenance.ts). */
+export const MIN_SESSIONS_RELIABLE = 4;
 
 // ─── ACWR Computation ───────────────────────────────────────────────────────
 
@@ -68,8 +73,8 @@ export function computeACWR(
   // Sort by date ascending
   allSessions.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  if (allSessions.length < 2) {
-    return insufficientData(thresholds);
+  if (allSessions.length < MIN_SESSIONS_RELIABLE) {
+    return insufficientData(allSessions.length);
   }
 
   // ── Compute EWMA ──
@@ -95,30 +100,56 @@ export function computeACWR(
     chronicEWMA = load * LAMBDA_CHRONIC + chronicEWMA * (1 - LAMBDA_CHRONIC);
   }
 
-  // ── Compute ACWR ──
-  const acwr = chronicEWMA > 0 ? acuteEWMA / chronicEWMA : 0;
-  const reliable = allSessions.length >= MIN_SESSIONS_RELIABLE;
+  const acuteLoad = Math.round(acuteEWMA * 100) / 100;
+  const chronicLoad = Math.round(chronicEWMA * 100) / 100;
 
-  // ── Classify zone ──
+  // ── Compute ACWR ── (no chronic load ⇒ no ratio; before this returned 0)
+  if (!(chronicEWMA > 0)) {
+    return {
+      value: null,
+      zone: null,
+      acuteLoad,
+      chronicLoad,
+      sessionsUsed: allSessions.length,
+      reliable: false,
+      recommendation: null,
+      gate_reason: "Sin carga crónica registrada: no se puede calcular el ratio agudo:crónico.",
+    };
+  }
+  const acwr = acuteEWMA / chronicEWMA;
+  const value = Math.round(acwr * 100) / 100;
+
+  // ── Classify zone ── (blocked when maturation is unknown: no traffic light)
   const zone = classifyZone(acwr, thresholds);
-
-  // ── Generate recommendation ──
-  const recommendation = getRecommendation(zone, acwr, thresholds);
+  if (zone === null) {
+    return {
+      value,
+      zone: null,
+      acuteLoad,
+      chronicLoad,
+      sessionsUsed: allSessions.length,
+      reliable: true,
+      recommendation: null,
+      gate_reason: thresholds.gate_reason ?? "Umbrales de carga no disponibles para este jugador.",
+    };
+  }
 
   return {
-    value: Math.round(acwr * 100) / 100,
+    value,
     zone,
-    acuteLoad: Math.round(acuteEWMA * 100) / 100,
-    chronicLoad: Math.round(chronicEWMA * 100) / 100,
+    acuteLoad,
+    chronicLoad,
     sessionsUsed: allSessions.length,
-    reliable,
-    recommendation,
+    reliable: true,
+    recommendation: getRecommendation(zone, acwr, thresholds),
+    gate_reason: null,
   };
 }
 
 // ─── Zone Classification ────────────────────────────────────────────────────
 
-function classifyZone(acwr: number, thresholds: FatigueThresholds): ACWRZone {
+function classifyZone(acwr: number, thresholds: FatigueThresholds): ACWRZone | null {
+  if (thresholds.acwrDangerThreshold === null || thresholds.acwrCautionThreshold === null) return null;
   if (acwr >= thresholds.acwrDangerThreshold) return "danger";
   if (acwr >= thresholds.acwrCautionThreshold) return "caution";
   if (acwr >= 0.8) return "optimal";
@@ -128,7 +159,7 @@ function classifyZone(acwr: number, thresholds: FatigueThresholds): ACWRZone {
 // ─── Recommendations (in Spanish for VITAS users) ───────────────────────────
 
 function getRecommendation(zone: ACWRZone, acwr: number, thresholds: FatigueThresholds): string {
-  const phvNote = thresholds.band !== "post_phv"
+  const phvNote = thresholds.adjusted
     ? ` (umbrales ajustados por maduración ${thresholds.band === "pre_phv" ? "pre" : "circa"}-PHV)`
     : "";
 
@@ -163,15 +194,16 @@ function daysBetween(dateA: string, dateB: string): number {
   return Math.max(1, Math.round(Math.abs(b - a) / (1000 * 60 * 60 * 24)));
 }
 
-function insufficientData(thresholds: FatigueThresholds): ACWRResult {
+/** Fewer sessions than needed: nothing is computed (before: value 0 and zone "optimal"). */
+function insufficientData(sessions: number): ACWRResult {
   return {
-    value: 0,
-    zone: "optimal",
-    acuteLoad: 0,
-    chronicLoad: 0,
-    sessionsUsed: 0,
+    value: null,
+    zone: null,
+    acuteLoad: null,
+    chronicLoad: null,
+    sessionsUsed: sessions,
     reliable: false,
-    recommendation: "Datos insuficientes para calcular ACWR. "
-      + `Se necesitan al menos ${MIN_SESSIONS_RELIABLE} sesiones registradas.`,
+    recommendation: null,
+    gate_reason: `Datos insuficientes para el ratio agudo:crónico: ${sessions} de ${MIN_SESSIONS_RELIABLE} sesiones necesarias.`,
   };
 }

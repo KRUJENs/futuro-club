@@ -353,6 +353,82 @@
       "notes": "Alimenta el factor motivationType del riesgo de abandono (inherentDropoutRisk 0-100). Umbrales pendiente de validar → confidence reducida."
     },
     {
+      "id": "fatiga_indice",
+      "name": "Índice de fatiga de sesión (caída 1.ª vs 2.ª parte)",
+      "concept": "fisicas.fatiga.indice",
+      "provenance": "DERIVADA",
+      "calc_paths": [
+        "src/lib/fatigue/fatigueEngine.ts",
+        "src/lib/fatigue/phvFatigueAdjuster.ts"
+      ],
+      "ui_paths": [
+        "src/components/FatiguePanel.tsx",
+        "src/pages/ParentDashboardPage.tsx"
+      ],
+      "allowed_literals": [
+        -40,
+        -30,
+        -8,
+        -2.5,
+        -2,
+        -0.012,
+        0.01,
+        0.75,
+        0.78,
+        0.8,
+        0.85,
+        0.86,
+        0.88,
+        1.1,
+        1.2,
+        1.3,
+        1.4,
+        1.5,
+        2.5,
+        3,
+        3.6,
+        4,
+        5.83,
+        8,
+        9.81,
+        12,
+        20,
+        25.5,
+        30.4,
+        50,
+        60,
+        155.4,
+        180
+      ],
+      "gated": true,
+      "notes": "P1 bloque 4. null + gate_reason (nunca 0) si la sesión dura menos de minSessionMinutes, si no hay ningún componente de caída, o si la MADURACIÓN no está registrada (banda \"unknown\"; decisión del owner: sin semáforo, la carga se muestra). Componentes ausentes fuera del índice (pesos renormalizados), no como 0. Sin maduración no hay alertas de ninguna fuente. Constantes: potencia metabólica Osgnach 2010 / di Prampero 2005 (155.4, 0.012, 30.4, 0.01, 3.6, 50, 9.81, 180), umbrales de conteo estándar (5.83 m/s, 4.0 m/s, 2.5 m/s², 25.5 W/kg) y multiplicadores por banda PHV: pendiente de validar (las citas de la cabecera no se han verificado). Pesos y cortes de severidad del índice (DEFAULT_FATIGUE_CONFIG): pendiente de validar; son la ÚNICA definición de severidad (dropoutAssessment, _fatigue-report y FatigueReportView los importan). Persistencia real hoy: ninguna (no hay escritor de fatigue_sessions; /api/tracking/fatigue-session no existe)."
+    },
+    {
+      "id": "acwr_zona",
+      "name": "ACWR (carga aguda:crónica, EWMA) y su zona de riesgo",
+      "concept": "fisicas.carga.acwr",
+      "provenance": "DERIVADA",
+      "calc_paths": [
+        "src/lib/fatigue/acwrService.ts"
+      ],
+      "ui_paths": [
+        "src/components/FatiguePanel.tsx",
+        "src/components/injury/ACWRHistoryChart.tsx",
+        "src/pages/ParentDashboardPage.tsx"
+      ],
+      "allowed_literals": [
+        0.8,
+        4,
+        7,
+        10,
+        24,
+        28,
+        60
+      ],
+      "gated": true,
+      "notes": "P1 bloque 4. Ratio null con menos de MIN_SESSIONS_RELIABLE (4, definición única compartida con api/_lib/metricsProvenance.ts) o sin carga crónica (antes 0 / \"óptimo\"). La ZONA (semáforo) solo con maduración registrada: sin ella el ratio se muestra sin zona. Zonas clasificadas en un único sitio (classifyZone con los umbrales de la banda); ACWRHistoryChart ya no reclasifica el ratio con cortes fijos de adulto. Ventanas EWMA 7/28 días (Williams 2017, Murray 2017) y cortes por banda: pendiente de validar. En la práctica hoy no se calcula: useFatigue no recibe historial y no hay escritor de fatigue_sessions."
+    },
+    {
       "id": "sobreentrenamiento",
       "name": "Detector de sobreentrenamiento",
       "concept": "bienestar.sobreentrenamiento",

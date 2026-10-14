@@ -77,7 +77,7 @@ describe("GET /api/wellbeing/dropout-risk", () => {
       attendance: Array.from({ length: 6 }, (_, i) => ({
         player_id: "p1", date: day(20 - i), status: i < 3 ? "absent" : "present", source: "manual", session_id: null,
       })),
-      fatigue: [{ session_date: day(20), total_load: 350, fatigue_index: 70 }],
+      fatigue: [{ session_date: day(20), total_load: 350, fatigue_index: 70, maturation_band: "circa_phv", phv_offset: 0.2 }],
     };
     const expected = computeDropoutAssessment("p1", {
       attendance: signals.attendance ?? [], engagement: [], fatigue: signals.fatigue ?? [],

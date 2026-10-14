@@ -7,6 +7,14 @@
  * recommendations, PHV-specific guidance, and recovery protocols.
  *
  * Model: Claude Haiku (fast, cost-effective for structured narrative)
+ *
+ * P1 bloque 4 (decisión del owner): si la sesión de fatiga NO tiene la maduración
+ * registrada (banda ausente, o "post_phv" sin offset = valor por defecto antiguo),
+ * el informe NO clasifica: sin índice, severidad, zona ACWR ni riesgo de lesión
+ * (sin semáforo). Ese informe se construye de forma DETERMINISTA, sin llamar al
+ * modelo: la fila de la sesión trae severidad, zona y alertas calculadas con otros
+ * umbrales, y un texto libre (resumen, recomendaciones) podría repetirlas aunque
+ * se le pida lo contrario (revisión del PR #315). Se muestra la carga registrada.
  */
 
 import { z } from "zod";
@@ -15,6 +23,9 @@ import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { MODELS } from "../_lib/models";
 import { normalizeLocale, languageDirective, localeSchema } from "../../src/lib/shared/locale";
 import { resolveCategory, categoryDirective } from "../../src/lib/shared/category";
+import { maturationKnown } from "../../src/lib/fatigue/phvFatigueAdjuster";
+import { DEFAULT_FATIGUE_CONFIG } from "../../src/lib/fatigue/types";
+import { fatigueIsReliable } from "../_lib/metricsProvenance";
 
 export const config = { runtime: "edge" };
 
@@ -45,10 +56,69 @@ const fatigueReportSchema = z.object({
   category: z.enum(["youth", "senior"]).optional(),
 });
 
-const PROMPT_VERSION = "v1.1.0";
+const PROMPT_VERSION = "v1.2.0"; // P1 bloque 4: sin maduración ⇒ sin clasificar; sin edad por defecto
+
+/** Texto de los campos cualitativos cuando la maduración no está registrada. */
+export const MATURATION_UNKNOWN_LABEL = "sin datos (maduración no registrada)";
+
+/**
+ * ¿La sesión de fatiga que se analiza tiene la maduración REGISTRADA? Sin sesión
+ * (solo historial) tampoco se sabe ⇒ false.
+ */
+export function fatigueMaturationKnown(data: z.infer<typeof fatigueReportSchema>): boolean {
+  const fr = data.fatigueReport as Record<string, unknown> | null | undefined;
+  if (!fr || typeof fr !== "object") return false;
+  return maturationKnown(fr.maturation_band ?? fr.maturationBand, fr.phv_offset ?? fr.phvOffset);
+}
+
+/** Qué hacer para activar el informe cuando falta la maduración. */
+export const MATURATION_UNKNOWN_NEXT_STEP =
+  "Registra las medidas de crecimiento del jugador (talla, peso, talla sentado, longitud de pierna, fecha de nacimiento y sexo) para activar la valoración de fatiga y carga.";
+
+/**
+ * Informe de fatiga sin maduración registrada: DETERMINISTA (no pasa por el modelo).
+ * Sin índice, severidad, zona ni riesgo de lesión; solo la carga registrada (si es
+ * real: total_load > 0, la columna es NOT NULL DEFAULT 0) y el ratio agudo:crónico
+ * cuando hay historial suficiente, sin calificarlo.
+ */
+export function maturationGatedFatigueReport(data: z.infer<typeof fatigueReportSchema>): Record<string, unknown> {
+  const fr = data.fatigueReport as Record<string, unknown> | null | undefined;
+  const load = fr && typeof fr.total_load === "number" && Number.isFinite(fr.total_load) && fr.total_load > 0
+    ? Math.round(fr.total_load)
+    : null;
+  const history = Array.isArray(data.fatigueHistory) ? data.fatigueHistory : [];
+  const ratio = fr && typeof fr.acwr_value === "number" && Number.isFinite(fr.acwr_value) && fatigueIsReliable(history.length)
+    ? Math.round(fr.acwr_value * 100) / 100
+    : null;
+  return {
+    estadoActual: { indice: null, severidad: MATURATION_UNKNOWN_LABEL, indicadores: [], señalesPosturales: [] },
+    cargaACWR: {
+      valor: ratio,
+      zona: MATURATION_UNKNOWN_LABEL,
+      tendencia: "sin datos",
+      recomendacionProximaSesion: MATURATION_UNKNOWN_NEXT_STEP,
+    },
+    riesgoLesion: { nivel: MATURATION_UNKNOWN_LABEL, factores: [], zonasExpuestas: [] },
+    ajustesPHV: { banda: "unknown", umbralesModificados: [], recomendaciones: [] },
+    protocoloRecuperacion: { plan48h: [], indicadoresRetorno: [], ejerciciosComplementarios: [] },
+    resumenEjecutivo:
+      "Maduración no registrada: no se valoran la fatiga, la carga ni el riesgo de lesión, porque sus umbrales dependen de la maduración." +
+      (load !== null ? ` Carga registrada en la última sesión: ${load} UA.` : ""),
+    // Sin confidence_score/data_completeness: el chip de confianza no se pinta (un «0 %»
+    // en rojo sugería una evaluación mala, no una que no se hizo; revisión del PR #315).
+    not_evaluated: [
+      "Índice y severidad de fatiga: maduración no registrada",
+      "Zona de carga (ACWR): maduración no registrada",
+      "Riesgo de lesión por fatiga: maduración no registrada",
+    ],
+    _gated: true,
+    _gate_reason: "maturation_unknown",
+  };
+}
 
 function buildPrompt(data: z.infer<typeof fatigueReportSchema>): string {
-  const age = data.playerContext?.chronologicalAge ?? 12;
+  // Sin edad conocida se dice; antes se suponían 12 años.
+  const age = data.playerContext?.chronologicalAge ?? null;
   const position = data.playerContext?.position ?? "MID";
   const phvOffset = (data.phv as Record<string, unknown>)?.offset ?? (data.phv as Record<string, unknown>)?.maturity_offset ?? null;
   const phvCategory = (data.phv as Record<string, unknown>)?.category ?? (data.phv as Record<string, unknown>)?.phv_category ?? "unknown";
@@ -60,7 +130,7 @@ function buildPrompt(data: z.infer<typeof fatigueReportSchema>): string {
   return `Eres un analista de rendimiento deportivo ${category === "senior" ? "profesional" : "juvenil"} especializado en fatiga y gestión de carga.
 
 ## CONTEXTO DEL JUGADOR
-- Edad cronológica: ${age} años
+- Edad cronológica: ${age !== null ? `${age} años` : "No disponible"}
 - Posición: ${position}${category === "senior" ? "" : `
 - Offset PHV: ${phvOffset !== null ? `${phvOffset} años (${phvCategory})` : "No disponible"}`}
 
@@ -136,6 +206,16 @@ export default withHandler(
         promptVersion: PROMPT_VERSION,
         model: "gated",
         source: "no_fatigue_data",
+      });
+    }
+
+    // Sin maduración registrada: informe determinista, SIN modelo (P1 bloque 4).
+    if (!fatigueMaturationKnown(data)) {
+      return successResponse({
+        report: maturationGatedFatigueReport(data),
+        promptVersion: PROMPT_VERSION,
+        model: "gated",
+        source: "maturation_unknown",
       });
     }
 
@@ -255,8 +335,8 @@ export function blockedFatigueReport(data: z.infer<typeof fatigueReportSchema>):
     ajustesPHV: { banda, umbralesModificados: [], recomendaciones: [] },
     protocoloRecuperacion: { plan48h: [], indicadoresRetorno: [], ejerciciosComplementarios: [] },
     resumenEjecutivo: "Sin datos de sesión de fatiga registrados. No es posible evaluar el estado de fatiga, la carga (ACWR) ni el riesgo de lesión sin sesiones de entrenamiento o tracking de vídeo. Registra sesiones para activar este informe.",
-    confidence_score: 0,
-    data_completeness: 0,
+    // Sin confidence_score/data_completeness: el chip de confianza no se pinta (un «0 %»
+    // en rojo sugería una evaluación mala, no una que no se hizo; revisión del PR #315).
     not_evaluated: [
       "Índice de fatiga: sin datos de sesión",
       "ACWR (carga aguda:crónica): sin historial de carga",
@@ -276,7 +356,11 @@ export function generateMockReport(data: z.infer<typeof fatigueReportSchema>): R
   // La fila real de fatigue_sessions usa snake_case (fatigue_index); aceptamos ambos.
   const rawIdx = fatigue?.fatigue_index ?? fatigue?.fatigueIndex;
   const idx = typeof rawIdx === "number" ? rawIdx : null;
-  const severidad = idx === null ? "sin datos" : idx >= 66 ? "alto" : idx >= 33 ? "moderado" : "bajo";
+  // Mismos cortes que el índice de fatiga (DEFAULT_FATIGUE_CONFIG): una sola
+  // definición (inv #7); antes este fallback usaba los suyos (66/33).
+  const cut = DEFAULT_FATIGUE_CONFIG.severityThresholds;
+  const severidad =
+    idx === null ? "sin datos" : idx >= cut.critical ? "crítico" : idx >= cut.high ? "alto" : idx >= cut.moderate ? "moderado" : "bajo";
   return {
     estadoActual: {
       indice: idx,

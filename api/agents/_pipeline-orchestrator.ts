@@ -26,6 +26,7 @@ import { deriveSimMetrics } from "../_lib/simMetrics";
 import { normalizeLocale, localeSchema, pickLocale, type ReportLocale } from "../../src/lib/shared/locale";
 import { resolveCategory } from "../../src/lib/shared/category";
 import { gateAnthropometricsRow } from "../../src/lib/phv/phvGate";
+import { maturationKnown } from "../../src/lib/fatigue/phvFatigueAdjuster";
 import {
   buildVsiSubscores,
   gateVsiComposite,
@@ -588,10 +589,13 @@ export default withHandler(
 
       if (fatigueSessions && fatigueSessions.length > 0) {
         fatigueReport = fatigueSessions[0];
+        // P1 bloque 4 (revisión del PR #315): el ÍNDICE de una sesión sin maduración
+        // registrada no viaja (dependía de umbrales que no corresponden); la sesión sí
+        // cuenta y su carga también. Mismo predicado que dropoutAssessment (inv #7).
         fatigueHistory = fatigueSessions.map((s: Record<string, unknown>) => ({
           date: s.session_date,
           load: s.total_load,
-          fatigueIndex: s.fatigue_index,
+          fatigueIndex: maturationKnown(s.maturation_band, s.phv_offset) ? s.fatigue_index : null,
           acwrValue: s.acwr_value,
         }));
       }

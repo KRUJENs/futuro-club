@@ -1628,7 +1628,11 @@
     "fatigue_high_label": "Hohe Ermüdung",
     "fatigue_critical_label": "Kritische Ermüdung",
     "injuryRiskLoadHigh": "Die Trainingsbelastung ist sehr hoch. Wir empfehlen aktive Erholung.",
-    "injuryRiskFatigueHigh": "Das Ermüdungsniveau ist erhöht. Es ist gut, wenn es sich heute ausruht."
+    "injuryRiskFatigueHigh": "Das Ermüdungsniveau ist erhöht. Es ist gut, wenn es sich heute ausruht.",
+    "physicalNotComputed": "Nicht berechnet",
+    "physicalMaturityUnknown": "Ohne erfasste Wachstumsmessungen werden Belastung und Ermüdung nicht bewertet. Der Trainer kann sie im Spielerprofil eintragen.",
+    "physicalNotEnoughData": "Es gibt noch nicht genug Daten, um Belastung und Ermüdung zu bewerten.",
+    "enjoymentNoData": "Der Trainer hat noch keine Bewertungen des Engagements erfasst."
   },
   "playerForm": {
     "stepProgress": "Schritt {{current}} von 3",
@@ -3859,7 +3863,7 @@
     "metabolicPower": "Metabolische Leistung",
     "accelerations": "Beschleunigungen",
     "acwrTitle": "ACWR (AKUTE/CHRONISCHE BELASTUNG)",
-    "acwrUnreliable": "* Basiert auf {{count}} Einheiten. Für maximale Zuverlässigkeit sind 4+ nötig.",
+    "acwrUnreliable": "Verhältnis nicht berechnet: {{count}} von 4 benötigten erfassten Einheiten.",
     "posturalSignals": "HALTUNGSSIGNALE",
     "maturationAdjustedThresholds": "Nach Reifung angepasste Schwellenwerte",
     "acwrDanger": "ACWR-Gefahr",
@@ -3876,7 +3880,15 @@
     "signalStrideShortening": "Verkürzung der Schrittlänge",
     "signalRecoveryTimeIncrease": "Längere Erholungszeit",
     "signalArmSwingDecay": "Reduziertes Armpendeln",
-    "signalHeadDrop": "Gesenkter Kopf"
+    "signalHeadDrop": "Gesenkter Kopf",
+    "maturationUnknownTitle": "Reifestatus nicht erfasst",
+    "maturationUnknownBody": "Ohne die Messwerte für den PHV ist unklar, welche Belastungsschwellen für diesen Spieler gelten. Das Risiko wird daher nicht eingestuft (keine Ampel, keine Warnungen). Die Belastung wird trotzdem angezeigt.",
+    "countingDefinitions": "Gezählt mit Standarddefinitionen, ohne Anpassung an die Reife: Sprint ≥ {{sprint}} km/h · hohe Intensität ≥ {{hid}} km/h.",
+    "fiNotComputedMaturity": "Index nicht berechnet: Er hängt von reifeabhängigen Schwellen ab, und der Reifestatus ist nicht erfasst.",
+    "fiTooShort": "Index nicht berechnet: Die Einheit muss mindestens {{count}} Min. dauern.",
+    "fiNoComponents": "Index nicht berechnet: Zu wenige Kennzahlen ließen sich zwischen erstem und zweitem Teil vergleichen.",
+    "acwrNoChronic": "Verhältnis nicht berechnet: Keine chronische Belastung erfasst.",
+    "acwrNoZone": "Keine Risikozone: Der Reifestatus ist nicht erfasst."
   },
   "highlightDetailPage": {
     "reelNotFound": "Reel nicht gefunden",
@@ -5736,7 +5748,8 @@
     "recoveryProtocol": "Erholungsprotokoll",
     "plan48h": "Plan 48-72h",
     "returnIndicators": "Rückkehr-Indikatoren",
-    "complementaryExercises": "Ergänzende Übungen"
+    "complementaryExercises": "Ergänzende Übungen",
+    "notCalculated": "Nicht berechnet"
   },
   "injuryReport": {
     "noContent": "Kein Inhalt",
@@ -6505,5 +6518,16 @@
       "generic": "Widerruf nicht möglich. Versuche es erneut über den Link in der E-Mail.",
       "network": "Verbindungsfehler. Versuche es erneut."
     }
+  },
+  "overtrainingAlert": {
+    "title": "Übertraining",
+    "lastSessionLoad": "Belastung letzte Einheit",
+    "units": "AE",
+    "recommended": "Empfohlen",
+    "reduceBy": "Belastung um {{pct}} % senken",
+    "fromTo": "Von {{from}} AE auf {{to}} AE diese Woche",
+    "noLoad": "Keine Belastung erfasst",
+    "maturationUnknown": "Reifestatus nicht erfasst: Das Überlastungsrisiko wird nicht bewertet (keine Ampel). Nur die erfasste Belastung wird angezeigt.",
+    "noData": "Keine Einheiten mit erfasstem Ermüdungsindex: Übertraining kann nicht bewertet werden."
   }
 }

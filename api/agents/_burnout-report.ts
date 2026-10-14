@@ -42,14 +42,18 @@ const burnoutReportSchema = z.object({
     historical: z.number(),
     trend: z.string(),
     consecutiveDeclines: z.number(),
-  }).optional(),
-  // Overtraining
+  }).nullable().optional(), // null = sin implicación real registrada (P1 bloque 4)
+  // Overtraining. P1 bloque 4: risk/riskLevel null = sin calcular (sin índice de
+  // fatiga real o maduración no registrada, ver gate_reason); recomendación null =
+  // nada la calcula. Antes el esquema exigía números y el cliente rellenaba 0.
   overtraining: z.object({
-    risk: z.number(),
-    riskLevel: z.string(),
-    currentLoadAU: z.number(),
-    recommendedLoadAU: z.number(),
-    adjustmentPct: z.number(),
+    risk: z.number().nullable(),
+    riskLevel: z.string().nullable(),
+    currentLoadAU: z.number().nullable(),
+    recommendedLoadAU: z.number().nullable(),
+    adjustmentPct: z.number().nullable(),
+    gate_reason: z.string().nullable().optional(),
+    gate_code: z.string().nullable().optional(),
   }).optional(),
   // Motivation
   motivation: z.object({
@@ -75,7 +79,27 @@ const burnoutReportSchema = z.object({
   locale: localeSchema.optional(),
 });
 
-const PROMPT_VERSION = "v1.0.0";
+const PROMPT_VERSION = "v1.1.0"; // P1 bloque 4: sobreentrenamiento sin calcular ≠ 0
+
+/**
+ * Líneas del prompt sobre sobreentrenamiento. Un dato ausente se dice tal cual
+ * («no calculado» + motivo), nunca como 0: el modelo no debe inferir «riesgo bajo».
+ */
+function overtrainingLines(ot: NonNullable<z.infer<typeof burnoutReportSchema>["overtraining"]>): string {
+  const lines: string[] = [];
+  lines.push(
+    ot.risk !== null && ot.riskLevel !== null
+      ? `- Riesgo: ${ot.risk}/100 (${ot.riskLevel})`
+      : `- Riesgo: NO CALCULADO (${ot.gate_reason ?? "sin datos suficientes"}). No lo estimes ni lo describas como bajo.`,
+  );
+  lines.push(ot.currentLoadAU !== null ? `- Carga registrada última sesión: ${ot.currentLoadAU} UA` : "- Carga registrada: sin datos");
+  if (ot.recommendedLoadAU !== null && ot.adjustmentPct !== null) {
+    lines.push(`- Carga recomendada: ${ot.recommendedLoadAU} UA (ajuste ${ot.adjustmentPct}%)`);
+  } else {
+    lines.push("- Carga recomendada: no calculada (no propongas cifras de carga)");
+  }
+  return lines.join("\n");
+}
 
 function buildPrompt(data: z.infer<typeof burnoutReportSchema>, locale: ReportLocale): string {
   const name = data.playerName ?? "Jugador";
@@ -107,9 +131,7 @@ ${eng ? `- Actual: ${eng.current}/100 | Histórico: ${eng.historical}/100
 - Declives consecutivos: ${eng.consecutiveDeclines}` : "No disponible"}
 
 ## SOBREENTRENAMIENTO
-${ot ? `- Riesgo: ${ot.risk}/100 (${ot.riskLevel})
-- Carga actual: ${ot.currentLoadAU} AU | Recomendada: ${ot.recommendedLoadAU} AU
-- Ajuste sugerido: ${ot.adjustmentPct}%` : "No disponible"}
+${ot ? overtrainingLines(ot) : "No disponible"}
 
 ## MOTIVACIÓN
 ${mot ? `- Tipo: ${mot.type}
@@ -245,9 +267,13 @@ function generateMockReport(data: z.infer<typeof burnoutReportSchema>): Record<s
       "El entorno del club dispone de recursos para un seguimiento personalizado",
     ],
     interventionPlan: `Plan de acción para las próximas 2 semanas: 1) Conversación individual con el jugador para entender su perspectiva. 2) Contacto con la familia para alinear expectativas. 3) Ajuste de la carga de entrenamiento según las recomendaciones del detector de sobreentrenamiento. 4) Revisión del rol del jugador en los ejercicios para maximizar su participación y disfrute.`,
-    loadAdjustment: data.overtraining
-      ? `Reducir la carga de ${data.overtraining.currentLoadAU} AU a ${data.overtraining.recommendedLoadAU} AU (ajuste del ${data.overtraining.adjustmentPct}%). Incluir una sesión de recuperación activa esta semana.`
-      : "No aplica — datos de carga no disponibles",
+    loadAdjustment:
+      data.overtraining &&
+      data.overtraining.currentLoadAU !== null &&
+      data.overtraining.recommendedLoadAU !== null &&
+      data.overtraining.adjustmentPct !== null
+        ? `Reducir la carga de ${data.overtraining.currentLoadAU} AU a ${data.overtraining.recommendedLoadAU} AU (ajuste del ${data.overtraining.adjustmentPct}%). Incluir una sesión de recuperación activa esta semana.`
+        : "No aplica — no hay un ajuste de carga calculado",
     followUpDate: data.riskLevel === "critical" ? "En 3 días" : data.riskLevel === "high" ? "En 1 semana" : "En 2 semanas",
     escalationNeeded: data.riskLevel === "critical",
   };
