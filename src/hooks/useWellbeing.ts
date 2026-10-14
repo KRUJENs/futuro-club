@@ -39,18 +39,27 @@ export interface DropoutRiskAssessment {
     followUpDate: string;
     escalationNeeded: boolean;
   };
+  /** null = sin implicación real registrada (P1 bloque 4; antes current 0). */
   engagement: {
     current: number;
     historical: number;
     trend: string;
     consecutiveDeclines: number;
-  };
+  } | null;
+  /**
+   * Sobreentrenamiento (P1 bloque 4): risk/riskLevel null = sin calcular (sin
+   * índice de fatiga real o maduración no registrada; gate_reason dice cuál).
+   * recommendedLoadAU/adjustmentPct null: nada calcula hoy una recomendación.
+   */
   overtraining: {
-    risk: number;
-    riskLevel: string;
-    currentLoadAU: number;
-    recommendedLoadAU: number;
-    adjustmentPct: number;
+    risk: number | null;
+    riskLevel: string | null;
+    currentLoadAU: number | null;
+    recommendedLoadAU: number | null;
+    adjustmentPct: number | null;
+    gate_reason?: string | null;
+    /** "maturation_unknown" | "no_data" (la UI lo traduce); null con riesgo. */
+    gate_code?: string | null;
   };
   motivation: {
     type: string;
@@ -583,6 +592,8 @@ function generateMockRiskAssessment(playerId: string): DropoutRiskAssessment {
       currentLoadAU: 350,
       recommendedLoadAU: 340,
       adjustmentPct: -5,
+      gate_reason: null,
+      gate_code: null,
     },
     motivation: {
       type: "mixed",

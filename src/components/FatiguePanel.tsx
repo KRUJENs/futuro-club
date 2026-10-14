@@ -26,7 +26,7 @@ import {
   Heart,
 } from "lucide-react";
 import type { FatigueReport } from "@/lib/fatigue/types";
-import { bandDescription } from "@/lib/fatigue/phvFatigueAdjuster";
+import { bandDescription, maturationKnown } from "@/lib/fatigue/phvFatigueAdjuster";
 
 interface FatiguePanelProps {
   report: FatigueReport | null;
@@ -53,6 +53,11 @@ export default function FatiguePanel({ report, compact = false }: FatiguePanelPr
 
   const { fatigueIndex, windows, posture, acwr, thresholds, alerts } = report;
   const fi = fatigueIndex;
+  // P1 bloque 4 (decisión del owner): sin maduración registrada no hay semáforo de
+  // riesgo (índice, zona ACWR, alertas). Se muestra la carga y un aviso. Informes
+  // guardados antes del bloque 4 marcaban "post_phv" sin offset: también desconocida.
+  const maturationUnknown = !maturationKnown(thresholds.band, thresholds.phvOffset);
+  const fiShown = fi.value !== null && fi.severity !== null && !maturationUnknown;
 
   return (
     <motion.div
@@ -68,12 +73,34 @@ export default function FatiguePanel({ report, compact = false }: FatiguePanelPr
             {t("fatiguePanel.fatigueAnalysis")}
           </span>
         </div>
-        {thresholds.band !== "post_phv" && (
+        {thresholds.adjusted && !maturationUnknown && (
           <span className="text-[9px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 font-display font-semibold">
             PHV ADJUSTED
           </span>
         )}
       </div>
+
+      {/* ── Maduración no registrada: sin semáforo, la carga sí se muestra ── */}
+      {maturationUnknown && (
+        <div
+          className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200"
+          data-testid="fatigue-maturation-unknown"
+        >
+          <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+          <div>
+            <span className="text-[10px] font-display font-semibold text-amber-800">
+              {t("fatiguePanel.maturationUnknownTitle")}
+            </span>
+            <p className="text-[9px] text-amber-800 leading-relaxed">
+              {t("fatiguePanel.maturationUnknownBody")}{" "}
+              {t("fatiguePanel.countingDefinitions", {
+                sprint: (thresholds.sprintThresholdMs * 3.6).toFixed(1),
+                hid: (thresholds.highIntensityThresholdMs * 3.6).toFixed(1),
+              })}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Fatigue Index Gauge ── */}
       <div className="glass rounded-xl p-4 border border-border">
@@ -81,36 +108,46 @@ export default function FatiguePanel({ report, compact = false }: FatiguePanelPr
           <span className="text-[10px] font-display font-semibold uppercase tracking-widest text-muted-foreground">
             {t("fatiguePanel.fatigueIndex")}
           </span>
-          <SeverityBadge severity={fi.severity} />
+          {fiShown && <SeverityBadge severity={fi.severity as string} />}
         </div>
 
-        {/* Gauge bar */}
-        <div className="relative h-4 rounded-full overflow-hidden bg-muted mb-2">
-          {/* Zone backgrounds */}
-          <div className="absolute inset-0 flex">
-            <div className="w-1/4 bg-green-500/20" />
-            <div className="w-1/4 bg-yellow-500/20" />
-            <div className="w-1/4 bg-orange-500/20" />
-            <div className="w-1/4 bg-red-500/20" />
-          </div>
-          {/* Fill */}
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.min(100, fi.value)}%` }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className={`absolute inset-y-0 left-0 rounded-full ${severityColor(fi.severity)}`}
-          />
-        </div>
+        {fiShown ? (
+          <>
+            {/* Gauge bar */}
+            <div className="relative h-4 rounded-full overflow-hidden bg-muted mb-2">
+              {/* Zone backgrounds */}
+              <div className="absolute inset-0 flex">
+                <div className="w-1/4 bg-green-500/20" />
+                <div className="w-1/4 bg-yellow-500/20" />
+                <div className="w-1/4 bg-orange-500/20" />
+                <div className="w-1/4 bg-red-500/20" />
+              </div>
+              {/* Fill */}
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(100, fi.value as number)}%` }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                className={`absolute inset-y-0 left-0 rounded-full ${severityColor(fi.severity as string)}`}
+              />
+            </div>
 
-        <div className="flex items-center justify-between">
-          <span className={`font-display font-bold text-2xl ${severityTextColor(fi.severity)}`}>
-            {fi.value.toFixed(0)}
-            <span className="text-xs text-muted-foreground font-normal">/100</span>
-          </span>
-          <span className="text-[9px] text-muted-foreground">
-            {fi.reliable ? t("fatiguePanel.sufficientData") : t("fatiguePanel.minMinutes", { count: fi.minimumMinutesRequired })}
-          </span>
-        </div>
+            <div className="flex items-center justify-between">
+              <span className={`font-display font-bold text-2xl ${severityTextColor(fi.severity as string)}`}>
+                {(fi.value as number).toFixed(0)}
+                <span className="text-xs text-muted-foreground font-normal">/100</span>
+              </span>
+              <span className="text-[9px] text-muted-foreground">{t("fatiguePanel.sufficientData")}</span>
+            </div>
+          </>
+        ) : (
+          <p className="text-[11px] text-muted-foreground italic" data-testid="fatigue-index-not-computed">
+            {maturationUnknown
+              ? t("fatiguePanel.fiNotComputedMaturity")
+              : !fi.reliable
+                ? t("fatiguePanel.fiTooShort", { count: fi.minimumMinutesRequired })
+                : t("fatiguePanel.fiNoComponents")}
+          </p>
+        )}
 
         {/* Component breakdown (mini bars) */}
         {!compact && (
@@ -127,7 +164,7 @@ export default function FatiguePanel({ report, compact = false }: FatiguePanelPr
               <div key={key} className="text-center">
                 <div className="h-1.5 rounded-full bg-muted overflow-hidden mb-1">
                   <div
-                    className={`h-full rounded-full ${fi.components[key] > 50 ? "bg-red-500" : fi.components[key] > 25 ? "bg-yellow-500" : "bg-green-500"}`}
+                    className={`h-full rounded-full ${!fiShown ? "bg-primary/40" : fi.components[key] > 50 ? "bg-red-500" : fi.components[key] > 25 ? "bg-yellow-500" : "bg-green-500"}`}
                     style={{ width: `${Math.min(100, fi.components[key])}%` }}
                   />
                 </div>
@@ -191,7 +228,7 @@ export default function FatiguePanel({ report, compact = false }: FatiguePanelPr
               value !== null && (
                 <div key={label} className="flex items-center justify-between">
                   <span className="text-[10px] text-muted-foreground">{label}</span>
-                  <span className={`text-[11px] font-display font-bold tabular-nums ${value < -20 ? "text-red-400" : value < -5 ? "text-yellow-400" : "text-green-400"}`}>
+                  <span className={`text-[11px] font-display font-bold tabular-nums ${maturationUnknown ? "text-foreground" : value < -20 ? "text-red-400" : value < -5 ? "text-yellow-400" : "text-green-400"}`}>
                     {value > 0 ? "+" : ""}{value.toFixed(1)}%
                   </span>
                 </div>
@@ -211,39 +248,57 @@ export default function FatiguePanel({ report, compact = false }: FatiguePanelPr
                 {t("fatiguePanel.acwrTitle")}
               </span>
             </div>
-            <ACWRBadge zone={acwr.zone} />
+            {acwr.zone !== null && !maturationUnknown && <ACWRBadge zone={acwr.zone} />}
           </div>
-          <div className="flex items-center gap-3">
-            <span className={`font-display font-bold text-xl ${acwrTextColor(acwr.zone)}`}>
-              {acwr.value.toFixed(2)}
-            </span>
-            <div className="flex-1">
-              {/* Mini gauge */}
-              <div className="relative h-2 rounded-full overflow-hidden bg-muted">
-                <div className="absolute left-[40%] right-[35%] h-full bg-green-500/30" />
-                <div
-                  className={`absolute top-0 bottom-0 w-1 rounded-full ${acwrTextColor(acwr.zone)}`}
-                  style={{
-                    left: `${Math.min(100, Math.max(0, (acwr.value / 2) * 100))}%`,
-                    backgroundColor: "currentColor",
-                  }}
-                />
-              </div>
-              <div className="flex justify-between text-[7px] text-muted-foreground mt-0.5">
-                <span>0.0</span>
-                <span>0.8</span>
-                <span>1.3</span>
-                <span>2.0</span>
-              </div>
-            </div>
-          </div>
-          <p className="text-[9px] text-muted-foreground mt-2 leading-relaxed">
-            {acwr.recommendation}
-          </p>
-          {!acwr.reliable && (
-            <p className="text-[9px] text-yellow-400 mt-1">
-              {t("fatiguePanel.acwrUnreliable", { count: acwr.sessionsUsed })}
+          {acwr.value === null ? (
+            // Sin ratio (menos de 4 sesiones o sin carga crónica): nunca un 0 ni «óptimo».
+            <p className="text-[10px] text-muted-foreground italic" data-testid="acwr-not-computed">
+              {acwr.chronicLoad === null
+                ? t("fatiguePanel.acwrUnreliable", { count: acwr.sessionsUsed })
+                : t("fatiguePanel.acwrNoChronic")}
             </p>
+          ) : acwr.zone === null || maturationUnknown ? (
+            // Carga SIN semáforo: el ratio se muestra, la zona de riesgo no.
+            <div className="space-y-1">
+              <span className="font-display font-bold text-xl text-foreground tabular-nums">
+                {acwr.value.toFixed(2)}
+              </span>
+              <p className="text-[9px] text-muted-foreground leading-relaxed" data-testid="acwr-no-zone">
+                {t("fatiguePanel.acwrNoZone")}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-3">
+                <span className={`font-display font-bold text-xl ${acwrTextColor(acwr.zone)}`}>
+                  {acwr.value.toFixed(2)}
+                </span>
+                <div className="flex-1">
+                  {/* Mini gauge */}
+                  <div className="relative h-2 rounded-full overflow-hidden bg-muted">
+                    <div className="absolute left-[40%] right-[35%] h-full bg-green-500/30" />
+                    <div
+                      className={`absolute top-0 bottom-0 w-1 rounded-full ${acwrTextColor(acwr.zone)}`}
+                      style={{
+                        left: `${Math.min(100, Math.max(0, (acwr.value / 2) * 100))}%`,
+                        backgroundColor: "currentColor",
+                      }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-[7px] text-muted-foreground mt-0.5">
+                    <span>0.0</span>
+                    <span>0.8</span>
+                    <span>1.3</span>
+                    <span>2.0</span>
+                  </div>
+                </div>
+              </div>
+              {acwr.recommendation && (
+                <p className="text-[9px] text-muted-foreground mt-2 leading-relaxed">
+                  {acwr.recommendation}
+                </p>
+              )}
+            </>
           )}
         </div>
       )}
@@ -272,9 +327,11 @@ export default function FatiguePanel({ report, compact = false }: FatiguePanelPr
                     {signal.description}
                   </p>
                 </div>
-                <span className="text-[9px] text-orange-400 ml-auto shrink-0 font-display tabular-nums">
-                  {(signal.severity * 100).toFixed(0)}%
-                </span>
+                {!maturationUnknown && (
+                  <span className="text-[9px] text-orange-400 ml-auto shrink-0 font-display tabular-nums">
+                    {(signal.severity * 100).toFixed(0)}%
+                  </span>
+                )}
               </div>
             ))}
           </div>
@@ -282,7 +339,7 @@ export default function FatiguePanel({ report, compact = false }: FatiguePanelPr
       )}
 
       {/* ── Alerts ── */}
-      {alerts.length > 0 && (
+      {alerts.length > 0 && !maturationUnknown && (
         <div className="space-y-2">
           {alerts.map((alert, i) => (
             <div
@@ -311,7 +368,7 @@ export default function FatiguePanel({ report, compact = false }: FatiguePanelPr
       )}
 
       {/* ── PHV Band Info ── */}
-      {thresholds.band !== "post_phv" && (
+      {thresholds.adjusted && !maturationUnknown && (
         <div className="flex items-start gap-2 p-3 rounded-xl bg-purple-500/5 border border-purple-500/20">
           <div className="w-2 h-2 rounded-full bg-purple-400 mt-1 shrink-0" />
           <div>

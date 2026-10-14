@@ -38,6 +38,7 @@ import { GrowthSpurtShieldAlert } from "@/components/phv/GrowthSpurtShieldAlert"
 import { GuardianConsentCard } from "@/components/legal/GuardianConsentCard";
 import { Shield } from "lucide-react";
 import { PlayerTrackingService } from "@/services/real/playerTrackingService";
+import { maturationKnown } from "@/lib/fatigue/phvFatigueAdjuster";
 import { computeVsiDelta } from "@/lib/scoring/vsiDelta";
 import { MetricValue } from "@/components/metrics/MetricValue";
 
@@ -439,7 +440,10 @@ export function ParentWellbeingSection({ playerId }: { playerId: string }) {
 
   if (!risk || !playerId) return null;
 
-  const engagementTrend = risk.engagement.trend;
+  // null = sin implicación real registrada: se dice, nunca una barra roja de «disfrute
+  // bajo» a partir de un 0 (P1 bloque 4).
+  const enjoyment = risk.engagement;
+  const engagementTrend = enjoyment?.trend ?? null;
   const tips = [
     t("parentDashboardPage.tip1"),
     t("parentDashboardPage.tip2"),
@@ -463,6 +467,11 @@ export function ParentWellbeingSection({ playerId }: { playerId: string }) {
       {risk?.isMock && <DemoDataBanner messageKey="demoData.wellbeing" />}
 
       {/* Engagement bar */}
+      {!enjoyment ? (
+        <p className="text-[10px] text-muted-foreground" data-testid="enjoyment-no-data">
+          {t("parentDashboardPage.enjoymentNoData")}
+        </p>
+      ) : (
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <span className="text-[10px] text-muted-foreground">{t("parentDashboardPage.enjoymentLevel")}</span>
@@ -479,23 +488,24 @@ export function ParentWellbeingSection({ playerId }: { playerId: string }) {
         <div className="h-2 rounded-full bg-white/10 overflow-hidden">
           <motion.div
             className={`h-full rounded-full ${
-              risk.engagement.current >= 65 ? "bg-emerald-500" :
-              risk.engagement.current >= 40 ? "bg-amber-500" :
+              enjoyment.current >= 65 ? "bg-emerald-500" :
+              enjoyment.current >= 40 ? "bg-amber-500" :
               "bg-red-500"
             }`}
             initial={{ width: 0 }}
-            animate={{ width: `${Math.min(100, risk.engagement.current)}%` }}
+            animate={{ width: `${Math.min(100, enjoyment.current)}%` }}
             transition={{ duration: 0.8 }}
           />
         </div>
         <p className="text-[10px] text-muted-foreground">
-          {risk.engagement.current >= 65
+          {enjoyment.current >= 65
             ? t("parentDashboardPage.enjoymentHigh")
-            : risk.engagement.current >= 40
+            : enjoyment.current >= 40
             ? t("parentDashboardPage.enjoymentMedium")
             : t("parentDashboardPage.enjoymentLow")}
         </p>
       </div>
+      )}
 
       {/* Tips */}
       <div className="space-y-1.5">
@@ -535,13 +545,25 @@ function PhysicalStatusCard({ playerId }: { playerId: string }) {
 
   if (!fatigue) return null;
 
-  const acwrZone = fatigue.acwr?.zone ?? "optimal";
-  const acwrColor = ACWR_PARENT_COLORS[acwrZone] ?? ACWR_PARENT_COLORS.optimal;
-  const acwrLabel = t(`parentDashboardPage.acwr_${acwrZone}_label`, t("parentDashboardPage.acwr_optimal_label"));
-  const acwrAdvice = t(`parentDashboardPage.acwr_${acwrZone}_advice`, t("parentDashboardPage.acwr_optimal_advice"));
-  const fatigueSeverity = fatigue.fatigueIndex?.severity ?? "normal";
-  const fatigueColor = FATIGUE_PARENT_COLORS[fatigueSeverity] ?? FATIGUE_PARENT_COLORS.normal;
-  const fatigueLabel = t(`parentDashboardPage.fatigue_${fatigueSeverity}_label`, t("parentDashboardPage.fatigue_normal_label"));
+  // P1 bloque 4: sin dato NO hay «carga equilibrada» ni «sin fatiga» por defecto, y
+  // sin maduración registrada no se valora el riesgo (decisión del owner: sin
+  // semáforo). Informes antiguos con "post_phv" sin offset = maduración desconocida.
+  const maturityKnown = maturationKnown(fatigue.thresholds?.band, fatigue.thresholds?.phvOffset);
+  const zoneRaw = maturityKnown ? fatigue.acwr?.zone ?? null : null;
+  const acwrZone = zoneRaw && zoneRaw in ACWR_PARENT_COLORS ? zoneRaw : null;
+  const severityRaw =
+    maturityKnown && fatigue.fatigueIndex?.value != null ? fatigue.fatigueIndex?.severity ?? null : null;
+  const fatigueSeverity = severityRaw && severityRaw in FATIGUE_PARENT_COLORS ? severityRaw : null;
+  const notComputed = t("parentDashboardPage.physicalNotComputed");
+  const acwrColor = acwrZone ? ACWR_PARENT_COLORS[acwrZone] : "text-muted-foreground";
+  const acwrLabel = acwrZone ? t(`parentDashboardPage.acwr_${acwrZone}_label`) : notComputed;
+  const acwrAdvice = acwrZone
+    ? t(`parentDashboardPage.acwr_${acwrZone}_advice`)
+    : !maturityKnown
+      ? t("parentDashboardPage.physicalMaturityUnknown")
+      : t("parentDashboardPage.physicalNotEnoughData");
+  const fatigueColor = fatigueSeverity ? FATIGUE_PARENT_COLORS[fatigueSeverity] : "text-muted-foreground";
+  const fatigueLabel = fatigueSeverity ? t(`parentDashboardPage.fatigue_${fatigueSeverity}_label`) : notComputed;
 
   return (
     <motion.div

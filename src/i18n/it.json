@@ -1628,7 +1628,11 @@
     "fatigue_high_label": "Fatica alta",
     "fatigue_critical_label": "Fatica critica",
     "injuryRiskLoadHigh": "Il carico di allenamento è molto alto. Raccomandiamo riposo attivo.",
-    "injuryRiskFatigueHigh": "Il livello di fatica è elevato. È bene che riposi oggi."
+    "injuryRiskFatigueHigh": "Il livello di fatica è elevato. È bene che riposi oggi.",
+    "physicalNotComputed": "Non calcolato",
+    "physicalMaturityUnknown": "Senza misure di crescita registrate, carico e fatica non vengono valutati. L'allenatore può registrarle nella scheda del giocatore.",
+    "physicalNotEnoughData": "Non ci sono ancora dati sufficienti per valutare carico e fatica.",
+    "enjoymentNoData": "L'allenatore non ha ancora registrato valutazioni del coinvolgimento."
   },
   "playerForm": {
     "stepProgress": "Passo {{current}} di 3",
@@ -3859,7 +3863,7 @@
     "metabolicPower": "Potenza metabolica",
     "accelerations": "Accelerazioni",
     "acwrTitle": "ACWR (CARICO ACUTO/CRONICO)",
-    "acwrUnreliable": "* Basato su {{count}} sessioni. Ne servono 4+ per la massima affidabilità.",
+    "acwrUnreliable": "Rapporto non calcolato: {{count}} delle 4 sessioni registrate necessarie.",
     "posturalSignals": "SEGNALI POSTURALI",
     "maturationAdjustedThresholds": "Soglie corrette per maturazione",
     "acwrDanger": "ACWR pericolo",
@@ -3876,7 +3880,15 @@
     "signalStrideShortening": "Accorciamento della falcata",
     "signalRecoveryTimeIncrease": "Maggiore tempo di recupero",
     "signalArmSwingDecay": "Riduzione oscillazione delle braccia",
-    "signalHeadDrop": "Testa abbassata"
+    "signalHeadDrop": "Testa abbassata",
+    "maturationUnknownTitle": "Maturazione non registrata",
+    "maturationUnknownBody": "Senza le misure per il PHV non si sa quali soglie di carico valgano per questo giocatore, quindi il rischio non viene classificato (niente semaforo né avvisi). Il carico viene comunque mostrato.",
+    "countingDefinitions": "Conteggio con definizioni standard, senza adattamento alla maturazione: sprint ≥ {{sprint}} km/h · alta intensità ≥ {{hid}} km/h.",
+    "fiNotComputedMaturity": "Indice non calcolato: dipende da soglie che cambiano con la maturazione, e la maturazione non è registrata.",
+    "fiTooShort": "Indice non calcolato: la sessione deve durare almeno {{count}} min.",
+    "fiNoComponents": "Indice non calcolato: nessuna metrica è confrontabile tra la prima e la seconda parte.",
+    "acwrNoChronic": "Rapporto non calcolato: nessun carico cronico registrato.",
+    "acwrNoZone": "Nessuna zona di rischio: la maturazione non è registrata."
   },
   "highlightDetailPage": {
     "reelNotFound": "Reel non trovato",
@@ -6505,5 +6517,16 @@
       "generic": "Impossibile revocare. Riprova dal link dell'email.",
       "network": "Errore di connessione. Riprova."
     }
+  },
+  "overtrainingAlert": {
+    "title": "Sovrallenamento",
+    "lastSessionLoad": "Carico ultima sessione",
+    "units": "UA",
+    "recommended": "Consigliato",
+    "reduceBy": "Ridurre il carico del {{pct}}%",
+    "fromTo": "Da {{from}} UA a {{to}} UA questa settimana",
+    "noLoad": "Nessun carico registrato",
+    "maturationUnknown": "Maturazione non registrata: il rischio di sovraccarico non viene valutato (niente semaforo). Viene mostrato solo il carico registrato.",
+    "noData": "Nessuna sessione con indice di fatica registrato: il sovrallenamento non può essere valutato."
   }
 }

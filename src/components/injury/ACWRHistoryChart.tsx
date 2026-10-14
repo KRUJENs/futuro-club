@@ -8,6 +8,12 @@
  *
  * Data source: fatigue_sessions via PlayerTrackingService.getFatigueHistory()
  *
+ * P1 block 4: the colour of each point is the ZONE that comes with the data
+ * (classified once, in acwrService, with the player's maturation thresholds). The
+ * chart no longer re-classifies the ratio with fixed adult cut-offs (1.5/1.3/0.8),
+ * which ignored maturation and raised a "danger" warning on its own. A point
+ * without zone (maturation not recorded, or not enough history) is grey.
+ *
  * Sprint 11: Injury Dashboard & Alerts
  */
 
@@ -22,7 +28,6 @@ import {
   Tooltip,
   CartesianGrid,
   ReferenceLine,
-  ReferenceArea,
 } from "recharts";
 import { motion } from "framer-motion";
 import { Activity, AlertTriangle } from "lucide-react";
@@ -32,7 +37,7 @@ import { Activity, AlertTriangle } from "lucide-react";
 interface ACWRDataPoint {
   date: string;
   acwr: number | null;
-  load: number;
+  load: number | null;
   zone: "optimal" | "caution" | "danger" | "undertrained" | "unknown";
 }
 
@@ -46,7 +51,6 @@ interface ACWRHistoryChartProps {
   data: ACWRDataPoint[];
   injuryMarkers?: InjuryMarker[];
   height?: number;
-  showZoneBands?: boolean;
   compact?: boolean;
 }
 
@@ -60,23 +64,25 @@ const ZONE_COLORS = {
   unknown: "#94a3b8",
 };
 
+// Sin cifras de corte: dependen de la maduración de cada jugador (acwrService).
 const ZONE_LABELS: Record<string, string> = {
-  optimal: "Optimo (0.8-1.3)",
-  caution: "Precaucion (1.3-1.5)",
-  danger: "Peligro (>1.5)",
-  undertrained: "Baja carga (<0.8)",
+  optimal: "Optimo",
+  caution: "Precaucion",
+  danger: "Peligro",
+  undertrained: "Baja carga",
+  unknown: "Sin zona",
 };
+
+type Zone = keyof typeof ZONE_COLORS;
+const zoneOf = (z: unknown): Zone =>
+  z === "optimal" || z === "caution" || z === "danger" || z === "undertrained" ? z : "unknown";
 
 // ── Custom tooltip ──────────────────────────────────────────────────────────
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; payload?: ACWRDataPoint }>; label?: string }) {
   if (!active || !payload?.length) return null;
   const acwr = payload[0]?.value;
-  const zone = acwr == null ? "unknown" :
-    acwr > 1.5 ? "danger" :
-    acwr > 1.3 ? "caution" :
-    acwr >= 0.8 ? "optimal" :
-    "undertrained";
+  const zone = zoneOf(payload[0]?.payload?.zone);
 
   return (
     <div className="glass rounded-lg px-3 py-2 border border-border/50 shadow-md">
@@ -103,7 +109,6 @@ export default function ACWRHistoryChart({
   data,
   injuryMarkers = [],
   height = 220,
-  showZoneBands = true,
   compact = false,
 }: ACWRHistoryChartProps) {
   const chartData = useMemo(() => {
@@ -124,12 +129,9 @@ export default function ACWRHistoryChart({
     );
   }
 
-  const latestACWR = data.filter((d) => d.acwr != null).slice(-1)[0]?.acwr;
-  const latestZone = latestACWR == null ? "unknown" :
-    latestACWR > 1.5 ? "danger" :
-    latestACWR > 1.3 ? "caution" :
-    latestACWR >= 0.8 ? "optimal" :
-    "undertrained";
+  const latestPoint = data.filter((d) => d.acwr != null).slice(-1)[0];
+  const latestACWR = latestPoint?.acwr;
+  const latestZone = zoneOf(latestPoint?.zone);
 
   return (
     <motion.div
@@ -178,20 +180,8 @@ export default function ACWRHistoryChart({
         <ComposedChart data={chartData} margin={{ top: 5, right: 5, left: -15, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
 
-          {/* Zone bands */}
-          {showZoneBands && (
-            <>
-              <ReferenceArea y1={0} y2={0.8} fill="#8b5cf6" fillOpacity={0.05} />
-              <ReferenceArea y1={0.8} y2={1.3} fill="#22c55e" fillOpacity={0.08} />
-              <ReferenceArea y1={1.3} y2={1.5} fill="#eab308" fillOpacity={0.08} />
-              <ReferenceArea y1={1.5} y2={2.5} fill="#ef4444" fillOpacity={0.08} />
-            </>
-          )}
-
-          {/* Reference lines */}
-          <ReferenceLine y={1.0} stroke="#22c55e" strokeDasharray="4 4" strokeOpacity={0.5} />
-          <ReferenceLine y={1.3} stroke="#eab308" strokeDasharray="4 4" strokeOpacity={0.5} />
-          <ReferenceLine y={1.5} stroke="#ef4444" strokeDasharray="4 4" strokeOpacity={0.5} />
+          {/* Referencia neutra: carga aguda = crónica (no es un umbral de riesgo). */}
+          <ReferenceLine y={1.0} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeOpacity={0.4} />
 
           {/* Injury markers */}
           {injuryMarkers.map((marker, i) => (
@@ -221,7 +211,7 @@ export default function ACWRHistoryChart({
             tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
             tickLine={false}
             axisLine={false}
-            ticks={[0, 0.5, 0.8, 1.0, 1.3, 1.5, 2.0]}
+            ticks={[0, 0.5, 1.0, 1.5, 2.0]}
           />
           <Tooltip content={<CustomTooltip />} />
 
@@ -243,11 +233,7 @@ export default function ACWRHistoryChart({
             strokeWidth={2}
             dot={(props: { cx: number; cy: number; payload: ACWRDataPoint }) => {
               const { cx, cy, payload } = props;
-              const color = payload.acwr == null ? "#94a3b8" :
-                payload.acwr > 1.5 ? "#ef4444" :
-                payload.acwr > 1.3 ? "#eab308" :
-                payload.acwr >= 0.8 ? "#22c55e" :
-                "#8b5cf6";
+              const color = ZONE_COLORS[zoneOf(payload.zone)];
               return (
                 <circle
                   key={`dot-${cx}-${cy}`}
@@ -270,7 +256,7 @@ export default function ACWRHistoryChart({
         <div className="flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2">
           <AlertTriangle size={14} className="text-red-500 shrink-0" />
           <p className="text-[11px] text-red-600 dark:text-red-400">
-            ACWR en zona de peligro (&gt;1.5). Reducir carga de entrenamiento inmediatamente.
+            ACWR en zona de peligro. Reducir carga de entrenamiento inmediatamente.
           </p>
         </div>
       )}

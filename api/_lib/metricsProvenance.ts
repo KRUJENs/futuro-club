@@ -23,6 +23,7 @@ import {
   derived,
   gated,
 } from "../../src/lib/metrics/MetricResult";
+import { MIN_SESSIONS_RELIABLE } from "../../src/lib/fatigue/acwrService";
 
 export type VsiSubscoreKey = "technique" | "physical" | "mental" | "tactical" | "projection";
 
@@ -119,7 +120,8 @@ export function gateVsiComposite(
  * Con menos sesiones, el índice de fatiga/ACWR NO debe alimentar riesgo de lesión ni
  * valoración como si fuera un dato sólido.
  */
-export const MIN_FATIGUE_SESSIONS = 4;
+// Una sola definición (inv #7): la misma que usa acwrService para el ratio.
+export const MIN_FATIGUE_SESSIONS = MIN_SESSIONS_RELIABLE;
 
 export function fatigueIsReliable(sessionCount: number): boolean {
   return sessionCount >= MIN_FATIGUE_SESSIONS;

@@ -37,6 +37,7 @@ import VideoPlayer from "@/components/VideoPlayer";
 import InsightCard from "@/components/scout/InsightCard";
 import { useRoleProfile } from "@/hooks/useRoleProfile";
 import { PlayerTrackingService, type TrackingSnapshot } from "@/services/real/playerTrackingService";
+import { maturationKnown } from "@/lib/fatigue/phvFatigueAdjuster";
 import { IS_DEMO } from "@/lib/demoMode";
 
 import VsiGauge from "@/components/VsiGauge";
@@ -114,7 +115,6 @@ import InjuryRiskCard from "@/components/injury/InjuryRiskCard";
 import ACWRHistoryChart from "@/components/injury/ACWRHistoryChart";
 import InjuryTimeline from "@/components/injury/InjuryTimeline";
 import InjuryLogForm from "@/components/injury/InjuryLogForm";
-import PhvRiskOverlay from "@/components/injury/PhvRiskOverlay";
 import { useInjuryRisk } from "@/hooks/useInjuryRisk";
 import { usePlan } from "@/hooks/usePlan";
 import UpgradePrompt from "@/components/UpgradePrompt";
@@ -215,11 +215,15 @@ export default function PlayerHubPage() {
     if (!snapshot?.fatigueReport?.acwr) return [];
     const acwr = snapshot.fatigueReport.acwr;
     // Single point from current session; full history needs fatigue_sessions API
+    // Sin maduración registrada no hay zona (sin semáforo, P1 bloque 4); la carga
+    // ausente queda null (antes 0). Un informe antiguo con "post_phv" sin offset
+    // tenía la maduración por defecto: también sin zona.
+    const known = maturationKnown(snapshot.fatigueReport.thresholds?.band, snapshot.fatigueReport.thresholds?.phvOffset);
     return [{
       date: new Date().toISOString().slice(0, 10),
       acwr: acwr.value ?? null,
-      load: acwr.acuteLoad ?? 0,
-      zone: (acwr.zone ?? "unknown") as "optimal" | "caution" | "danger" | "undertrained" | "unknown",
+      load: acwr.acuteLoad ?? null,
+      zone: (known ? acwr.zone ?? "unknown" : "unknown") as "optimal" | "caution" | "danger" | "undertrained" | "unknown",
     }];
   }, [snapshot]);
 
@@ -735,13 +739,10 @@ export default function PlayerHubPage() {
                       <p className="text-sm text-muted-foreground">{t("playerHubPage.analyzeSessionForRisk")}</p>
                     </div>
                   )}
-                  {snapshot?.fatigueReport?.thresholds && (
-                    <PhvRiskOverlay
-                      phvOffset={snapshot.fatigueReport.thresholds.phvOffset ?? null}
-                      phvCategory={snapshot.fatigueReport.thresholds.band}
-                      age={player?.age ?? null}
-                    />
-                  )}
+                  {/* P1 bloque 4: fuera PhvRiskOverlay. Leía la maduración de un
+                      informe de fatiga GUARDADO (no de la puerta del PHV) y era una
+                      cuarta definición de «ventana PHV»; el Escudo de Estirón de
+                      arriba ya lo muestra desde la puerta. */}
                   <div className="glass rounded-2xl p-4">
                     <ACWRHistoryChart data={acwrChartData} />
                   </div>
@@ -989,6 +990,7 @@ function WellbeingTab({ playerId }: { playerId: string }) {
             currentLoadAU={risk.overtraining.currentLoadAU}
             recommendedLoadAU={risk.overtraining.recommendedLoadAU}
             adjustmentPct={risk.overtraining.adjustmentPct}
+            gateCode={risk.overtraining.gate_code ?? null}
           />
         </div>
       ) : (

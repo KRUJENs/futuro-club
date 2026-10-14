@@ -148,7 +148,9 @@ export const PlayerTrackingService = {
           sessionDate: new Date().toISOString().slice(0, 10),
           durationMin: report.sessionDurationMin,
           totalDistanceM: report.windows.reduce((s, w) => s + w.distanceM, 0),
-          totalLoad: report.acwr?.acuteLoad ?? 0,
+          // Carga de la SESIÓN (Σ potencia metabólica), la que usa el ACWR; null si no
+          // se pudo calcular (antes: la carga aguda del ACWR, o 0). P1 bloque 4.
+          totalLoad: report.totalMetabolicLoad ?? null,
           fatigueIndex: report.fatigueIndex.value,
           fatigueSeverity: report.fatigueIndex.severity,
           acwrValue: report.acwr?.value ?? null,
@@ -158,7 +160,8 @@ export const PlayerTrackingService = {
           decayMetrics: report.fatigueIndex.decay,
           alerts: report.alerts,
           phvOffset: report.thresholds.phvOffset,
-          maturationBand: report.thresholds.band,
+          // "unknown" no cabe en el CHECK de fatigue_sessions.maturation_band (043): null.
+          maturationBand: report.thresholds.band === "unknown" ? null : report.thresholds.band,
         }),
       });
       if (!res.ok) {
@@ -190,9 +193,12 @@ export const PlayerTrackingService = {
     const snap = this.get(playerId);
     if (!snap?.fatigueReport) return [];
     const r = snap.fatigueReport;
+    // Solo con la carga real de la sesión (informes anteriores al bloque 4 no la
+    // guardaban): sin ella no hay sesión que contar, nunca un 0.
+    if (typeof r.totalMetabolicLoad !== "number") return [];
     return [{
       date: r.analyzedAt.slice(0, 10),
-      load: r.acwr?.acuteLoad ?? 0,
+      load: r.totalMetabolicLoad,
       source: "localStorage" as const,
     }];
   },

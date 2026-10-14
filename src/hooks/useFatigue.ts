@@ -46,7 +46,11 @@ import type { MappedPoseFrame } from "@/lib/mediapipe/keypointMapper";
 export interface UseFatigueOptions {
   /** Player ID for ACWR history lookup */
   playerId: string;
-  /** PHV offset for threshold adjustment (null → adult defaults) */
+  /**
+   * PHV offset from the PHV gate, for threshold adjustment. null → maturation
+   * unknown: standard counting definitions, no risk classification and no alerts
+   * (P1 block 4; before: adult thresholds in silence).
+   */
   phvOffset?: number | null;
   /** Optional config overrides */
   config?: Partial<FatigueEngineConfig>;
@@ -165,14 +169,16 @@ export function useFatigue(options: UseFatigueOptions): UseFatigueReturn {
     const postureResult = postureDetectorRef.current.analyze();
 
     // 3. Compute ACWR
-    const acwrResult = historicalSessions.length > 0
+    const acwrResult = historicalSessions.length > 0 && engineResult.totalMetabolicLoad !== null
       ? computeACWR(historicalSessions, engineResult.totalMetabolicLoad, thresholds)
       : null;
 
-    // 4. Merge posture alerts into engine alerts
+    // 4. Merge posture alerts into engine alerts. No maturation ⇒ no alerts from any
+    //    source (owner decision, P1 block 4): the posture signals are still listed.
     const allAlerts = [...engineResult.alerts];
+    const maturationKnown = thresholds.band !== "unknown";
 
-    if (postureResult.postureScore > 50) {
+    if (maturationKnown && postureResult.postureScore > 50) {
       const activeSignals = postureResult.signals.filter(s => s.active);
       allAlerts.push({
         level: postureResult.postureScore > 75 ? "danger" : "warning",
@@ -180,18 +186,18 @@ export function useFatigue(options: UseFatigueOptions): UseFatigueReturn {
         title: "Señales Posturales de Fatiga",
         message: `Detectadas ${activeSignals.length} señales: ${activeSignals.map(s => s.type.replace(/_/g, " ")).join(", ")}`,
         detectedAt: Date.now(),
-        phvAdjusted: thresholds.band !== "post_phv",
+        phvAdjusted: thresholds.adjusted,
       });
     }
 
-    if (acwrResult && (acwrResult.zone === "danger" || acwrResult.zone === "caution")) {
+    if (maturationKnown && acwrResult && (acwrResult.zone === "danger" || acwrResult.zone === "caution")) {
       allAlerts.push({
         level: acwrResult.zone === "danger" ? "danger" : "warning",
         source: "acwr",
         title: acwrResult.zone === "danger" ? "ACWR Zona Peligro" : "ACWR Precaución",
-        message: acwrResult.recommendation,
+        message: acwrResult.recommendation ?? "",
         detectedAt: Date.now(),
-        phvAdjusted: thresholds.band !== "post_phv",
+        phvAdjusted: thresholds.adjusted,
       });
     }
 
@@ -204,6 +210,7 @@ export function useFatigue(options: UseFatigueOptions): UseFatigueReturn {
       thresholds,
       alerts: allAlerts,
       sessionDurationMin: Math.round(durationSec / 60),
+      totalMetabolicLoad: engineResult.totalMetabolicLoad,
       playerId,
       analyzedAt: new Date().toISOString(),
     };

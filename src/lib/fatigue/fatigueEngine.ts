@@ -11,6 +11,11 @@
  * - Composite Fatigue Index (0-100)
  *
  * Thresholds are PHV-adjustable via FatigueThresholds input.
+ *
+ * P1 block 4 (invariant 2): the Fatigue Index is null (with gate_reason) when the
+ * session is too short, when no decay component could be computed, or when
+ * maturation is unknown; missing components are left out (weights renormalised)
+ * instead of counting as 0. No maturation ⇒ no alerts (owner decision).
  */
 
 import type {
@@ -48,8 +53,8 @@ export interface FatigueEngineOutput {
   decay: DecayMetrics;
   fatigueIndex: FatigueIndex;
   alerts: FatigueAlert[];
-  /** Total metabolic power for ACWR load calculation */
-  totalMetabolicLoad: number;
+  /** Total metabolic power for ACWR load calculation; null when there are no positions. */
+  totalMetabolicLoad: number | null;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -137,7 +142,7 @@ export class FatigueEngine {
 
     // ── Compute fatigue index ──
     const durationMin = durationSec / 60;
-    const fatigueIndex = this.computeFatigueIndex(decay, cfg, durationMin);
+    const fatigueIndex = this.computeFatigueIndex(decay, cfg, durationMin, thresholds);
 
     // ── Total metabolic load for ACWR ──
     const totalMetabolicLoad = samples.reduce((sum, s) => sum + s.metabolicPower * s.dt, 0);
@@ -347,32 +352,60 @@ export class FatigueEngine {
     decay: DecayMetrics,
     cfg: FatigueEngineConfig,
     durationMin: number,
+    thresholds: FatigueThresholds,
   ): FatigueIndex {
     const reliable = durationMin >= cfg.minSessionMinutes;
 
     // Normalize decay % to 0-100 score (negative decay = fatigue)
     // A -50% sprint decay → score 50. A -100% → score 100. Positive = no fatigue (0).
-    const normalize = (pct: number | null): number => {
-      if (pct === null) return 0;
+    // A component that could not be computed stays null (before: counted as 0).
+    const normalize = (pct: number | null): number | null => {
+      if (pct === null) return null;
       // Negative = fatigue (player declined). Clamp to [0, 100].
       return Math.max(0, Math.min(100, -pct));
     };
 
-    const components = {
+    const parts = {
       sprintDecay: normalize(decay.sprintDecayPct),
       speedDecay: normalize(decay.speedDecayPct),
       hidDecay: normalize(decay.hidDecayPct),
       metabolicDecay: normalize(decay.metabolicDecayPct),
       accelDecay: normalize(decay.accelDecayPct),
     };
+    // Mini-bars of the UI: a missing component shows as 0 there, but it does NOT
+    // enter the index below.
+    const components = {
+      sprintDecay: parts.sprintDecay ?? 0,
+      speedDecay: parts.speedDecay ?? 0,
+      hidDecay: parts.hidDecay ?? 0,
+      metabolicDecay: parts.metabolicDecay ?? 0,
+      accelDecay: parts.accelDecay ?? 0,
+    };
+    const blocked = (gate_reason: string): FatigueIndex => ({
+      value: null,
+      severity: null,
+      gate_reason,
+      components,
+      decay,
+      reliable,
+      minimumMinutesRequired: cfg.minSessionMinutes,
+    });
 
-    const value = round2(
-      components.sprintDecay * cfg.weights.sprintDecay +
-      components.speedDecay * cfg.weights.speedDecay +
-      components.hidDecay * cfg.weights.hidDecay +
-      components.metabolicDecay * cfg.weights.metabolicDecay +
-      components.accelDecay * cfg.weights.accelDecay,
-    );
+    if (thresholds.band === "unknown") {
+      return blocked(thresholds.gate_reason ?? "Maduración no registrada.");
+    }
+    if (!reliable) {
+      return blocked(`Sesión demasiado corta para el índice de fatiga (mínimo ${cfg.minSessionMinutes} min).`);
+    }
+
+    // Weights renormalised over the components that exist (no filler zeros).
+    const keys = Object.keys(parts) as Array<keyof typeof parts>;
+    const present = keys.filter((k) => parts[k] !== null);
+    if (present.length === 0) {
+      return blocked("No se pudo comparar ninguna métrica entre la primera y la segunda parte de la sesión.");
+    }
+    const wsum = present.reduce((acc, k) => acc + cfg.weights[k], 0);
+    const value = round2(present.reduce((acc, k) => acc + (parts[k] as number) * cfg.weights[k], 0) / wsum);
 
     const clamped = Math.max(0, Math.min(100, value));
 
@@ -384,6 +417,7 @@ export class FatigueEngine {
     return {
       value: clamped,
       severity,
+      gate_reason: null,
       components,
       decay,
       reliable,
@@ -399,10 +433,12 @@ export class FatigueEngine {
     thresholds: FatigueThresholds,
   ): FatigueAlert[] {
     const alerts: FatigueAlert[] = [];
+    // No maturation ⇒ no alerts at all (owner decision, P1 block 4).
+    if (thresholds.band === "unknown") return alerts;
     const now = Date.now();
-    const phvAdjusted = thresholds.band !== "post_phv";
+    const phvAdjusted = thresholds.adjusted;
 
-    if (fi.severity === "critical") {
+    if (fi.value !== null && fi.severity === "critical") {
       alerts.push({
         level: "danger",
         source: "fatigue_index",
@@ -411,7 +447,7 @@ export class FatigueEngine {
         detectedAt: now,
         phvAdjusted,
       });
-    } else if (fi.severity === "high") {
+    } else if (fi.value !== null && fi.severity === "high") {
       alerts.push({
         level: "warning",
         source: "fatigue_index",
@@ -465,8 +501,9 @@ function emptyOutput(): FatigueEngineOutput {
       accelDecayPct: null,
     },
     fatigueIndex: {
-      value: 0,
-      severity: "normal",
+      value: null,
+      severity: null,
+      gate_reason: "Sin posiciones de seguimiento suficientes para analizar la fatiga.",
       components: {
         sprintDecay: 0,
         speedDecay: 0,
@@ -485,6 +522,6 @@ function emptyOutput(): FatigueEngineOutput {
       minimumMinutesRequired: 20,
     },
     alerts: [],
-    totalMetabolicLoad: 0,
+    totalMetabolicLoad: null,
   };
 }

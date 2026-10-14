@@ -135,6 +135,13 @@ describe("G5 · Bienestar del hijo (/family/:id) — banner gateado por isMock",
     render(<ParentWellbeingSection playerId="p1" />);
     expect(screen.queryByText(BANNER_TITLE)).not.toBeInTheDocument();
   });
+
+  it("P1 bloque 4: sin implicación registrada (engagement null) lo dice; nunca «disfrute bajo» por un 0", () => {
+    mockUseDropoutRisk.mockReturnValue({ data: { isMock: false, engagement: null } });
+    render(<ParentWellbeingSection playerId="p1" />);
+    expect(screen.getByTestId("enjoyment-no-data")).toHaveTextContent("parentDashboardPage.enjoymentNoData");
+    expect(screen.queryByText("parentDashboardPage.enjoymentLow")).toBeNull();
+  });
 });
 
 // ── Contrato de procedencia: MOCK exige banner ────────────────────────────────

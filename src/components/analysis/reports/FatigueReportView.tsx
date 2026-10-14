@@ -17,6 +17,7 @@
  */
 
 import { useTranslation } from "react-i18next";
+import { DEFAULT_FATIGUE_CONFIG } from "@/lib/fatigue/types";
 import {
   HeartPulse, Gauge, ShieldAlert, Dna, Activity,
   TrendingUp, TrendingDown, Minus,
@@ -50,11 +51,12 @@ function toneForLevel(value?: string): Tone {
   return TONE_ELECTRIC;
 }
 
-/** Tono del índice de fatiga 0-100 (más alto = peor). */
+/** Tono del índice de fatiga 0-100 (más alto = peor). Cortes = los del índice
+ *  (DEFAULT_FATIGUE_CONFIG): una sola definición (P1 bloque 4; antes 60/30). */
 function toneForIndex(n?: number): Tone {
   if (typeof n !== "number") return TONE_ELECTRIC;
-  if (n >= 60) return TONE_RED;
-  if (n >= 30) return TONE_AMBER;
+  if (n >= DEFAULT_FATIGUE_CONFIG.severityThresholds.high) return TONE_RED;
+  if (n >= DEFAULT_FATIGUE_CONFIG.severityThresholds.moderate) return TONE_AMBER;
   return TONE_GREEN;
 }
 

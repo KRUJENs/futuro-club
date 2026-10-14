@@ -99,7 +99,7 @@ function highRiskRows(playerId: string): DropoutSignalRows {
     engagement: [5, 95, 95, 95, 95].map((c, i) => ({
       session_id: `s${i}`, date: day(20 - i), physical: c, social: c, emotional: c, composite: c, trend: "declining", weekly_avg: c,
     })),
-    fatigue: [{ session_date: day(20), total_load: 500, fatigue_index: 100, fatigue_severity: "critical", acwr_value: 1.8 }],
+    fatigue: [{ session_date: day(20), total_load: 500, fatigue_index: 100, fatigue_severity: "critical", acwr_value: 1.8, maturation_band: "circa_phv", phv_offset: 0.2 }],
   };
 }
 

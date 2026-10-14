@@ -168,7 +168,7 @@ export function PlayerDetail({
                     social={latest.socialEngagement}
                     emotional={latest.emotionalEngagement}
                     composite={latest.engagementScore}
-                    trend={risk.engagement.trend === "declining" ? "declining" : risk.engagement.trend === "improving" ? "rising" : "stable"}
+                    trend={risk.engagement?.trend === "declining" ? "declining" : risk.engagement?.trend === "improving" ? "rising" : "stable"}
                   />
                 );
               })()}
@@ -178,6 +178,7 @@ export function PlayerDetail({
                 currentLoadAU={risk.overtraining.currentLoadAU}
                 recommendedLoadAU={risk.overtraining.recommendedLoadAU}
                 adjustmentPct={risk.overtraining.adjustmentPct}
+                gateCode={risk.overtraining.gate_code ?? null}
               />
             </div>
           </div>

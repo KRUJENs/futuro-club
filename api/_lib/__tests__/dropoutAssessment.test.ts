@@ -24,9 +24,67 @@ function highRiskRows(playerId: string): DropoutSignalRows {
     engagement: [5, 95, 95, 95, 95].map((c, i) => ({
       session_id: `s${i}`, date: day(20 - i), physical: c, social: c, emotional: c, composite: c, trend: "declining", weekly_avg: c,
     })),
-    fatigue: [{ session_date: day(20), total_load: 500, fatigue_index: 100, fatigue_severity: "critical", acwr_value: 1.8 }],
+    fatigue: [{ session_date: day(20), total_load: 500, fatigue_index: 100, fatigue_severity: "critical", acwr_value: 1.8, maturation_band: "circa_phv", phv_offset: 0.2 }],
   };
 }
+
+describe("sobreentrenamiento · sin maduración no hay semáforo (P1 bloque 4)", () => {
+  const ATT = Array.from({ length: 6 }, (_, i) => ({ player_id: "p1", date: day(20 - i), status: "present", source: "manual", session_id: null }));
+
+  it("índice con maduración NO registrada → no es señal; riesgo y nivel null, se muestra la carga", () => {
+    const r = computeDropoutAssessment("p1", {
+      ...EMPTY,
+      attendance: ATT,
+      fatigue: [{ session_date: day(3), total_load: 410, fatigue_index: 90, maturation_band: null, phv_offset: null }],
+    });
+    expect(r.signals.fatigue).toBe(false);
+    expect(r.source).toBe("computed"); // por la asistencia
+    if (r.source === "computed") {
+      expect(r.assessment.overtraining).toMatchObject({
+        risk: null, riskLevel: null, currentLoadAU: 410, recommendedLoadAU: null, adjustmentPct: null, gate_code: "maturation_unknown",
+      });
+      expect(r.assessment.overtraining.gate_reason).toMatch(/Maduración no registrada/);
+    }
+  });
+
+  it("\"post_phv\" sin offset (valor por defecto antiguo) = maduración desconocida", () => {
+    const r = computeDropoutAssessment("p1", {
+      ...EMPTY,
+      attendance: ATT,
+      fatigue: [{ session_date: day(3), total_load: 410, fatigue_index: 90, maturation_band: "post_phv", phv_offset: null }],
+    });
+    expect(r.signals.fatigue).toBe(false);
+    if (r.source === "computed") expect(r.assessment.overtraining).toMatchObject({ risk: null, gate_code: "maturation_unknown" });
+  });
+
+  it("control positivo: la misma sesión con maduración registrada SÍ da riesgo y nivel (cortes del índice)", () => {
+    const r = computeDropoutAssessment("p1", {
+      ...EMPTY,
+      attendance: ATT,
+      fatigue: [{ session_date: day(3), total_load: 410, fatigue_index: 90, maturation_band: "post_phv", phv_offset: 1.6 }],
+    });
+    expect(r.signals.fatigue).toBe(true);
+    if (r.source === "computed") {
+      expect(r.assessment.overtraining).toMatchObject({ risk: 90, riskLevel: "critical", currentLoadAU: 410, gate_code: null });
+      // Nada calcula una carga recomendada: nunca se repite la actual como si lo fuera.
+      expect(r.assessment.overtraining.recommendedLoadAU).toBeNull();
+    }
+  });
+
+  it("sin implicación real registrada → engagement null (antes current 0 ⇒ «disfrute bajo» en rojo)", () => {
+    const r = computeDropoutAssessment("p1", { ...EMPTY, attendance: ATT });
+    expect(r.source).toBe("computed");
+    if (r.source === "computed") expect(r.assessment.engagement).toBeNull();
+  });
+
+  it("sin sesiones de fatiga (calculado por otras señales) → «sin calcular», nunca «0/100 bajo»", () => {
+    const r = computeDropoutAssessment("p1", { ...EMPTY, attendance: ATT });
+    expect(r.source).toBe("computed");
+    if (r.source === "computed") {
+      expect(r.assessment.overtraining).toMatchObject({ risk: null, riskLevel: null, currentLoadAU: null, gate_code: "no_data" });
+    }
+  });
+});
 
 describe("computeDropoutAssessment · sin señal real → insufficient_data (inv #2)", () => {
   it("sin ninguna fila → insufficient_data y métrica BLOQUEADA (value null + gate_reason)", () => {
@@ -59,7 +117,7 @@ describe("computeDropoutAssessment · sin señal real → insufficient_data (inv
   it("control positivo: la MISMA sesión con fatigue_index real sí computa", () => {
     const r = computeDropoutAssessment("p1", {
       ...EMPTY,
-      fatigue: [{ session_date: day(1), total_load: 300, fatigue_index: 60, acwr_value: 1.2 }],
+      fatigue: [{ session_date: day(1), total_load: 300, fatigue_index: 60, acwr_value: 1.2, maturation_band: "circa_phv", phv_offset: 0.2 }],
     });
     expect(r.source).toBe("computed");
     expect(r.signals.fatigue).toBe(true);
@@ -71,7 +129,7 @@ describe("computeDropoutAssessment · sin señal real → insufficient_data (inv
       ...EMPTY,
       fatigue: [
         { session_date: day(5), total_load: 0, fatigue_index: null },
-        { session_date: day(4), total_load: 420, fatigue_index: 80 },
+        { session_date: day(4), total_load: 420, fatigue_index: 80, maturation_band: "circa_phv", phv_offset: 0.2 },
       ],
     });
     expect(r.source).toBe("computed");

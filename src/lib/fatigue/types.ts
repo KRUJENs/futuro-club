@@ -67,10 +67,16 @@ export interface DecayMetrics {
 export type FatigueSeverity = "normal" | "moderate" | "high" | "critical";
 
 export interface FatigueIndex {
-  /** Composite fatigue score 0-100 */
-  value: number;
-  /** Severity classification */
-  severity: FatigueSeverity;
+  /**
+   * Composite fatigue score 0-100. null ⇒ not presentable (see gate_reason): too
+   * short a session, no decay component, or maturation not registered (P1 block 4:
+   * 60% of its weight comes from band-dependent counts).
+   */
+  value: number | null;
+  /** Severity classification; null whenever value is null (no traffic light). */
+  severity: FatigueSeverity | null;
+  /** Why value/severity are null; null when presentable. */
+  gate_reason: string | null;
   /** Individual component contributions (0-100 each, pre-weighting) */
   components: {
     sprintDecay: number;
@@ -128,41 +134,60 @@ export interface PostureFatigueResult {
 export type ACWRZone = "undertrained" | "optimal" | "caution" | "danger";
 
 export interface ACWRResult {
-  /** ACWR value (typically 0.5-2.0) */
-  value: number;
-  /** Risk zone */
-  zone: ACWRZone;
-  /** Acute EWMA load (last 7 days) */
-  acuteLoad: number;
-  /** Chronic EWMA load (last 28 days) */
-  chronicLoad: number;
+  /** ACWR value (typically 0.5-2.0). null with fewer than 4 sessions or no chronic load. */
+  value: number | null;
+  /**
+   * Risk zone (the traffic light). null when value is null, when the history is not
+   * reliable, or when maturation is not registered (owner decision, P1 block 4:
+   * no maturation ⇒ no traffic light; the load is still shown).
+   */
+  zone: ACWRZone | null;
+  /** Acute EWMA load (last 7 days); null when not computed. */
+  acuteLoad: number | null;
+  /** Chronic EWMA load (last 28 days); null when not computed. */
+  chronicLoad: number | null;
   /** Number of sessions used for chronic calculation */
   sessionsUsed: number;
   /** Whether we have enough history (need ≥4 sessions for reliability) */
   reliable: boolean;
-  /** Human-readable recommendation */
-  recommendation: string;
+  /** Human-readable recommendation; null when there is no zone. */
+  recommendation: string | null;
+  /** Why value/zone are null; null when the zone is presentable. */
+  gate_reason: string | null;
 }
 
 // ─── PHV-Adjusted Fatigue Thresholds ────────────────────────────────────────
 
-export type MaturationBand = "pre_phv" | "circa_phv" | "post_phv";
+/**
+ * "unknown" = maturation not registered (PHV gate closed). It lives ONLY in the
+ * fatigue type, never in the PHV gate's phases (invariant 4). Before P1 block 4 an
+ * unknown offset was silently classified as "post_phv" (adult thresholds).
+ */
+export type MaturationBand = "pre_phv" | "circa_phv" | "post_phv" | "unknown";
 
 export interface FatigueThresholds {
   /** Maturation band based on PHV offset */
   band: MaturationBand;
   /** PHV offset value used */
   phvOffset: number | null;
+  /** true only when maturation-adjusted thresholds are applied (pre/circa PHV). */
+  adjusted: boolean;
+  /**
+   * Set when maturation is unknown: the counting thresholds below are the standard
+   * (unadjusted) measurement definitions, and every risk classification (fatigue
+   * severity, ACWR zone, alerts) is blocked.
+   */
+  gate_reason: string | null;
   /** Sprint speed threshold (m/s) — default adult: 5.83 */
   sprintThresholdMs: number;
   /** High-intensity speed threshold (m/s) — default adult: 4.0 */
   highIntensityThresholdMs: number;
   /** Metabolic power warning threshold (W/kg) — default adult: 25.5 */
   metabolicWarningWkg: number;
-  /** ACWR danger zone lower bound — default adult: 1.5 */
-  acwrDangerThreshold: number;
-  /** ACWR caution zone lower bound — default adult: 1.3 */
-  acwrCautionThreshold: number;
+  /** ACWR danger zone lower bound — default adult: 1.5. null when maturation is unknown. */
+  acwrDangerThreshold: number | null;
+  /** ACWR caution zone lower bound — default adult: 1.3. null when maturation is unknown. */
+  acwrCautionThreshold: number | null;
   /** Acceleration threshold (m/s²) — default adult: 2.5 */
   accelThresholdMs2: number;
   /** Deceleration threshold (m/s²) — default adult: -2.5 */
@@ -205,6 +230,11 @@ export interface FatigueReport {
   alerts: FatigueAlert[];
   /** Session duration analyzed (minutes) */
   sessionDurationMin: number;
+  /**
+   * Session load (Σ metabolic power) — the value ACWR is built from. Optional so
+   * reports stored before P1 block 4 still parse; null when no positions.
+   */
+  totalMetabolicLoad?: number | null;
   /** Player ID */
   playerId: string;
   /** Timestamp of analysis */

@@ -1629,7 +1629,11 @@
     "fatigue_high_label": "Hoge vermoeidheid",
     "fatigue_critical_label": "Kritieke vermoeidheid",
     "injuryRiskLoadHigh": "De trainingsbelasting is erg hoog. We raden actief herstel aan.",
-    "injuryRiskFatigueHigh": "Het vermoeidheidsniveau is verhoogd. Het is goed als hij/zij vandaag rust."
+    "injuryRiskFatigueHigh": "Het vermoeidheidsniveau is verhoogd. Het is goed als hij/zij vandaag rust.",
+    "physicalNotComputed": "Niet berekend",
+    "physicalMaturityUnknown": "Zonder geregistreerde groeimetingen worden belasting en vermoeidheid niet beoordeeld. De trainer kan ze in het spelersprofiel invoeren.",
+    "physicalNotEnoughData": "Er zijn nog niet genoeg gegevens om belasting en vermoeidheid te beoordelen.",
+    "enjoymentNoData": "De trainer heeft nog geen beoordelingen van de betrokkenheid geregistreerd."
   },
   "playerForm": {
     "stepProgress": "Stap {{current}} van 3",
@@ -3860,7 +3864,7 @@
     "metabolicPower": "Metabolisch vermogen",
     "accelerations": "Acceleraties",
     "acwrTitle": "ACWR (ACUTE/CHRONISCHE BELASTING)",
-    "acwrUnreliable": "* Gebaseerd op {{count}} sessies. Voor maximale betrouwbaarheid zijn 4+ nodig.",
+    "acwrUnreliable": "Verhouding niet berekend: {{count}} van de 4 benodigde geregistreerde sessies.",
     "posturalSignals": "HOUDINGSSIGNALEN",
     "maturationAdjustedThresholds": "Drempels gecorrigeerd voor rijping",
     "acwrDanger": "ACWR gevaar",
@@ -3877,7 +3881,15 @@
     "signalStrideShortening": "Verkorting van de pasafstand",
     "signalRecoveryTimeIncrease": "Langere hersteltijd",
     "signalArmSwingDecay": "Afname armzwaai",
-    "signalHeadDrop": "Hangend hoofd"
+    "signalHeadDrop": "Hangend hoofd",
+    "maturationUnknownTitle": "Rijping niet geregistreerd",
+    "maturationUnknownBody": "Zonder de metingen voor de PHV is niet bekend welke belastingsdrempels voor deze speler gelden, dus het risico wordt niet ingedeeld (geen stoplicht, geen waarschuwingen). De belasting wordt wel getoond.",
+    "countingDefinitions": "Geteld met standaarddefinities, niet aangepast aan de rijping: sprint ≥ {{sprint}} km/u · hoge intensiteit ≥ {{hid}} km/u.",
+    "fiNotComputedMaturity": "Index niet berekend: hij hangt af van drempels die met de rijping veranderen, en de rijping is niet geregistreerd.",
+    "fiTooShort": "Index niet berekend: de sessie moet minstens {{count}} min duren.",
+    "fiNoComponents": "Index niet berekend: geen enkele meting kon tussen het eerste en tweede deel worden vergeleken.",
+    "acwrNoChronic": "Verhouding niet berekend: geen chronische belasting geregistreerd.",
+    "acwrNoZone": "Geen risicozone: de rijping is niet geregistreerd."
   },
   "highlightDetailPage": {
     "reelNotFound": "Reel niet gevonden",
@@ -6506,5 +6518,16 @@
       "generic": "Intrekken is niet gelukt. Probeer het opnieuw via de link in de e-mail.",
       "network": "Verbindingsfout. Probeer het opnieuw."
     }
+  },
+  "overtrainingAlert": {
+    "title": "Overtraining",
+    "lastSessionLoad": "Belasting laatste sessie",
+    "units": "AE",
+    "recommended": "Aanbevolen",
+    "reduceBy": "Belasting met {{pct}}% verlagen",
+    "fromTo": "Van {{from}} AE naar {{to}} AE deze week",
+    "noLoad": "Geen belasting geregistreerd",
+    "maturationUnknown": "Rijping niet geregistreerd: het overbelastingsrisico wordt niet beoordeeld (geen stoplicht). Alleen de geregistreerde belasting wordt getoond.",
+    "noData": "Geen sessies met een geregistreerde vermoeidheidsindex: overtraining kan niet worden beoordeeld."
   }
 }
