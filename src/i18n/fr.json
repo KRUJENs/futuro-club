@@ -6529,5 +6529,42 @@
     "noLoad": "Aucune charge enregistrée",
     "maturationUnknown": "Maturation non enregistrée : le risque de surcharge n'est pas évalué (pas de code couleur). Seule la charge enregistrée est affichée.",
     "noData": "Aucune séance avec un indice de fatigue enregistré : le surentraînement ne peut pas être évalué."
+  },
+  "injuryRiskCard": {
+    "title": "Risque de blessure",
+    "subtitle": "Modèle déterministe VITAS · pondérations en attente de validation",
+    "notComputedTitle": "Risque non calculé",
+    "viewDetails": "Voir les détails",
+    "coldStart": "Moins de 4 séances de charge enregistrées : le calcul s'améliorera avec plus de données.",
+    "factors": "Facteurs de risque",
+    "factor": {
+      "acwr": "Charge aiguë/chronique",
+      "phvWindow": "Fenêtre de croissance (PHV)",
+      "asymmetry": "Asymétrie",
+      "biomechanics": "Biomécanique",
+      "injuryHistory": "Historique de blessures",
+      "fatigue": "Fatigue"
+    },
+    "severity": {
+      "low": "faible",
+      "medium": "moyenne",
+      "high": "élevée"
+    },
+    "notApplicable": "non applicable",
+    "noData": "pas de donnée",
+    "recommendations": "Recommandations",
+    "growthWindowTitle": "Fenêtre de croissance active",
+    "growthWindowBody": "Risque accru de blessure osseuse de croissance (Osgood-Schlatter, Sever). Limiter les impacts.",
+    "lastInjury_one": "Blessure enregistrée il y a {{count}} jour.",
+    "lastInjury_other": "Blessure enregistrée il y a {{count}} jours.",
+    "clearanceIsClinical": "Le retour à l'activité complète est décidé par le médecin ou le kinésithérapeute.",
+    "confidence": "Confiance :",
+    "weightsPending": "Pondérations du modèle en attente de validation",
+    "fullDashboard": "Tableau de bord complet"
+  },
+  "valuationCard": {
+    "title": "Évaluation prédictive",
+    "notComputedTitle": "Évaluation non calculée",
+    "noData": "pas de donnée"
   }
 }

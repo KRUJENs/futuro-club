@@ -9,13 +9,24 @@
  * Fallback: localStorage tracking snapshot for biomechanics/fatigue data.
  *
  * Sprint 10: Injury Risk Model & Data
+ *
+ * P1 bloque 4b: antes enviaba `age: null` (el esquema lo rechazaba: 400, la tarjeta
+ * nunca se pintaba) y la maduración de un informe de fatiga guardado. Ahora:
+ *   - PHV: el offset de la PUERTA del PHV del jugador (useRawPlayerById ya lo pasa
+ *     por el gate); edad decimal solo para saber si la ventana PHV aplica;
+ *   - carga/fatiga del snapshot SOLO si su maduración era conocida y son fiables
+ *     (zona ACWR presente; índice no nulo);
+ *   - biomecánica con sus fotogramas y su confianza (el servidor exige un mínimo).
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getAuthHeaders } from "@/lib/apiAuth";
 import { PlayerTrackingService } from "@/services/real/playerTrackingService";
 import type { InjuryEntry } from "@/components/injury/InjuryLogForm";
-import type { InjuryRiskData } from "@/components/injury/InjuryRiskCard";
+import type { InjuryRiskReport } from "@/lib/injury/injuryRiskTypes";
+import { useRawPlayerById } from "@/hooks/usePlayers";
+import { maturationKnown } from "@/lib/fatigue/phvFatigueAdjuster";
+import { resolveChronologicalAge } from "@/lib/shared/age";
 import { IS_DEMO } from "@/lib/demoMode";
 import { PlayerService } from "@/services/real/playerService";
 import { buildDemoInjuryRisk } from "@/lib/demo/demoHealth";
@@ -63,10 +74,17 @@ async function saveInjuries(playerId: string, injuries: InjuryEntry[]): Promise<
 
 // ── Calculate injury risk (deterministic) ───────────────────────────────────
 
+/** Contexto del jugador que entra en el modelo: PHV de la puerta y edad. */
+export interface InjuryRiskPlayerContext {
+  phvOffset: number | null;
+  age: number | null;
+}
+
 async function calculateInjuryRisk(
   playerId: string,
   injuries: InjuryEntry[],
-): Promise<InjuryRiskData | null> {
+  ctx: InjuryRiskPlayerContext,
+): Promise<InjuryRiskReport | null> {
   // Demo: el calculador de riesgo vive en /api (interceptado → null). Servimos
   // un riesgo de EJEMPLO derivado de la ficha/edad (coldStartWarning:true).
   if (IS_DEMO) {
@@ -77,6 +95,8 @@ async function calculateInjuryRisk(
   const snapshot = PlayerTrackingService.get(playerId);
   const fatigue = snapshot?.fatigueReport;
   const biomech = snapshot?.biomechanicsScore;
+  // Carga/fatiga solo de un informe con la maduración CONOCIDA (P1 bloque 4).
+  const fatigueOk = !!fatigue && maturationKnown(fatigue.thresholds?.band, fatigue.thresholds?.phvOffset);
 
   // Get fatigue history for session count
   const fatigueHistory = await PlayerTrackingService.getFatigueHistory(playerId, 28);
@@ -96,15 +116,15 @@ async function calculateInjuryRisk(
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({
         playerId,
-        age: null, // will be filled from player context if available
-        phvOffset: fatigue?.thresholds?.phvOffset ?? null,
-        phvCategory: fatigue?.thresholds?.band ?? null,
-        acwrValue: fatigue?.acwr?.value ?? null,
-        acwrZone: fatigue?.acwr?.zone ?? null,
-        fatigueIndex: fatigue?.fatigueIndex?.value ?? null,
-        fatigueSeverity: fatigue?.fatigueIndex?.severity ?? null,
+        age: ctx.age,
+        phvOffset: ctx.phvOffset,
+        acwrValue: fatigueOk ? fatigue?.acwr?.value ?? null : null,
+        acwrZone: fatigueOk ? fatigue?.acwr?.zone ?? null : null,
+        fatigueIndex: fatigueOk ? fatigue?.fatigueIndex?.value ?? null : null,
         biomechanicsInjuryRisk: biomech?.injuryRisk ?? null,
         asymmetryPct: biomech?.asymmetryPct ?? null,
+        biomechanicsFrames: biomech?.framesAnalyzed ?? null,
+        biomechanicsConfidence: biomech?.confidence ?? null,
         injuryHistory: injuries.map((inj) => ({
           type: inj.type,
           severity: inj.severity,
@@ -120,7 +140,7 @@ async function calculateInjuryRisk(
     if (!res.ok) return null;
     const json = await res.json();
     if (json.success && json.data?.report) {
-      return json.data.report as InjuryRiskData;
+      return json.data.report as InjuryRiskReport;
     }
   } catch {
     // Calculator failed — return null (fallback handled in UI)
@@ -140,10 +160,18 @@ export function useInjuryRisk(playerId: string | null | undefined) {
     staleTime: 5 * 60 * 1000,
   });
 
+  // PHV de la puerta (el jugador «crudo» ya viene saneado por el gate) y edad.
+  const rawPlayerQuery = useRawPlayerById(playerId ?? undefined);
+  const raw = rawPlayerQuery.data as (Record<string, unknown> & { birthDate?: string | null; age?: number | null }) | null | undefined;
+  const ctx: InjuryRiskPlayerContext = {
+    phvOffset: typeof raw?.phvOffset === "number" && Number.isFinite(raw.phvOffset) ? raw.phvOffset : null,
+    age: raw ? resolveChronologicalAge(raw) : null,
+  };
+
   const riskQuery = useQuery({
-    queryKey: ["injury-risk", playerId],
-    queryFn: () => calculateInjuryRisk(playerId!, injuriesQuery.data ?? []),
-    enabled: !!playerId && injuriesQuery.isSuccess,
+    queryKey: ["injury-risk", playerId, ctx.phvOffset, ctx.age],
+    queryFn: () => calculateInjuryRisk(playerId!, injuriesQuery.data ?? [], ctx),
+    enabled: !!playerId && injuriesQuery.isSuccess && !rawPlayerQuery.isLoading,
     staleTime: 10 * 60 * 1000,
   });
 

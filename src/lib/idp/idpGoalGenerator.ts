@@ -74,10 +74,12 @@ function scoreDimensions(input: IDPArchitectInput): DimensionWeakness[] {
     }
   }
 
-  // Maturation only if PHV data is present
-  if (input.phv) {
+  // Maturation only if PHV data AND a computed injury risk are present (P1 bloque 4b:
+  // antes, sin riesgo, se usaba un 30 por defecto como línea base del objetivo).
+  const computedRisk = input.recentFatigue?.injuryRisk;
+  if (input.phv && typeof computedRisk === "number" && Number.isFinite(computedRisk)) {
     // Higher injuryRisk = more urgent maturation work
-    const baseline = input.recentFatigue?.injuryRisk ?? 30;
+    const baseline = computedRisk;
     items.push({
       dimension: "maturation",
       // invert: high risk → low "score" (lower = more weakness = more priority)

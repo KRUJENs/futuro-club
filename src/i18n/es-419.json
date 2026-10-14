@@ -6530,5 +6530,42 @@
     "noLoad": "Sin carga registrada",
     "maturationUnknown": "Maduración no registrada: no se valora el riesgo de sobrecarga (sin semáforo). Se muestra solo la carga registrada.",
     "noData": "Sin sesiones con índice de fatiga registradas: no se puede valorar el sobreentrenamiento."
+  },
+  "injuryRiskCard": {
+    "title": "Riesgo de lesión",
+    "subtitle": "Modelo determinista VITAS · pesos pendientes de validar",
+    "notComputedTitle": "Riesgo no calculado",
+    "viewDetails": "Ver detalles",
+    "coldStart": "Menos de 4 sesiones de carga registradas: el cálculo mejorará con más datos.",
+    "factors": "Factores de riesgo",
+    "factor": {
+      "acwr": "Carga aguda/crónica",
+      "phvWindow": "Ventana de crecimiento (PHV)",
+      "asymmetry": "Asimetría",
+      "biomechanics": "Biomecánica",
+      "injuryHistory": "Historial de lesiones",
+      "fatigue": "Fatiga"
+    },
+    "severity": {
+      "low": "baja",
+      "medium": "media",
+      "high": "alta"
+    },
+    "notApplicable": "no aplica",
+    "noData": "sin dato",
+    "recommendations": "Recomendaciones",
+    "growthWindowTitle": "Ventana de crecimiento activa",
+    "growthWindowBody": "Más riesgo de lesión ósea de crecimiento (Osgood-Schlatter, Sever). Limitar impactos.",
+    "lastInjury_one": "Lesión registrada hace {{count}} día.",
+    "lastInjury_other": "Lesión registrada hace {{count}} días.",
+    "clearanceIsClinical": "El alta para volver a la actividad completa la decide el médico o el fisioterapeuta.",
+    "confidence": "Confianza:",
+    "weightsPending": "Pesos del modelo pendientes de validar",
+    "fullDashboard": "Panel completo"
+  },
+  "valuationCard": {
+    "title": "Valoración predictiva",
+    "notComputedTitle": "Valoración no calculada",
+    "noData": "sin dato"
   }
 }

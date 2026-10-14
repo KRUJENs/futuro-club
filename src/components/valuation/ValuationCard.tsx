@@ -11,9 +11,14 @@
  * Data source: valuation-model deterministic output.
  *
  * Sprint 12: Valuation Model
+ *
+ * P1 bloque 4b: si el modelo no calculó la valoración (falta el PHV o el riesgo de
+ * lesión), la tarjeta lo dice con su motivo y NO pinta tier, puntuación ni
+ * probabilidades (antes el modelo las rellenaba con 50 / 60 por defecto).
  */
 
 import { motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 import {
   Trophy,
   TrendingUp,
@@ -28,15 +33,18 @@ import TierBadge from "./TierBadge";
 
 export interface ValuationData {
   playerId: string;
-  overallScore: number;
-  tier: string;
-  tierColor: string;
-  tierDescription: string;
+  /** null ⇒ no calculada (ver gate_reason): sin tier ni probabilidades. */
+  overallScore: number | null;
+  tier: string | null;
+  tierColor: string | null;
+  tierDescription: string | null;
   factors: Array<{
     factor: string;
     weight: number;
-    score: number;
+    /** null ⇒ el factor se abstiene (ver gate_reason). */
+    score: number | null;
     label: string;
+    gate_reason?: string | null;
   }>;
   probabilities: {
     prob1Year: number;
@@ -44,7 +52,9 @@ export interface ValuationData {
     prob5Year: number;
     probFirstDiv: number;
     probTop5League: number;
-  };
+  } | null;
+  /** Motivo cuando overallScore es null. */
+  gate_reason?: string | null;
   coldStartWarning: boolean;
   confidenceLevel: number;
   dataPointsUsed: number;
@@ -83,11 +93,49 @@ function ProbGauge({ label, value, color }: { label: string; value: number; colo
 
 // ── Component ───────────────────────────────────────────────────────────────
 
+/** Valoración sin calcular: motivo + qué factor falta; nunca tier ni probabilidades. */
+function ValuationNotComputed({ data }: { data: ValuationData }) {
+  const { t } = useTranslation();
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass rounded-2xl p-5 space-y-4 border border-border/50"
+      data-testid="valuation-not-computed"
+    >
+      <div className="flex items-center gap-2">
+        <Trophy size={18} className="text-primary" />
+        <h3 className="font-display font-bold text-base text-foreground">{t("valuationCard.title")}</h3>
+      </div>
+      <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+        <Info size={14} className="text-amber-600 shrink-0 mt-0.5" />
+        <div>
+          <p className="text-[11px] font-semibold text-amber-800">{t("valuationCard.notComputedTitle")}</p>
+          {data.gate_reason && <p className="text-[10px] text-amber-800 leading-relaxed">{data.gate_reason}</p>}
+        </div>
+      </div>
+      <ul className="space-y-1">
+        {data.factors
+          .filter((f) => f.score === null)
+          .map((f) => (
+            <li key={f.factor} className="text-[10px] text-muted-foreground">
+              <span className="font-semibold text-foreground">{f.label}:</span> {f.gate_reason ?? t("valuationCard.noData")}
+            </li>
+          ))}
+      </ul>
+    </motion.div>
+  );
+}
+
 export default function ValuationCard({
   data,
   compact = false,
   onViewDetails,
 }: ValuationCardProps) {
+  if (data.overallScore === null || data.tier === null || data.probabilities === null) {
+    return <ValuationNotComputed data={data} />;
+  }
+
   // ── Compact mode ─────────────────────────────────────────────
   if (compact) {
     return (

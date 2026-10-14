@@ -429,6 +429,82 @@
       "notes": "P1 bloque 4. Ratio null con menos de MIN_SESSIONS_RELIABLE (4, definición única compartida con api/_lib/metricsProvenance.ts) o sin carga crónica (antes 0 / \"óptimo\"). La ZONA (semáforo) solo con maduración registrada: sin ella el ratio se muestra sin zona. Zonas clasificadas en un único sitio (classifyZone con los umbrales de la banda); ACWRHistoryChart ya no reclasifica el ratio con cortes fijos de adulto. Ventanas EWMA 7/28 días (Williams 2017, Murray 2017) y cortes por banda: pendiente de validar. En la práctica hoy no se calcula: useFatigue no recibe historial y no hay escritor de fatigue_sessions."
     },
     {
+      "id": "lesion_riesgo",
+      "name": "Riesgo de lesión (compuesto de 6 factores)",
+      "concept": "salud.lesion_riesgo",
+      "provenance": "DERIVADA",
+      "calc_paths": [
+        "api/agents/_injury-risk-calculator.ts"
+      ],
+      "ui_paths": [
+        "src/components/injury/InjuryRiskCard.tsx"
+      ],
+      "allowed_literals": [
+        5,
+        200
+      ],
+      "gated": true,
+      "notes": "P1 bloque 4b. Constantes en config/injuryRisk.ts, TODAS «pendiente de validar» (la atribución antigua a Hulin 2014 / Gabbett 2016 / Murray 2017 se retiró: esos trabajos no proponen esta ponderación). Cada factor ausente es null con motivo (antes ACWR 30, PHV por la edad 60, asimetría 20, biomecánica 30, sin historial 5, fatiga 15). Compuesto (src/lib/metrics/composite.ts, implementación única) solo con carga (zona ACWR) y PHV si aplica, y ≥ 70 % del peso aplicable; confianza ORIENTATIVE_CONFIDENCE × cobertura. Ventana PHV = levelFromOffset del Escudo de Estirón (una definición). Sin returnToPlayReady: el alta de un menor es clínica. Hoy el compuesto es null para todos: la cadena de carga (ACWR) no tiene escritor (ver pendientes)."
+    },
+    {
+      "id": "valoracion_predictiva",
+      "name": "Valoración predictiva (puntuación, tier y probabilidades)",
+      "concept": "proyeccion.valoracion",
+      "provenance": "DERIVADA",
+      "calc_paths": [
+        "api/agents/_valuation-model.ts"
+      ],
+      "ui_paths": [
+        "src/components/valuation/ValuationCard.tsx"
+      ],
+      "allowed_literals": [
+        -15,
+        -0.5,
+        0.001,
+        0.003,
+        0.005,
+        0.012,
+        0.02,
+        0.04,
+        0.06,
+        0.1,
+        0.15,
+        0.2,
+        0.25,
+        0.3,
+        0.4,
+        0.5,
+        0.85,
+        0.9,
+        0.95,
+        1.08,
+        1.15,
+        1.5,
+        3,
+        4,
+        5,
+        7,
+        10,
+        12,
+        14,
+        15,
+        20,
+        25,
+        30,
+        40,
+        45,
+        50,
+        55,
+        60,
+        65,
+        75,
+        78,
+        200
+      ],
+      "gated": true,
+      "notes": "P1 bloque 4b: techo PHV y riesgo de lesión se abstienen (antes 50 y 60 por defecto) y mientras falte un factor no hay puntuación, tier ni probabilidades. DEUDA bloque 5 (no tocada aquí): versatilidad 40 sin perfiles, contexto con nivel competitivo fijo «academy», consistencia 40/50 por defecto, tendencia VSI 40 sin VSI, probabilidades de «1.ª división» con tasas base sin fuente verificada, phvCeilingScore lee un offset negativo (estado pre-PHV) como «madurador tardío» (timing) y el boost PHV 1.15 se sobrescribe con 1.08. Hoy la valoración sale null para todos (falta el riesgo de lesión)."
+    },
+    {
       "id": "sobreentrenamiento",
       "name": "Detector de sobreentrenamiento",
       "concept": "bienestar.sobreentrenamiento",

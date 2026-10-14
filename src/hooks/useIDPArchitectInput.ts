@@ -27,6 +27,7 @@ import { usePlayerById } from "@/hooks/usePlayers";
 import { useBehavioralProfile } from "@/hooks/useBehavioralProfile";
 import { useSavedAnalysesV2 } from "@/hooks/usePlayerAnalysisV2";
 import { useInjuryRisk } from "@/hooks/useInjuryRisk";
+import { injuryRiskValue } from "@/lib/injury/injuryRiskTypes";
 import type { IDPArchitectInput } from "@/lib/idp/idpTypes";
 
 export interface IDPDataRichness {
@@ -114,7 +115,8 @@ export function useIDPArchitectInput(playerId: string | undefined): IDPInputBund
     const hasBehavioralProfile = Boolean(behavioralProfile?.scores);
     const hasPHV =
       typeof p?.phvOffset === "number" && typeof p?.phvCategory === "string";
-    const hasFatigueData = Boolean(injuryRisk) || hasInjuries;
+    // P1 bloque 4b: cuenta solo un riesgo CALCULADO (antes bastaba la respuesta).
+    const hasFatigueData = injuryRiskValue(injuryRisk) !== null || hasInjuries;
 
     // Weighted richness: video analyses + BPE matter most
     const score =
@@ -160,17 +162,11 @@ export function useIDPArchitectInput(playerId: string | undefined): IDPInputBund
         }
       : undefined;
 
-    // Fatigue: extraemos del injury risk data si está disponible (cast via unknown
-    // porque InjuryRiskData no expone estos campos directamente en su tipo).
-    const ir = injuryRisk as unknown as Record<string, unknown> | null;
-    const recentFatigue =
-      ir
-        ? {
-            acwr: typeof ir.acwrValue === "number" ? ir.acwrValue : undefined,
-            fatigueIndex: typeof ir.fatigueIndex === "number" ? ir.fatigueIndex : undefined,
-            injuryRisk: typeof ir.overallRisk === "number" ? ir.overallRisk : undefined,
-          }
-        : undefined;
+    // P1 bloque 4b: solo el riesgo de lesión CALCULADO (compuesto real). Antes se
+    // leían acwrValue / fatigueIndex / overallRisk, campos que el informe no tiene
+    // (siempre undefined) o que traían un número por defecto.
+    const riskValue = injuryRiskValue(injuryRisk);
+    const recentFatigue = riskValue !== null ? { injuryRisk: riskValue } : undefined;
 
     return {
       player: {
@@ -233,10 +229,10 @@ export function useIDPArchitectInput(playerId: string | undefined): IDPInputBund
       out.decision_speed = behavioralProfile.scores.decisionSpeed;
     }
 
-    // Injury risk for maturation dimension
-    const ir2 = injuryRisk as unknown as Record<string, unknown> | null;
-    if (ir2 && typeof ir2.overallRisk === "number") {
-      out.injury_risk = ir2.overallRisk;
+    // Injury risk for maturation dimension: solo el compuesto calculado (P1 bloque 4b).
+    const risk2 = injuryRiskValue(injuryRisk);
+    if (risk2 !== null) {
+      out.injury_risk = risk2;
     }
 
     return out;

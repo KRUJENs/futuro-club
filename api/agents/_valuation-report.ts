@@ -53,10 +53,21 @@ const valuationReportSchema = z.object({
   category: z.enum(["youth", "senior"]).optional(),
 });
 
-const PROMPT_VERSION = "v1.1.0"; // v1.1 = comparables SOLO de similarity + abstención + anti-euros (docx #14 P4)
+const PROMPT_VERSION = "v1.2.0"; // v1.2 = sin valoración calculada no se llama al modelo; sin edad por defecto (P1 bloque 4b)
+
+/**
+ * ¿El modelo determinista calculó la valoración? Sin puntuación (P1 bloque 4b: falta
+ * el PHV o el riesgo de lesión) el informe NO se pide al modelo: su texto libre
+ * («tier», «techo estimado») inventaría una valoración que el modelo no hizo.
+ */
+export function valuationComputed(model: unknown): boolean {
+  const m = model as Record<string, unknown> | null | undefined;
+  return !!m && typeof m.overallScore === "number" && Number.isFinite(m.overallScore);
+}
 
 function buildPrompt(data: z.infer<typeof valuationReportSchema>): string {
-  const age = data.playerContext?.chronologicalAge ?? 12;
+  // Sin edad conocida se dice; antes se suponían 12 años.
+  const age = data.playerContext?.chronologicalAge ?? null;
   const position = data.playerContext?.position ?? "MID";
   const phvOffset = (data.phv as Record<string, unknown>)?.offset ?? (data.phv as Record<string, unknown>)?.maturity_offset ?? null;
   const valuation = data.valuationModel ?? {};
@@ -91,7 +102,7 @@ Por tanto "comparablesProfesionales" DEBE ser un array vacío []. Añade a "not_
 Tu audiencia son ${category === "senior" ? "cuerpo tecnico, scouts y direccion deportiva de clubes" : "directores tecnicos, scouts y directivos de academias"}.
 
 ## CONTEXTO DEL JUGADOR
-- Edad cronologica: ${age} anos
+- Edad cronologica: ${age !== null ? `${age} anos` : "No disponible"}
 - Posicion principal: ${position}${category === "senior" ? "" : `
 - Offset PHV: ${phvOffset !== null ? `${phvOffset} anos` : "No disponible"}`}
 - VSI actual: ${JSON.stringify(vsi)}
@@ -182,6 +193,29 @@ export default withHandler(
         fallback: true,
         source,
       });
+
+    // Sin valoración calculada (falta PHV o riesgo de lesión): informe bloqueado,
+    // determinista, sin llamar al modelo (P1 bloque 4b).
+    if (!valuationComputed(data.valuationModel)) {
+      const reason =
+        ((data.valuationModel as Record<string, unknown> | null | undefined)?.gate_reason as string | undefined) ??
+        "Valoración no calculada: faltan datos del modelo.";
+      return successResponse({
+        report: {
+          evaluacionGeneral: `Valoración no disponible. ${reason}`,
+          tierAnalisis: "No calculado",
+          comparablesProfesionales: [],
+          factoresClave: [],
+          proyeccion: { cortoPlaz: "No calculado", medioPlaz: "No calculado", techoEstimado: "No calculado" },
+          recomendacionesDesarrollo: [],
+          riesgosValoracion: [],
+          not_evaluated: [reason],
+        },
+        promptVersion: PROMPT_VERSION,
+        model: "gated",
+        source: "valuation_not_computed",
+      });
+    }
 
     if (!ANTHROPIC_API_KEY) {
       return fallbackReport("fallback_no_key", "API key no configurada");

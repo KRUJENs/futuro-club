@@ -739,6 +739,10 @@ const VitasLab = () => {
             injuryRisk: mediaPipe.biomechanics.injuryRisk,
             jointDetail: mediaPipe.biomechanics.jointDetail,
             framesAnalyzed: mediaPipe.biomechanics.framesAnalyzed,
+            // P1 bloque 4b: el modelo de lesión exige fotogramas y confianza para usar
+            // la biomecánica, y la asimetría es su propio factor.
+            confidence: mediaPipe.biomechanics.confidence,
+            asymmetryPct: mediaPipe.biomechanics.asymmetryPct,
             source: "client_mediapipe",
           } : null,
           physicalMetrics: Object.keys(physicalMetrics).length > 0 ? physicalMetrics : null,
