@@ -6479,7 +6479,7 @@
       "withdrawEmailed": "Ti abbiamo inviato via email il link per revocarlo quando vuoi. Puoi anche usare questo:",
       "withdrawNoEmail": "Non siamo riusciti a inviarti l'email di conferma. Conserva questo link per revocare il consenso quando vuoi:",
       "withdrawLink": "Revoca il consenso",
-      "alreadyHint": "Per revocarlo, usa il link dell'email di conferma che hai ricevuto la prima volta.",
+      "alreadyHint": "Conserva questo link per revocare il consenso quando vuoi (anche quelli ricevuti prima restano validi):",
       "withdrawUnavailable": "Non siamo riusciti a creare il tuo link per revocare il consenso. Se vuoi revocarlo, chiedilo al responsabile del giocatore: può farlo dall'app."
     },
     "errors": {

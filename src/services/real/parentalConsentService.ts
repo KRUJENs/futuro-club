@@ -60,18 +60,29 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
  * el servidor no responde, cada jugador queda «unavailable» (nunca «verificado»). Un jugador que
  * el servidor no devuelve (p. ej. aún no sincronizado, o que no es del usuario) también queda
  * «unavailable»: antes la tarjeta se quedaba cargando para siempre (revisión del PR #314).
+ * El servidor acepta hasta STATUS_BATCH jugadores por petición: con más se piden por tandas (antes
+ * se cortaba en 50 y el resto quedaba «unavailable» para siempre en /admin/consent).
  */
+const STATUS_BATCH = 50; // = máximo del esquema de api/auth/_consent-status.ts
+
 export async function fetchConsentStatus(playerIds: string[]): Promise<Record<string, GuardianConsentStatus>> {
-  const ids = Array.from(new Set(playerIds.filter(Boolean))).slice(0, 50);
+  const ids = Array.from(new Set(playerIds.filter(Boolean)));
   if (ids.length === 0) return {};
   const unavailable = { state: "unavailable" as const };
-  try {
-    const data = await postJson<{ statuses?: Record<string, GuardianConsentStatus> }>("/api/auth/consent-status", { playerIds: ids });
-    const got = data.statuses ?? {};
-    return Object.fromEntries(ids.map((id) => [id, got[id] ?? unavailable]));
-  } catch {
-    return Object.fromEntries(ids.map((id) => [id, unavailable]));
-  }
+  const batches: string[][] = [];
+  for (let i = 0; i < ids.length; i += STATUS_BATCH) batches.push(ids.slice(i, i + STATUS_BATCH));
+  const results = await Promise.all(
+    batches.map(async (batch) => {
+      try {
+        const data = await postJson<{ statuses?: Record<string, GuardianConsentStatus> }>("/api/auth/consent-status", { playerIds: batch });
+        const got = data.statuses ?? {};
+        return batch.map((id) => [id, got[id] ?? unavailable] as const);
+      } catch {
+        return batch.map((id) => [id, unavailable] as const);
+      }
+    }),
+  );
+  return Object.fromEntries(results.flat());
 }
 
 /**

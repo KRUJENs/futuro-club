@@ -6480,7 +6480,7 @@
       "withdrawEmailed": "We have emailed you the link to withdraw it at any time. You can also use this one:",
       "withdrawNoEmail": "We could not send you the confirmation email. Keep this link to withdraw consent at any time:",
       "withdrawLink": "Withdraw consent",
-      "alreadyHint": "To withdraw it, use the link in the confirmation email you received the first time.",
+      "alreadyHint": "Keep this link to withdraw consent at any time (any link you received before still works too):",
       "withdrawUnavailable": "We could not create your link to withdraw consent. If you want to withdraw it, ask the player's responsible person: they can do it from the app."
     },
     "errors": {

@@ -47,6 +47,7 @@ import {
   findIssuedConsentToken,
   hasConsentVerification,
   hasConsentWithdrawal,
+  hasConsentWithdrawToken,
   hashConsentToken,
   recordConsentWithdrawTokenIssued,
   recordParentalConsentVerified,
@@ -129,6 +130,9 @@ export default withHandler(
 
     // ── 3b · ¿Ya retirado? (evidencia del servidor, aunque el PATCH de la retirada fallara a
     //        mitad): no se dice «confirmado» a un consentimiento que no puede contar (revisión #314).
+    //        Queda una ventana: si el responsable lo retira JUSTO mientras el tutor confirma, el
+    //        tutor puede ver «confirmado» y el consentimiento acabar retirado. Falla en cerrado (no
+    //        cuenta: la evidencia de retirada manda) y la ficha muestra «retirado».
     try {
       if (await hasConsentWithdrawal(consent.id)) return invalidToken();
     } catch (err) {
@@ -168,6 +172,36 @@ export default withHandler(
       }
     }
 
+    // Enlace de RETIRADA para el tutor y, si `sendMail`, el correo de confirmación con él. Si algo
+    // falla aquí el consentimiento YA vale: se avisa en la respuesta y el responsable puede retirarlo.
+    const issueWithdrawLink = async (sendMail: boolean): Promise<{ withdrawToken: string | null; confirmationSent: boolean }> => {
+      const withdrawToken = randomHex(32);
+      try {
+        await recordConsentWithdrawTokenIssued({
+          consentId: consent.id,
+          playerId: issued.playerId,
+          parentEmail: issued.parentEmail,
+          tokenHash: await hashConsentToken(withdrawToken),
+          tenantId: issued.tenantId,
+        });
+      } catch (err) {
+        console.error("[verify-consent] no se pudo emitir el enlace de retirada:", err instanceof Error ? err.message : err);
+        return { withdrawToken: null, confirmationSent: false };
+      }
+      if (!sendMail) return { withdrawToken, confirmationSent: false };
+      const { data: player } = await supabase.from("players").select("name").eq("id", issued.playerId).maybeSingle();
+      const { data: row } = await supabase.from("parental_consents").select("parent_name").eq("id", consent.id).maybeSingle();
+      const baseUrl = process.env.VITAS_PUBLIC_URL ?? "https://futuro-club.vercel.app";
+      const mail = confirmationEmail({
+        locale: issued.locale,
+        parentName: ((row as { parent_name?: string } | null)?.parent_name as string | undefined) ?? "",
+        childName: ((player as { name?: string } | null)?.name as string | undefined) ?? "—",
+        // El código va tras «#»: el fragmento no viaja a ningún servidor (ni a sus registros).
+        withdrawLink: `${baseUrl}/auth/withdraw-consent#token=${withdrawToken}`,
+      });
+      return { withdrawToken, confirmationSent: await sendEmail({ to: issued.parentEmail, subject: mail.subject, html: mail.html }) };
+    };
+
     // ── 7 · Marcar como verificado (condicional: pendiente y sin retirar) ──
     const { data: updated, error: updateError } = await supabase
       .from("parental_consents")
@@ -200,9 +234,22 @@ export default withHandler(
       const row = now as ConsentRow | null;
       if (!row || row.withdrawn_at) return invalidToken();
       if (row.email_verified) {
+        // Ya confirmado (doble clic, otra pestaña o una confirmación anterior). El tutor recibe en
+        // la página un enlace de retirada NUEVO (los anteriores siguen valiendo), y el correo solo si
+        // nunca se le emitió uno: si la primera vez falló, antes se le remitía a un correo que no
+        // existía (revisión #314). Retirar es lo seguro: dárselo a quien tiene SU enlace no abre nada.
+        let issuedBefore = true; // si no se puede comprobar, sin correo (nunca correos repetidos)
+        try {
+          issuedBefore = await hasConsentWithdrawToken(consent.id);
+        } catch (err) {
+          console.error("[verify-consent] no se pudo comprobar el enlace de retirada:", err instanceof Error ? err.message : err);
+        }
+        const link = await issueWithdrawLink(!issuedBefore);
         return successResponse({
           consentId: consent.id,
           alreadyVerified: true,
+          withdrawToken: link.withdrawToken,
+          confirmationEmailSent: link.confirmationSent,
           message: "Este consentimiento ya estaba verificado.",
         });
       }
@@ -213,37 +260,8 @@ export default withHandler(
     // (antes, en el reintento, no se emitía: revisión #314, punto B).
     void alreadyVerified;
 
-    // ── 8 · Enlace de RETIRADA para el tutor (correo de confirmación). Si algo falla aquí el
-    //       consentimiento YA vale; se avisa en la respuesta y el responsable puede retirarlo. ──
-    const withdrawToken = randomHex(32);
-    let withdrawIssued = false;
-    try {
-      await recordConsentWithdrawTokenIssued({
-        consentId: consent.id,
-        playerId: issued.playerId,
-        parentEmail: issued.parentEmail,
-        tokenHash: await hashConsentToken(withdrawToken),
-        tenantId: issued.tenantId,
-      });
-      withdrawIssued = true;
-    } catch (err) {
-      console.error("[verify-consent] no se pudo emitir el enlace de retirada:", err instanceof Error ? err.message : err);
-    }
-
-    let confirmationSent = false;
-    if (withdrawIssued) {
-      const { data: player } = await supabase.from("players").select("name").eq("id", issued.playerId).maybeSingle();
-      const { data: row } = await supabase.from("parental_consents").select("parent_name").eq("id", consent.id).maybeSingle();
-      const baseUrl = process.env.VITAS_PUBLIC_URL ?? "https://futuro-club.vercel.app";
-      const mail = confirmationEmail({
-        locale: issued.locale,
-        parentName: ((row as { parent_name?: string } | null)?.parent_name as string | undefined) ?? "",
-        childName: ((player as { name?: string } | null)?.name as string | undefined) ?? "—",
-        // El código va tras «#»: el fragmento no viaja a ningún servidor (ni a sus registros).
-        withdrawLink: `${baseUrl}/auth/withdraw-consent#token=${withdrawToken}`,
-      });
-      confirmationSent = await sendEmail({ to: issued.parentEmail, subject: mail.subject, html: mail.html });
-    }
+    // ── 8 · Enlace de RETIRADA para el tutor (correo de confirmación) ──
+    const link = await issueWithdrawLink(true);
 
     return successResponse({
       consentId: consent.id,
@@ -251,8 +269,8 @@ export default withHandler(
       // El tutor está en la página con SU enlace y su DNI: si el correo no sale, la página le
       // ofrece el enlace de retirada igualmente. Si NO se pudo emitir (null), la página se lo dice
       // y le indica que pida la retirada al responsable del jugador.
-      withdrawToken: withdrawIssued ? withdrawToken : null,
-      confirmationEmailSent: confirmationSent,
+      withdrawToken: link.withdrawToken,
+      confirmationEmailSent: link.confirmationSent,
       message: "Consentimiento verificado.",
     });
   }

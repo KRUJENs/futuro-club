@@ -23,7 +23,8 @@ vi.mock("react-i18next", async () => {
   return {
     useTranslation: () => ({
       t: (k: string, o?: Record<string, unknown>) => {
-        const v = lookup(k);
+        // Plurales como i18next (clave_one / clave_other según count).
+        const v = lookup(k) ?? (typeof o?.count === "number" ? lookup(`${k}_${o.count === 1 ? "one" : "other"}`) : undefined);
         return typeof v === "string" ? v.replace(/\{\{(\w+)\}\}/g, (_m, n) => String(o?.[n] ?? "")) : k;
       },
       i18n: { language: "es" },
@@ -36,7 +37,8 @@ const toastMock = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn(), info: vi
 vi.mock("sonner", () => ({ toast: toastMock }));
 vi.mock("@/lib/demoMode", async (orig) => ({ ...(await orig<typeof import("@/lib/demoMode")>()), IS_DEMO: false }));
 
-const sb = vi.hoisted(() => ({ playerWrites: 0, auditInserts: [] as string[] }));
+const minor = (id: string, name = "Lucas Menor") => ({ id, name, birth_date: `${new Date().getUTCFullYear() - 11}-03-01` });
+const sb = vi.hoisted(() => ({ playerWrites: 0, auditInserts: [] as string[], players: [] as Array<Record<string, unknown>> }));
 
 vi.mock("@/lib/supabase", () => ({
   SUPABASE_CONFIGURED: true,
@@ -47,10 +49,7 @@ vi.mock("@/lib/supabase", () => ({
         return {
           select: () => ({
             not: () => ({
-              order: async () => ({
-                data: [{ id: "p-minor-1", name: "Lucas Menor", birth_date: `${new Date().getUTCFullYear() - 11}-03-01` }],
-                error: null,
-              }),
+              order: async () => ({ data: sb.players, error: null }),
             }),
           }),
           update: () => {
@@ -81,6 +80,8 @@ const G = (esJson as unknown as { guardianConsent: { state: Record<string, strin
 const P = (esJson as unknown as { parentalConsentPage: { tabs: Record<string, string> } }).parentalConsentPage;
 
 let consentState: Record<string, unknown>;
+/** Si se pone, el servidor devuelve ESTOS estados (los jugadores que falten no vienen). */
+let statusesOverride: Record<string, unknown> | null;
 let withdrawStatus = 200;
 let fetchMock: ReturnType<typeof vi.fn>;
 const bodyOf = (path: string) => {
@@ -91,13 +92,15 @@ const bodyOf = (path: string) => {
 beforeEach(() => {
   sb.playerWrites = 0;
   sb.auditInserts = [];
+  sb.players = [minor("p-minor-1")];
+  statusesOverride = null;
   withdrawStatus = 200;
   consentState = { state: "verified", guardianName: "Tutor Uno", guardianEmail: "tutor@x.test", verifiedAt: "2026-10-01T00:00:00Z" };
   Object.values(toastMock).forEach((f) => f.mockReset());
   fetchMock = vi.fn(async (input: string | URL | Request) => {
     const url = String(input);
     if (url === "/api/auth/consent-status") {
-      return Response.json({ success: true, data: { statuses: { "p-minor-1": consentState } } });
+      return Response.json({ success: true, data: { statuses: statusesOverride ?? { "p-minor-1": consentState } } });
     }
     if (url === "/api/auth/withdraw-consent") {
       return withdrawStatus === 200
@@ -186,5 +189,22 @@ describe("/admin/consent · pedir la firma al tutor", () => {
     fireEvent.click(screen.getByText(G.form.submit));
     await waitFor(() => expect(bodyOf("/api/auth/sign-consent")).not.toBeNull());
     expect(sb.playerWrites).toBe(0);
+  });
+});
+
+describe("/admin/consent · aviso de menores sin consentimiento", () => {
+  it("cuenta los que de verdad no lo tienen (sin pedir / pendiente / caducado), no los «no disponible»", async () => {
+    sb.players = [minor("p-a", "Ana"), minor("p-b", "Bea"), minor("p-c", "Cris"), minor("p-d", "Dani")];
+    // p-c no viene en la respuesta ⇒ «no disponible»; p-d confirmado.
+    statusesOverride = { "p-a": { state: "none" }, "p-b": { state: "unavailable" }, "p-d": { state: "verified" } };
+    renderPage();
+    expect(await screen.findByText("1 menor sin consentimiento parental")).toBeInTheDocument();
+  });
+
+  it("con varios sin consentimiento real los cuenta todos", async () => {
+    sb.players = [minor("p-a", "Ana"), minor("p-b", "Bea"), minor("p-c", "Cris")];
+    statusesOverride = { "p-a": { state: "none" }, "p-b": { state: "pending" }, "p-c": { state: "expired" } };
+    renderPage();
+    expect(await screen.findByText("3 menores sin consentimiento parental")).toBeInTheDocument();
   });
 });

@@ -84,5 +84,6 @@ describe("consentimiento parental · una sola fuente en el servidor", () => {
       .filter((p) => /parental_consent_(status|granted_at|guardian_name|guardian_email)/.test(stripComments(fs.readFileSync(p, "utf8"))))
       .map(rel);
     expect(offenders).toEqual([]);
-  });
+    // Recorre todo src/ (~3 s solo): con la suite entera en paralelo pasaba de los 5 s por defecto.
+  }, 30_000);
 });

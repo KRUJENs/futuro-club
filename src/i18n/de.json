@@ -6479,7 +6479,7 @@
       "withdrawEmailed": "Wir haben dir per E-Mail den Link zum Widerruf geschickt. Du kannst auch diesen verwenden:",
       "withdrawNoEmail": "Wir konnten dir die Bestätigungs-E-Mail nicht senden. Bewahre diesen Link auf, um die Einwilligung jederzeit zu widerrufen:",
       "withdrawLink": "Einwilligung widerrufen",
-      "alreadyHint": "Zum Widerruf verwende den Link aus der Bestätigungs-E-Mail, die du beim ersten Mal erhalten hast.",
+      "alreadyHint": "Bewahre diesen Link auf, um die Einwilligung jederzeit zu widerrufen (frühere Links gelten weiterhin):",
       "withdrawUnavailable": "Wir konnten deinen Link zum Widerruf nicht erstellen. Wenn du widerrufen möchtest, bitte die verantwortliche Person des Spielers darum: Sie kann es in der App tun."
     },
     "errors": {

@@ -6480,7 +6480,7 @@
       "withdrawEmailed": "We hebben je de link om haar op elk moment in te trekken gemaild. Je kunt ook deze gebruiken:",
       "withdrawNoEmail": "We konden je de bevestigingsmail niet sturen. Bewaar deze link om de toestemming op elk moment in te trekken:",
       "withdrawLink": "Toestemming intrekken",
-      "alreadyHint": "Gebruik om haar in te trekken de link uit de bevestigingsmail die je de eerste keer kreeg.",
+      "alreadyHint": "Bewaar deze link om de toestemming op elk moment in te trekken (eerder ontvangen links blijven ook geldig):",
       "withdrawUnavailable": "We konden je intrekkingslink niet aanmaken. Wil je de toestemming intrekken, vraag het dan aan de verantwoordelijke van de speler: die kan het in de app doen."
     },
     "errors": {

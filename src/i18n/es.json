@@ -6480,7 +6480,7 @@
       "withdrawEmailed": "Te hemos enviado un correo con el enlace para retirarlo cuando quieras. También puedes usar este:",
       "withdrawNoEmail": "No pudimos enviarte el correo de confirmación. Guarda este enlace para retirar el consentimiento cuando quieras:",
       "withdrawLink": "Retirar el consentimiento",
-      "alreadyHint": "Para retirarlo, usa el enlace del correo de confirmación que recibiste la primera vez.",
+      "alreadyHint": "Guarda este enlace para retirar el consentimiento cuando quieras (los que recibiste antes también siguen valiendo):",
       "withdrawUnavailable": "No pudimos generar tu enlace para retirar el consentimiento. Si quieres retirarlo, pídeselo al responsable del jugador: puede hacerlo desde la app."
     },
     "errors": {

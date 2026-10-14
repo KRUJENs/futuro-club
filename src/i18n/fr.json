@@ -6479,7 +6479,7 @@
       "withdrawEmailed": "Nous vous avons envoyé par e-mail le lien pour le retirer à tout moment. Vous pouvez aussi utiliser celui-ci :",
       "withdrawNoEmail": "Nous n'avons pas pu vous envoyer l'e-mail de confirmation. Conservez ce lien pour retirer le consentement à tout moment :",
       "withdrawLink": "Retirer le consentement",
-      "alreadyHint": "Pour le retirer, utilisez le lien de l'e-mail de confirmation reçu la première fois.",
+      "alreadyHint": "Conservez ce lien pour retirer le consentement à tout moment (les liens reçus auparavant restent valables) :",
       "withdrawUnavailable": "Nous n'avons pas pu créer votre lien de retrait. Pour retirer le consentement, demandez-le au responsable du joueur : il peut le faire depuis l'application."
     },
     "errors": {

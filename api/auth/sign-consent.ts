@@ -126,6 +126,10 @@ export default withHandler(
     const parentEmail = input.parentEmail.toLowerCase();
 
     // ── 0 · Una nueva solicitud SUSTITUYE a las pendientes (nunca a una verificada) ──
+    // ANTES de crear la nueva, a propósito: si se hiciera después (retirando todas menos la
+    // propia), dos solicitudes simultáneas (doble clic) se retirarían la una a la otra y el tutor
+    // recibiría dos enlaces muertos. El precio (revisión #314): si lo de abajo falla, la anterior
+    // ya no vale; el responsable ve el error y la pide otra vez, que es lo que quería hacer.
     try {
       await withdrawParentalConsents({
         playerId: input.playerId,

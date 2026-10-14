@@ -48,6 +48,8 @@ const st = vi.hoisted(() => ({
    * PATCH condicional (código atómico).
    */
   raceVerifyId: null as string | null,
+  /** Carrera simulada: la fila con este id queda RETIRADA justo antes del UPDATE de verify-consent. */
+  raceWithdrawId: null as string | null,
 }));
 
 const yearsAgo = (n: number) => `${new Date().getUTCFullYear() - n}-01-01`;
@@ -110,6 +112,11 @@ vi.mock("@supabase/supabase-js", () => {
               eq: (k: string, v: unknown) => (fs.push((r) => r[k] === v), c),
               is: (k: string, v: unknown) => (fs.push((r) => (r[k] ?? null) === v), c),
               select: async () => {
+                // Carrera: el responsable retira JUSTO entre la lectura de verify-consent y su UPDATE.
+                if (st.raceWithdrawId && t === "parental_consents") {
+                  Object.assign(rows.find((r) => r.id === st.raceWithdrawId)!, { withdrawn_at: new Date().toISOString() });
+                  st.raceWithdrawId = null;
+                }
                 const hit = rows.filter((r) => fs.every((f) => f(r)));
                 for (const r of hit) Object.assign(r, patch);
                 return { data: hit.map((r) => ({ id: r.id })), error: null };
@@ -148,6 +155,7 @@ beforeEach(() => {
   st.audit = [];
   st.emails = [];
   st.raceVerifyId = null;
+  st.raceWithdrawId = null;
   vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const href = String(input instanceof Request ? input.url : input);
     if (href === "https://api.resend.com/emails") {
@@ -357,6 +365,64 @@ describe("revisión del PR #314", () => {
     const token = linkToken(st.emails[0].html, "verify-consent");
     st.audit.push({ action: "consent_withdrawn", resource_type: "parental_consents", resource_id: st.consents[0].id, metadata: { player_id: "pMinor", source: "owner_revoke" } });
     expect((await confirm(token)).status).toBe(404);
+    expect(await findActiveParentalConsent("pMinor")).toBeNull();
+  });
+});
+
+describe("revisión 2 del PR #314", () => {
+  const withdrawIssuances = () => st.audit.filter((a) => a.action === "consent_withdraw_token_issued");
+
+  it("confirmar otra vez uno ya confirmado da un enlace de retirada NUEVO que funciona, sin repetir el correo", async () => {
+    await requestSignature();
+    const verifyToken = linkToken(st.emails[0].html, "verify-consent");
+    const first = (await (await confirm(verifyToken)).json()).data as { withdrawToken: string };
+    expect(st.emails).toHaveLength(2);
+
+    const again = await confirm(verifyToken);
+    expect(again.status).toBe(200);
+    const data = (await again.json()).data as { alreadyVerified: boolean; withdrawToken: string; confirmationEmailSent: boolean };
+    expect(data).toMatchObject({ alreadyVerified: true, confirmationEmailSent: false });
+    expect(data.withdrawToken).toMatch(/^[0-9a-f]{64}$/);
+    expect(data.withdrawToken).not.toBe(first.withdrawToken);
+    expect(st.emails).toHaveLength(2); // ya se le mandó uno: no se repite
+    expect(withdrawIssuances()).toHaveLength(2);
+    // Una sola evidencia de verificación (no se duplica al confirmar otra vez).
+    expect(st.audit.filter((a) => a.action === "consent_email_verified")).toHaveLength(1);
+
+    // El enlace nuevo retira; el anterior, después, responde «ya retirado».
+    expect((await (await withdraw(data.withdrawToken)).json()).data).toEqual({ withdrawn: true });
+    expect(await findActiveParentalConsent("pMinor")).toBeNull();
+    expect((await (await withdraw(first.withdrawToken)).json()).data).toEqual({ alreadyWithdrawn: true });
+  });
+
+  it("si la primera vez NO se emitió el enlace de retirada, al confirmar otra vez sí llega el correo con él", async () => {
+    await requestSignature();
+    const verifyToken = linkToken(st.emails[0].html, "verify-consent");
+    await confirm(verifyToken);
+    // Como si la emisión del enlace de retirada (y su correo) hubiera fallado la primera vez.
+    st.audit = st.audit.filter((a) => a.action !== "consent_withdraw_token_issued");
+    st.emails = st.emails.slice(0, 1);
+
+    const data = (await (await confirm(verifyToken)).json()).data as { alreadyVerified: boolean; withdrawToken: string; confirmationEmailSent: boolean };
+    expect(data).toMatchObject({ alreadyVerified: true, confirmationEmailSent: true });
+    expect(st.emails).toHaveLength(2);
+    expect(st.emails[1]).toMatchObject({ to: "marta@familia.test" });
+    expect(linkToken(st.emails[1].html, "withdraw-consent")).toBe(data.withdrawToken);
+    expect((await withdraw(data.withdrawToken)).status).toBe(200);
+    expect(await findActiveParentalConsent("pMinor")).toBeNull();
+  });
+
+  it("retirado entre la lectura y el UPDATE de verify-consent ⇒ 404 (enlace no válido), sin «confirmado» ni enlace de retirada", async () => {
+    await requestSignature();
+    const token = linkToken(st.emails[0].html, "verify-consent");
+    st.raceWithdrawId = st.consents[0].id as string;
+    const res = await confirm(token);
+    expect(st.consents[0].withdrawn_at).not.toBeNull(); // la carrera ocurrió
+    expect(res.status).toBe(404);
+    expect((await res.json()).errorDetail).toMatchObject({ code: "invalid_token" });
+    expect(st.consents[0].email_verified).toBe(false);
+    expect(withdrawIssuances()).toHaveLength(0);
+    expect(st.emails).toHaveLength(1);
     expect(await findActiveParentalConsent("pMinor")).toBeNull();
   });
 });

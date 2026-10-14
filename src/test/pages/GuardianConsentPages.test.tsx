@@ -87,6 +87,35 @@ describe("/auth/verify-consent", () => {
     expect(await screen.findByTestId("withdraw-unavailable")).toHaveTextContent("verifyConsentPage.success.withdrawUnavailable");
   });
 
+  const confirmWith = async (data: Record<string, unknown>) => {
+    reply = { status: 200, body: { success: true, data } };
+    openAt(`/auth/verify-consent#token=${TOKEN}`, <VerifyConsentPage />);
+    fireEvent.change(await screen.findByLabelText("verifyConsentPage.dniLabel"), { target: { value: "12345678Z" } });
+    for (const box of screen.getAllByRole("checkbox")) fireEvent.click(box);
+    fireEvent.click(screen.getByText("verifyConsentPage.confirm"));
+  };
+
+  it("confirmar otra vez uno ya confirmado → «ya estaba confirmado» + un enlace de retirada NUEVO para guardar", async () => {
+    await confirmWith({ alreadyVerified: true, withdrawToken: "c".repeat(64), confirmationEmailSent: false });
+    expect(await screen.findByText("verifyConsentPage.success.already")).toBeInTheDocument();
+    expect(screen.getByText("verifyConsentPage.success.alreadyHint")).toBeInTheDocument();
+    expect(screen.getByText("verifyConsentPage.success.withdrawLink").getAttribute("href")).toBe(`/auth/withdraw-consent#token=${"c".repeat(64)}`);
+    // No dice «no pudimos enviarte el correo»: no se intentó (ya se le había mandado uno).
+    expect(screen.queryByText("verifyConsentPage.success.withdrawNoEmail")).toBeNull();
+    expect(screen.queryByTestId("withdraw-unavailable")).toBeNull();
+  });
+
+  it("confirmar otra vez cuando el correo de retirada sale AHORA (la primera vez falló) → lo dice", async () => {
+    await confirmWith({ alreadyVerified: true, withdrawToken: "c".repeat(64), confirmationEmailSent: true });
+    expect(await screen.findByText("verifyConsentPage.success.withdrawEmailed")).toBeInTheDocument();
+  });
+
+  it("ya confirmado y SIN enlace (no se pudo generar) → se le dice cómo retirarlo, no que busque un correo", async () => {
+    await confirmWith({ alreadyVerified: true, withdrawToken: null, confirmationEmailSent: false });
+    expect(await screen.findByTestId("withdraw-unavailable")).toHaveTextContent("verifyConsentPage.success.withdrawUnavailable");
+    expect(screen.queryByText("verifyConsentPage.success.alreadyHint")).toBeNull();
+  });
+
   it("enlace caducado (410) → lo dice; no «confirmado»", async () => {
     reply = { status: 410, body: { success: false, errorDetail: { code: "token_expired" } } };
     openAt(`/auth/verify-consent?token=${TOKEN}`, <VerifyConsentPage />);

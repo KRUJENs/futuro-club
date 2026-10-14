@@ -9,7 +9,8 @@
  *     escribe SU DNI, marca condiciones y privacidad y pulsa «Confirmo como tutor legal»
  *     (decisión del owner, 14 oct: el DNI y la aceptación son del tutor, no del entrenador);
  *   - al confirmar recibe el enlace para RETIRAR el consentimiento (también se muestra aquí, por
- *     si el correo de confirmación no llega);
+ *     si el correo de confirmación no llega). Si vuelve a confirmar uno ya confirmado, recibe aquí
+ *     un enlace nuevo (y el correo solo si nunca se le mandó);
  *   - textos en los 7 idiomas.
  */
 import { useEffect, useRef, useState } from "react";
@@ -110,18 +111,22 @@ export default function VerifyConsentPage() {
             {withdrawToken && (
               <div className="rounded-lg border border-border bg-card p-3 space-y-1">
                 <p className="text-xs text-muted-foreground">
-                  {confirmationSent ? t("verifyConsentPage.success.withdrawEmailed") : t("verifyConsentPage.success.withdrawNoEmail")}
+                  {confirmationSent
+                    ? t("verifyConsentPage.success.withdrawEmailed")
+                    : alreadyVerified
+                      ? t("verifyConsentPage.success.alreadyHint")
+                      : t("verifyConsentPage.success.withdrawNoEmail")}
                 </p>
                 <a href={`/auth/withdraw-consent#token=${withdrawToken}`} className="text-xs font-semibold text-primary underline">
                   {t("verifyConsentPage.success.withdrawLink")}
                 </a>
               </div>
             )}
-            {/* Sin enlace de retirada: ya confirmado antes (el enlace está en el primer correo) o no
-                se pudo generar. Se dice, para que el tutor nunca se quede sin saber cómo retirarlo. */}
+            {/* Sin enlace de retirada: no se pudo generar (también al confirmar otra vez: entonces el
+                servidor da uno nuevo). Se dice, para que el tutor nunca se quede sin saber cómo retirarlo. */}
             {!withdrawToken && (
               <p className="text-xs rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800" data-testid="withdraw-unavailable">
-                {alreadyVerified ? t("verifyConsentPage.success.alreadyHint") : t("verifyConsentPage.success.withdrawUnavailable")}
+                {t("verifyConsentPage.success.withdrawUnavailable")}
               </p>
             )}
             <button onClick={() => navigate("/")} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-display">
