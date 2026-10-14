@@ -72,7 +72,13 @@ const injuryRiskSchema = z.object({
   fatigueSeverity: z.enum(["normal", "moderate", "high", "critical"]).nullable().optional(),
 
   biomechanicsInjuryRisk: z.number().min(0).max(100).nullable().optional(),
-  asymmetryPct: z.number().min(0).max(100).nullable().optional(),
+  /**
+   * Asimetría bilateral del motor de biomecánica. Pese al nombre, es la diferencia
+   * media de ÁNGULOS izq./dcha. en GRADOS (keypointMapper/biomechanicsEngine): sin tope
+   * en el esquema (un valor alto ya no tumba la llamada entera); el factor se acota a
+   * 100. Unidad y escala ×5 pendientes de calibrar (docs/pendientes-metricas.md).
+   */
+  asymmetryPct: z.number().min(0).nullable().optional(),
   /** Fotogramas con pose y confianza media del motor de biomecánica (2D, sin calibrar). */
   biomechanicsFrames: z.number().nonnegative().nullable().optional(),
   biomechanicsConfidence: z.number().min(0).max(1).nullable().optional(),
@@ -178,7 +184,7 @@ export function computeInjuryRiskFactors(input: Input): InjuryRiskFactorView[] {
         typeof input.asymmetryPct === "number" && bmOk
           ? factor(input.asymmetryPct * ASYMMETRY_RISK_PER_PCT, "biomechanicsEngine:asymmetryPct")
           : gated("Sin asimetría medida con pose suficiente (fotogramas y confianza del análisis biomecánico).", { source_ref: SOURCE_REF }),
-      description: typeof input.asymmetryPct === "number" && bmOk ? `Asimetría: ${input.asymmetryPct.toFixed(1)} %` : "Asimetría: sin dato",
+      description: typeof input.asymmetryPct === "number" && bmOk ? `Asimetría: ${input.asymmetryPct.toFixed(1)}° (diferencia media de ángulos izq./dcha.)` : "Asimetría: sin dato",
     },
     {
       factor: "biomechanics",

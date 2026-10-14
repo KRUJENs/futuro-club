@@ -22,6 +22,9 @@ export function fatigueRowForAgents(row: FatigueRow | null | undefined): Fatigue
     fatigue_severity: null,
     acwr_zone: null,
     alerts: null,
+    // Columnas de riesgo de lesión de la 044 (modelo antiguo; hoy nadie las escribe).
+    injury_risk_score: null,
+    injury_risk_category: null,
     _maturation_gate: true,
   };
 }

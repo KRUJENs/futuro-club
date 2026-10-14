@@ -62,8 +62,9 @@ describe("InjuryRiskCard", () => {
   });
 
   it("demo: los valores de ejemplo se rotulan «Datos de ejemplo»", () => {
-    render(<InjuryRiskCard data={report({ composite: mock(32), category: "moderate", isMock: true })} />);
+    render(<InjuryRiskCard data={report({ composite: mock(25), category: "low", isMock: true })} />);
     expect(screen.getByText("Datos de ejemplo")).toBeInTheDocument();
+    expect(screen.queryByText("0%")).toBeNull(); // sin «Confianza 0 %» para datos de ejemplo
   });
 });
 

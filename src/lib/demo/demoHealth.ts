@@ -69,8 +69,9 @@ export function buildDemoInjuryRisk(
   const desc = pickLocale(locale, { es: "Dato de ejemplo (demo)", en: "Example data (demo)" });
   return {
     playerId: player.id,
-    composite: ex(32),
-    category: "moderate",
+    // = (15·.30 + 50·.25 + 20·.12 + 25·.08 + 5·.15 + 30·.10) = 25 → «low» (coherente con los factores).
+    composite: ex(25),
+    category: "low",
     coverage: 1,
     factors: [
       { factor: "acwr", weight: 0.3, applicable: true, result: ex(15), description: desc },

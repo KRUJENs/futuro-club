@@ -58,7 +58,9 @@ export default function InjuryRiskCard({ data, compact = false, onViewDetails }:
   const { t } = useTranslation();
   const value = injuryRiskValue(data);
   const category = value !== null ? data.category : null;
-  const confidencePct = value !== null ? Math.round(data.composite.confidence * 100) : null;
+  // Confianza solo de un cálculo real (los datos de ejemplo ya llevan su rótulo).
+  const confidencePct =
+    value !== null && data.composite.provenance !== "MOCK" ? Math.round(data.composite.confidence * 100) : null;
 
   const notComputed = (
     <div

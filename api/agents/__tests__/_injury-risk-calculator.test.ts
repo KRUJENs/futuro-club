@@ -109,10 +109,33 @@ describe("riesgo de lesión · con datos suficientes", () => {
   });
 
   it("una lesión registrada: se informa de cuándo fue, nunca «apto»", () => {
-    const r = run({ ...full, injuryHistory: [{ type: "muscle", severity: "moderate", daysOut: 20, date: "2026-09-20" }], daysSinceLastInjury: 24 });
+    // Fecha RELATIVA (con una fija el test caducaba al salir de la ventana de 12 meses).
+    const date = new Date(Date.now() - 24 * 86_400_000).toISOString().slice(0, 10);
+    const r = run({ ...full, injuryHistory: [{ type: "muscle", severity: "moderate", daysOut: 20, date }], daysSinceLastInjury: 24 });
     expect(r.daysSinceLastInjury).toBe(24);
     expect(r.injuryHistoryCount).toBe(1);
     expect(factorOf(r, "injuryHistory").result.value).toBe(60); // 40 (< 30 días) + 10 (≤ 12 meses) + 10 (moderada > 14 días) — no 5
     expect(r).not.toHaveProperty("returnToPlayReady");
+  });
+
+  it("adulto: la ventana PHV sale del peso aplicable y el compuesto se calcula sin ella", () => {
+    const r = run({ acwrZone: "optimal", age: 30, asymmetryPct: 10, biomechanicsInjuryRisk: 30, biomechanicsFrames: 20, biomechanicsConfidence: 0.8, fatigueIndex: 40 });
+    expect(factorOf(r, "phvWindow").applicable).toBe(false);
+    // aplicables .30+.12+.08+.15+.10 = .75; presentes .60 ⇒ cobertura .80; (4.5+6+2.4+4)/.60 = 28.17 → 28
+    expect(r.coverage).toBe(0.8);
+    expect(r.composite.value).toBe(28);
+    expect(r.category).toBe("low");
+    expect(r.growthShieldLevel).toBeNull();
+  });
+
+  it("lejos del PHV (|offset| > 2) vale 10: la definición del Escudo de Estirón (la calculadora antigua usaba 15)", () => {
+    expect(factorOf(run({ phvOffset: 2.6 }), "phvWindow").result.value).toBe(10);
+  });
+
+  it("asimetría alta (son grados, no %): no tumba la llamada (antes 400) y el factor se acota a 100", async () => {
+    const { status, json } = await call({ ...base, asymmetryPct: 140, biomechanicsFrames: 20, biomechanicsConfidence: 0.8 });
+    expect(status).toBe(200);
+    const f = (json.data!.report!.factors as Array<{ factor: string; result: { value: number | null } }>).find((x) => x.factor === "asymmetry")!;
+    expect(f.result.value).toBe(100);
   });
 });
