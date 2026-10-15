@@ -97,9 +97,9 @@ const Dashboard = () => {
     ? [
         String(stats.activePlayers),
         String(stats.drillsCompleted),
-        // Sin jugadores evaluados avgVsi es null: se muestra "—", nunca el literal
-        // "null" ni un 0 fabricado (invariante #2).
-        stats.avgVsi === null ? "—" : String(stats.avgVsi),
+        // Sin jugadores evaluados avgVsi es null: se dice «Sin evaluar», nunca el literal
+        // "null", un 0 fabricado ni un «—» (invariante #2 y reglas de presentación).
+        stats.avgVsi === null ? t("common.notEvaluated") : String(stats.avgVsi),
         String(stats.hiddenTalents),
       ]
     : [];

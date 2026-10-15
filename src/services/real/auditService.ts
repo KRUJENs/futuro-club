@@ -7,6 +7,7 @@
 import { StorageService } from "./storageService";
 import { PlayerService } from "./playerService";
 import { MetricsService } from "./metricsService";
+import { COACH_EVAL_TIERS } from "../../../config/coachEvaluation";
 import { peerPercentile } from "@/lib/metrics/percentile";
 
 // ─── Tipos de resultado ───────────────────────────────────────────────────────
@@ -253,12 +254,13 @@ function auditMetricsService(): AuditSection {
   // ¿classifyVSI funciona?
   checks.push(
     check("classifyVSI cubre todos los rangos", () => {
-      const cases = [
-        { vsi: 85, expected: "elite" },
-        { vsi: 70, expected: "high" },
-        { vsi: 55, expected: "medium" },
-        { vsi: 40, expected: "developing" },
-      ];
+      // Tramos únicos de la evaluación del entrenador (config/coachEvaluation.ts, P1 bloque
+      // 5b): en cada corte y justo por debajo. Antes esperaba "high"/"medium"/"developing"
+      // (cortes 80/65/50 retirados) y marcaba error en los valores correctos.
+      const cases = COACH_EVAL_TIERS.flatMap((tier, i) => [
+        { vsi: tier.min, expected: tier.tier },
+        ...(i > 0 ? [{ vsi: COACH_EVAL_TIERS[i - 1].min - 0.1, expected: tier.tier }] : []),
+      ]);
       const failures = cases.filter(
         (c) => MetricsService.classifyVSI(c.vsi) !== c.expected
       );

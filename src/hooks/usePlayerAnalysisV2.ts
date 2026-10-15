@@ -704,11 +704,12 @@ export function mapDbRowToLegacy(row: AnalysisDbRow) {
       },
       // defaultDim es CONSTANTE (el pipeline no mide dimensiones) → no son reales.
       dimensionesMedidas: false,
-      // null cuando el VSI-vídeo compuesto está BLOQUEADO (el backend devuelve
-      // vsi:null si <4/5 dimensiones reales — hoy siempre, técnica/mental/táctica no
-      // se miden). Antes `?? 50` lo volvía 0 → cada informe pintaba "VSI +0 pts", un
-      // ajuste fabricado (viola inv #2). Con null, el render oculta el badge (#40).
-      ajusteVSIVideoScore: row.vsi?.vsi == null ? null : Math.round((row.vsi.vsi as number) - 50),
+      // SIEMPRE null: la fila de `analyses` no trae ningún «ajuste» del VSI. Antes se
+      // inventaba como `vsi − 50` (un 50 arbitrario como base): en los análisis base, cuyo
+      // VSI es la evaluación del entrenador, pintaba «VSI +22» en la ficha de inteligencia,
+      // el Lab, SoloDrill y la línea de tiempo (P1 bloque 5b, inv #2); y antes aún `?? 50`
+      // daba «VSI +0 pts». Con null, el render oculta el badge (#40).
+      ajusteVSIVideoScore: null,
     },
     adnFutbolistico: {
       // Campos REALES del agente (_dna-profile.ts): primary_style/style_summary,

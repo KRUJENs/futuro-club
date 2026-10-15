@@ -156,7 +156,7 @@ const VsiGauge = ({ value, size = "md", label, showTier = false }: VsiGaugeProps
               <span className={`${s.labelText} uppercase tracking-[0.18em] text-muted-foreground font-bold mt-0.5`}>
                 {/* Sin rótulo explícito: la evaluación del entrenador, con su explicación
                     (glosario) al pasar el ratón o con el foco. */}
-                {label ?? <TermTooltip termKey="vsi">{t("coachEval.short")}</TermTooltip>}
+                {label ?? <TermTooltip termKey="coachEval">{t("coachEval.short")}</TermTooltip>}
               </span>
             )}
             {showTier && size === "xl" && (

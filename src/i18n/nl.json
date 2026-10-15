@@ -87,7 +87,8 @@
     "select": "Selecteren…",
     "perMonth": "/maand",
     "free": "Gratis",
-    "notEvaluated": "Niet beoordeeld"
+    "notEvaluated": "Niet beoordeeld",
+    "notCalculated": "Niet berekend"
   },
   "nav": {
     "pulse": "Pulse",
@@ -1296,7 +1297,7 @@
     "categoryStats": "{{count}} spelers · Gem. trainersbeoord.: {{avgVsi}} · σ {{stddev}}",
     "howToInterpret": "Hoe interpreteren?",
     "interpretHighRange": "(>10 pts)",
-    "interpretHighDesc": "— De AI scoort deze categorie significant anders. Controleer prompts en criteria.",
+    "interpretHighDesc": "— Deze categorie krijgt significant andere beoordelingen. Controleer de beoordelingscriteria.",
     "interpretMediumRange": "(5-10 pts)",
     "interpretMediumDesc": "— Opvallende afwijking. Monitor de komende weken.",
     "interpretLowRange": "(<5 pts)",
@@ -1304,7 +1305,7 @@
     "positionChartTitle": "Gem. beoordeling door de trainer per positie",
     "positionChartDesc": "Scoren aanvallers altijd hoger dan verdedigers?",
     "ageChartTitle": "Gem. beoordeling door de trainer per leeftijdsgroep",
-    "ageChartDesc": "Bevoordeelt de AI bepaalde leeftijdsgroepen?",
+    "ageChartDesc": "Bevoordeelt de beoordeling door de trainer bepaalde leeftijdsgroepen?",
     "seriesAvgVsi": "Gem. trainersbeoord.",
     "seriesPlayers": "Spelers",
     "seriesAnalyses": "Analyses",
@@ -1320,12 +1321,13 @@
     "correlationLabel": "Correlatie: {{level}}",
     "visibilityDetailTitle": "Detail per datavolume",
     "playersCount": "{{count}} spelers",
-    "recencyChartTitle": "Tijdstrend van de beoordeling door de trainer",
+    "recencyChartTitle": "Tijdstrend van de VSI van de videoanalyses (AI)",
     "recencyChartDesc": "Stijgen/dalen de scores in de tijd? (prompt drift)",
     "recencyDetailTitle": "Maandelijks detail",
     "analysesCount": "{{count}} analyses",
     "promptDriftTitle": "Wat is prompt drift?",
-    "promptDriftDesc": "Als de scores maand na maand consistent stijgen zonder echte veranderingen bij de spelers, kan dit erop wijzen dat de prompts van de AI-agents afdrijven naar mildere beoordelingen. Dit is normaal en wordt gecorrigeerd door de scoringsregels periodiek bij te stellen."
+    "promptDriftDesc": "Als de scores maand na maand consistent stijgen zonder echte veranderingen bij de spelers, kan dit erop wijzen dat de prompts van de AI-agents afdrijven naar mildere beoordelingen. Dit is normaal en wordt gecorrigeerd door de scoringsregels periodiek bij te stellen.",
+    "seriesAvgVideoVsi": "Gemiddelde analyse-VSI (AI)"
   },
   "errorState": {
     "title": "De gegevens konden niet worden geladen",
@@ -1504,7 +1506,7 @@
     "reportTitle": "Gelijkheidsrapport — AI-bias-audit",
     "defaultOrg": "Academie",
     "generatedBy": "Gegenereerd door: {{name}}",
-    "intro": "Dit rapport beoordeelt of het scoringsmodel (VSI) de verschillende spelerscohorten gelijk behandelt, door de afwijking van elke groep t.o.v. het globale gemiddelde te meten. Het bevat de dimensie leeftijd als proxy voor het rijpingscohort (VITAS corrigeert bovendien voor PHV in de individuele beoordeling).",
+    "intro": "Dit rapport beoordeelt of de beoordeling door de trainer (profiel-VSI) de verschillende spelerscohorten gelijk behandelt, door de afwijking van elke groep t.o.v. het globale gemiddelde te meten per positie, leeftijd en aantal video's. Leeftijd dient als benadering van het rijpingscohort; de beoordeling door de trainer is niet gecorrigeerd voor rijping.",
     "severityHigh": "Hoog",
     "severityMedium": "Gemiddeld",
     "severityLow": "Laag",
@@ -1518,19 +1520,19 @@
     "colSeverity": "Ernst",
     "colVolume": "Volume",
     "byPositionTitle": "Per positie",
-    "byPositionSubtitle": "Scoort de AI systematisch anders per positie?",
+    "byPositionSubtitle": "Is de beoordeling door de trainer systematisch anders per positie?",
     "byAgeTitle": "Per leeftijd (rijpingscohort)",
     "byAgeSubtitle": "Worden bepaalde leeftijds-/rijpingsgroepen bevoordeeld?",
     "byVisibilityTitle": "Per zichtbaarheid (datavolume)",
     "byVisibilitySubtitle": "Meer video's = opgeblazen score?",
     "methodologyTitle": "Methodologie en drempels",
     "methodHighLabel": "Hoog (>10 pts)",
-    "methodHighDesc": " — significante afwijking; controleer prompts en scoringscriteria.",
+    "methodHighDesc": " — significante afwijking; controleer de beoordelingscriteria.",
     "methodMediumLabel": "Gemiddeld (5–10 pts)",
     "methodMediumDesc": " — opvallende afwijking; trend monitoren.",
     "methodLowLabel": "Laag (<5 pts)",
     "methodLowDesc": " — binnen het normale bereik.",
-    "footer": "VITAS · Football Intelligence — beoordeling met biologische correctie (PHV). Rapport automatisch gegenereerd; de gegevens weerspiegelen de status op de aangegeven datum."
+    "footer": "VITAS · Football Intelligence. Rapport automatisch gegenereerd; de gegevens weerspiegelen de status op de aangegeven datum."
   },
   "idpCheckinForm": {
     "likertNada": "Niets",
@@ -4080,7 +4082,8 @@
     "coachEvalComparison": "Bij vergelijking van {{a}} en {{b}} op beoordeling door de trainer (subjectief) heeft {{winner}} de hoogste beoordeling.",
     "winnerMaturation": "Rijping:",
     "noComparableEval": "Beide spelers hebben een beoordeling door de trainer nodig om te vergelijken.",
-    "higherCoachEval": "Hoogste beoordeling door de trainer"
+    "higherCoachEval": "Hoogste beoordeling door de trainer",
+    "sameCoachEval": "{{a}} en {{b}} hebben dezelfde beoordeling door de trainer (subjectief): geen van beide is hoger."
   },
   "positionRollup": {
     "title": "Waargenomen veelzijdigheid",
@@ -5438,8 +5441,8 @@
     "sportsIntelligence": "Sportintelligentie",
     "user": "Gebruiker",
     "vitasIntelligence": "VITAS Intelligence",
-    "latePhvLowVsi": "Laatrijp PHV + VSI < 65",
-    "vitasIndex": "VITAS-index"
+    "latePhvLowVsi": "Laatrijp PHV + trainersbeoord. < 65",
+    "vitasIndex": "Subjectieve beoordeling"
   },
   "maturityProjectionChart": {
     "ageTick": "{{age}}j",

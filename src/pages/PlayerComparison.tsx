@@ -299,6 +299,8 @@ const PlayerComparison = () => {
   // evaluados (P1 bloque 5b). Antes: «el modelo proyecta un X% de llegar a élite en 36
   // meses» con X = VSI × 0,95, y «mayor techo de desarrollo» por tener más VSI.
   const bothEvaluated = typeof playerA.vsi === "number" && typeof playerB.vsi === "number";
+  // Empate: no hay «evaluación más alta» (antes `>=` daba la victoria a A).
+  const sameEvaluation = bothEvaluated && playerA.vsi === playerB.vsi;
   const aiWinner = playerA.vsi >= playerB.vsi ? playerA : playerB;
   const winnerGate = aiWinner === playerA ? gateA : gateB;
 
@@ -613,7 +615,9 @@ const PlayerComparison = () => {
               </div>
               <h3 className="font-display font-bold text-lg text-foreground">{t("playerComparison.comparativeAnalysis")}</h3>
             </div>
-            {bothEvaluated ? (
+            {sameEvaluation ? (
+              <p className="text-sm text-muted-foreground leading-relaxed">{t("playerComparison.sameCoachEval", { a: playerA.name, b: playerB.name })}</p>
+            ) : bothEvaluated ? (
             <p className="text-sm text-muted-foreground leading-relaxed">
               {t("playerComparison.coachEvalComparison", { a: playerA.name, b: playerB.name, winner: aiWinner.name })}{" "}
               {t("playerComparison.winnerMaturation")}{" "}
@@ -634,7 +638,7 @@ const PlayerComparison = () => {
             )}
           </div>
 
-          {bothEvaluated && (
+          {bothEvaluated && !sameEvaluation && (
           <div className="glass rounded-2xl p-6 flex flex-col items-center justify-center text-center">
             <span className="text-[10px] font-display font-semibold uppercase tracking-widest text-muted-foreground mb-3">
               {t("playerComparison.higherCoachEval")}

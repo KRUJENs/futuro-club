@@ -233,7 +233,7 @@ export default withHandler(
   <div class="header">
     <div>
       <h1>${name}</h1>
-      <p>${position} · ${age !== null ? `${age} años` : `edad ${NOT_RECORDED}`}${footText ? ` · ${footText}` : ""}</p>
+      <p>${[position || null, age !== null ? `${age} años` : `edad ${NOT_RECORDED}`, footText].filter(Boolean).join(" · ")}</p>
     </div>
     <div style="text-align:right">
       <div class="vsi-label">Evaluación del entrenador</div>

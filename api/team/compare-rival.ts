@@ -194,14 +194,14 @@ function buildContext(
   return `─── NUESTRO EQUIPO ───
 Nombre: ${ourTeamName}
 Plantilla: ${ours.length} jugadores · Edad promedio ${avgAge}a
-VSI promedio: ${avgVsi}
+Evaluación del entrenador media (subjetiva, solo evaluados): ${avgVsi}
 PHV: pre-estirón ${phvCounts.early} · ontime ${phvCounts.ontime} · post-estirón ${phvCounts.late}${phvCounts.unknown ? ` · sin medir ${phvCounts.unknown}` : ""}
 
-Top 8 por VSI ("—" = sin evaluar, al final):
+Top 8 por evaluación del entrenador ("—" = sin evaluar, al final):
 ${[...ours]
   .sort(byVsiDescNullsLast)
   .slice(0, 8)
-  .map((p, i) => `  ${i + 1}. ${p.name ?? "?"} (${p.position ?? "?"}, ${p.age ?? "?"}a, VSI ${formatVsi(p.vsi)}, PHV ${p.phv_category ?? "?"})`)
+  .map((p, i) => `  ${i + 1}. ${p.name ?? "?"} (${p.position ?? "?"}, ${p.age ?? "?"}a, eval. entrenador ${formatVsi(p.vsi)}, PHV ${p.phv_category ?? "?"})`)
   .join("\n")}
 
 ─── RIVAL ───

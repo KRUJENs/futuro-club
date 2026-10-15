@@ -58,7 +58,9 @@ export function SnapshotHistoryChart({ playerId, height = 240 }: Props) {
         <div className="flex-1 min-w-0">
           <h2 className="font-display font-semibold text-sm text-foreground">{t("snapshotHistoryChart.title")}</h2>
           <p className="text-[10px] text-muted-foreground">
-            <TermTooltip termKey="vsi" /> · {t("snapshotHistoryChart.riskLabel")} · <TermTooltip termKey="phv" /> {t("snapshotHistoryChart.offsetSuffix")}
+            {/* VSI de los análisis de vídeo (player_metric_snapshots, orquestador), NO la
+                evaluación del entrenador: término propio del glosario (P1 bloque 5b). */}
+            <TermTooltip termKey="videoVsi" /> · {t("snapshotHistoryChart.riskLabel")} · <TermTooltip termKey="phv" /> {t("snapshotHistoryChart.offsetSuffix")}
           </p>
         </div>
         {snapshots.length > 0 && (

@@ -87,7 +87,8 @@
     "select": "Sélectionner…",
     "perMonth": "/mois",
     "free": "Gratuit",
-    "notEvaluated": "Non évalué"
+    "notEvaluated": "Non évalué",
+    "notCalculated": "Non calculé"
   },
   "nav": {
     "pulse": "Pulse",
@@ -1295,7 +1296,7 @@
     "categoryStats": "{{count}} joueurs · Éval. moyenne entraîneur : {{avgVsi}} · σ {{stddev}}",
     "howToInterpret": "Comment interpréter ?",
     "interpretHighRange": "(>10 pts)",
-    "interpretHighDesc": "— L'IA note cette catégorie de façon significativement différente. Vérifiez les prompts et les critères.",
+    "interpretHighDesc": "— Cette catégorie reçoit des évaluations significativement différentes. Vérifiez les critères d'évaluation.",
     "interpretMediumRange": "(5-10 pts)",
     "interpretMediumDesc": "— Écart notable. Surveillez dans les semaines à venir.",
     "interpretLowRange": "(<5 pts)",
@@ -1303,7 +1304,7 @@
     "positionChartTitle": "Évaluation moyenne de l'entraîneur par poste",
     "positionChartDesc": "Les attaquants notent-ils toujours plus haut que les défenseurs ?",
     "ageChartTitle": "Évaluation moyenne de l'entraîneur par groupe d'âge",
-    "ageChartDesc": "L'IA favorise-t-elle certains groupes d'âge ?",
+    "ageChartDesc": "L'évaluation de l'entraîneur favorise-t-elle certains groupes d'âge ?",
     "seriesAvgVsi": "Éval. moyenne entraîneur",
     "seriesPlayers": "Joueurs",
     "seriesAnalyses": "Analyses",
@@ -1319,12 +1320,13 @@
     "correlationLabel": "Corrélation : {{level}}",
     "visibilityDetailTitle": "Détail par volume de données",
     "playersCount": "{{count}} joueurs",
-    "recencyChartTitle": "Tendance temporelle de l'évaluation de l'entraîneur",
+    "recencyChartTitle": "Tendance temporelle du VSI des analyses vidéo (IA)",
     "recencyChartDesc": "Les scores montent/descendent-ils avec le temps ? (prompt drift)",
     "recencyDetailTitle": "Détail mensuel",
     "analysesCount": "{{count}} analyses",
     "promptDriftTitle": "Qu'est-ce que le prompt drift ?",
-    "promptDriftDesc": "Si les scores montent de façon constante mois après mois sans réel changement chez les joueurs, cela peut indiquer que les prompts des agents IA dérivent vers des évaluations plus généreuses. C'est normal et se corrige en ajustant périodiquement les règles de scoring."
+    "promptDriftDesc": "Si les scores montent de façon constante mois après mois sans réel changement chez les joueurs, cela peut indiquer que les prompts des agents IA dérivent vers des évaluations plus généreuses. C'est normal et se corrige en ajustant périodiquement les règles de scoring.",
+    "seriesAvgVideoVsi": "VSI moyen des analyses (IA)"
   },
   "errorState": {
     "title": "Impossible de charger les données",
@@ -1503,7 +1505,7 @@
     "reportTitle": "Rapport d'équité — Audit de biais IA",
     "defaultOrg": "Académie",
     "generatedBy": "Généré par : {{name}}",
-    "intro": "Ce rapport évalue si le modèle de scoring (VSI) traite équitablement les différentes cohortes de joueurs, en mesurant l'écart de chaque groupe par rapport à la moyenne globale. Il inclut la dimension de l'âge comme proxy de cohorte de maturation (VITAS corrige en plus par le PHV dans l'évaluation individuelle).",
+    "intro": "Ce rapport évalue si l'évaluation de l'entraîneur (VSI de fiche) traite équitablement les différentes cohortes de joueurs, en mesurant l'écart de chaque groupe par rapport à la moyenne globale par poste, âge et nombre de vidéos. L'âge est inclus comme approximation de la cohorte de maturation ; l'évaluation de l'entraîneur n'est pas corrigée par la maturation.",
     "severityHigh": "Élevé",
     "severityMedium": "Moyen",
     "severityLow": "Faible",
@@ -1517,19 +1519,19 @@
     "colSeverity": "Sévérité",
     "colVolume": "Volume",
     "byPositionTitle": "Par poste",
-    "byPositionSubtitle": "L'IA note-t-elle systématiquement différemment selon le poste ?",
+    "byPositionSubtitle": "L'évaluation de l'entraîneur est-elle systématiquement différente selon le poste ?",
     "byAgeTitle": "Par âge (cohorte de maturation)",
     "byAgeSubtitle": "Certains groupes d'âge/de maturation sont-ils favorisés ?",
     "byVisibilityTitle": "Par visibilité (volume de données)",
     "byVisibilitySubtitle": "Plus de vidéos = score gonflé ?",
     "methodologyTitle": "Méthodologie et seuils",
     "methodHighLabel": "Élevé (>10 pts)",
-    "methodHighDesc": " — écart significatif ; vérifier les prompts et les critères de scoring.",
+    "methodHighDesc": " — écart significatif ; vérifier les critères d'évaluation.",
     "methodMediumLabel": "Moyen (5–10 pts)",
     "methodMediumDesc": " — écart notable ; surveiller la tendance.",
     "methodLowLabel": "Faible (<5 pts)",
     "methodLowDesc": " — dans la plage normale.",
-    "footer": "VITAS · Football Intelligence — évaluation avec correction biologique (PHV). Rapport généré automatiquement ; les données reflètent l'état à la date indiquée."
+    "footer": "VITAS · Football Intelligence. Rapport généré automatiquement ; les données reflètent l'état à la date indiquée."
   },
   "idpCheckinForm": {
     "likertNada": "Rien",
@@ -4079,7 +4081,8 @@
     "coachEvalComparison": "En comparant {{a}} et {{b}} par l'évaluation de l'entraîneur (évaluation subjective), {{winner}} a l'évaluation la plus haute.",
     "winnerMaturation": "Sa maturation :",
     "noComparableEval": "Les deux joueurs ont besoin d'une évaluation de l'entraîneur pour être comparés.",
-    "higherCoachEval": "Évaluation de l'entraîneur la plus haute"
+    "higherCoachEval": "Évaluation de l'entraîneur la plus haute",
+    "sameCoachEval": "{{a}} et {{b}} ont la même évaluation de l'entraîneur (évaluation subjective) : aucune n'est plus haute."
   },
   "positionRollup": {
     "title": "Polyvalence observée",
@@ -5437,8 +5440,8 @@
     "sportsIntelligence": "Intelligence sportive",
     "user": "Utilisateur",
     "vitasIntelligence": "VITAS Intelligence",
-    "latePhvLowVsi": "PHV tardif + VSI < 65",
-    "vitasIndex": "Indice VITAS"
+    "latePhvLowVsi": "PHV tardif + éval. entraîneur < 65",
+    "vitasIndex": "Évaluation subjective"
   },
   "maturityProjectionChart": {
     "ageTick": "{{age}} ans",

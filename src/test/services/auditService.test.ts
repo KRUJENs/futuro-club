@@ -25,20 +25,21 @@ vi.mock("@/services/real/playerService", () => ({
   },
 }));
 
-vi.mock("@/services/real/metricsService", () => ({
-  MetricsService: {
-    calculateVSI: vi.fn((m: Record<string, number>) => {
-      const vals = Object.values(m);
-      return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
-    }),
-    classifyVSI: vi.fn((vsi: number) => {
-      if (vsi >= 85) return "elite";
-      if (vsi >= 70) return "high";
-      if (vsi >= 55) return "medium";
-      return "developing";
-    }),
-  },
-}));
+// classifyVSI REAL (antes un mock con los cortes viejos «high/medium/developing»: la
+// autocomprobación pasaba por tautología mientras el código real ya devolvía otros tramos).
+vi.mock("@/services/real/metricsService", async (orig) => {
+  const real = await orig<typeof import("@/services/real/metricsService")>();
+  return {
+    ...real,
+    MetricsService: {
+      ...real.MetricsService,
+      calculateVSI: vi.fn((m: Record<string, number>) => {
+        const vals = Object.values(m);
+        return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+      }),
+    },
+  };
+});
 
 import { AuditService } from "@/services/real/auditService";
 import { StorageService } from "@/services/real/storageService";

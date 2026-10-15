@@ -23,6 +23,8 @@ import { percentilesAmong } from "@/lib/metrics/percentile";
 import { coachEvalTier, type CoachEvalTier } from "@/services/real/metricsService";
 import { COACH_EVAL_TIERS } from "../../config/coachEvaluation";
 import { gatedMaturity } from "@/lib/phv/phvGate";
+import { realVsiEvaluations } from "@/lib/scoring/vsiDelta";
+import { coachEvalInline } from "@/lib/metrics/coachEval";
 import { useTranslation } from "react-i18next";
 
 const sidebarItems = [
@@ -136,7 +138,10 @@ const MasterDashboard = () => {
       .slice(0, 5)
       .map(p => ({
         name: p.name,
-        action: p.vsiHistory && p.vsiHistory.length > 1 ? t("master.vsiUpdated") : t("master.playerRegistered"),
+        // «Actualizada» solo con ≥ 2 evaluaciones REALES con fecha (realVsiEvaluations, como
+        // la ficha). Antes contaba `vsiHistory` (legacy sin fechas, con el 57.5 fabricado):
+        // a Samu ([57.5, 67.4]) le decía que el entrenador había actualizado su evaluación.
+        action: realVsiEvaluations(p.vsiEvaluations).length > 1 ? t("master.vsiUpdated") : t("master.playerRegistered"),
         vsi: p.vsi,
         time: new Date(p.updatedAt).toLocaleDateString("es-ES"),
       }));
@@ -239,7 +244,11 @@ const MasterDashboard = () => {
                 <p className="text-[10px] font-display uppercase tracking-widest text-muted-foreground">
                   {t("master.avgVsi")}
                 </p>
-                <p className="font-display font-bold text-3xl text-foreground">{stats.avgVsi ?? "—"}</p>
+                {stats.avgVsi != null ? (
+                  <p className="font-display font-bold text-3xl text-foreground">{stats.avgVsi}</p>
+                ) : (
+                  <p className="font-display font-semibold text-sm text-muted-foreground mt-2">{t("common.notEvaluated")}</p>
+                )}
               </div>
             </motion.div>
 
@@ -496,7 +505,7 @@ const MasterDashboard = () => {
                           {event.name}
                         </p>
                         <p className="text-[10px] text-muted-foreground mt-0.5">
-                          {event.action} · VSI {event.vsi != null ? event.vsi.toFixed(1) : "—"}
+                          {event.action} · {coachEvalInline(t, event.vsi, 1)}
                         </p>
                         <p className="text-[9px] text-muted-foreground flex items-center gap-1 mt-0.5">
                           <Clock size={9} />

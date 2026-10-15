@@ -30,6 +30,7 @@ import { PlayerService, type Player } from "@/services/real/playerService";
 import { useSavedAnalysesV2 } from "@/hooks/usePlayerAnalysisV2";
 import { useRawPlayerById } from "@/hooks/usePlayers";
 import { realVsiEvaluations } from "@/lib/scoring/vsiDelta";
+import { analysisVsiInline } from "@/lib/metrics/coachEval";
 import { GuardianConsentCard } from "@/components/legal/GuardianConsentCard";
 import { useScoutInsights } from "@/hooks/useScoutFeed";
 import { useVideos } from "@/hooks/useVideos";
@@ -904,7 +905,7 @@ export default function PlayerHubPage() {
                               {t("playerHubPage.analysisDate", { date: new Date(a.created_at).toLocaleDateString("es-ES") })}
                             </p>
                             <p className="text-[10px] text-muted-foreground">
-                              VSI {a.vsi ?? "—"}{vid ? ` · ${t("playerHubPage.withVideo")}` : ""}
+                              {analysisVsiInline(t, a.video_id, a.vsi)}{vid ? ` · ${t("playerHubPage.withVideo")}` : ""}
                             </p>
                           </div>
                           {vid

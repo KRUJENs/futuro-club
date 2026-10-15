@@ -87,7 +87,8 @@
     "select": "Auswählen…",
     "perMonth": "/Monat",
     "free": "Kostenlos",
-    "notEvaluated": "Nicht bewertet"
+    "notEvaluated": "Nicht bewertet",
+    "notCalculated": "Nicht berechnet"
   },
   "nav": {
     "pulse": "Pulse",
@@ -1295,7 +1296,7 @@
     "categoryStats": "{{count}} Spieler · Durchschn. Trainerbew.: {{avgVsi}} · σ {{stddev}}",
     "howToInterpret": "Wie interpretieren?",
     "interpretHighRange": "(>10 Pkt)",
-    "interpretHighDesc": "— Die KI bewertet diese Kategorie deutlich anders. Prüfe Prompts und Kriterien.",
+    "interpretHighDesc": "— Diese Kategorie erhält deutlich andere Bewertungen. Prüfe die Bewertungskriterien.",
     "interpretMediumRange": "(5-10 Pkt)",
     "interpretMediumDesc": "— Merkliche Abweichung. Beobachte sie in den kommenden Wochen.",
     "interpretLowRange": "(<5 Pkt)",
@@ -1303,7 +1304,7 @@
     "positionChartTitle": "Durchschn. Trainerbewertung nach Position",
     "positionChartDesc": "Punkten Stürmer immer höher als Verteidiger?",
     "ageChartTitle": "Durchschn. Trainerbewertung nach Altersgruppe",
-    "ageChartDesc": "Bevorzugt die KI bestimmte Altersgruppen?",
+    "ageChartDesc": "Bevorzugt die Trainerbewertung bestimmte Altersgruppen?",
     "seriesAvgVsi": "Durchschn. Trainerbew.",
     "seriesPlayers": "Spieler",
     "seriesAnalyses": "Analysen",
@@ -1319,12 +1320,13 @@
     "correlationLabel": "Korrelation: {{level}}",
     "visibilityDetailTitle": "Detail nach Datenvolumen",
     "playersCount": "{{count}} Spieler",
-    "recencyChartTitle": "Zeitlicher Trend der Trainerbewertung",
+    "recencyChartTitle": "Zeitlicher Trend des VSI der Videoanalysen (KI)",
     "recencyChartDesc": "Steigen/fallen die Scores über die Zeit? (Prompt Drift)",
     "recencyDetailTitle": "Monatliches Detail",
     "analysesCount": "{{count}} Analysen",
     "promptDriftTitle": "Was ist Prompt Drift?",
-    "promptDriftDesc": "Wenn die Scores Monat für Monat konsistent steigen, ohne dass sich bei den Spielern real etwas ändert, kann das darauf hindeuten, dass die Prompts der KI-Agenten zu großzügigeren Bewertungen driften. Das ist normal und wird durch regelmäßiges Anpassen der Scoring-Regeln korrigiert."
+    "promptDriftDesc": "Wenn die Scores Monat für Monat konsistent steigen, ohne dass sich bei den Spielern real etwas ändert, kann das darauf hindeuten, dass die Prompts der KI-Agenten zu großzügigeren Bewertungen driften. Das ist normal und wird durch regelmäßiges Anpassen der Scoring-Regeln korrigiert.",
+    "seriesAvgVideoVsi": "Durchschnittlicher Analyse-VSI (KI)"
   },
   "errorState": {
     "title": "Die Daten konnten nicht geladen werden",
@@ -1503,7 +1505,7 @@
     "reportTitle": "Fairness-Bericht — KI-Bias-Audit",
     "defaultOrg": "Akademie",
     "generatedBy": "Erstellt von: {{name}}",
-    "intro": "Dieser Bericht bewertet, ob das Scoring-Modell (VSI) die verschiedenen Spielerkohorten fair behandelt, indem er die Abweichung jeder Gruppe vom globalen Durchschnitt misst. Die Alterdimension wird als Proxy für die Reifungskohorte einbezogen (VITAS korrigiert in der Einzelbewertung zusätzlich per PHV).",
+    "intro": "Dieser Bericht bewertet, ob die Trainerbewertung (Profil-VSI) die verschiedenen Spielerkohorten fair behandelt, indem er die Abweichung jeder Gruppe vom globalen Durchschnitt nach Position, Alter und Anzahl der Videos misst. Das Alter dient als Näherung für die Reifungskohorte; die Trainerbewertung ist nicht um die Reifung korrigiert.",
     "severityHigh": "Hoch",
     "severityMedium": "Mittel",
     "severityLow": "Niedrig",
@@ -1517,19 +1519,19 @@
     "colSeverity": "Schweregrad",
     "colVolume": "Volumen",
     "byPositionTitle": "Nach Position",
-    "byPositionSubtitle": "Bewertet die KI systematisch je nach Position anders?",
+    "byPositionSubtitle": "Ist die Trainerbewertung je nach Position systematisch anders?",
     "byAgeTitle": "Nach Alter (Reifungskohorte)",
     "byAgeSubtitle": "Werden bestimmte Alters-/Reifungsgruppen bevorzugt?",
     "byVisibilityTitle": "Nach Sichtbarkeit (Datenvolumen)",
     "byVisibilitySubtitle": "Mehr Videos = aufgeblähter Score?",
     "methodologyTitle": "Methodik und Schwellenwerte",
     "methodHighLabel": "Hoch (>10 Pkt)",
-    "methodHighDesc": " — signifikante Abweichung; Prompts und Scoring-Kriterien prüfen.",
+    "methodHighDesc": " — signifikante Abweichung; die Bewertungskriterien prüfen.",
     "methodMediumLabel": "Mittel (5–10 Pkt)",
     "methodMediumDesc": " — merkliche Abweichung; Trend beobachten.",
     "methodLowLabel": "Niedrig (<5 Pkt)",
     "methodLowDesc": " — im Normalbereich.",
-    "footer": "VITAS · Football Intelligence — Bewertung mit biologischer Korrektur (PHV). Automatisch erstellter Bericht; die Daten spiegeln den Stand zum angegebenen Datum wider."
+    "footer": "VITAS · Football Intelligence. Automatisch erstellter Bericht; die Daten spiegeln den Stand zum angegebenen Datum wider."
   },
   "idpCheckinForm": {
     "likertNada": "Gar nicht",
@@ -4079,7 +4081,8 @@
     "coachEvalComparison": "Im Vergleich von {{a}} und {{b}} nach Trainerbewertung (subjektive Einschätzung) hat {{winner}} die höhere Bewertung.",
     "winnerMaturation": "Reifung:",
     "noComparableEval": "Beide Spieler brauchen eine Trainerbewertung, um verglichen zu werden.",
-    "higherCoachEval": "Höhere Trainerbewertung"
+    "higherCoachEval": "Höhere Trainerbewertung",
+    "sameCoachEval": "{{a}} und {{b}} haben dieselbe Trainerbewertung (subjektive Einschätzung): keine ist höher."
   },
   "positionRollup": {
     "title": "Beobachtete Vielseitigkeit",
@@ -5437,8 +5440,8 @@
     "sportsIntelligence": "Sportintelligenz",
     "user": "Nutzer",
     "vitasIntelligence": "VITAS Intelligence",
-    "latePhvLowVsi": "Später PHV + VSI < 65",
-    "vitasIndex": "VITAS-Index"
+    "latePhvLowVsi": "Später PHV + Trainerbew. < 65",
+    "vitasIndex": "Subjektive Einschätzung"
   },
   "maturityProjectionChart": {
     "ageTick": "{{age}}J",

@@ -24,6 +24,8 @@ import { IS_DEMO } from "@/lib/demoMode";
 import { PlayerService } from "@/services/real/playerService";
 import { buildDemoAnalysisRows } from "@/lib/demo/demoReports";
 import { asItemArray, itemTitle } from "@/lib/reports/reportItems";
+import { isCoachEvaluationAnalysis } from "@/lib/metrics/coachEval";
+import { coachEvalTier } from "@/services/real/metricsService";
 import DrillRecommendations from "@/components/intelligence/DrillRecommendations";
 import PeerBenchmark from "@/components/PeerBenchmark";
 // FASE 3c: renderers dedicados por report_type (antes todo caía al genérico → JSON crudo)
@@ -234,10 +236,12 @@ export function AnalysisDashboard({ analysisId, shareToken, onLoaded }: Props) {
   // Análisis base (sin vídeo): su VSI es la EVALUACIÓN DEL ENTRENADOR (6 barras), no un
   // VSI de vídeo; se rotula como tal y su tramo es el único traducido (P1 bloque 5b). El
   // análisis base guarda un video_id centinela «baseline-…» (api/players/baseline-analysis.ts).
-  const isCoachEvaluation = typeof analysis.video_id === "string" && analysis.video_id.startsWith("baseline-");
-  const tierKey = analysis.vsi?.tier;
-  const tier = isCoachEvaluation && tierKey && (["elite", "pro", "talent", "develop"] as string[]).includes(tierKey)
-    ? t(`coachEval.tier.${tierKey}`)
+  const isCoachEvaluation = isCoachEvaluationAnalysis(analysis.video_id);
+  // Tramo RECALCULADO con los cortes únicos (coachEvalTier), no el `tier` guardado en la
+  // fila: los análisis base anteriores al 5b lo guardaron con 85/70/55 (un VSI 52 decía
+  // «En desarrollo» mientras la ficha decía «Talento»).
+  const tier = isCoachEvaluation && typeof vsi === "number" && Number.isFinite(vsi)
+    ? t(`coachEval.tier.${coachEvalTier(vsi)}`)
     : analysis.vsi?.tierLabel ?? null;
   const activeReport = reports.find((r) => r.report_type === activeTab);
   const ActiveIcon = activeReport ? REPORT_META[activeReport.report_type]?.Icon ?? Brain : Brain;

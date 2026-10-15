@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { PlayerService } from "@/services/real/playerService";
 import { AnalysisDashboard } from "@/components/analysis/AnalysisDashboard";
 import { getAuthHeaders } from "@/lib/apiAuth";
+import { isCoachEvaluationAnalysis } from "@/lib/metrics/coachEval";
+import { coachEvalTier } from "@/services/real/metricsService";
 
 interface LoadedData {
   analysis: {
@@ -35,10 +37,10 @@ function buildWhatsAppText(playerName: string, data: LoadedData | null, url: str
 
   const vsi = data.analysis.vsi?.vsi ?? null;
   // Análisis base: es la EVALUACIÓN DEL ENTRENADOR y su tramo único traducido (P1 bloque 5b).
-  const isCoachEvaluation = typeof data.analysis.video_id === "string" && data.analysis.video_id.startsWith("baseline-");
-  const tierKey = data.analysis.vsi?.tier;
-  const tier = isCoachEvaluation && tierKey && (["elite", "pro", "talent", "develop"] as string[]).includes(tierKey)
-    ? t(`coachEval.tier.${tierKey}`)
+  const isCoachEvaluation = isCoachEvaluationAnalysis(data.analysis.video_id);
+  // Tramo recalculado con los cortes únicos, no el `tier` guardado (filas anteriores al 5b).
+  const tier = isCoachEvaluation && typeof vsi === "number" && Number.isFinite(vsi)
+    ? t(`coachEval.tier.${coachEvalTier(vsi)}`)
     : data.analysis.vsi?.tierLabel ?? "";
   const delta = data.analysis.vsi?.trend?.delta ?? null;
 

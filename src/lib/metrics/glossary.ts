@@ -15,12 +15,20 @@ export interface GlossaryTerm {
 
 export const GLOSSARY: Record<string, GlossaryTerm> = {
   // P1 bloque 5b: el VSI de ficha es la EVALUACIÓN DEL ENTRENADOR (6 barras subjetivas),
-  // no un «índice compuesto del rendimiento» medido por el sistema.
-  vsi: {
+  // no un «índice compuesto del rendimiento» medido por el sistema. Es un término DISTINTO
+  // del VSI de vídeo (abajo): no comparten entrada para que un rótulo no se cuele en el otro.
+  coachEval: {
     term: "Evaluación del entrenador",
     short: "VSI de ficha",
     long: "Índice 0-100 que pondera las 6 barras que puntúa el entrenador (velocidad, técnica, visión, resistencia, tiro y defensa). Es una valoración subjetiva: no es una medida ni está corregida por maduración.",
     i18nKey: "coachEval.glossary",
+  },
+  // El VSI de los ANÁLISIS DE VÍDEO (pipeline/IA; p. ej. player_metric_snapshots.vsi) sigue
+  // llamándose «VSI»: es otro índice y no es la evaluación del entrenador.
+  videoVsi: {
+    term: "VSI de vídeo",
+    short: "Índice de los análisis de vídeo",
+    long: "Índice 0-100 que calcula el análisis de vídeo (IA) con lo observado en el vídeo. Es distinto de la evaluación del entrenador (sus 6 barras) y se bloquea si faltan sus entradas.",
   },
   phv: {
     term: "PHV",

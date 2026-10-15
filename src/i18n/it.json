@@ -87,7 +87,8 @@
     "select": "Seleziona…",
     "perMonth": "/mese",
     "free": "Gratis",
-    "notEvaluated": "Non valutato"
+    "notEvaluated": "Non valutato",
+    "notCalculated": "Non calcolato"
   },
   "nav": {
     "pulse": "Pulse",
@@ -1295,7 +1296,7 @@
     "categoryStats": "{{count}} giocatori · Val. media allenatore: {{avgVsi}} · σ {{stddev}}",
     "howToInterpret": "Come interpretare?",
     "interpretHighRange": "(>10 pt)",
-    "interpretHighDesc": "— L'IA valuta questa categoria in modo significativamente diverso. Controlla i prompt e i criteri.",
+    "interpretHighDesc": "— Questa categoria riceve valutazioni significativamente diverse. Controlla i criteri di valutazione.",
     "interpretMediumRange": "(5-10 pt)",
     "interpretMediumDesc": "— Deviazione notevole. Monitora nelle prossime settimane.",
     "interpretLowRange": "(<5 pt)",
@@ -1303,7 +1304,7 @@
     "positionChartTitle": "Valutazione media dell'allenatore per posizione",
     "positionChartDesc": "Gli attaccanti hanno sempre punteggi più alti dei difensori?",
     "ageChartTitle": "Valutazione media dell'allenatore per fascia d'età",
-    "ageChartDesc": "L'IA favorisce certe fasce d'età?",
+    "ageChartDesc": "La valutazione dell'allenatore favorisce certe fasce d'età?",
     "seriesAvgVsi": "Val. media allenatore",
     "seriesPlayers": "Giocatori",
     "seriesAnalyses": "Analisi",
@@ -1319,12 +1320,13 @@
     "correlationLabel": "Correlazione: {{level}}",
     "visibilityDetailTitle": "Dettaglio per volume di dati",
     "playersCount": "{{count}} giocatori",
-    "recencyChartTitle": "Tendenza temporale della valutazione dell'allenatore",
+    "recencyChartTitle": "Tendenza temporale del VSI delle analisi video (IA)",
     "recencyChartDesc": "I punteggi salgono/scendono nel tempo? (prompt drift)",
     "recencyDetailTitle": "Dettaglio mensile",
     "analysesCount": "{{count}} analisi",
     "promptDriftTitle": "Cos'è il prompt drift?",
-    "promptDriftDesc": "Se i punteggi salgono costantemente mese dopo mese senza reali cambiamenti nei giocatori, può indicare che i prompt degli agenti IA stanno derivando verso valutazioni più generose. È normale e si corregge regolando periodicamente le regole di scoring."
+    "promptDriftDesc": "Se i punteggi salgono costantemente mese dopo mese senza reali cambiamenti nei giocatori, può indicare che i prompt degli agenti IA stanno derivando verso valutazioni più generose. È normale e si corregge regolando periodicamente le regole di scoring.",
+    "seriesAvgVideoVsi": "VSI medio delle analisi (IA)"
   },
   "errorState": {
     "title": "Impossibile caricare i dati",
@@ -1503,7 +1505,7 @@
     "reportTitle": "Report di equità — Audit di bias IA",
     "defaultOrg": "Academy",
     "generatedBy": "Generato da: {{name}}",
-    "intro": "Questo report valuta se il modello di scoring (VSI) tratta in modo equo le diverse coorti di giocatori, misurando la deviazione di ogni gruppo rispetto alla media globale. Include la dimensione dell'età come proxy della coorte di maturazione (VITAS corregge inoltre per PHV nella valutazione individuale).",
+    "intro": "Questo report valuta se la valutazione dell'allenatore (VSI di scheda) tratta in modo equo le diverse coorti di giocatori, misurando la deviazione di ogni gruppo rispetto alla media globale per ruolo, età e numero di video. L'età è inclusa come approssimazione della coorte di maturazione; la valutazione dell'allenatore non è corretta per la maturazione.",
     "severityHigh": "Alto",
     "severityMedium": "Medio",
     "severityLow": "Basso",
@@ -1517,19 +1519,19 @@
     "colSeverity": "Gravità",
     "colVolume": "Volume",
     "byPositionTitle": "Per posizione",
-    "byPositionSubtitle": "L'IA assegna sistematicamente punteggi diversi a seconda della posizione?",
+    "byPositionSubtitle": "La valutazione dell'allenatore è sistematicamente diversa a seconda della posizione?",
     "byAgeTitle": "Per età (coorte di maturazione)",
     "byAgeSubtitle": "Vengono favorite certe fasce di età/maturazione?",
     "byVisibilityTitle": "Per visibilità (volume di dati)",
     "byVisibilitySubtitle": "Più video = punteggio gonfiato?",
     "methodologyTitle": "Metodologia e soglie",
     "methodHighLabel": "Alto (>10 pt)",
-    "methodHighDesc": " — deviazione significativa; rivedere prompt e criteri di scoring.",
+    "methodHighDesc": " — deviazione significativa; rivedere i criteri di valutazione.",
     "methodMediumLabel": "Medio (5–10 pt)",
     "methodMediumDesc": " — deviazione notevole; monitorare la tendenza.",
     "methodLowLabel": "Basso (<5 pt)",
     "methodLowDesc": " — entro il range normale.",
-    "footer": "VITAS · Football Intelligence — valutazione con correzione biologica (PHV). Report generato automaticamente; i dati riflettono lo stato alla data indicata."
+    "footer": "VITAS · Football Intelligence. Report generato automaticamente; i dati riflettono lo stato alla data indicata."
   },
   "idpCheckinForm": {
     "likertNada": "Per niente",
@@ -4079,7 +4081,8 @@
     "coachEvalComparison": "Confrontando {{a}} e {{b}} per valutazione dell'allenatore (valutazione soggettiva), {{winner}} ha la valutazione più alta.",
     "winnerMaturation": "La sua maturazione:",
     "noComparableEval": "Entrambi i giocatori devono avere una valutazione dell'allenatore per essere confrontati.",
-    "higherCoachEval": "Valutazione dell'allenatore più alta"
+    "higherCoachEval": "Valutazione dell'allenatore più alta",
+    "sameCoachEval": "{{a}} e {{b}} hanno la stessa valutazione dell'allenatore (valutazione soggettiva): nessuna è più alta."
   },
   "positionRollup": {
     "title": "Polivalenza osservata",
@@ -5437,8 +5440,8 @@
     "sportsIntelligence": "Intelligence sportiva",
     "user": "Utente",
     "vitasIntelligence": "VITAS Intelligence",
-    "latePhvLowVsi": "PHV tardivo + VSI < 65",
-    "vitasIndex": "Indice VITAS"
+    "latePhvLowVsi": "PHV tardivo + val. allenatore < 65",
+    "vitasIndex": "Valutazione soggettiva"
   },
   "maturityProjectionChart": {
     "ageTick": "{{age}}a",
