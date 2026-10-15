@@ -7,32 +7,41 @@
  * - Ticks discretos cada 10 unidades
  * - Tabular numbers + tracking ajustado
  * - Glow sutil dependiente del tier
+ *
+ * P1 bloque 5b: lo que pinta es la EVALUACIÓN DEL ENTRENADOR (VSI de ficha: 6 barras
+ * subjetivas), no una puntuación del sistema. Rótulo por defecto «Evaluación del
+ * entrenador» (corto dentro del círculo, completo en el title) y tramos con los cortes
+ * ÚNICOS de coachEvalTier, traducidos (antes «VSI» + 4 etiquetas fijas en español).
  */
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import TermTooltip from "@/components/shared/TermTooltip";
+import { coachEvalTier, type CoachEvalTier } from "@/services/real/metricsService";
 
 interface VsiGaugeProps {
   /** VSI de ficha. null ⇒ "sin evaluar": ni número ni gauge a 0. */
   value: number | null;
   size?: "sm" | "md" | "lg" | "xl";
+  /** Rótulo. Por defecto la evaluación del entrenador (el VSI de ficha). */
   label?: string;
   showTier?: boolean;
 }
 
-const TIER_THRESHOLDS = [
-  { min: 85, label: "Élite",   colorFrom: "hsl(210 100% 50%)", colorTo: "hsl(220 100% 60%)", glow: "hsl(210 100% 50% / 0.4)" },
-  { min: 70, label: "Pro",     colorFrom: "hsl(270 70% 55%)",  colorTo: "hsl(290 70% 60%)",  glow: "hsl(280 70% 55% / 0.35)" },
-  { min: 50, label: "Talento", colorFrom: "hsl(38 95% 55%)",   colorTo: "hsl(28 95% 55%)",   glow: "hsl(38 95% 55% / 0.3)" },
-  { min: 0,  label: "Desarrollo", colorFrom: "hsl(0 80% 58%)", colorTo: "hsl(15 80% 60%)",   glow: "hsl(0 80% 58% / 0.3)" },
-];
+/** Colores por tramo (los cortes viven en config/coachEvaluation.ts vía coachEvalTier). */
+const TIER_STYLE: Record<CoachEvalTier, { colorFrom: string; colorTo: string; glow: string }> = {
+  elite:   { colorFrom: "hsl(210 100% 50%)", colorTo: "hsl(220 100% 60%)", glow: "hsl(210 100% 50% / 0.4)" },
+  pro:     { colorFrom: "hsl(270 70% 55%)",  colorTo: "hsl(290 70% 60%)",  glow: "hsl(280 70% 55% / 0.35)" },
+  talent:  { colorFrom: "hsl(38 95% 55%)",   colorTo: "hsl(28 95% 55%)",   glow: "hsl(38 95% 55% / 0.3)" },
+  develop: { colorFrom: "hsl(0 80% 58%)",    colorTo: "hsl(15 80% 60%)",   glow: "hsl(0 80% 58% / 0.3)" },
+};
 
 function getTier(v: number) {
-  return TIER_THRESHOLDS.find((t) => v >= t.min)!;
+  const key = coachEvalTier(v);
+  return { key, ...TIER_STYLE[key] };
 }
 
-const VsiGauge = ({ value, size = "md", label = "VSI", showTier = false }: VsiGaugeProps) => {
+const VsiGauge = ({ value, size = "md", label, showTier = false }: VsiGaugeProps) => {
   const { t } = useTranslation();
   // null ⇒ jugador sin evaluar: sin tier, sin progreso, sin número.
   const isUnrated = value === null;
@@ -64,7 +73,12 @@ const VsiGauge = ({ value, size = "md", label = "VSI", showTier = false }: VsiGa
   const ticks = Array.from({ length: 11 }, (_, i) => i * 10);
 
   return (
-    <div className="relative flex flex-col items-center" style={{ width: s.w, height: s.w }}>
+    <div
+      className="relative flex flex-col items-center"
+      style={{ width: s.w, height: s.w }}
+      title={label ?? t("coachEval.label")}
+      aria-label={`${label ?? t("coachEval.label")}: ${isUnrated ? t("common.notEvaluated") : v}`}
+    >
       <svg width={s.w} height={s.w} className="absolute inset-0">
         <defs>
           <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
@@ -140,13 +154,14 @@ const VsiGauge = ({ value, size = "md", label = "VSI", showTier = false }: VsiGa
             </span>
             {size !== "sm" && (
               <span className={`${s.labelText} uppercase tracking-[0.18em] text-muted-foreground font-bold mt-0.5`}>
-                {/* Glosario inline: si el label es el término VSI, hover/focus explica qué es */}
-                {label === "VSI" ? <TermTooltip termKey="vsi">{label}</TermTooltip> : label}
+                {/* Sin rótulo explícito: la evaluación del entrenador, con su explicación
+                    (glosario) al pasar el ratón o con el foco. */}
+                {label ?? <TermTooltip termKey="coachEval">{t("coachEval.short")}</TermTooltip>}
               </span>
             )}
             {showTier && size === "xl" && (
               <span className="mt-1 text-[10px] uppercase tracking-[0.18em] font-bold" style={{ color: tier.colorFrom }}>
-                {tier.label}
+                {t(`coachEval.tier.${tier.key}`)}
               </span>
             )}
           </>

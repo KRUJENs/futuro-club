@@ -8,6 +8,7 @@ import {
   isEvaluated,
   avgEvaluatedVsi,
   countElite,
+  ELITE_MIN,
   byVsiDescNullsLast,
   formatVsi,
 } from "../vsiStats";
@@ -62,15 +63,16 @@ describe("avgEvaluatedVsi", () => {
 });
 
 describe("countElite", () => {
-  it("cuenta evaluados con VSI ≥ umbral; el sin-evaluar NO es élite", () => {
-    const players = [{ vsi: 72 }, { vsi: 70 }, { vsi: 69 }, { vsi: null }];
+  // P1 bloque 5b: «Élite» = tramo único de la evaluación del entrenador (≥85), no ≥70.
+  it("cuenta evaluados en el tramo Élite (≥85); el sin-evaluar NO es élite", () => {
+    const players = [{ vsi: 90 }, { vsi: 85 }, { vsi: 84.9 }, { vsi: 72 }, { vsi: null }];
     expect(countElite(players)).toBe(2);
   });
   it("no cuenta un hueco como 0 < umbral (no infla nada)", () => {
     expect(countElite([{ vsi: null }, { vsi: null }])).toBe(0);
   });
-  it("respeta umbral custom", () => {
-    expect(countElite([{ vsi: 65 }, { vsi: 50 }], 60)).toBe(1);
+  it("el mínimo del tramo sale de la config única", () => {
+    expect(ELITE_MIN).toBe(85);
   });
 });
 

@@ -53,7 +53,7 @@ const GUIDE_STEPS: GuideStep[] = [
     titleKey: "guide.evaluate",
     titleFallback: "Evalúa sus métricas",
     descKey: "guide.evaluateDesc",
-    descFallback: "Ajusta velocidad, técnica, visión y más para calcular el VSI",
+    descFallback: "Puntúa velocidad, técnica, visión y más: es la evaluación del entrenador",
     path: "/master",
     checkFn: () => {
       try {

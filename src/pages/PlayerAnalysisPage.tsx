@@ -20,10 +20,14 @@ import { toast } from "sonner";
 import { PlayerService } from "@/services/real/playerService";
 import { AnalysisDashboard } from "@/components/analysis/AnalysisDashboard";
 import { getAuthHeaders } from "@/lib/apiAuth";
+import { isCoachEvaluationAnalysis } from "@/lib/metrics/coachEval";
+import { coachEvalTier } from "@/services/real/metricsService";
 
 interface LoadedData {
   analysis: {
-    vsi?: { vsi?: number; tierLabel?: string; trend?: { delta: number | null } | null } | null;
+    vsi?: { vsi?: number; tier?: string; tierLabel?: string; trend?: { delta: number | null } | null } | null;
+    /** «baseline-…» ⇒ análisis base: su VSI es la evaluación del entrenador. */
+    video_id?: string;
   };
   reports: Array<{ report_type: string; content: Record<string, unknown> }>;
 }
@@ -32,7 +36,12 @@ function buildWhatsAppText(playerName: string, data: LoadedData | null, url: str
   if (!data) return `${t("playerAnalysisPage.whatsappTitle", { player: playerName })}\n\n${url}`;
 
   const vsi = data.analysis.vsi?.vsi ?? null;
-  const tier = data.analysis.vsi?.tierLabel ?? "";
+  // Análisis base: es la EVALUACIÓN DEL ENTRENADOR y su tramo único traducido (P1 bloque 5b).
+  const isCoachEvaluation = isCoachEvaluationAnalysis(data.analysis.video_id);
+  // Tramo recalculado con los cortes únicos, no el `tier` guardado (filas anteriores al 5b).
+  const tier = isCoachEvaluation && typeof vsi === "number" && Number.isFinite(vsi)
+    ? t(`coachEval.tier.${coachEvalTier(vsi)}`)
+    : data.analysis.vsi?.tierLabel ?? "";
   const delta = data.analysis.vsi?.trend?.delta ?? null;
 
   const playerReport = data.reports.find((r) => r.report_type === "player-report")?.content as
@@ -46,7 +55,7 @@ function buildWhatsAppText(playerName: string, data: LoadedData | null, url: str
   lines.push(`🏆 *${t("playerAnalysisPage.whatsappTitle", { player: playerName })}*`);
   lines.push("");
   if (vsi !== null) {
-    let vsiLine = `*VSI ${vsi}*`;
+    let vsiLine = `*${isCoachEvaluation ? t("coachEval.label") : "VSI"} ${vsi}*`;
     if (tier) vsiLine += ` · ${tier}`;
     // Sin «· P{n}»: el percentil guardado en el análisis se retiró (P1 bloque 5).
     lines.push(vsiLine);

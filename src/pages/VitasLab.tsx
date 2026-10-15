@@ -146,13 +146,15 @@ const VitasLab = () => {
   });
 
   // Historial: análisis completados previos del jugador (tabla analyses)
-  const { data: savedAnalyses = [] } = useQuery<Array<{ id: string; created_at: string; vsi: Record<string, unknown> | null }>>({
+  const { data: savedAnalyses = [] } = useQuery<Array<{ id: string; created_at: string; video_id: string | null; vsi: Record<string, unknown> | null }>>({
     queryKey: ["saved-analyses-v2", selectedPlayerId],
     queryFn: async () => {
       if (!selectedPlayerId || !SUPABASE_CONFIGURED) return [];
+      // video_id: distingue el análisis base («baseline-…», evaluación del entrenador) del
+      // de vídeo al rotular su VSI (P1 bloque 5b).
       const { data } = await supabase
         .from("analyses")
-        .select("id, created_at, vsi")
+        .select("id, created_at, video_id, vsi")
         .eq("player_id", selectedPlayerId)
         .eq("status", "completed")
         .order("created_at", { ascending: false })

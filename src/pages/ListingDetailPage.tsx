@@ -178,7 +178,7 @@ export default function ListingDetailPage() {
                 </div>
                 {snap.vsi != null && (
                   <div>
-                    <div className="text-[10px] uppercase tracking-wider text-slate-500">VSI</div>
+                    <div className="text-[10px] uppercase tracking-wider text-slate-500">{t("coachEval.label")}</div>
                     <div className="text-sm font-semibold text-cyan-300">{Math.round(snap.vsi)}</div>
                   </div>
                 )}

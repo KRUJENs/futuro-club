@@ -29,6 +29,8 @@ import { useTranslation } from "react-i18next";
 import { PlayerService, type Player } from "@/services/real/playerService";
 import { useSavedAnalysesV2 } from "@/hooks/usePlayerAnalysisV2";
 import { useRawPlayerById } from "@/hooks/usePlayers";
+import { realVsiEvaluations } from "@/lib/scoring/vsiDelta";
+import { analysisVsiInline } from "@/lib/metrics/coachEval";
 import { GuardianConsentCard } from "@/components/legal/GuardianConsentCard";
 import { useScoutInsights } from "@/hooks/useScoutFeed";
 import { useVideos } from "@/hooks/useVideos";
@@ -471,11 +473,16 @@ export default function PlayerHubPage() {
               {/* VSI + métricas avanzadas siempre visibles */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="glass rounded-xl p-6 flex flex-col items-center justify-center gap-3">
-                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">{t("playerHubPage.vsiGlobal")}</p>
+                  {/* «Evaluación del entrenador», no «VSI Global» (P1 bloque 5b): son las 6
+                      barras subjetivas del entrenador, no una puntuación del sistema. El
+                      recuento es de evaluaciones CON FECHA (el vsiHistory legacy contaba el
+                      57.5 que la app guardaba sin que nadie evaluara). */}
+                  <p className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground font-bold">{t("coachEval.label")}</p>
                   <VsiGauge value={player.vsi} size="xl" showTier />
-                  {player.vsiHistory && player.vsiHistory.length > 1 && (
+                  <p className="text-[11px] text-muted-foreground text-center max-w-[260px]">{t("coachEval.hint")}</p>
+                  {realVsiEvaluations(player.vsiEvaluations).length > 1 && (
                     <p className="text-[11px] text-muted-foreground">
-                      {t("playerHubPage.updatesRecorded", { count: player.vsiHistory.length })}
+                      {t("playerHubPage.updatesRecorded", { count: realVsiEvaluations(player.vsiEvaluations).length })}
                     </p>
                   )}
                 </div>
@@ -570,7 +577,7 @@ export default function PlayerHubPage() {
                   onSaved={() => setPhvRefresh((v) => v + 1)}
                 />
               )}
-              {/* Mejor sprint MEDIDO (test de puertas) — por encima del tracking
+              {/* Mejor sprint con procedencia MEDIDA (test de puertas) — por encima del tracking
                   derivado: es la física de mayor procedencia del sistema. */}
               <SprintBestCard playerId={id ?? ""} />
               <TrackingSnapshotPanel playerId={id ?? ""} snapshot={snapshot} />
@@ -898,7 +905,7 @@ export default function PlayerHubPage() {
                               {t("playerHubPage.analysisDate", { date: new Date(a.created_at).toLocaleDateString("es-ES") })}
                             </p>
                             <p className="text-[10px] text-muted-foreground">
-                              VSI {a.vsi ?? "—"}{vid ? ` · ${t("playerHubPage.withVideo")}` : ""}
+                              {analysisVsiInline(t, a.video_id, a.vsi)}{vid ? ` · ${t("playerHubPage.withVideo")}` : ""}
                             </p>
                           </div>
                           {vid

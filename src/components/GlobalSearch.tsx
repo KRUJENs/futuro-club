@@ -17,6 +17,7 @@
  */
 
 import { useEffect, useState, useMemo } from "react";
+import { coachEvalInline } from "@/lib/metrics/coachEval";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -44,7 +45,7 @@ const QUICK_ACTIONS: QuickAction[] = [
   { id: "match",      label: "Partido A vs B",     hint: "Informe táctico comparativo", Icon: ClipboardList, to: "/equipo/partido", keywords: ["partido","match","informe","tactico","comparar","equipos"] },
   { id: "team-base",  label: "Análisis táctico",   hint: "5 reportes equipo · 9 cuadrantes", Icon: Grid3x3, to: "/equipo/baseline", keywords: ["equipo","tactico","cuadrantes","baseline"] },
   { id: "lab",        label: "VITAS.LAB",          hint: "Subir vídeo y analizar",    Icon: Zap,      to: "/lab",             keywords: ["video","analizar","lab","subir"] },
-  { id: "rankings",   label: "Rankings",           hint: "Tus jugadores por VSI",     Icon: BarChart3,to: "/rankings",        keywords: ["jugadores","ranking","vsi","listado"] },
+  { id: "rankings",   label: "Rankings",           hint: "Tus jugadores por evaluación del entrenador",     Icon: BarChart3,to: "/rankings",        keywords: ["jugadores","ranking","vsi","evaluacion","entrenador","listado"] },
   { id: "scout",      label: "Scout",              hint: "Insights IA tiempo real",   Icon: Target,   to: "/scout",           keywords: ["scout","insights","feed"] },
   { id: "pulse",      label: "Pulse",              hint: "Centro de inteligencia",    Icon: Sparkles, to: "/pulse",           keywords: ["dashboard","home","inicio"] },
   { id: "team-mgmt",  label: "Mi equipo",          hint: "Miembros + invitaciones",   Icon: Users,    to: "/equipo",          keywords: ["miembros","equipo","gestion"] },
@@ -177,7 +178,7 @@ export default function GlobalSearch() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-display font-bold truncate">{p.name}</div>
                         <div className="text-[10px] text-muted-foreground">
-                          {p.position ?? "?"} · {p.age ?? "?"}a · VSI {p.vsi == null ? "—" : Number(p.vsi).toFixed(0)}
+                          {p.position ?? "?"} · {p.age ?? "?"}a · {coachEvalInline(t, p.vsi == null ? null : Number(p.vsi))}
                         </div>
                       </div>
                       <span className="text-[9px] text-muted-foreground shrink-0">{t("globalSearch.goToProfile")}</span>

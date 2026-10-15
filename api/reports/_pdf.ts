@@ -14,6 +14,7 @@ import { withHandler } from "../_lib/withHandler";
 import { errorResponse } from "../_lib/apiResponse";
 import { phvGate, phvLabelEs, type PhvGateInput } from "../../src/lib/phv/phvGate";
 import { realVsiEvaluations } from "../../src/lib/scoring/vsiDelta";
+import { completeCoachMetrics, fichaVsiFromBlob, type PlayerMetrics } from "../../src/services/real/metricsService";
 
 const PdfRequestSchema = z.object({
   playerId: z.string(),
@@ -51,14 +52,23 @@ export default withHandler(
     }
 
     const player = playerRows[0].data as Record<string, unknown>;
-    const metrics = (player.metrics ?? {}) as Record<string, number>;
+    // Las 6 barras del entrenador solo si están COMPLETAS (regla única completeCoachMetrics,
+    // como el informe impreso): antes se pintaban tal cual, también parciales, con la clave
+    // en inglés y bajo «Métricas de Rendimiento», como si fueran medidas del sistema.
+    const coachMetrics = completeCoachMetrics(player.metrics);
     const name = (player.name as string) ?? "Jugador";
-    const age = (player.age as number) ?? 0;
+    // Sin dato ⇒ «sin registrar»/«sin evaluar», nunca 0 ni «Ambidiestro» por defecto
+    // (P1 bloque 5b, invariante #2). El VSI de ficha es la EVALUACIÓN DEL ENTRENADOR.
+    const NOT_RECORDED = "sin registrar";
+    const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+    const age = num(player.age);
     const position = (player.position as string) ?? "";
-    const vsi = (player.vsi as number) ?? 0;
+    const vsi = fichaVsiFromBlob(player); // VSI de ficha GUARDADO (regla única de «evaluado»)
+    const vsiText = vsi !== null ? vsi.toFixed(1) : "sin evaluar";
     const foot = (player.foot as string) ?? "";
-    const height = (player.height as number) ?? 0;
-    const weight = (player.weight as number) ?? 0;
+    const footText = foot === "right" ? "Diestro" : foot === "left" ? "Zurdo" : foot === "both" ? "Ambidiestro" : null;
+    const height = num(player.height);
+    const weight = num(player.weight);
     // Maduración desde el GATE ÚNICO (regla del owner 28-sep): solo con TODAS las
     // entradas introducidas del blob. Antes se leía el phvCategory persistido y se
     // rotulaba "early" (= pre-PHV, un ESTADO) como «Tardía» y, sin categoría,
@@ -80,9 +90,15 @@ export default withHandler(
     }
 
     // 3. Generate HTML report
-    const metricEntries = Object.entries(metrics).map(
-      ([k, v]) => `<div class="metric"><span class="metric-label">${k}</span><div class="metric-bar"><div class="metric-fill" style="width:${v}%"></div></div><span class="metric-value">${v}</span></div>`
-    ).join("");
+    const COACH_BAR_LABEL_ES: Record<keyof PlayerMetrics, string> = {
+      speed: "Velocidad", technique: "Técnica", vision: "Visión",
+      stamina: "Resistencia", shooting: "Tiro", defending: "Defensa",
+    };
+    const metricEntries = coachMetrics
+      ? (Object.keys(COACH_BAR_LABEL_ES) as Array<keyof PlayerMetrics>).map(
+          (k) => `<div class="metric"><span class="metric-label">${COACH_BAR_LABEL_ES[k]}</span><div class="metric-bar"><div class="metric-fill" style="width:${coachMetrics[k]}%"></div></div><span class="metric-value">${coachMetrics[k]}</span></div>`
+        ).join("")
+      : `<p>Sin evaluación completa del entrenador: no se muestran barras.</p>`;
 
     // 3b. Build analysis sections
     const estadoActual = (analysis as Record<string, Record<string, unknown>> | null)?.estadoActual;
@@ -135,7 +151,7 @@ export default withHandler(
 
     const evolutionSection = datedEvaluations.length > 1 ? `
       <div class="section">
-        <h2>Evolución VSI · evaluaciones del entrenador con fecha</h2>
+        <h2>Evolución de la evaluación del entrenador · evaluaciones con fecha</h2>
         <div style="display:flex;align-items:end;gap:4px;height:60px">
           ${datedEvaluations.map((e, i) => {
             const v = e.value;
@@ -217,23 +233,23 @@ export default withHandler(
   <div class="header">
     <div>
       <h1>${name}</h1>
-      <p>${position} · ${age} años · ${foot === "right" ? "Diestro" : foot === "left" ? "Zurdo" : "Ambidiestro"}</p>
+      <p>${[position || null, age !== null ? `${age} años` : `edad ${NOT_RECORDED}`, footText].filter(Boolean).join(" · ")}</p>
     </div>
     <div style="text-align:right">
-      <div class="vsi-label">VITAS Score Index</div>
-      <div class="vsi">${vsi.toFixed(1)}</div>
+      <div class="vsi-label">Evaluación del entrenador</div>
+      <div class="vsi">${vsiText}</div>
     </div>
   </div>
 
   <div class="info-grid">
-    <div class="info-card"><div class="label">Altura</div><div class="value">${height} cm</div></div>
-    <div class="info-card"><div class="label">Peso</div><div class="value">${weight} kg</div></div>
+    <div class="info-card"><div class="label">Altura</div><div class="value">${height !== null ? `${height} cm` : NOT_RECORDED}</div></div>
+    <div class="info-card"><div class="label">Peso</div><div class="value">${weight !== null ? `${weight} kg` : NOT_RECORDED}</div></div>
     <div class="info-card"><div class="label">Maduración</div><div class="value">${maturityLabel}</div></div>
-    <div class="info-card"><div class="label">VSI</div><div class="value">${vsi.toFixed(1)}</div></div>
+    <div class="info-card"><div class="label">Evaluación del entrenador (subjetiva)</div><div class="value">${vsiText}</div></div>
   </div>
 
   <div class="section">
-    <h2>Métricas de Rendimiento</h2>
+    <h2>Evaluación del entrenador · 6 barras (valoración subjetiva, 0-100)</h2>
     ${metricEntries}
   </div>
 

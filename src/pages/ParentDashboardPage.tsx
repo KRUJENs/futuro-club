@@ -40,6 +40,8 @@ import { Shield } from "lucide-react";
 import { PlayerTrackingService } from "@/services/real/playerTrackingService";
 import { maturationKnown } from "@/lib/fatigue/phvFatigueAdjuster";
 import { computeVsiDelta } from "@/lib/scoring/vsiDelta";
+import { coachEvalTier } from "@/services/real/metricsService";
+import { COACH_EVAL_TIERS } from "../../config/coachEvaluation";
 import { MetricValue } from "@/components/metrics/MetricValue";
 
 interface Badge {
@@ -147,8 +149,12 @@ export default function ParentDashboardPage() {
       id: "elite",
       emoji: "👑",
       title: t("parentDashboardPage.badgeEliteTitle"),
-      description: t("parentDashboardPage.badgeEliteDesc"),
-      unlocked: vsiCurrent !== null && vsiCurrent >= 70,
+      // Tramo Pro o superior con los cortes ÚNICOS de la evaluación del entrenador (P1
+      // bloque 5b). Antes «Talento» a partir de 70, cuando 70 es el inicio del tramo Pro.
+      description: t("parentDashboardPage.badgeEliteDesc", {
+        min: COACH_EVAL_TIERS.find((x) => x.tier === "pro")?.min,
+      }),
+      unlocked: vsiCurrent !== null && ["pro", "elite"].includes(coachEvalTier(vsiCurrent)),
     },
   ];
 

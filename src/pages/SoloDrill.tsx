@@ -4,6 +4,7 @@
  */
 
 import { useState, useMemo } from "react";
+import { coachEvalInline } from "@/lib/metrics/coachEval";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
@@ -397,7 +398,7 @@ const SoloDrill = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-display font-medium text-foreground truncate">{player.name}</p>
-                  <p className="text-[10px] text-muted-foreground">{player.position} · VSI {player.vsi ?? "—"}</p>
+                  <p className="text-[10px] text-muted-foreground">{player.position} · {coachEvalInline(t, player.vsi)}</p>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -489,7 +490,7 @@ const SoloDrill = () => {
                             className={`w-full text-left px-3 py-2 text-sm hover:bg-primary/5 flex items-center justify-between transition-colors ${selectedPlayerId === p.id ? "text-primary font-semibold" : "text-foreground"}`}
                           >
                             <span>{p.name}</span>
-                            <span className="text-[10px] text-muted-foreground">{p.position} · VSI {p.vsi ?? "—"}</span>
+                            <span className="text-[10px] text-muted-foreground">{p.position} · {coachEvalInline(t, p.vsi)}</span>
                           </button>
                         ))}
                       </div>

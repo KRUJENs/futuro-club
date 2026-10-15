@@ -168,7 +168,8 @@ export default function VitasCard({ player, bestMatch, projection, onClose }: Vi
     }
   };
 
-  const shareText = `⚡ ${player.name} | VSI ${player.vsi ?? "—"} | PHV ${phvLabel}${cloneName ? t("vitasCard.playsLike", { name: cloneName, score: cloneScore?.toFixed(0) }) : ""}${t("vitasCard.discoverWithVitas")}`;
+  // «Evaluación del entrenador», no «VSI»; sin evaluar se dice, nunca «—» (P1 bloque 5b).
+  const shareText = `⚡ ${player.name} | ${t("coachEval.label")} ${player.vsi ?? t("common.notEvaluated")} | PHV ${phvLabel}${cloneName ? t("vitasCard.playsLike", { name: cloneName, score: cloneScore?.toFixed(0) }) : ""}${t("vitasCard.discoverWithVitas")}`;
 
   const handleShare = async () => {
     const r = await shareNative({ title: t("vitasCard.shareTitle"), text: shareText, ref: "vitas-card" });
@@ -250,8 +251,12 @@ export default function VitasCard({ player, bestMatch, projection, onClose }: Vi
             {/* VSI */}
             <div className="flex items-end gap-3">
               <div>
-                <p className="text-[9px] font-bold tracking-widest text-white/40 uppercase mb-0.5">VSI Score</p>
-                <div className="text-5xl font-black text-white leading-none">{player.vsi ?? "—"}</div>
+                <p className="text-[9px] font-bold tracking-widest text-white/40 uppercase mb-0.5">{t("coachEval.label")}</p>
+                {player.vsi != null ? (
+                  <div className="text-5xl font-black text-white leading-none">{player.vsi}</div>
+                ) : (
+                  <div className="text-lg font-bold text-white/60 leading-none">{t("common.notEvaluated")}</div>
+                )}
                 {player.vsi != null && (
                   <div className="mt-1.5 h-1.5 w-24 bg-white/10 rounded-full overflow-hidden">
                     <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${player.vsi}%` }} />

@@ -168,7 +168,7 @@ export function teamProfileBlock(
   // media como 0 (invariante #2). Sin ninguno evaluado ⇒ "sin evaluar".
   const avgVsiNum = avgEvaluatedVsi(players);
   const avgVsiLabel = avgVsiNum === null
-    ? "sin evaluar (ningún jugador con VSI de ficha)"
+    ? "sin evaluar (ningún jugador con evaluación del entrenador)"
     : `${avgVsiNum.toFixed(1)}/100`;
 
   // Medias de cada barra SOLO sobre los jugadores evaluados en ella, con su número
@@ -198,7 +198,7 @@ export function teamProfileBlock(
 - Plantilla: ${n} jugadores
 - Edad promedio: ${avgAge} años
 - Posiciones: ${positionsList}
-- VSI promedio: ${avgVsiLabel}
+- Evaluación del entrenador media (subjetiva, solo evaluados): ${avgVsiLabel}
 
 DISTRIBUCIÓN PHV (maduración biológica)
 - Pre-estirón (precoz): ${phvCounts.early}
@@ -211,11 +211,11 @@ EVALUACIÓN DEL ENTRENADOR · MEDIA DE LOS EVALUADOS (0-100, subjetiva)
 - Técnica: ${avgMetrics.technique} · Visión: ${avgMetrics.vision}
 - Tiro: ${avgMetrics.shooting} · Defensa: ${avgMetrics.defending}
 
-JUGADORES INDIVIDUALES (top 8 por VSI · "—" = sin evaluar, al final)
+JUGADORES INDIVIDUALES (top 8 por evaluación del entrenador · "—" = sin evaluar, al final)
 ${[...players]
   .sort(byVsiDescNullsLast)
   .slice(0, 8)
-  .map((p, i) => `${i + 1}. ${p.name ?? "?"} (${p.position ?? "?"}, ${p.age ?? "?"}a, VSI ${formatVsi(p.vsi)}, PHV ${p.phv_category ?? "?"})`)
+  .map((p, i) => `${i + 1}. ${p.name ?? "?"} (${p.position ?? "?"}, ${p.age ?? "?"}a, eval. entrenador ${formatVsi(p.vsi)}, PHV ${p.phv_category ?? "?"})`)
   .join("\n")}
 
 ${matchSection
@@ -245,7 +245,7 @@ Output JSON estricto:
   "executive_summary": "string max 320 chars · resumen para coach",
   "team_strengths": [{"title":"string","evidence":"string max 120 chars"}],
   "team_weaknesses": [{"title":"string","evidence":"string max 120 chars","priority":"high|medium|low"}],
-  "vsi_summary": "string max 200 chars · qué dice el VSI promedio + distribución",
+  "vsi_summary": "string max 200 chars · qué dice la evaluación media del entrenador (subjetiva) + distribución",
   "next_focus": "string max 220 chars · qué priorizar próximas 4 semanas"
 }
 3 fortalezas, 3 debilidades. Sin markdown.`,

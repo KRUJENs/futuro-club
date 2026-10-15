@@ -495,7 +495,8 @@ export default function BiasAuditDashboard() {
                         <span className="text-xs font-display text-foreground">{row.data_volume}</span>
                         <div className="flex items-center gap-4 text-[10px] text-muted-foreground">
                           <span>{t("biasAudit.playersCount", { count: row.player_count })}</span>
-                          <span className="font-bold text-foreground">VSI {row.avg_vsi}</span>
+                          {/* v_bias_by_visibility = players.vsi: la evaluación del entrenador. */}
+                          <span className="font-bold text-foreground">{t("coachEval.short")} {row.avg_vsi}</span>
                           <span>σ {row.stddev_vsi}</span>
                         </div>
                       </div>
@@ -532,7 +533,9 @@ export default function BiasAuditDashboard() {
                           }}
                         />
                         <Legend wrapperStyle={{ fontSize: 10 }} />
-                        <Line type="monotone" dataKey="avg_vsi" name={t("biasAudit.seriesAvgVsi")} stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4 }} />
+                        {/* v_bias_by_recency = AVG(player_analyses.report->>'vsi'): el VSI de los
+                            análisis de vídeo (IA), NO la evaluación del entrenador (037_bias_audit.sql). */}
+                        <Line type="monotone" dataKey="avg_vsi" name={t("biasAudit.seriesAvgVideoVsi")} stroke="#8b5cf6" strokeWidth={2} dot={{ r: 4 }} />
                         <Line type="monotone" dataKey="analysis_count" name={t("biasAudit.seriesAnalyses")} stroke="#334155" strokeWidth={1} strokeDasharray="4 4" dot={{ r: 3 }} />
                       </LineChart>
                     </ResponsiveContainer>

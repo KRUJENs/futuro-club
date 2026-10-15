@@ -146,6 +146,7 @@ describe("Panel de familia — variación del VSI con procedencia y fechas reale
     expect(screen.getByText("common.notEvaluated")).toBeInTheDocument();
     expect(screen.queryByTestId("family-vsi-delta")).toBeNull();
     expect(screen.queryByTestId("family-vsi-delta-gated")).toBeNull();
-    expect(screen.getByTitle("parentDashboardPage.badgeEliteDesc").className).toContain("grayscale");
+    // La medalla del tramo Pro (P1 bloque 5b: antes «Talento» desde 70) sigue bloqueada.
+    expect(screen.getByTitle(/parentDashboardPage\.badgeEliteDesc/).className).toContain("grayscale");
   });
 });

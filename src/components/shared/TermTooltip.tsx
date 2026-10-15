@@ -11,6 +11,7 @@ import {
   TooltipTrigger,
   TooltipProvider,
 } from "@/components/ui/tooltip";
+import { useTranslation } from "react-i18next";
 import { GLOSSARY } from "@/lib/metrics/glossary";
 
 interface TermTooltipProps {
@@ -21,8 +22,18 @@ interface TermTooltipProps {
 }
 
 export function TermTooltip({ termKey, children, className }: TermTooltipProps) {
-  const t = GLOSSARY[termKey];
-  if (!t) return <>{children ?? termKey}</>;
+  const { t: tr } = useTranslation();
+  const g = GLOSSARY[termKey];
+  if (!g) return <>{children ?? termKey}</>;
+  // Términos con traducción (p. ej. la evaluación del entrenador): 7 idiomas; el resto,
+  // el texto del glosario (solo español, deuda conocida).
+  const t = g.i18nKey
+    ? {
+        term: tr(`${g.i18nKey}.term`, { defaultValue: g.term }),
+        short: tr(`${g.i18nKey}.short`, { defaultValue: g.short }),
+        long: tr(`${g.i18nKey}.long`, { defaultValue: g.long }),
+      }
+    : g;
 
   return (
     <TooltipProvider delayDuration={200}>

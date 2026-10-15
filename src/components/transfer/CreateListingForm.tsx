@@ -6,6 +6,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { coachEvalInline } from "@/lib/metrics/coachEval";
 import { useTranslation } from "react-i18next";
 import { Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -130,7 +131,7 @@ export function CreateListingForm({ onCreated }: Props) {
                   {typeof (p as unknown as { vsi?: number }).vsi === "number" && (
                     <>
                       <span>·</span>
-                      <span>VSI {(p as unknown as { vsi: number | null }).vsi ?? "—"}</span>
+                      <span>{coachEvalInline(t, (p as unknown as { vsi: number | null }).vsi)}</span>
                     </>
                   )}
                 </div>

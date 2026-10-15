@@ -10,7 +10,7 @@ import { useRawPlayerById } from "@/hooks/usePlayers";
 import { adaptPlayerForUI } from "@/services/real/adapters";
 import { phvGate } from "@/lib/phv/phvGate";
 import { PhvGateNotice } from "@/components/phv/PhvGateNotice";
-import { MetricsService, completeCoachMetrics, fichaVsiFromBlob } from "@/services/real/metricsService";
+import { MetricsService, completeCoachMetrics, fichaVsiFromBlob, coachEvalTier, type CoachEvalTier } from "@/services/real/metricsService";
 import { useEffect, useRef } from "react";
 import { DominantFeaturesService } from "@/services/real/advancedMetricsService";
 import {
@@ -37,10 +37,9 @@ function VsiGauge({ value }: { value: number }) {
   const nx = cx + r * 0.7 * Math.cos(rad);
   const ny = cy + r * 0.7 * Math.sin(rad);
 
-  const tierColor =
-    clamped >= 85 ? "#10b981" :
-    clamped >= 70 ? "#7c3aed" :
-    clamped >= 50 ? "#f59e0b" : "#ef4444";
+  // Color por el tramo ÚNICO de la evaluación del entrenador (coachEvalTier, P1 bloque 5b).
+  const TIER_HEX: Record<CoachEvalTier, string> = { elite: "#10b981", pro: "#7c3aed", talent: "#f59e0b", develop: "#ef4444" };
+  const tierColor = TIER_HEX[coachEvalTier(clamped)];
 
   return (
     <svg width="140" height="80" viewBox="0 0 140 80">
@@ -190,8 +189,8 @@ export default function PlayerReportPrint() {
         </div>
         <div className="text-center">
           <VsiGauge value={vsi} />
-          <div className="text-xs font-bold text-gray-500 uppercase tracking-wider -mt-2">VSI Score</div>
-          <div className="text-xs text-gray-400 capitalize">{vsiTier}</div>
+          <div className="text-xs font-bold text-gray-500 uppercase tracking-wider -mt-2">{t("coachEval.label")}</div>
+          <div className="text-xs text-gray-400">{t(`coachEval.tier.${vsiTier}`)}</div>
         </div>
       </div>
 
@@ -255,7 +254,7 @@ export default function PlayerReportPrint() {
                 <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: "#9ca3af" }} width={30} />
                 <Tooltip
                   contentStyle={{ fontSize: 11, borderRadius: 8 }}
-                  formatter={(value: number) => [`${value}`, "VSI"]}
+                  formatter={(value: number) => [`${value}`, t("coachEval.short")]}
                 />
                 <Line
                   type="monotone"

@@ -4,7 +4,8 @@
  * Renderer dedicado para el reporte `player-report` (agente ancla comercial
  * api/agents/_player-report.ts · Sonnet). Pinta la ESTRUCTURA OBLIGATORIA del
  * prompt:
- *   title · vsi_score · tier · tier_label · executive_summary · phv_summary ·
+ *   title · executive_summary · phv_summary ·  (vsi_score/tier/tier_label NO se pintan:
+ *   cifras escritas por el modelo; P1 bloque 5b) ·
  *   strengths[]{title,evidence} · areas_to_improve[]{title,evidence,priority} ·
  *   comparable_pro · next_4_weeks_focus · honesty_note
  *
@@ -57,14 +58,6 @@ interface Area {
   priority?: Priority;
 }
 
-// tier → color semántico (el value del tier viene como enum del agente)
-const TIER_META: Record<string, string> = {
-  elite: "bg-green-500/10 border-green-500/30 text-green-400",
-  pro: "bg-electric/10 border-electric/30 text-electric",
-  talent: "bg-primary/10 border-primary/30 text-primary",
-  develop: "bg-amber-500/10 border-amber-500/30 text-amber-400",
-};
-
 // priority → chip color semántico
 const PRIORITY_META: Record<string, string> = {
   high: "bg-red-500/10 border-red-500/30 text-red-400",
@@ -76,9 +69,9 @@ export default function PlayerReportView({ report }: { report: Record<string, un
   const { t } = useTranslation();
 
   const title = (report.title as string | undefined) ?? undefined;
-  const vsiScore = (report.vsi_score as number | undefined) ?? undefined;
-  const tier = (report.tier as string | undefined) ?? undefined;
-  const tierLabel = (report.tier_label as string | undefined) ?? undefined;
+  // Sin vsi_score / tier / tier_label: los escribía el MODELO (texto libre), una cifra
+  // que la app no calcula (P1 bloque 5b). La evaluación y su tramo los pinta la cabecera
+  // del panel, deterministas. Los informes antiguos los conservan, pero no se muestran.
   const executiveSummary = (report.executive_summary as string | undefined) ?? undefined;
   const phvSummary = (report.phv_summary as string | undefined) ?? undefined;
   // asItemArray: el LLM puede emitir strengths/areas como string o con elementos
@@ -89,11 +82,8 @@ export default function PlayerReportView({ report }: { report: Record<string, un
   const nextFocus = (report.next_4_weeks_focus as string | undefined) ?? undefined;
   const honestyNote = (report.honesty_note as string | undefined) ?? undefined;
 
-  const hasScore = typeof vsiScore === "number" || !!tierLabel || !!tier;
-
   const isEmpty =
     !title &&
-    !hasScore &&
     !executiveSummary &&
     !phvSummary &&
     strengths.length === 0 &&
@@ -121,29 +111,6 @@ export default function PlayerReportView({ report }: { report: Record<string, un
             </span>
           </div>
           <p className="text-xs text-foreground leading-relaxed">{executiveSummary}</p>
-        </div>
-      )}
-
-      {/* VSI score + tier · compacto (el dashboard ya pinta el header grande) */}
-      {hasScore && (
-        <div className="flex items-center gap-2 rounded-xl bg-secondary/30 border border-border p-3">
-          {typeof vsiScore === "number" && (
-            <div className="flex items-baseline gap-1">
-              <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">
-                {t("playerReport.vsiScore")}
-              </span>
-              <span className="font-display font-bold text-lg text-foreground leading-none">{vsiScore}</span>
-            </div>
-          )}
-          {(tierLabel || tier) && (
-            <span
-              className={`ml-auto shrink-0 inline-flex items-center px-2 py-0.5 rounded-full border text-[9px] uppercase tracking-wider font-bold ${
-                (tier && TIER_META[tier]) || "bg-secondary/30 border-border text-muted-foreground"
-              }`}
-            >
-              {tierLabel ?? tier}
-            </span>
-          )}
         </div>
       )}
 

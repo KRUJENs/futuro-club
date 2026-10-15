@@ -24,7 +24,7 @@ import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { timingSafeEqual } from "../_lib/edgeCrypto";
 import { createClient } from "@supabase/supabase-js";
 import { MODELS } from "../_lib/models";
-import { avgEvaluatedVsi, countElite, formatVsi } from "../_lib/vsiStats";
+import { avgEvaluatedVsi, countElite, formatVsi, ELITE_MIN } from "../_lib/vsiStats";
 import { normalizeLocale, languageDirective, type ReportLocale } from "../../src/lib/shared/locale";
 import { withoutUndatedVsiSeries } from "../../src/lib/scoring/vsiDelta";
 
@@ -92,7 +92,7 @@ async function sendTyping(chatId: number): Promise<void> {
 const TOOLS = [
   {
     name: "list_players",
-    description: "Lista todos los jugadores del coach con sus stats principales (VSI, edad, posición, fase PHV). Usa cuando el coach pregunta '¿cómo va el equipo?', 'jugadores', 'mi plantilla'.",
+    description: "Lista todos los jugadores del coach con sus stats principales (vsi = evaluación del entrenador, valoración subjetiva 0-100; edad, posición, fase PHV). Usa cuando el coach pregunta '¿cómo va el equipo?', 'jugadores', 'mi plantilla'.",
     input_schema: {
       type: "object",
       properties: {
@@ -103,7 +103,7 @@ const TOOLS = [
   },
   {
     name: "get_player",
-    description: "Detalle de un jugador específico: VSI, métricas, PHV, fase, último análisis si existe. Usa cuando el coach menciona un nombre.",
+    description: "Detalle de un jugador específico: vsi (evaluación del entrenador, subjetiva), evaluacion_entrenador (sus 6 barras), PHV, fase, último análisis si existe. Usa cuando el coach menciona un nombre.",
     input_schema: {
       type: "object",
       required: ["name_query"],
@@ -130,7 +130,7 @@ const TOOLS = [
   },
   {
     name: "get_team_stats",
-    description: "Stats agregadas del equipo: VSI promedio, distribución PHV, número de jugadores activos, talentos en P90.",
+    description: "Stats agregadas del equipo: media de la evaluación del entrenador (avgVsi, subjetiva), distribución PHV, número de jugadores y cuántos están en el tramo Élite (eliteCount).",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -594,7 +594,7 @@ export default withHandler(
         `✅ Vinculado correctamente\n\n` +
         `Hola ${tgFirstName ?? "coach"} 👋\n\n` +
         `Soy VITAS Copilot. Pruébalos:\n\n` +
-        `/jugadores — top 15 por VSI\n` +
+        `/jugadores — top 15 por evaluación del entrenador\n` +
         `/equipo — stats agregadas\n` +
         `/ultimo — último partido\n` +
         `/drill <tema> — drills al instante\n\n` +
@@ -634,8 +634,8 @@ export default withHandler(
     if (text === "/help") {
       await sendMessage(chatId,
         `📋 Comandos\n\n` +
-        `/jugadores — top 15 por VSI\n` +
-        `/equipo — stats agregadas (VSI, PHV)\n` +
+        `/jugadores — top 15 por evaluación del entrenador\n` +
+        `/equipo — stats agregadas (evaluación del entrenador, PHV)\n` +
         `/stats <nombre> [como <pos>] — pase/duelos/recup del último video\n` +
         `/posiciones <nombre> — polivalencia (videos por posición jugada)\n` +
         `/ultimo — último partido finalizado\n` +
@@ -675,9 +675,9 @@ export default withHandler(
       } else {
         const phvIcon = (cat?: string) => cat === "early" ? "🟢" : cat === "ontime" || cat === "ontme" ? "🟡" : cat === "late" ? "🔵" : "⚪";
         const rows = (data as Array<{ name: string; age: number | null; position: string | null; vsi: number | null; phv_category: string | null }>)
-          .map((p, i) => `${i + 1}. ${p.name} · ${p.age ?? "?"}a · ${p.position ?? "—"} · VSI ${formatVsi(p.vsi)} ${phvIcon(p.phv_category ?? undefined)}`)
+          .map((p, i) => `${i + 1}. ${p.name} · ${p.age ?? "?"}a · ${p.position ?? "—"} · Eval. entrenador ${p.vsi == null ? "sin evaluar" : formatVsi(p.vsi)} ${phvIcon(p.phv_category ?? undefined)}`)
           .join("\n");
-        await sendMessage(chatId, `🏆 Tu plantilla (top ${data.length} por VSI)\n\n${rows}\n\n🟢 pre-PHV · 🟡 en PHV · 🔵 post-PHV · ⚪ sin datos`);
+        await sendMessage(chatId, `🏆 Tu plantilla (top ${data.length} por evaluación del entrenador)\n\n${rows}\n\n🟢 pre-PHV · 🟡 en PHV · 🔵 post-PHV · ⚪ sin datos`);
       }
       return successResponse({ ok: true });
     }
@@ -704,8 +704,8 @@ export default withHandler(
         await sendMessage(chatId,
           `📊 Stats del equipo\n\n` +
           `👥 Plantilla: ${n} jugadores · edad media ${avgAge}\n` +
-          `⚡ VSI promedio: ${avgVsi === null ? "sin evaluar" : avgVsi.toFixed(1)}\n` +
-          `🌟 Élite (VSI ≥70): ${elite}\n\n` +
+          `⚡ Evaluación del entrenador media (subjetiva): ${avgVsi === null ? "sin evaluar" : avgVsi.toFixed(1)}\n` +
+          `🌟 Tramo Élite (≥${ELITE_MIN}): ${elite}\n\n` +
           `Distribución PHV:\n` +
           `🟢 Pre-PHV: ${early}\n` +
           `🟡 En PHV: ${ontime}\n` +

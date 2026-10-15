@@ -12,12 +12,15 @@ import DrillRecommendations from "@/components/intelligence/DrillRecommendations
 import KnowledgeSearch from "@/components/KnowledgeSearch";
 import type { XgSummary } from "@/lib/xg/xgAccumulator";
 import type { AnalysisReport } from "./types";
+import { analysisVsiInline } from "@/lib/metrics/coachEval";
 
 type ViewMode = "player" | "team" | "rival";
 
 interface SavedAnalysisRow {
   id: string;
   created_at: string;
+  /** «baseline-…» en los análisis base (su VSI es la evaluación del entrenador). */
+  video_id?: string | null;
   vsi: Record<string, unknown> | null;
 }
 
@@ -150,7 +153,7 @@ const LabResultsPanel = ({
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-display font-semibold text-foreground">
-                          VSI {((sa.vsi as Record<string, unknown>)?.vsi as string | number | undefined) ?? "—"}
+                          {analysisVsiInline(t, sa.video_id, sa.vsi?.vsi)}
                         </span>
                         <span className="text-[9px] text-muted-foreground">
                           {new Date(sa.created_at).toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" })}

@@ -75,19 +75,31 @@ describe("VsiGauge", () => {
     expect(screen.getByText("75")).toBeDefined();
   });
 
-  it("renderiza label VSI por defecto en size md", () => {
+  // P1 bloque 5b: el gauge pinta la EVALUACIÓN DEL ENTRENADOR (6 barras subjetivas), no
+  // un «VSI» del sistema. (En los tests i18n no está inicializado: t devuelve la clave.)
+  it("rótulo por defecto en size md: evaluación del entrenador (nunca «VSI»)", () => {
     render(<VsiGauge value={60} size="md" />);
-    expect(screen.getByText("VSI")).toBeDefined();
-  });
-
-  it("size sm NO muestra label", () => {
-    render(<VsiGauge value={60} size="sm" />);
+    expect(screen.getByText("coachEval.short")).toBeDefined();
     expect(screen.queryByText("VSI")).toBeNull();
   });
 
-  it("size lg muestra label", () => {
+  it("size sm NO muestra rótulo visible, pero lo lleva en el title (accesible)", () => {
+    const { container } = render(<VsiGauge value={60} size="sm" />);
+    expect(screen.queryByText("coachEval.short")).toBeNull();
+    expect(container.querySelector('[title="coachEval.label"]')).not.toBeNull();
+  });
+
+  it("size lg muestra el rótulo", () => {
     render(<VsiGauge value={80} size="lg" />);
-    expect(screen.getByText("VSI")).toBeDefined();
+    expect(screen.getByText("coachEval.short")).toBeDefined();
+  });
+
+  it("tramo con los cortes ÚNICOS (85/70/50) y traducido", () => {
+    const { unmount } = render(<VsiGauge value={85} size="xl" showTier />);
+    expect(screen.getByText("coachEval.tier.elite")).toBeDefined();
+    unmount();
+    render(<VsiGauge value={84.9} size="xl" showTier />);
+    expect(screen.getByText("coachEval.tier.pro")).toBeDefined();
   });
 
   it("label personalizado se muestra", () => {

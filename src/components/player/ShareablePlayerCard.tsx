@@ -23,13 +23,11 @@ import { SprintTestService } from "@/services/real/sprintTestService";
 import { shareNative, shareToWhatsApp } from "@/lib/share";
 import { PUBLIC_HOST } from "@/lib/publicUrl";
 import { IS_DEMO } from "@/lib/demoMode";
+import { coachEvalTier, type CoachEvalTier } from "@/services/real/metricsService";
 
-const TIERS = [
-  { min: 85, label: "ÉLITE", color: "#3b82f6" },
-  { min: 70, label: "PRO", color: "#a855f7" },
-  { min: 50, label: "TALENTO", color: "#f59e0b" },
-  { min: 0, label: "DESARROLLO", color: "#ef4444" },
-];
+// Colores por tramo; los cortes son los ÚNICOS de coachEvalTier (P1 bloque 5b) y la
+// etiqueta se traduce (antes «ÉLITE/PRO/TALENTO/DESARROLLO» fijos en español).
+const TIER_HEX: Record<CoachEvalTier, string> = { elite: "#3b82f6", pro: "#a855f7", talent: "#f59e0b", develop: "#ef4444" };
 // (La etiqueta de maduración se toma del motor gateado playerMaturity, no de un
 //  mapa local — antes este decía early="precoz" y VitasCard early="tardío", inv #7.)
 
@@ -39,7 +37,8 @@ export default function ShareablePlayerCard({ player }: { player: Player }) {
   const [busy, setBusy] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  const tier = TIERS.find((x) => player.vsi >= x.min) ?? TIERS[TIERS.length - 1];
+  const tierKey = player.vsi != null ? coachEvalTier(player.vsi) : null;
+  const tier = tierKey ? { label: t(`coachEval.tier.${tierKey}`), color: TIER_HEX[tierKey] } : null;
   const bestSprint = SprintTestService.getByPlayer(player.id)[0]
     ? SprintTestService.getByPlayer(player.id).reduce((a, b) => (b.velocidad_ms > a.velocidad_ms ? b : a))
     : null;
@@ -165,14 +164,15 @@ export default function ShareablePlayerCard({ player }: { player: Player }) {
               )}
 
               {/* VSI protagonista */}
-              {hasVsi && (
+              {hasVsi && tier && (
                 <div style={{ marginTop: 30, display: "flex", alignItems: "flex-end", gap: 12 }}>
                   <div>
-                    <div style={{ fontSize: 9, letterSpacing: 3, color: "#7f93a8", fontWeight: 700 }}>VSI</div>
+                    {/* «Evaluación del entrenador», no «VSI»: el PNG sale de la app sin contexto (P1 bloque 5b). */}
+                    <div style={{ fontSize: 9, letterSpacing: 2, color: "#7f93a8", fontWeight: 700, textTransform: "uppercase" }}>{t("coachEval.label")}</div>
                     <div style={{ fontSize: 72, fontWeight: 800, lineHeight: 0.9, fontFamily: "'Geist Mono', ui-monospace, monospace" }}>{player.vsi}</div>
                   </div>
                   <div style={{ paddingBottom: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: tier.color, background: tier.color + "22", padding: "3px 8px", borderRadius: 6 }}>{tier.label}</span>
+                    <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: 2, color: tier.color, background: tier.color + "22", padding: "3px 8px", borderRadius: 6, textTransform: "uppercase" }}>{tier.label}</span>
                   </div>
                 </div>
               )}

@@ -36,7 +36,7 @@ import { MODELS, modelParams } from "../_lib/models";
 import { fetchMessages, responseText } from "../_lib/anthropic";
 import { localeSchema, normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
 import { trustAnthropometricsRow, PHV_STATUS_LABEL_ES, type PhvCategory } from "../../src/lib/phv/phvGate";
-import { completeCoachMetrics, type PlayerMetrics } from "../../src/services/real/metricsService";
+import { completeCoachMetrics, coachEvalTier, type CoachEvalTier, type PlayerMetrics } from "../../src/services/real/metricsService";
 import { createClient } from "@supabase/supabase-js";
 
 export const config = { runtime: "edge" };
@@ -170,6 +170,13 @@ Sé honesto sobre las limitaciones del análisis sin vídeo.`;
 // (completeCoachMetrics vive en src/services/real/metricsService.ts: regla única de
 //  «evaluación completa» de las 6 barras del blob `data.metrics`.)
 
+const TIER_LABEL_ES: Record<CoachEvalTier, string> = {
+  elite: "Élite",
+  pro: "Pro",
+  talent: "Talento",
+  develop: "En desarrollo",
+};
+
 /**
  * VSI de ficha del jugador (el GUARDADO, el que muestra la app) y su tramo. Aquí se lee
  * de la columna `players.vsi` con toVsi (api/_lib/vsiStats.ts), como peer/Telegram/equipo;
@@ -177,7 +184,7 @@ Sé honesto sobre las limitaciones del análisis sin vídeo.`;
  * escritores (PlayerService, /api/players/crud) guardan ambos a la vez. Antes era una
  * MEDIA SIMPLE de las barras: un tercer VSI distinto del de la ficha para el mismo niño.
  */
-export function computeVsi(p: { storedVsi: number }): { vsi: number; tier: string; tierLabel: string } {
+export function computeVsi(p: { storedVsi: number }): { vsi: number; tier: CoachEvalTier; tierLabel: string } {
   const vsi = p.storedVsi;
 
   // SIN ajuste PHV ±5 (retirado · regla del owner 28-sep, inv #7): leía la
@@ -186,13 +193,11 @@ export function computeVsi(p: { storedVsi: number }): { vsi: number; tier: strin
   // La corrección por maduración vive SOLO en el factor canónico gateado
   // (src/lib/phv/maturity.ts vía phvGate); este VSI baseline es el crudo.
 
-  let tier = "develop";
-  let tierLabel = "En desarrollo";
-  if (vsi >= 85)      { tier = "elite"; tierLabel = "Elite"; }
-  else if (vsi >= 70) { tier = "pro"; tierLabel = "Profesional"; }
-  else if (vsi >= 55) { tier = "talent"; tierLabel = "Talento"; }
-
-  return { vsi, tier, tierLabel };
+  // Tramo con los cortes ÚNICOS de la evaluación del entrenador (coachEvalTier, P1 bloque
+  // 5b; antes 85/70/55 aquí y 85/70/50 en la ficha). La UI traduce `tier`; `tierLabel`
+  // (español) queda para filas y lectores antiguos.
+  const tier = coachEvalTier(vsi);
+  return { vsi, tier, tierLabel: TIER_LABEL_ES[tier] };
 }
 
 // ── Prompts (compactos · sin biomecánica) ──────────────────────────

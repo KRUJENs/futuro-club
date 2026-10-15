@@ -3,7 +3,12 @@
  * Cálculos matemáticos puros: VSI de ficha y tendencias. (Los percentiles entre pares
  * viven en src/lib/metrics/percentile.ts, implementación única.)
  * No usa IA. Algoritmos fijos y reproducibles.
+ *
+ * Solo imports relativos: lo importan también las Edge Functions de api/.
  */
+
+import { COACH_EVAL_TIERS, type CoachEvalTier } from "../../../config/coachEvaluation";
+export type { CoachEvalTier } from "../../../config/coachEvaluation";
 
 export interface PlayerMetrics {
   speed: number;
@@ -82,6 +87,15 @@ export function fichaVsiFromBlob(d: { vsi?: unknown } | null | undefined): numbe
   return typeof d.vsi === "number" && Number.isFinite(d.vsi) ? d.vsi : null;
 }
 
+/**
+ * Tramo de la EVALUACIÓN DEL ENTRENADOR (VSI de ficha) — fuente ÚNICA de los cortes
+ * (config/coachEvaluation.ts, «pendiente de validar»). La UI lo rotula con
+ * `coachEval.tier.<tramo>` (7 idiomas). P1 bloque 5b: antes había 4 juegos de cortes.
+ */
+export function coachEvalTier(vsi: number): CoachEvalTier {
+  return (COACH_EVAL_TIERS.find((t) => vsi >= t.min) ?? COACH_EVAL_TIERS[COACH_EVAL_TIERS.length - 1]).tier;
+}
+
 export const MetricsService = {
   /** VSI de FICHA (evaluación del entrenador) — delega en calculateFichaVsi (arriba). */
   calculateVSI(metrics: PlayerMetrics): number {
@@ -103,13 +117,11 @@ export const MetricsService = {
   //  vacío. P1 bloque 5, invariante #7.)
 
   /**
-   * Clasifica el VSI en etiqueta semántica
+   * Tramo de la evaluación del entrenador (fuente única: coachEvalTier, arriba). Antes
+   * usaba cortes 80/65/50 distintos de los del indicador (85/70/50).
    */
-  classifyVSI(vsi: number): "elite" | "high" | "medium" | "developing" {
-    if (vsi >= 80) return "elite";
-    if (vsi >= 65) return "high";
-    if (vsi >= 50) return "medium";
-    return "developing";
+  classifyVSI(vsi: number): CoachEvalTier {
+    return coachEvalTier(vsi);
   },
 
   /**
