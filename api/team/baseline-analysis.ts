@@ -52,19 +52,17 @@ const bodySchema = z.object({
   locale: localeSchema.optional(),
 });
 
-interface PlayerSummary {
+export interface PlayerSummary {
   id: string;
   name: string | null;
   age: number | null;
   position: string | null;
   vsi: number | null;
   phv_category: string | null;
-  metric_speed: number;
-  metric_technique: number;
-  metric_vision: number;
-  metric_stamina: number;
-  metric_shooting: number;
-  metric_defending: number;
+  /** Barras de la evaluación del entrenador desde el BLOB (`data->metrics`); null si
+   *  no está evaluado. Las columnas metric_* valen 0 para quien no lo está (trigger
+   *  069 + DEFAULT 0 de la 024; corregirlas es del bloque 7). */
+  metrics: Record<string, unknown> | null;
   height_cm: number | null;
   weight_kg: number | null;
 }
@@ -140,7 +138,8 @@ function buildVideoSection(video: Record<string, unknown>): string {
   return lines.join("\n");
 }
 
-function teamProfileBlock(
+/** Exportada para tests (P1 bloque 5: medias de la evaluación del entrenador). */
+export function teamProfileBlock(
   players: PlayerSummary[],
   teamName: string,
   videoObservation?: Record<string, unknown>,
@@ -172,13 +171,23 @@ function teamProfileBlock(
     ? "sin evaluar (ningún jugador con VSI de ficha)"
     : `${avgVsiNum.toFixed(1)}/100`;
 
+  // Medias de cada barra SOLO sobre los jugadores evaluados en ella, con su número
+  // (P1 bloque 5). Antes: `metric_* || 0` dividido entre TODA la plantilla: un jugador
+  // sin evaluar contaba como 0 y bajaba la media que leía el modelo.
+  const avgCoachMetric = (key: string): string => {
+    const vals = players
+      .map((p) => (p.metrics && typeof p.metrics === "object" ? p.metrics[key] : null))
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    if (vals.length === 0) return "sin evaluar";
+    return `${(vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(0)} (${vals.length} de ${n} evaluados)`;
+  };
   const avgMetrics = {
-    speed:     n > 0 ? (players.reduce((a, p) => a + Number(p.metric_speed || 0), 0) / n).toFixed(0) : "—",
-    technique: n > 0 ? (players.reduce((a, p) => a + Number(p.metric_technique || 0), 0) / n).toFixed(0) : "—",
-    vision:    n > 0 ? (players.reduce((a, p) => a + Number(p.metric_vision || 0), 0) / n).toFixed(0) : "—",
-    stamina:   n > 0 ? (players.reduce((a, p) => a + Number(p.metric_stamina || 0), 0) / n).toFixed(0) : "—",
-    shooting:  n > 0 ? (players.reduce((a, p) => a + Number(p.metric_shooting || 0), 0) / n).toFixed(0) : "—",
-    defending: n > 0 ? (players.reduce((a, p) => a + Number(p.metric_defending || 0), 0) / n).toFixed(0) : "—",
+    speed:     avgCoachMetric("speed"),
+    technique: avgCoachMetric("technique"),
+    vision:    avgCoachMetric("vision"),
+    stamina:   avgCoachMetric("stamina"),
+    shooting:  avgCoachMetric("shooting"),
+    defending: avgCoachMetric("defending"),
   };
 
   const positionsList = Array.from(positions.entries())
@@ -197,7 +206,7 @@ DISTRIBUCIÓN PHV (maduración biológica)
 - Post-estirón (tardío): ${phvCounts.late}
 - Sin medir: ${phvCounts.unknown}
 
-VALORACIÓN COACH PROMEDIO (0-100)
+EVALUACIÓN DEL ENTRENADOR · MEDIA DE LOS EVALUADOS (0-100, subjetiva)
 - Velocidad: ${avgMetrics.speed} · Resistencia: ${avgMetrics.stamina}
 - Técnica: ${avgMetrics.technique} · Visión: ${avgMetrics.vision}
 - Tiro: ${avgMetrics.shooting} · Defensa: ${avgMetrics.defending}
@@ -364,7 +373,7 @@ export default withHandler(
     // ── 1. Cargar players ──────────────────────────────────────────
     let query = supabase
       .from("players")
-      .select("id, name, age, position, vsi, phv_category, metric_speed, metric_technique, metric_vision, metric_stamina, metric_shooting, metric_defending, height_cm, weight_kg, tenant_id")
+      .select("id, name, age, position, vsi, phv_category, metrics:data->metrics, height_cm, weight_kg, tenant_id")
       // nulls last: los NO evaluados (vsi null) no deben colarse antes del top real
       // y truncar a jugadores evaluados con el limit (invariante #2; igual que
       // la RPC get_ranked_players de la migración 059). Postgres ordena DESC con

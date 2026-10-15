@@ -3,14 +3,26 @@
  * POST /api/players/baseline-analysis
  *
  * Genera los 6 reportes Claude usando ÚNICAMENTE el perfil del jugador
- * (métricas subjetivas del coach + PHV + antropometría). Sin biomecánica
+ * (evaluación subjetiva del entrenador + PHV + antropometría). Sin biomecánica
  * ni similarity de vídeo.
+ *
+ * P1 bloque 5: SIN la evaluación del entrenador (VSI de ficha guardado + las 6 barras
+ * del blob `data.metrics`) no se genera nada (422 coach_evaluation_missing, decisión del
+ * dueño 15 oct 2026). Antes las barras ausentes valían 0 (`Number(metric_*) || 0`, y la
+ * columna la rellena con 0 el trigger de la 069) y el modelo recibía «Velocidad: 0 … VSI
+ * cacheado: 0/100» de un niño sin evaluar. El VSI es el de ficha GUARDADO (regla única de
+ * «evaluado», el que enseña la app), no una media simple de las barras; y ya no se guarda
+ * un percentil (lo daba contra jugadores de TODAS las cuentas, con los no evaluados como
+ * 0): la comparación con pares es /api/benchmark/peer (implementación única, solo
+ * jugadores propios).
  *
  * Útil cuando todavía no hay análisis de vídeo (Bunny no pagado, MVP, etc.)
  * y queremos llenar el dashboard de reportes con una valoración inicial.
  *
  * Body: { playerId: string }
  * Returns: { analysisId: string, reportsGenerated: number, vsi: number }
+ *          422 { code: "coach_evaluation_missing" } si falta la evaluación del entrenador
+ *          (VSI de ficha guardado o alguna de las 6 barras)
  *
  * Cost: ~€0.13 por jugador (1× Sonnet + 5× Haiku con prompt caching)
  */
@@ -19,10 +31,12 @@ import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { ownsPlayer } from "../_lib/ownership";
+import { toVsi } from "../_lib/vsiStats";
 import { MODELS, modelParams } from "../_lib/models";
 import { fetchMessages, responseText } from "../_lib/anthropic";
 import { localeSchema, normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
 import { trustAnthropometricsRow, PHV_STATUS_LABEL_ES, type PhvCategory } from "../../src/lib/phv/phvGate";
+import { completeCoachMetrics, type PlayerMetrics } from "../../src/services/real/metricsService";
 import { createClient } from "@supabase/supabase-js";
 
 export const config = { runtime: "edge" };
@@ -48,10 +62,8 @@ interface PlayerProfile {
   height_cm: number | null;
   weight_kg: number | null;
   competitive_level: string | null;
-  metrics: {
-    speed: number; technique: number; vision: number;
-    stamina: number; shooting: number; defending: number;
-  };
+  /** Las 6 barras de la evaluación del entrenador (completas: sin ellas no se llega aquí). */
+  metrics: PlayerMetrics;
   /**
    * PHV SOLO desde una fila COMPLETA y fiable de player_anthropometrics (gate
    * único · regla del owner 28-sep: 4 medidas introducidas + edad decimal desde la
@@ -136,14 +148,13 @@ function profileBlock(p: PlayerProfile): string {
 - Altura: ${p.height_cm ?? "?"} cm · Peso: ${p.weight_kg ?? "?"} kg
 - Nivel competitivo: ${p.competitive_level ?? "no registrado (no lo supongas)"}
 
-VALORACIÓN COACH (0-100, subjetiva)
+EVALUACIÓN DEL ENTRENADOR (6 barras 0-100, subjetiva; no es una medida)
 - Velocidad: ${m.speed}    · Resistencia: ${m.stamina}
 - Técnica: ${m.technique}  · Visión: ${m.vision}
 - Tiro: ${m.shooting}      · Defensa: ${m.defending}
+- VSI de ficha (evaluación del entrenador guardada, índice ponderado 0-100): ${p.vsi}/100
 
 ${phvBlock(p)}
-
-VSI cacheado: ${p.vsi}/100
 
 LIMITACIÓN: Esta es una valoración baseline SIN ANÁLISIS DE VÍDEO. No hay
 métricas biomecánicas, scanning rate, ni similarity con jugadores pro.
@@ -154,12 +165,20 @@ Sé honesto sobre las limitaciones del análisis sin vídeo.`;
 // (Sin «tendencia VSI» aquí: el antiguo computeVsiTrend —pendiente/momentum/delta—
 //  corría sobre players.vsi_history, legacy SIN fechas ni origen, ver el handler.)
 
-// ── Compute VSI score from metrics ──────────────────────────────────
+// ── VSI de ficha + tramo ─────────────────────────────────────────────
 
-export function computeVsi(p: Pick<PlayerProfile, "metrics" | "phv">): { vsi: number; tier: string; tierLabel: string } {
-  const m = p.metrics;
-  const avg = (m.speed + m.technique + m.vision + m.stamina + m.shooting + m.defending) / 6;
-  const vsi = Math.round(avg);
+// (completeCoachMetrics vive en src/services/real/metricsService.ts: regla única de
+//  «evaluación completa» de las 6 barras del blob `data.metrics`.)
+
+/**
+ * VSI de ficha del jugador (el GUARDADO, el que muestra la app) y su tramo. Aquí se lee
+ * de la columna `players.vsi` con toVsi (api/_lib/vsiStats.ts), como peer/Telegram/equipo;
+ * Rankings y el informe impreso lo leen del blob `data.vsi` con fichaVsiFromBlob. Los
+ * escritores (PlayerService, /api/players/crud) guardan ambos a la vez. Antes era una
+ * MEDIA SIMPLE de las barras: un tercer VSI distinto del de la ficha para el mismo niño.
+ */
+export function computeVsi(p: { storedVsi: number }): { vsi: number; tier: string; tierLabel: string } {
+  const vsi = p.storedVsi;
 
   // SIN ajuste PHV ±5 (retirado · regla del owner 28-sep, inv #7): leía la
   // categoría PERSISTIDA —de ESTADO, early = pre-PHV— como si fuera timing
@@ -176,43 +195,6 @@ export function computeVsi(p: Pick<PlayerProfile, "metrics" | "phv">): { vsi: nu
   return { vsi, tier, tierLabel };
 }
 
-// ── Peer percentile · compara contra jugadores edad±1 + misma posición + mismo PHV stratum
-async function computePeerPercentile(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supabase: any,
-  player: PlayerProfile,
-): Promise<{ percentile: number | null; peerCount: number; stratum: string }> {
-  const age = player.age ?? null;
-  const pos = player.position;
-  const phvCat = player.phv.category;
-  if (!age || !pos) return { percentile: null, peerCount: 0, stratum: "no-data" };
-
-  let q = supabase
-    .from("players")
-    .select("vsi", { count: "exact", head: false })
-    .gte("age", age - 1)
-    .lte("age", age + 1)
-    .eq("position", pos);
-
-  if (phvCat) q = q.eq("phv_category", phvCat);
-
-  const { data: peers, count } = await q as { data: Array<{ vsi: number | null }> | null; count: number | null };
-
-  if (!peers || peers.length === 0) {
-    return { percentile: null, peerCount: 0, stratum: `${pos} ${age}±1 ${phvCat ?? "todos"}` };
-  }
-
-  const total = count ?? peers.length;
-  const below = peers.filter((r) => Number(r.vsi ?? 0) <= player.vsi).length;
-  const percentile = total > 0 ? Math.round((below / total) * 100) : null;
-
-  return {
-    percentile,
-    peerCount: total,
-    stratum: `${pos} U${Math.round(age)}±1 ${phvCat ?? "todos"}`,
-  };
-}
-
 // ── Prompts (compactos · sin biomecánica) ──────────────────────────
 
 const PROMPTS = {
@@ -223,7 +205,6 @@ Genera un reporte ancla para padre/madre del jugador. Lenguaje claro, motivador,
 Output JSON estricto:
 {
   "title": "Análisis VITAS · [Nombre]",
-  "vsi_score": number, "tier": "elite|pro|talent|develop", "tier_label": "string",
   "executive_summary": "string max 280 chars · resumen para padres",
   "phv_summary": "string max 200 chars · explicación PHV",
   "strengths": [{"title":"string","evidence":"string max 120 chars"}],
@@ -231,7 +212,8 @@ Output JSON estricto:
   "next_4_weeks_focus": "string max 220 chars",
   "honesty_note": "string max 180 chars · matiz realista sobre análisis baseline"
 }
-2-3 fortalezas, 2-3 áreas de mejora. Sin markdown, solo JSON.`,
+2-3 fortalezas, 2-3 áreas de mejora. No escribas puntuaciones, índices ni tramos: la
+evaluación del entrenador y su tramo los calcula la app. Sin markdown, solo JSON.`,
   },
   "lab-biomechanics": {
     model: MODELS.reasoning,
@@ -350,7 +332,9 @@ export default withHandler(
       // Nivel desde el BLOB (`data`): la columna competitive_level la rellena el trigger
       // de players (024, redefinido en la 069:178) con 'Regional' cuando no hay nivel
       // (residuo P2) ⇒ no es un dato.
-      .select("id, tenant_id, name, age, position, foot, height_cm, weight_kg, nivel_registrado:data->>competitiveLevel, metric_speed, metric_technique, metric_vision, metric_stamina, metric_shooting, metric_defending, vsi, vsi_history")
+      // Barras del entrenador también del BLOB: las columnas metric_* valen 0 para quien no
+      // está evaluado (trigger 069 + DEFAULT 0 de la 024; corregirlas es del bloque 7).
+      .select("id, tenant_id, name, age, position, foot, height_cm, weight_kg, nivel_registrado:data->>competitiveLevel, metrics:data->metrics, vsi")
       .eq("id", input.playerId)
       .single();
 
@@ -368,6 +352,20 @@ export default withHandler(
       .maybeSingle();
     const anthroTrust = trustAnthropometricsRow(anthroRaw);
 
+    // Sin la evaluación del entrenador no se genera nada (invariante #2): hace falta el
+    // VSI de ficha GUARDADO (regla única de «evaluado») y las 6 barras completas (van al
+    // prompt). Ni ceros en el prompt ni un VSI recalculado distinto del de la ficha.
+    const coachMetrics = completeCoachMetrics(playerRow.metrics);
+    const storedVsi = toVsi(playerRow.vsi);
+    if (!coachMetrics || storedVsi === null) {
+      return errorResponse({
+        code: "coach_evaluation_missing",
+        message: "Falta la evaluación del entrenador: sin ella no se generan informes.",
+        status: 422,
+      });
+    }
+    const vsiBase = computeVsi({ storedVsi });
+
     const profile: PlayerProfile = {
       id: playerRow.id,
       tenant_id: playerRow.tenant_id,
@@ -379,25 +377,15 @@ export default withHandler(
       weight_kg: playerRow.weight_kg,
       competitive_level:
         typeof playerRow.nivel_registrado === "string" && playerRow.nivel_registrado ? playerRow.nivel_registrado : null,
-      metrics: {
-        speed:     Number(playerRow.metric_speed)     || 0,
-        technique: Number(playerRow.metric_technique) || 0,
-        vision:    Number(playerRow.metric_vision)    || 0,
-        stamina:   Number(playerRow.metric_stamina)   || 0,
-        shooting:  Number(playerRow.metric_shooting)  || 0,
-        defending: Number(playerRow.metric_defending) || 0,
-      },
+      metrics: coachMetrics,
       phv: {
         category:         anthroTrust.category,
         offset:           anthroTrust.offset,
         chronologicalAge: anthroTrust.chronologicalAge,
         gate_reason:      anthroTrust.gate_reason,
       },
-      vsi: Number(playerRow.vsi) || 0,
+      vsi: vsiBase.vsi,
     };
-
-    const vsiBase = computeVsi(profile);
-    const peer = await computePeerPercentile(supabase, profile);
 
     // Ni `trend` ni `history` en analyses.vsi. Antes se calculaban (pendiente, momentum,
     // «delta») sobre players.vsi_history —legacy SIN fechas ni origen, con el 57.5
@@ -406,7 +394,8 @@ export default withHandler(
     // válida del VSI de ficha es computeVsiDelta (src/lib/scoring/vsiDelta.ts), solo
     // entre dos evaluaciones con fecha; aquí no se inventa otra (invariante #7). Las
     // filas ya guardadas se limpian al leer (withoutUndatedVsiSeries).
-    const vsiData = { ...vsiBase, peer };
+    // Tampoco `peer` (percentil): ver la cabecera; las filas viejas lo pierden al leer.
+    const vsiData = { ...vsiBase };
 
     // ── 2. Insertar analysis row (placeholder video_id sentinel) ───
     const sentinelVideoId = `baseline-${profile.id}-${Date.now()}`;
@@ -504,7 +493,6 @@ export default withHandler(
       vsi: vsiData.vsi,
       tier: vsiData.tier,
       tierLabel: vsiData.tierLabel,
-      peer,
       totalLatencyMs: Date.now() - startedAt,
       failedReports: results.filter((r) => !r.ok).map((r) => ({
         type: r.reportType,

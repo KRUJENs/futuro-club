@@ -7,10 +7,9 @@
  * rendering React components (avoids heavy DOM deps).
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { calculateReportBenchmark } from "@/services/real/benchmarkService";
 import { validatePlayerReport } from "@/services/real/reportValidator";
 
-// Mock PlayerService for benchmark
+// Mock PlayerService
 vi.mock("@/services/real/playerService", () => ({
   PlayerService: {
     getAll: vi.fn(() => []),
@@ -114,32 +113,9 @@ describe("Report Enhancement — Sprint 1", () => {
     });
   });
 
-  // ── Benchmark integration ────────────────────────────────────────────
-
-  describe("Benchmark in reports", () => {
-    it("converts player metrics (0-100) to dimension scores (0-10) correctly", () => {
-      const metrics = { speed: 80, technique: 70, vision: 60, stamina: 50, shooting: 90 };
-      const dimScores = {
-        velocidadDecision: { score: metrics.speed / 10 },
-        tecnicaConBalon: { score: metrics.technique / 10 },
-        inteligenciaTactica: { score: metrics.vision / 10 },
-        capacidadFisica: { score: metrics.stamina / 10 },
-        liderazgoPresencia: { score: metrics.vision / 10 },
-        eficaciaCompetitiva: { score: metrics.shooting / 10 },
-      };
-
-      expect(dimScores.velocidadDecision.score).toBe(8);
-      expect(dimScores.eficaciaCompetitiva.score).toBe(9);
-    });
-
-    it("returns null-safe benchmark when no peers", () => {
-      const result = calculateReportBenchmark(13, "MC", {
-        velocidadDecision: { score: 7 },
-      });
-      expect(result.sampleSize).toBe(0);
-      expect(result.dimensions).toBeDefined();
-    });
-  });
+  // (Sin «Benchmark in reports»: benchmarkService se retiró en el P1 bloque 5 —comparaba
+  //  la nota del vídeo con las barras del entrenador /10 e imprimía P100—; la comparación
+  //  con pares es /api/benchmark/peer, ver src/test/lib/percentile.test.ts.)
 
   // ── Report validator integration ─────────────────────────────────────
 

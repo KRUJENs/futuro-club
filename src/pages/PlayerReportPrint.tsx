@@ -10,14 +10,13 @@ import { useRawPlayerById } from "@/hooks/usePlayers";
 import { adaptPlayerForUI } from "@/services/real/adapters";
 import { phvGate } from "@/lib/phv/phvGate";
 import { PhvGateNotice } from "@/components/phv/PhvGateNotice";
-import { MetricsService } from "@/services/real/metricsService";
+import { MetricsService, completeCoachMetrics, fichaVsiFromBlob } from "@/services/real/metricsService";
 import { useEffect, useRef } from "react";
 import { DominantFeaturesService } from "@/services/real/advancedMetricsService";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
-import { calculateReportBenchmark, type ReportBenchmark } from "@/services/real/benchmarkService";
 import { computeVsiDelta, realVsiEvaluations } from "@/lib/scoring/vsiDelta";
 import { MetricValue } from "@/components/metrics/MetricValue";
 
@@ -101,17 +100,19 @@ export default function PlayerReportPrint() {
 
   if (isLoading) return <div className="p-8 text-center">{t("playerReportPrint.loading")}</div>;
   if (!rawPlayer) return <div className="p-8 text-center">{t("playerReportPrint.playerNotFound")}</div>;
-  // Jugador sin evaluar (sin las 6 barras del entrenador): no hay VSI de ficha ni
-  // radar que imprimir. Se nombra el hueco en vez de fabricar un informe con ceros
-  // (invariante #2). El resto del cuerpo asume métricas presentes tras este gate.
-  if (!rawPlayer.metrics) {
+  // Jugador sin evaluar: sin VSI de ficha guardado (regla única fichaVsiFromBlob) o sin
+  // las 6 barras completas no hay VSI ni radar que imprimir. Se nombra el hueco en vez
+  // de fabricar un informe con ceros (invariante #2). Antes bastaba con que existiera
+  // `metrics` y se recalculaba: `metrics: {}` imprimía «VSI 0» (revisión del PR #317).
+  const coachMetrics = completeCoachMetrics(rawPlayer.metrics);
+  const vsi = fichaVsiFromBlob(rawPlayer);
+  if (!coachMetrics || vsi === null) {
     return <div className="p-8 text-center text-muted-foreground">{t("common.notEvaluated")}</div>;
   }
 
   const player = adaptPlayerForUI(rawPlayer);
-  const vsi = MetricsService.calculateVSI(rawPlayer.metrics);
   const vsiTier = MetricsService.classifyVSI(vsi);
-  const dominantFeatures = DominantFeaturesService.calculate(rawPlayer.metrics);
+  const dominantFeatures = DominantFeaturesService.calculate(coachMetrics);
 
   // Evolución y variación del VSI SOLO desde evaluaciones del entrenador con fecha y
   // origen: la misma fuente única (src/lib/scoring/vsiDelta.ts) que el panel de familia
@@ -143,7 +144,7 @@ export default function PlayerReportPrint() {
     defending: t("playerReportPrint.metricDefending"),
   };
 
-  const radarData = Object.entries(rawPlayer.metrics).map(([key, value]) => ({
+  const radarData = Object.entries(coachMetrics).map(([key, value]) => ({
     subject: metricLabels[key] ?? key,
     value,
     fullMark: 100,
@@ -223,7 +224,7 @@ export default function PlayerReportPrint() {
         <div>
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">{t("playerReportPrint.values")}</h2>
           <div className="space-y-2.5 mt-2">
-            {Object.entries(rawPlayer.metrics).map(([key, value]) => (
+            {Object.entries(coachMetrics).map(([key, value]) => (
               <div key={key} className="flex items-center gap-2">
                 <span className="text-[10px] text-gray-500 w-20 shrink-0">{metricLabels[key] ?? key}</span>
                 <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -350,8 +351,9 @@ export default function PlayerReportPrint() {
         </div>
       )}
 
-      {/* Benchmark vs Peers */}
-      <BenchmarkSection age={rawPlayer.age} position={rawPlayer.position} metrics={rawPlayer.metrics as unknown as Record<string, number>} />
+      {/* Sin «Benchmark vs pares» (P1 bloque 5): comparaba las barras del entrenador /10
+          con un campo que los jugadores no tienen (`stats`), así que imprimía P100 en cada
+          dimensión. La comparación con pares es /api/benchmark/peer (percentil único). */}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-8">
@@ -384,85 +386,6 @@ export default function PlayerReportPrint() {
         </div>
         <div className="text-xs text-gray-400">© {new Date().getFullYear()}</div>
       </div>
-    </div>
-  );
-}
-
-// ─── Benchmark Section ────────────────────────────────────────────────────────
-
-const dimLabelKeys: Record<string, string> = {
-  velocidadDecision: "playerReportPrint.dimDecisionSpeed",
-  tecnicaConBalon: "playerReportPrint.dimTechnique",
-  inteligenciaTactica: "playerReportPrint.dimTacticalIntelligence",
-  capacidadFisica: "playerReportPrint.dimPhysicalCapacity",
-  liderazgoPresencia: "playerReportPrint.dimLeadership",
-  eficaciaCompetitiva: "playerReportPrint.dimEffectiveness",
-};
-
-function BenchmarkSection({
-  age,
-  position,
-  metrics,
-}: {
-  age: number;
-  position: string;
-  metrics: Record<string, number>;
-}) {
-  const { t } = useTranslation();
-  // Convert player metrics (0-100) to dimension-like scores (0-10) for benchmark
-  const dimensionScores: Record<string, { score: number }> = {
-    velocidadDecision: { score: metrics.speed / 10 },
-    tecnicaConBalon: { score: metrics.technique / 10 },
-    inteligenciaTactica: { score: metrics.vision / 10 },
-    capacidadFisica: { score: metrics.stamina / 10 },
-    liderazgoPresencia: { score: metrics.vision / 10 },
-    eficaciaCompetitiva: { score: metrics.shooting / 10 },
-  };
-
-  let benchmark: ReportBenchmark | null = null;
-  try {
-    benchmark = calculateReportBenchmark(age, position, dimensionScores);
-  } catch {
-    // benchmarkService may fail if no players in storage
-  }
-
-  if (!benchmark || benchmark.sampleSize === 0) return null;
-
-  return (
-    <div className="mb-6">
-      <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">
-        {t("playerReportPrint.benchmarkVsPeers")}
-      </h2>
-      <p className="text-[10px] text-gray-400 mb-2">{benchmark.groupDescription}</p>
-      <div className="space-y-1.5">
-        {benchmark.dimensions.map((d) => (
-          <div key={d.dimensionKey} className="flex items-center gap-2">
-            <span className="text-[10px] text-gray-500 w-24 shrink-0">
-              {dimLabelKeys[d.dimensionKey] ? t(dimLabelKeys[d.dimensionKey]) : d.dimensionKey}
-            </span>
-            <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden relative">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${d.percentile}%`,
-                  backgroundColor:
-                    d.percentile >= 75 ? "#10b981" :
-                    d.percentile >= 50 ? "#7c3aed" :
-                    d.percentile >= 25 ? "#f59e0b" : "#ef4444",
-                }}
-              />
-            </div>
-            <span className="text-[10px] font-bold w-8 text-right text-gray-700">
-              P{d.percentile}
-            </span>
-          </div>
-        ))}
-      </div>
-      {benchmark.sampleSize < 5 && (
-        <p className="text-[9px] text-amber-500 mt-1">
-          ⚠ {t("playerReportPrint.smallSampleWarning", { count: benchmark.sampleSize })}
-        </p>
-      )}
     </div>
   );
 }

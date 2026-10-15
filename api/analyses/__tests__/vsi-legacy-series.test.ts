@@ -70,8 +70,10 @@ function expectLegacySeriesRemoved(vsi: Record<string, unknown>) {
   expect(vsi).not.toHaveProperty("trend");
   expect(vsi).not.toHaveProperty("history");
   expect(JSON.stringify(vsi)).not.toContain("57.5");
-  // El resto del VSI del análisis se sirve igual.
-  expect(vsi).toMatchObject({ vsi: 67, tierLabel: "Talento", peer: { stratum: "no-data" } });
+  // El percentil guardado `peer` tampoco (P1 bloque 5: todas las cuentas, sin mínimo,
+  // no evaluados como 0). El resto del VSI del análisis se sirve igual.
+  expect(vsi).not.toHaveProperty("peer");
+  expect(vsi).toMatchObject({ vsi: 67, tierLabel: "Talento" });
 }
 
 describe("analyses — la serie VSI legacy sin fechas no sale de la API", () => {

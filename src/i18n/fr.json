@@ -1835,8 +1835,7 @@
     "newAnalysis": "Nouvelle analyse",
     "noAnalysisYet": "Pas encore d'analyse",
     "generateFirstReport": "Générez le premier rapport d'intelligence pour {{name}}",
-    "generateReport": "Générer le rapport",
-    "benchmarkLabel": "Benchmark : {{group}}"
+    "generateReport": "Générer le rapport"
   },
   "playerPhvSection": {
     "parentalTitle": "Données de maturation (joueur et parents)",
@@ -2089,7 +2088,7 @@
     "planClubDesc": "Pour les académies complètes",
     "planClubFeature1": "Joueurs illimités",
     "planClubFeature2": "Équipe : scouts + directeurs invitables",
-    "planClubFeature3": "Benchmark cross-club anonyme",
+    "planClubFeature3": "Comparaison avec vos joueurs (min. 10 comparables)",
     "planClubFeature4": "Compare-vs-rival avec plan tactique",
     "planClubFeature5": "Dashboard des parents",
     "planClubFeature6": "API + intégrations (white-label)",
@@ -2400,7 +2399,6 @@
     "tierLabel": "Tier ·",
     "partiallyEstimated": "Partiellement estimé · {{measured}}/5 dimensions mesurées",
     "vsiBlocked": "VSI non disponible · seulement {{measured}}/5 dimensions mesurées",
-    "vs": "vs",
     "technicalData": "Données techniques (avancé)",
     "biomechanics": "Biomécanique",
     "reportTitle": {
@@ -2935,7 +2933,6 @@
       "liderazgoPresencia": "Leadership et présence",
       "eficaciaCompetitiva": "Efficacité compétitive"
     },
-    "benchmarkVsPeers": "Benchmark vs pairs",
     "noInconsistencies": "Aucune incohérence détectée",
     "issuesSummary": "{{errors}} erreurs, {{warnings}} avertissements",
     "statsPanel": "Panneau de statistiques",
@@ -3377,15 +3374,7 @@
     "footRight": "Droitier",
     "footLeft": "Gaucher",
     "footBoth": "Ambidextre",
-    "dominantFoot": "Pied dominant",
-    "benchmarkVsPeers": "Benchmark vs pairs",
-    "smallSampleWarning": "Petit échantillon ({{count}} joueurs). Percentiles indicatifs.",
-    "dimDecisionSpeed": "Vit. décision",
-    "dimTechnique": "Technique",
-    "dimTacticalIntelligence": "Int. tactique",
-    "dimPhysicalCapacity": "Capacité physique",
-    "dimLeadership": "Leadership",
-    "dimEffectiveness": "Efficacité"
+    "dominantFoot": "Pied dominant"
   },
   "playerReportsPage": {
     "video": "Vidéo",
@@ -3983,10 +3972,7 @@
     "statDefense": "Défense"
   },
   "peerBenchmark": {
-    "comparing": "Comparaison vs réseau VITAS…",
-    "crossClubBenchmark": "Benchmark cross-club",
-    "insufficientData": "Seulement {{count}} joueurs comparables. Plus il y aura d'académies utilisant VITAS, plus ce sera fiable.",
-    "crossClubBenchmarkLabel": "Benchmark cross-club",
+    "comparing": "Comparaison avec vos joueurs…",
     "stratum": "Strate",
     "age": "âge",
     "mean": "moyenne",
@@ -3998,7 +3984,9 @@
       "stamina": "Endurance",
       "shooting": "Tir",
       "defending": "Défense"
-    }
+    },
+    "title": "Comparaison avec vos joueurs",
+    "vsiVsPeers": "Évaluation de l'entraîneur vs pairs"
   },
   "phvProductCard": {
     "title": "Maturation biologique (PHV)",
@@ -5581,10 +5569,6 @@
     "intensityMedium": "Moyenne",
     "intensityHigh": "Élevée"
   },
-  "benchmarkBadge": {
-    "titleSmallSample": "Percentile {{percentile}} (échantillon < 5 joueurs)",
-    "titleVsGroup": "Percentile {{percentile}} vs groupe d'âge/de poste"
-  },
   "drillRecommendations": {
     "title": "Exercices recommandés",
     "titleRag": "Exercices recommandés (RAG)",
@@ -6566,5 +6550,12 @@
     "title": "Évaluation prédictive",
     "notComputedTitle": "Évaluation non calculée",
     "noData": "pas de donnée"
+  },
+  "percentile": {
+    "gate": {
+      "not_evaluated": "Pas d'évaluation de l'entraîneur : pas de percentile",
+      "insufficient_peers": "Pas de percentile : pas assez de joueurs évalués comparables ({{count}} sur {{min}})",
+      "insufficient_short": "Pas de percentile ({{count}}/{{min}} pairs)"
+    }
   }
 }

@@ -59,37 +59,12 @@ describe("MetricsService", () => {
     });
   });
 
-  describe("calculatePercentile", () => {
-    it("retorna 50 con array vacio", () => {
-      expect(MetricsService.calculatePercentile(70, [])).toBe(50);
-    });
-
-    it("retorna 100 si es el mas alto", () => {
-      expect(MetricsService.calculatePercentile(90, [50, 60, 70, 80])).toBe(100);
-    });
-
-    it("retorna 0 si es el mas bajo", () => {
-      expect(MetricsService.calculatePercentile(40, [50, 60, 70, 80])).toBe(0);
-    });
-
-    it("calcula percentil correcto en grupo medio", () => {
-      // 70 es mayor que [50, 60] = 2 de 4 = 50%
-      expect(MetricsService.calculatePercentile(70, [50, 60, 80, 90])).toBe(50);
-    });
-
-    it("retorna null para un jugador sin evaluar (vsi null), no un percentil fabricado", () => {
-      expect(MetricsService.calculatePercentile(null, [50, 60, 70])).toBeNull();
-    });
-
-    it("excluye los null de la poblacion (no los cuenta como 0)", () => {
-      // Sin filtrar, los null se leerian como 0 y ensuciarian el percentil.
-      // Poblacion efectiva = [50, 90]; 70 supera a 1 de 2 = 50%.
-      expect(MetricsService.calculatePercentile(70, [50, null, 90])).toBe(50);
-    });
-
-    it("retorna 50 si la poblacion queda vacia tras excluir null", () => {
-      expect(MetricsService.calculatePercentile(70, [null, null])).toBe(50);
-    });
+  // (calculatePercentile retirado en el P1 bloque 5: devolvía 50 con el grupo vacío y no
+  //  tenía mínimo de pares. El percentil entre pares vive en src/lib/metrics/percentile.ts,
+  //  probado en src/test/lib/percentile.test.ts.)
+  it("ya no expone calculatePercentile ni getVSIResult (implementación única de percentil)", () => {
+    expect((MetricsService as Record<string, unknown>).calculatePercentile).toBeUndefined();
+    expect((MetricsService as Record<string, unknown>).getVSIResult).toBeUndefined();
   });
 
   describe("classifyVSI", () => {
@@ -138,23 +113,6 @@ describe("MetricsService", () => {
     it("con pesos iguales es promedio simple", () => {
       const result = MetricsService.weightedAverage([80, 60, 40], [1, 1, 1]);
       expect(result).toBe(60);
-    });
-  });
-
-  describe("getVSIResult", () => {
-    it("retorna resultado completo con trend stable si no hay previo", () => {
-      const metrics = { speed: 70, technique: 70, vision: 70, stamina: 70, shooting: 70, defending: 70 };
-      const result = MetricsService.getVSIResult(metrics, null, [50, 60, 80]);
-      expect(result.raw).toBe(70);
-      expect(result.trend).toBe("stable");
-      expect(result.label).toBe("high");
-      expect(result.percentile).toBeGreaterThan(0);
-    });
-
-    it("detecta trend up con previo menor", () => {
-      const metrics = { speed: 70, technique: 70, vision: 70, stamina: 70, shooting: 70, defending: 70 };
-      const result = MetricsService.getVSIResult(metrics, 60, []);
-      expect(result.trend).toBe("up");
     });
   });
 });

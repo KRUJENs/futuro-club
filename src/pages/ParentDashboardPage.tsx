@@ -345,7 +345,7 @@ export default function ParentDashboardPage() {
         {/* Estado Físico · para padres (lenguaje simple) */}
         <PhysicalStatusCard playerId={playerId!} />
 
-        {/* Cross-club benchmark · network effect */}
+        {/* Comparación con los propios jugadores del entrenador (percentil único, mín. 10 pares) */}
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }} className="glass rounded-2xl p-4">
           <PeerBenchmark playerId={playerId!} variant="full" />
         </motion.div>

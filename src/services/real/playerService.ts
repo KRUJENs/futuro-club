@@ -289,7 +289,8 @@ export const PlayerService = {
   },
 
   /**
-   * Obtiene todos los VSIs para cálculo de percentiles.
+   * Obtiene todos los VSIs de ficha guardados (sin llamadores en la app; los percentiles
+   * van por src/lib/metrics/percentile.ts, que también excluye a los de ejemplo).
    * Excluye jugadores sin evaluar (vsi null): un hueco no es un 0.
    */
   getAllVSIs(): number[] {

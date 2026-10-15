@@ -230,14 +230,18 @@ describe("withoutUndatedVsiSeries — analyses.vsi sin la serie legacy retirada"
       history: [57.5, 67.4, 67],
     };
     const out = withoutUndatedVsiSeries(stored);
-    expect(out).toEqual({
-      vsi: 67, tier: "talent", tierLabel: "Talento",
-      peer: { percentile: null, peerCount: 0, stratum: "no-data" },
-    });
+    expect(out).toEqual({ vsi: 67, tier: "talent", tierLabel: "Talento" });
     expect(out).not.toHaveProperty("trend");
     expect(out).not.toHaveProperty("history");
     // No muta la fila leída.
     expect(stored).toHaveProperty("trend");
+  });
+
+  it("P1 bloque 5: quita también `peer` (percentil de todas las cuentas, sin mínimo, «P0»)", () => {
+    const stored = { vsi: 0, tierLabel: "En desarrollo", peer: { percentile: 0, peerCount: 3, stratum: "MC U9±1 todos" } };
+    const out = withoutUndatedVsiSeries(stored);
+    expect(out).not.toHaveProperty("peer");
+    expect(out).toEqual({ vsi: 0, tierLabel: "En desarrollo" });
   });
 
   it("valores no-objeto pasan tal cual (vsi null en análisis sin VSI)", () => {

@@ -6,6 +6,7 @@ import { PlayerService } from "@/services/real/playerService";
 import { adaptPlayerForUI } from "@/services/real/adapters";
 import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabase";
 import { phvGate, matchesTimingFilter, type MaturityTiming } from "@/lib/phv/phvGate";
+import { percentilesAmong, percentileGateInfo, type PercentileGateInfo } from "@/lib/metrics/percentile";
 
 export type SortField = "vsi" | "name" | "age" | "percentile";
 export type SortDir = "asc" | "desc";
@@ -50,8 +51,12 @@ export interface RankedPlayer {
   competitiveLevel?: string | null;       // ausente/null ⇒ nivel no registrado
   ageGroup: string;
   trending: "up" | "down" | "stable";
-  percentile: number | null;              // null si sin evaluar
-  percentileInAgeGroup: number | null;    // null si sin evaluar
+  // null si sin evaluar o con menos de 10 pares evaluados; el motivo va en *Gate
+  // (implementación única src/lib/metrics/percentile.ts, P1 bloque 5).
+  percentile: number | null;
+  percentileInAgeGroup: number | null;
+  percentileGate?: PercentileGateInfo | null;
+  percentileInAgeGroupGate?: PercentileGateInfo | null;
   updatedAt: string;
   metrics: Record<string, number>;
   foot?: string | null;                   // ausente/null ⇒ pie no registrado
@@ -125,11 +130,6 @@ function fetchLocalRankedPlayers(
   const sorted = PlayerService.sort(players, sortBy === "percentile" ? "vsi" : sortBy, dir);
   const uiPlayers = sorted.map(adaptPlayerForUI);
 
-  // Calculate VSIs for percentiles — excluye jugadores sin evaluar (vsi null).
-  const allVSIs = uiPlayers
-    .map((p) => p.vsi)
-    .filter((v): v is number => v !== null);
-
   const AGE_GROUPS: Record<string, [number, number]> = {
     "Sub-10": [8, 10], "Sub-12": [11, 12], "Sub-14": [13, 14],
     "Sub-16": [15, 16], "Sub-18": [17, 18], "Sub-21": [19, 21],
@@ -140,13 +140,6 @@ function fetchLocalRankedPlayers(
       if (age >= min && age <= max) return label;
     }
     return "Sub-21";
-  }
-
-  function percentileRank(value: number, allValues: number[]): number {
-    if (allValues.length <= 1) return 100;
-    const below = allValues.filter((v) => v < value).length;
-    const equal = allValues.filter((v) => v === value).length;
-    return Math.round(((below + equal * 0.5) / allValues.length) * 100);
   }
 
   // Group VSIs by age group — solo evaluados para avg/percentiles; el conteo
@@ -178,8 +171,7 @@ function fetchLocalRankedPlayers(
       competitiveLevel: raw?.competitiveLevel, // sin nivel registrado ⇒ undefined, no «Regional»
       ageGroup,
       trending: p.trending ?? "stable",
-      // Sin evaluar ⇒ percentil null (no compite ni cuenta como 0).
-      percentile: p.vsi === null ? null : percentileRank(p.vsi, allVSIs),
+      percentile: null, // calculated below
       percentileInAgeGroup: null, // calculated below
       updatedAt: p.lastActive ?? new Date().toISOString(),
       metrics: p.stats ?? {},
@@ -202,10 +194,24 @@ function fetchLocalRankedPlayers(
     return row;
   });
 
-  // Calculate age group percentiles (sin evaluar queda null)
+  // Percentiles con la implementación ÚNICA (src/lib/metrics/percentile.ts), la misma
+  // que /api/rankings/list: sin evaluar ⇒ null + motivo; menos de 10 pares evaluados ⇒
+  // null + motivo; reales y de ejemplo no se mezclan. Antes: «≤1 valor ⇒ 100».
+  const members = enriched.map((p, i) => ({
+    id: p.id,
+    value: p.vsi,
+    isDemo: sorted[i]?.isDemo === true,
+    group: p.ageGroup,
+  }));
+  const global = percentilesAmong(members);
+  const inGroup = percentilesAmong(members, { byGroup: true });
   for (const p of enriched) {
-    p.percentileInAgeGroup =
-      p.vsi === null ? null : percentileRank(p.vsi, vsiByAgeGroup[p.ageGroup] ?? allVSIs);
+    const g = global.get(p.id)!;
+    const ag = inGroup.get(p.id)!;
+    p.percentile = g.result.value;
+    p.percentileGate = percentileGateInfo(g);
+    p.percentileInAgeGroup = ag.result.value;
+    p.percentileInAgeGroupGate = percentileGateInfo(ag);
   }
 
   // Apply filters

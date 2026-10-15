@@ -62,15 +62,18 @@ async function listBody(): Promise<{ players: Array<Record<string, unknown>>; co
 }
 
 describe("rankings · nivel y pie sin valores por defecto", () => {
-  it("ruta RPC: el nivel sale del blob, no del 'Regional' que pone el coalesce de la RPC", async () => {
+  it("aunque la RPC respondiera (con su 'Regional'), ya no se usa: el nivel sale del blob", async () => {
+    // P1 bloque 5: la RPC get_ranked_players no se llama (sus percentiles daban P0).
     rpcOk = true;
     const { players } = await listBody();
     const quick = players.find((p) => p.id === "quick")!;
     const lvl = players.find((p) => p.id === "lvl")!;
     expect(quick.competitiveLevel).toBeNull();
-    expect(quick.foot).toBeUndefined();
+    expect(quick.foot).toBeNull();
     expect(lvl.competitiveLevel).toBe("Nacional");
     expect(lvl.foot).toBe("left");
+    const calls = vi.mocked(globalThis.fetch).mock.calls.map(([u]) => String(u));
+    expect(calls.some((u) => u.includes("/rpc/get_ranked_players"))).toBe(false);
   });
 
   it("ruta en memoria: sin nivel ni pie ⇒ null (no «Regional»/«right»), y el filtro de niveles no inventa ninguno", async () => {

@@ -467,7 +467,7 @@ const PlayerForm = () => {
 
       // Invalida todas las caches relevantes
       queryClient.invalidateQueries({ queryKey: ["players-all"] });
-      queryClient.invalidateQueries({ queryKey: ["rankings"] });
+      queryClient.invalidateQueries({ queryKey: ["ranked-players"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       if (isEditMode && id) {
         queryClient.invalidateQueries({ queryKey: ["player", id] });

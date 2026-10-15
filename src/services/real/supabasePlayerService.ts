@@ -51,12 +51,15 @@ export function playerToColumns(p: Player) {
     competitive_level: p.competitiveLevel ?? null,
     minutes_played: p.minutesPlayed ?? 0,
     gender: p.gender ?? null, // sin sexo registrado ⇒ null (no asumir masculino; invariante #5)
-    metric_speed: p.metrics?.speed ?? 0,
-    metric_technique: p.metrics?.technique ?? 0,
-    metric_vision: p.metrics?.vision ?? 0,
-    metric_stamina: p.metrics?.stamina ?? 0,
-    metric_shooting: p.metrics?.shooting ?? 0,
-    metric_defending: p.metrics?.defending ?? 0,
+    // Sin evaluar ⇒ null, no 0 (P1 bloque 5). OJO: el trigger de players (069) y el
+    // DEFAULT de la columna (024) siguen poniendo 0: los lectores usan el blob
+    // `data->metrics` (corregir las columnas es del bloque 7).
+    metric_speed: p.metrics?.speed ?? null,
+    metric_technique: p.metrics?.technique ?? null,
+    metric_vision: p.metrics?.vision ?? null,
+    metric_stamina: p.metrics?.stamina ?? null,
+    metric_shooting: p.metrics?.shooting ?? null,
+    metric_defending: p.metrics?.defending ?? null,
     vsi: p.vsi ?? null, // sin evaluar ⇒ null en la columna (no un 0 fabricado)
     vsi_history: p.vsiHistory ?? [],
     phv_category: p.phvCategory ?? null,

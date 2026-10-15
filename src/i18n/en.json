@@ -1836,8 +1836,7 @@
     "newAnalysis": "New analysis",
     "noAnalysisYet": "No analysis yet",
     "generateFirstReport": "Generate the first intelligence report for {{name}}",
-    "generateReport": "Generate Report",
-    "benchmarkLabel": "Benchmark: {{group}}"
+    "generateReport": "Generate Report"
   },
   "playerPhvSection": {
     "parentalTitle": "Maturation data (player and parents)",
@@ -2090,7 +2089,7 @@
     "planClubDesc": "For full academies",
     "planClubFeature1": "Unlimited players",
     "planClubFeature2": "Team: invitable scouts + directors",
-    "planClubFeature3": "Anonymous cross-club benchmark",
+    "planClubFeature3": "Comparison with your own players (min. 10 comparable players)",
     "planClubFeature4": "Compare-vs-rival with tactical plan",
     "planClubFeature5": "Parents dashboard",
     "planClubFeature6": "API + integrations (white-label)",
@@ -2401,7 +2400,6 @@
     "tierLabel": "Tier ·",
     "partiallyEstimated": "Partially estimated · {{measured}}/5 dimensions measured",
     "vsiBlocked": "VSI unavailable · only {{measured}}/5 dimensions measured",
-    "vs": "vs",
     "technicalData": "Technical data (advanced)",
     "biomechanics": "Biomechanics",
     "reportTitle": {
@@ -2936,7 +2934,6 @@
       "liderazgoPresencia": "Leadership & Presence",
       "eficaciaCompetitiva": "Competitive Effectiveness"
     },
-    "benchmarkVsPeers": "Benchmark vs Peers",
     "noInconsistencies": "No inconsistencies detected",
     "issuesSummary": "{{errors}} errors, {{warnings}} warnings",
     "statsPanel": "Statistics Panel",
@@ -3378,15 +3375,7 @@
     "footRight": "Right-footed",
     "footLeft": "Left-footed",
     "footBoth": "Two-footed",
-    "dominantFoot": "Dominant foot",
-    "benchmarkVsPeers": "Benchmark vs Peers",
-    "smallSampleWarning": "Small sample ({{count}} players). Indicative percentiles.",
-    "dimDecisionSpeed": "Decision Spd.",
-    "dimTechnique": "Technique",
-    "dimTacticalIntelligence": "Tact. Intel.",
-    "dimPhysicalCapacity": "Physical Capacity",
-    "dimLeadership": "Leadership",
-    "dimEffectiveness": "Effectiveness"
+    "dominantFoot": "Dominant foot"
   },
   "playerReportsPage": {
     "video": "Video",
@@ -3984,10 +3973,7 @@
     "statDefense": "Defense"
   },
   "peerBenchmark": {
-    "comparing": "Comparing vs VITAS network…",
-    "crossClubBenchmark": "Cross-club benchmark",
-    "insufficientData": "Only {{count}} comparable players. The more academies use VITAS, the more reliable it will be.",
-    "crossClubBenchmarkLabel": "Cross-club benchmark",
+    "comparing": "Comparing with your players…",
     "stratum": "Stratum",
     "age": "age",
     "mean": "mean",
@@ -3999,7 +3985,9 @@
       "stamina": "Stamina",
       "shooting": "Shooting",
       "defending": "Defending"
-    }
+    },
+    "title": "Comparison with your players",
+    "vsiVsPeers": "Coach evaluation vs peers"
   },
   "phvProductCard": {
     "title": "Biological maturation (PHV)",
@@ -5582,10 +5570,6 @@
     "intensityMedium": "Medium",
     "intensityHigh": "High"
   },
-  "benchmarkBadge": {
-    "titleSmallSample": "Percentile {{percentile}} (sample < 5 players)",
-    "titleVsGroup": "Percentile {{percentile}} vs age/position group"
-  },
   "drillRecommendations": {
     "title": "Recommended Drills",
     "titleRag": "Recommended Drills (RAG)",
@@ -6567,5 +6551,12 @@
     "title": "Predictive valuation",
     "notComputedTitle": "Valuation not calculated",
     "noData": "no data"
+  },
+  "percentile": {
+    "gate": {
+      "not_evaluated": "No coach evaluation: no percentile",
+      "insufficient_peers": "No percentile: not enough comparable evaluated players ({{count}} of {{min}})",
+      "insufficient_short": "No percentile ({{count}}/{{min}} peers)"
+    }
   }
 }

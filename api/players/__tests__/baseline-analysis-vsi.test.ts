@@ -74,8 +74,7 @@ describe("baseline-analysis — sin tendencia sobre el historial legacy sin fech
     playerRow = {
       id: "p-samu", tenant_id: "t-1", name: "Samu", age: 9, position: "MC", foot: "right",
       height_cm: 135, weight_kg: 30, competitive_level: "Regional",
-      metric_speed: 70, metric_technique: 68, metric_vision: 66, metric_stamina: 67,
-      metric_shooting: 65, metric_defending: 66,
+      metrics: { speed: 70, technique: 68, vision: 66, stamina: 67, shooting: 65, defending: 66 },
       vsi: 67.4, vsi_history: [57.5, 67.4], phv_category: null, phv_offset: null,
     };
   });
@@ -88,9 +87,10 @@ describe("baseline-analysis — sin tendencia sobre el historial legacy sin fech
     expect(analysisInsert!.vsi).not.toHaveProperty("trend");
     expect(analysisInsert!.vsi).not.toHaveProperty("history");
     expect(JSON.stringify(analysisInsert!.vsi)).not.toContain("57.5");
-    // El resto del VSI del análisis sigue intacto.
+    // El resto del VSI del análisis sigue intacto; el percentil `peer` ya no se guarda
+    // (P1 bloque 5: se calculaba contra jugadores de todas las cuentas, sin mínimo).
     expect(analysisInsert!.vsi).toHaveProperty("vsi");
-    expect(analysisInsert!.vsi).toHaveProperty("peer");
+    expect(analysisInsert!.vsi).not.toHaveProperty("peer");
   });
 
   it("historial largo (≥ 6 guardados): tampoco se emite el antiguo «delta» últimos-3 vs anteriores-3", async () => {

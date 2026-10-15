@@ -311,8 +311,13 @@ export function vsiTrendArrow(input: VsiTrendArrowInput): VsiTrendArrow {
  * baseline-analysis ya no los escribe; las filas guardadas los conservan, así que los
  * endpoints que sirven análisis (api/analyses/reports.ts, api/analyses/share.ts) los
  * quitan al leer. La única variación válida es `computeVsiDelta` (invariante #7).
+ *
+ * `peer` (P1 bloque 5): percentil que el mismo endpoint guardaba comparando contra
+ * jugadores de TODAS las cuentas, sin mínimo y con los no evaluados como 0 (podía dar
+ * «P0»). Ya no se escribe; las filas viejas lo pierden al leer. La comparación con pares
+ * es /api/benchmark/peer (implementación única, src/lib/metrics/percentile.ts).
  */
-export const RETIRED_ANALYSIS_VSI_FIELDS = ["trend", "history"] as const;
+export const RETIRED_ANALYSIS_VSI_FIELDS = ["trend", "history", "peer"] as const;
 
 /** Copia de `analyses.vsi` sin los campos retirados. No muta la entrada; lo demás intacto. */
 export function withoutUndatedVsiSeries<T>(vsi: T): T {

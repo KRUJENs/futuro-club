@@ -191,7 +191,7 @@ describe("securityDefinerLint · supabase/migrations", () => {
       expect(f?.acl.authenticated, k).toBe(true);
       expect(f?.acl.anon || f?.acl.PUBLIC, k).toBe(false);
     }
-    // get_ranked_players sigue sin tope de p_limit (#301 pide hasta 100000).
+    // get_ranked_players sigue sin tope de p_limit (desde el P1 bloque 5a la app ya no la llama).
     const ranked = functions.get("public.get_ranked_players(uuid,text,text,integer,integer,text,text,text,text,text)");
     expect(ranked?.acl.service_role).toBe(true);
   });
@@ -212,7 +212,7 @@ describe("securityDefinerLint · supabase/migrations", () => {
       .map((l) => l.replace(/--.*$/, ""))
       .join("\n");
     expect(code).not.toMatch(/mirwald|khamis|maturity_offset\s*=|phv_offset\s*=|phv_category\s*=/i);
-    // p_limit de get_ranked_players NO se recorta (#301 usa 100000).
+    // p_limit de get_ranked_players NO se recorta (la función queda sin uso desde el P1 bloque 5a).
     expect(code).not.toMatch(/least\s*\(\s*p_limit/i);
   });
 });

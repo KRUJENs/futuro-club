@@ -12,6 +12,7 @@
  * (age_source='birth_date', migración 069) y el VSI baseline no lleva ajuste PHV.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { calculateFichaVsi } from "../../../src/services/real/metricsService";
 
 vi.mock("../../_lib/rateLimit", () => ({
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 9, limit: 10, resetAt: Date.now() + 60000 }),
@@ -65,7 +66,8 @@ vi.mock("@supabase/supabase-js", () => ({
 }));
 
 const METRICS = { speed: 70, technique: 70, vision: 65, stamina: 65, shooting: 60, defending: 55 };
-const AVG = Math.round((70 + 70 + 65 + 65 + 60 + 55) / 6); // 64
+// VSI de ficha (calculateFichaVsi, fuente única): ya no la media simple (64).
+const FICHA = calculateFichaVsi(METRICS);
 
 function post(body: Record<string, unknown>) {
   return new Request("https://x.test/api/players/baseline-analysis", {
@@ -90,22 +92,13 @@ beforeEach(() => {
   playerRow = {
     id: "samu", tenant_id: "t1", name: "Samu", age: 9, position: "DC", foot: "right",
     height_cm: 135, weight_kg: 30, competitive_level: "Regional",
-    metric_speed: 70, metric_technique: 70, metric_vision: 65, metric_stamina: 65, metric_shooting: 60, metric_defending: 55,
+    // Barras del entrenador del blob (alias metrics:data->metrics del select).
+    metrics: METRICS,
     vsi: 67.4, vsi_history: [57.5, 67.4],
     // Columna persistida naive (caso Samu): NO debe llegar a los prompts.
     phv_category: "early", phv_offset: -1.2,
   };
   anthroRow = null;
-});
-
-describe("computeVsi · sin ajuste PHV ±5", () => {
-  it("la categoría (early/late/ontme/null) NO mueve el VSI baseline", async () => {
-    const { computeVsi } = await import("../baseline-analysis");
-    for (const category of ["early", "late", "ontme", null]) {
-      const r = computeVsi({ metrics: METRICS, phv: { category, offset: -1.2, chronologicalAge: 12.3, gate_reason: null } });
-      expect(r.vsi).toBe(AVG);
-    }
-  });
 });
 
 describe("phvBlock · el prompt solo afirma PHV con fila fiable", () => {
@@ -130,7 +123,10 @@ describe("handler · la categoría persistida NO llega a los 6 prompts", () => {
   it("sin fila antropométrica: players.phv_category='early' se ignora y el VSI no lleva −5", async () => {
     const { status, json } = await run();
     expect(status).toBe(200);
-    expect(json.data.vsi).toBe(AVG);
+    expect(json.data.vsi).toBe(67.4); // el VSI de ficha guardado, sin −5
+    // …y no la media simple de las barras (64) ni un recálculo desde ellas (FICHA):
+    // precondición del fixture para que la aserción anterior distinga las tres reglas.
+    expect([64, FICHA]).not.toContain(67.4);
     expect(sentPrompts.length).toBe(6);
     for (const p of sentPrompts) {
       expect(p).toContain("NO DISPONIBLE");

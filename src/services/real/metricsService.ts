@@ -1,6 +1,7 @@
 /**
  * VITAS Metrics Service — DETERMINISTA
- * Cálculos matemáticos puros: VSI, percentiles, tendencias.
+ * Cálculos matemáticos puros: VSI de ficha y tendencias. (Los percentiles entre pares
+ * viven en src/lib/metrics/percentile.ts, implementación única.)
  * No usa IA. Algoritmos fijos y reproducibles.
  */
 
@@ -11,14 +12,6 @@ export interface PlayerMetrics {
   stamina: number;
   shooting: number;
   defending: number;
-}
-
-export interface VSIResult {
-  raw: number;
-  adjusted: number;
-  percentile: number;
-  trend: "up" | "down" | "stable";
-  label: "elite" | "high" | "medium" | "developing";
 }
 
 /**
@@ -57,6 +50,38 @@ export function calculateFichaVsi(
   return Math.round(raw * 10) / 10;
 }
 
+const COACH_METRIC_KEYS = Object.keys(FICHA_VSI_WEIGHTS) as (keyof PlayerMetrics)[];
+
+/**
+ * Las 6 barras de la evaluación del entrenador del blob `data.metrics`, o null si falta
+ * alguna. Una barra ausente NO vale 0. Requisito ADICIONAL a «evaluado» solo donde se
+ * usan las barras (prompt del análisis base, radar del informe impreso) — P1 bloque 5a.
+ */
+export function completeCoachMetrics(raw: unknown): PlayerMetrics | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const out = {} as PlayerMetrics;
+  for (const k of COACH_METRIC_KEYS) {
+    const v = r[k];
+    if (typeof v !== "number" || !Number.isFinite(v)) return null;
+    out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * VSI de ficha de un jugador desde su blob `data` — regla ÚNICA de «evaluado» (P1 bloque
+ * 5a, invariante #7): el valor GUARDADO (el que enseñan la ficha, el gauge y la vista de
+ * familia), o null («sin evaluar»). Nunca se recalcula aquí desde las barras: antes
+ * Rankings lo hacía con barras parciales (una barra ausente valía 0: `metrics: {}` ⇒ 0)
+ * y le daba un VSI a quien la ficha mostraba «sin evaluar». Los escritores (PlayerService,
+ * /api/players/crud) guardan el VSI y las 6 barras a la vez.
+ */
+export function fichaVsiFromBlob(d: { vsi?: unknown } | null | undefined): number | null {
+  if (!d) return null;
+  return typeof d.vsi === "number" && Number.isFinite(d.vsi) ? d.vsi : null;
+}
+
 export const MetricsService = {
   /** VSI de FICHA (evaluación del entrenador) — delega en calculateFichaVsi (arriba). */
   calculateVSI(metrics: PlayerMetrics): number {
@@ -73,19 +98,9 @@ export const MetricsService = {
     return "stable";
   },
 
-  /**
-   * Calcula el percentil de un jugador dentro de un grupo
-   */
-  calculatePercentile(playerVSI: number | null, allVSIs: (number | null)[]): number | null {
-    // Un jugador sin evaluar (vsi null) no tiene percentil: no se le fabrica uno
-    // (invariante #2). Y los null del grupo se excluyen de la población para no
-    // ensuciar el percentil del resto (v < null daría v < 0 → false para todos).
-    if (playerVSI == null) return null;
-    const pop = allVSIs.filter((v): v is number => v != null);
-    if (pop.length === 0) return 50;
-    const below = pop.filter((v) => v < playerVSI).length;
-    return Math.round((below / pop.length) * 100);
-  },
+  // (Sin calculatePercentile: el percentil entre pares tiene una implementación única,
+  //  src/lib/metrics/percentile.ts, con mínimo de pares; esta devolvía 50 con el grupo
+  //  vacío. P1 bloque 5, invariante #7.)
 
   /**
    * Clasifica el VSI en etiqueta semántica
@@ -95,29 +110,6 @@ export const MetricsService = {
     if (vsi >= 65) return "high";
     if (vsi >= 50) return "medium";
     return "developing";
-  },
-
-  /**
-   * Resultado VSI completo
-   */
-  getVSIResult(
-    metrics: PlayerMetrics,
-    previousVSI: number | null,
-    allVSIs: number[]
-  ): VSIResult {
-    const raw = MetricsService.calculateVSI(metrics);
-    const trend = previousVSI !== null
-      ? MetricsService.calculateTrend(raw, previousVSI)
-      : "stable";
-    return {
-      raw,
-      adjusted: raw,
-      // raw nunca es null aquí; el ?? 50 solo satisface el contrato null-safe
-      // (grupo vacío ya devuelve 50 dentro de calculatePercentile).
-      percentile: MetricsService.calculatePercentile(raw, allVSIs) ?? 50,
-      trend,
-      label: MetricsService.classifyVSI(raw),
-    };
   },
 
   /**

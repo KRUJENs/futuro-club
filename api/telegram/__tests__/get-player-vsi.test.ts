@@ -12,8 +12,8 @@ const PLAYER_ROW = {
   id: "p-samu", name: "Samu", age: 9, position: "MC", foot: "right",
   height_cm: 135, weight_kg: 30, vsi: 67.4, vsi_history: [57.5, 67.4],
   phv_category: null, phv_offset: null,
-  metric_speed: 70, metric_technique: 68, metric_vision: 66, metric_stamina: 67,
-  metric_shooting: 65, metric_defending: 66,
+  // Barras del entrenador del blob (alias evaluacion_entrenador:data->metrics).
+  evaluacion_entrenador: { speed: 70, technique: 68, vision: 66, stamina: 67, shooting: 65, defending: 66 },
 };
 const ANALYSIS_ROW = {
   id: "an-1", status: "completed", completed_at: "2026-08-20T10:00:00Z",
@@ -24,16 +24,19 @@ const ANALYSIS_ROW = {
   },
 };
 
-function fakeSupabase() {
+const playerSelects: string[] = [];
+
+function fakeSupabase(playerRow: Record<string, unknown> = PLAYER_ROW, analysisRow: Record<string, unknown> = ANALYSIS_ROW) {
   return {
     from: (table: string) => {
       const b: Record<string, unknown> = {};
       const chain = () => b;
       Object.assign(b, {
-        select: chain, eq: chain, ilike: chain, in: chain, order: chain,
-        limit: () => (table === "players" ? Promise.resolve({ data: [structuredClone(PLAYER_ROW)] }) : b),
+        select: (cols: string) => { if (table === "players") playerSelects.push(cols); return b; },
+        eq: chain, ilike: chain, in: chain, order: chain,
+        limit: () => (table === "players" ? Promise.resolve({ data: [structuredClone(playerRow)] }) : b),
         maybeSingle: async () =>
-          table === "analyses" ? { data: structuredClone(ANALYSIS_ROW) } : { data: null },
+          table === "analyses" ? { data: structuredClone(analysisRow) } : { data: null },
       });
       return b;
     },
@@ -58,5 +61,33 @@ describe("telegram get_player — sin serie VSI legacy para el LLM", () => {
     expect(out).not.toContain("57.5");
     expect(parsed.player.vsi).toBe(67.4);
     expect(parsed.lastAnalysis.vsi.vsi).toBe(67);
+  });
+});
+
+// P1 bloque 5: las barras del entrenador salen del blob (las columnas metric_* valen 0
+// para quien no está evaluado: trigger 069 + DEFAULT 0 de la 024) y el percentil viejo
+// guardado en analyses.vsi.peer (pool de todas las cuentas, no evaluados como 0) no llega.
+describe("telegram get_player — sin ceros de un jugador sin evaluar ni percentil viejo", () => {
+  it("la consulta lee data->metrics, nunca las columnas metric_*", async () => {
+    playerSelects.length = 0;
+    await execTool(fakeSupabase(), { userId: "user-coach-1", tenantId: "t-1", chatId: 1 }, "get_player", { name_query: "samu" });
+    expect(playerSelects[0]).toContain("evaluacion_entrenador:data->metrics");
+    expect(playerSelects[0]).not.toMatch(/metric_(speed|technique|vision|stamina|shooting|defending)/);
+  });
+
+  it("jugador sin evaluar ⇒ evaluación null (no «velocidad 0») y sin percentil «P0» del análisis", async () => {
+    const out = await execTool(
+      fakeSupabase(
+        { ...PLAYER_ROW, vsi: null, vsi_history: [], evaluacion_entrenador: null },
+        { ...ANALYSIS_ROW, vsi: { vsi: 0, tierLabel: "En desarrollo", peer: { percentile: 0, peerCount: 3, stratum: "MC U9±1 todos" } } },
+      ),
+      { userId: "user-coach-1", tenantId: "t-1", chatId: 1 },
+      "get_player",
+      { name_query: "samu" },
+    );
+    const parsed = JSON.parse(out) as { player: Record<string, unknown>; lastAnalysis: { vsi: Record<string, unknown> } };
+    expect(parsed.player.evaluacion_entrenador).toBeNull();
+    expect(out).not.toMatch(/metric_speed/);
+    expect(parsed.lastAnalysis.vsi).not.toHaveProperty("peer");
   });
 });
