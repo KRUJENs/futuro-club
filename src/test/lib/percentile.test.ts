@@ -39,7 +39,7 @@ describe("peerPercentile", () => {
     expect(one.gate_code).toBe("insufficient_peers");
     expect(one.peers_valid).toBe(1);
     expect(one.min_peers).toBe(10);
-    expect(one.result.gate_reason).toMatch(/1 jugadores evaluados comparables \(mínimo 10\)/);
+    expect(one.result.gate_reason).toBe("faltan jugadores evaluados comparables (1 de 10)");
     expect(peerPercentile(80, TEN.slice(0, 9)).result.value).toBeNull();
   });
 
@@ -70,10 +70,15 @@ describe("peerDistribution", () => {
     expect(d.gate_code).toBe("insufficient_peers");
   });
 
-  it("media y cuantiles por rango más cercano sobre pares válidos", () => {
+  it("media y cuantiles por interpolación lineal sobre pares válidos (mediana de 10..100 = 55)", () => {
     const d = peerDistribution([...TEN, null]);
     expect(d.peers_valid).toBe(10);
-    expect(d.result.value).toEqual({ mean: 55, p25: 30, p50: 60, p75: 80, p90: 100 });
+    expect(d.result.value).toEqual({ mean: 55, p25: 32.5, p50: 55, p75: 77.5, p90: 91 });
+  });
+
+  it("coherencia: un valor en la mediana sale P50 y queda sobre la línea de P50", () => {
+    expect(peerPercentile(55, TEN).result.value).toBe(50);
+    expect(peerDistribution(TEN).result.value?.p50).toBe(55);
   });
 });
 

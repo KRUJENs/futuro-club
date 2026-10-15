@@ -124,7 +124,7 @@ describe("/api/benchmark/peer · solo jugadores propios, mínimo 10 pares, sin P
     expect(data.vsi.percentile.value).toBe(100);
     expect(data.vsi.percentile.provenance).toBe("DERIVADA");
     expect(data.vsi.gate).toBeNull();
-    expect(data.vsi.distribution).toMatchObject({ p50: 55 });
+    expect(data.vsi.distribution).toMatchObject({ p50: 54.5 }); // mediana de 50..59
     expect(data.minPeers).toBe(10);
     expect(data.scope).toBe("owner_only");
   });
@@ -142,6 +142,13 @@ describe("/api/benchmark/peer · solo jugadores propios, mínimo 10 pares, sin P
     const { data } = await get();
     expect(data.vsi.percentile.value).toBeNull();
     expect(data.vsi.gate).toEqual({ code: "insufficient_peers", peers: 0, min: 10 });
+  });
+
+  it("un VSI vacío o no numérico (texto de PostgREST) es ausencia, no 0", async () => {
+    target = { ...target, vsi: "" };
+    const { data } = await get();
+    expect(data.vsi.percentile.value).toBeNull();
+    expect(data.vsi.gate?.code).toBe("not_evaluated");
   });
 
   it("jugador sin dueño registrado ⇒ 409, nunca se cae a un pool global", async () => {

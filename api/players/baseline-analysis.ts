@@ -33,7 +33,7 @@ import { MODELS, modelParams } from "../_lib/models";
 import { fetchMessages, responseText } from "../_lib/anthropic";
 import { localeSchema, normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
 import { trustAnthropometricsRow, PHV_STATUS_LABEL_ES, type PhvCategory } from "../../src/lib/phv/phvGate";
-import { calculateFichaVsi, type PlayerMetrics } from "../../src/services/real/metricsService";
+import { calculateFichaVsi, completeCoachMetrics, type PlayerMetrics } from "../../src/services/real/metricsService";
 import { createClient } from "@supabase/supabase-js";
 
 export const config = { runtime: "edge" };
@@ -149,7 +149,7 @@ EVALUACIÓN DEL ENTRENADOR (6 barras 0-100, subjetiva; no es una medida)
 - Velocidad: ${m.speed}    · Resistencia: ${m.stamina}
 - Técnica: ${m.technique}  · Visión: ${m.vision}
 - Tiro: ${m.shooting}      · Defensa: ${m.defending}
-- Índice ponderado de esas 6 barras (VSI de ficha): ${p.vsi}/100
+- VSI de ficha (evaluación del entrenador guardada, índice ponderado 0-100): ${p.vsi}/100
 
 ${phvBlock(p)}
 
@@ -164,19 +164,8 @@ Sé honesto sobre las limitaciones del análisis sin vídeo.`;
 
 // ── VSI de ficha + tramo ─────────────────────────────────────────────
 
-/** Las 6 barras del blob `data.metrics`, o null si falta alguna (no evaluado del todo). */
-export function completeCoachMetrics(raw: unknown): PlayerMetrics | null {
-  if (!raw || typeof raw !== "object") return null;
-  const r = raw as Record<string, unknown>;
-  const keys: (keyof PlayerMetrics)[] = ["speed", "technique", "vision", "stamina", "shooting", "defending"];
-  const out = {} as PlayerMetrics;
-  for (const k of keys) {
-    const v = r[k];
-    if (typeof v !== "number" || !Number.isFinite(v)) return null;
-    out[k] = v;
-  }
-  return out;
-}
+// (completeCoachMetrics vive en src/services/real/metricsService.ts: regla única de
+//  «evaluación completa», la misma que usa Rankings vía fichaVsiFromBlob.)
 
 /**
  * VSI de ficha del jugador (el que muestra la app: el guardado, o calculateFichaVsi de las

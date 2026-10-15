@@ -37,7 +37,6 @@ vi.mock("@/services/real/metricsService", () => ({
       if (vsi >= 55) return "medium";
       return "developing";
     }),
-    calculatePercentile: vi.fn((_value: number, _all: number[]) => 60),
   },
 }));
 

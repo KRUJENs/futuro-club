@@ -45,6 +45,7 @@ import {
 } from "../../src/lib/metrics/percentile";
 import type { MetricResult } from "../../src/lib/metrics/MetricResult";
 import { PERCENTILE_MIN_PEERS, PERCENTILE_POOL_SCOPE } from "../../config/percentiles";
+import { toVsi } from "../_lib/vsiStats";
 
 export const config = { runtime: "edge" };
 
@@ -73,9 +74,10 @@ interface PoolRow {
   is_demo: string | null;
 }
 
+/** Coerción única (toVsi, api/_lib/vsiStats.ts): numeric de PostgREST puede llegar como
+ *  texto; un texto vacío o no numérico es ausencia, nunca 0. */
 function finite(v: unknown): number | null {
-  const n = typeof v === "string" ? Number(v) : v;
-  return typeof n === "number" && Number.isFinite(n) ? n : null;
+  return typeof v === "number" || typeof v === "string" ? toVsi(v) : null;
 }
 
 function metricOf(metrics: Record<string, unknown> | null | undefined, key: MetricKey): number | null {

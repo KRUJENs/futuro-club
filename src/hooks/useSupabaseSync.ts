@@ -45,7 +45,7 @@ export function useSupabaseSync() {
   // Invalidar queries relevantes
   const invalidateAll = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["players-all"] });
-    qc.invalidateQueries({ queryKey: ["rankings"] });
+    qc.invalidateQueries({ queryKey: ["ranked-players"] });
     qc.invalidateQueries({ queryKey: ["dashboard"] });
     qc.invalidateQueries({ queryKey: ["videos"] });
     if (user) {

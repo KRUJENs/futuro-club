@@ -23,6 +23,9 @@ import listHandler from "../_list";
 type Row = { id: string; data: Record<string, unknown>; updated_at: string };
 let rows: Row[] = [];
 let playersUrls: string[] = [];
+/** Estado HTTP de la RPC. En el test de la caché se fuerza 500: así el código viejo
+ *  caería a su ruta en memoria (la que cacheaba 5 min) y el test lo detectaría. */
+let rpcStatus = 200;
 
 function player(id: string, vsi: number | null, extra: Record<string, unknown> = {}): Row {
   return { id, data: { name: id, age: 14, position: "MC", vsi, ...extra }, updated_at: "2026-10-01" };
@@ -32,9 +35,11 @@ beforeEach(() => {
   process.env.SUPABASE_URL = "https://test.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "svc";
   playersUrls = [];
+  rpcStatus = 200;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const u = typeof url === "string" ? url : url.toString();
     if (u.includes("/rpc/get_ranked_players")) {
+      if (rpcStatus !== 200) return new Response("rpc down", { status: rpcStatus });
       // Si se llamara, devolvería el P0 de percent_rank(): el test comprueba que no.
       return new Response(JSON.stringify({
         players: rows.map((r) => ({ id: r.id, name: r.id, vsi: r.data.vsi, percentile: 0, percentile_in_age_group: 0, data: r.data })),
@@ -80,6 +85,17 @@ describe("rankings · percentil entre pares (implementación única)", () => {
     expect(playersUrls[0]).toContain("user_id=eq.coach-percentile");
   });
 
+  it("barras parciales sin VSI guardado ⇒ sin evaluar (una barra ausente no vale 0)", async () => {
+    rows = [
+      { id: "vacio", data: { name: "vacio", age: 14, position: "MC", metrics: {} }, updated_at: "2026-10-01" },
+      { id: "parcial", data: { name: "parcial", age: 14, position: "MC", metrics: { speed: 70 } }, updated_at: "2026-10-01" },
+    ];
+    const players = await list();
+    expect(players.find((p) => p.id === "vacio")!.vsi).toBeNull();
+    expect(players.find((p) => p.id === "parcial")!.vsi).toBeNull();
+    expect((players.find((p) => p.id === "vacio")!.percentileGate as { code: string }).code).toBe("not_evaluated");
+  });
+
   it("11 evaluados del mismo grupo ⇒ percentil de punto medio entre los 10 pares", async () => {
     rows = Array.from({ length: 11 }, (_, i) => player(`p${i}`, 50 + i));
     const players = await list();
@@ -101,6 +117,7 @@ describe("rankings · percentil entre pares (implementación única)", () => {
   });
 
   it("sin caché de 5 minutos: lo recién guardado se ve en la siguiente petición", async () => {
+    rpcStatus = 500;
     rows = [player("x", null)];
     expect((await list()).find((p) => p.id === "x")!.vsi).toBeNull();
     rows = [player("x", 64)];

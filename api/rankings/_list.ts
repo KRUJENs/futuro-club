@@ -22,7 +22,7 @@
 
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
-import { calculateFichaVsi } from "../../src/services/real/metricsService";
+import { fichaVsiFromBlob } from "../../src/services/real/metricsService";
 import { phvGate, matchesTimingFilter, type MaturityTiming, type PhvGateInput } from "../../src/lib/phv/phvGate";
 import { vsiTrendArrow } from "../../src/lib/scoring/vsiDelta";
 import { percentilesAmong, percentileGateInfo, type PercentileGateInfo } from "../../src/lib/metrics/percentile";
@@ -131,14 +131,13 @@ export default withHandler(
     // Filters
     // PHV: "early" | "on-time" | "late" (se acepta también la forma interna "ontme").
     // Se filtra SIEMPRE sobre el recálculo del gate único (gatedPhvFields), nunca
-    // sobre la categoría persistida: ver la ruta RPC.
+    // sobre la categoría persistida (la RPC antigua filtraba por la persistida).
     const phvParam = url.searchParams.get("phv");
     const phvFilter = phvParam && phvParam !== "all" ? mapPhv(phvParam) : null;
     // Filtro de la UI («Madurador tardío ⭐»): TIMING vs pares ("late" | "on_time" |
     // "early") sobre el MISMO timing gateado que rotula la fila. `phv` filtra la FASE.
     const timingParam = url.searchParams.get("timing");
     const timingFilter = timingParam && timingParam !== "all" ? timingParam : null;
-    const gatedFilter = Boolean(phvFilter) || Boolean(timingFilter);
     const posFilter = url.searchParams.get("position"); // Position string
     const ageGroupFilter = url.searchParams.get("ageGroup"); // "Sub-14", etc.
     const levelFilter = url.searchParams.get("level"); // competitive level
@@ -172,13 +171,11 @@ export default withHandler(
       // First pass: extract all players
       allPlayers = allRows.map((row) => {
         const d = row.data as Record<string, unknown>;
-        const hasMetrics = d.metrics != null && typeof d.metrics === "object";
         const metrics = (d.metrics ?? {}) as Record<string, number>;
-        // VSI de ficha honesto: si el blob trae un número, úsalo; si no, solo se
-        // calcula cuando hay métricas (el coach evaluó). Sin métricas ⇒ null
-        // ("sin evaluar"), nunca un número fabricado (invariante #2).
-        const vsi: number | null =
-          typeof d.vsi === "number" ? d.vsi : hasMetrics ? calculateFichaVsi(metrics) : null;
+        // VSI de ficha con la regla ÚNICA de «evaluado» (fichaVsiFromBlob): el guardado
+        // o, si no lo hay, el de las 6 barras COMPLETAS; si no, null ("sin evaluar").
+        // Antes una barra ausente valía 0 (`metrics: {}` ⇒ VSI 0 que competía como par).
+        const vsi: number | null = fichaVsiFromBlob(d);
         const age = (d.age as number) ?? 15;
         // Flecha ↑/↓ solo desde dos evaluaciones reales con fecha (fuente única
         // vsiTrendArrow → computeVsiDelta, invariante #7); el vsiHistory legacy (sin
@@ -349,7 +346,7 @@ export default withHandler(
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
-// VSI de ficha: calculateFichaVsi en src/services/real/metricsService.ts (fuente única · invariante #7).
+// VSI de ficha: fichaVsiFromBlob / calculateFichaVsi en src/services/real/metricsService.ts (fuente única · invariante #7).
 
 function mapPhv(raw: string): string {
   if (raw === "ontme") return "on-time";

@@ -6554,7 +6554,7 @@
   "percentile": {
     "gate": {
       "not_evaluated": "Pas d'évaluation de l'entraîneur : pas de percentile",
-      "insufficient_peers": "Pas de percentile : seulement {{count}} joueurs évalués comparables (minimum {{min}})",
+      "insufficient_peers": "Pas de percentile : pas assez de joueurs évalués comparables ({{count}} sur {{min}})",
       "insufficient_short": "Pas de percentile ({{count}}/{{min}} pairs)"
     }
   }

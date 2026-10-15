@@ -14,6 +14,7 @@ import { motion } from "framer-motion";
 import { Loader2, Users, Info } from "lucide-react";
 import { getAuthHeaders } from "@/lib/apiAuth";
 import type { MetricResult } from "@/lib/metrics/MetricResult";
+import { ProvenanceBadge } from "@/components/metrics/MetricValue";
 import type { PercentileGateInfo, PeerDistributionValue } from "@/lib/metrics/percentile";
 
 interface PeerMetric {
@@ -119,7 +120,11 @@ export default function PeerBenchmark({ playerId, variant = "full" }: Props) {
       <div className="rounded-xl bg-primary/10 border border-primary/30 p-3">
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs font-display font-bold text-foreground">{t("peerBenchmark.vsiVsPeers")}</span>
-          <span className="font-display font-bold text-2xl text-primary">P{data.vsi.percentile.value}</span>
+          {/* Procedencia rotulada por el componente único (DERIVADA ⇒ «Calculado»). */}
+          <span className="flex items-center gap-1.5">
+            <span className="font-display font-bold text-2xl text-primary">P{data.vsi.percentile.value}</span>
+            <ProvenanceBadge provenance={data.vsi.percentile.provenance} />
+          </span>
         </div>
         {data.vsi.distribution && data.vsi.player !== null && (
           <>

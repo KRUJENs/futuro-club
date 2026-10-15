@@ -6555,7 +6555,7 @@
   "percentile": {
     "gate": {
       "not_evaluated": "No coach evaluation: no percentile",
-      "insufficient_peers": "No percentile: only {{count}} comparable evaluated players (minimum {{min}})",
+      "insufficient_peers": "No percentile: not enough comparable evaluated players ({{count}} of {{min}})",
       "insufficient_short": "No percentile ({{count}}/{{min}} peers)"
     }
   }

@@ -6555,7 +6555,7 @@
   "percentile": {
     "gate": {
       "not_evaluated": "Geen beoordeling door de trainer: geen percentiel",
-      "insufficient_peers": "Geen percentiel: slechts {{count}} vergelijkbare beoordeelde spelers (minimaal {{min}})",
+      "insufficient_peers": "Geen percentiel: te weinig vergelijkbare beoordeelde spelers ({{count}} van {{min}})",
       "insufficient_short": "Geen percentiel ({{count}}/{{min}} vergelijkbare spelers)"
     }
   }

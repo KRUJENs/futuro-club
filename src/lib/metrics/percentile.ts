@@ -64,7 +64,7 @@ function validPeers(peers: ReadonlyArray<number | null | undefined>): number[] {
 }
 
 export function insufficientPeersReason(count: number, min: number): string {
-  return `solo ${count} jugadores evaluados comparables (mínimo ${min})`;
+  return `faltan jugadores evaluados comparables (${count} de ${min})`;
 }
 
 export const NOT_EVALUATED_REASON = "sin evaluación: no tiene percentil";
@@ -86,7 +86,7 @@ export function peerPercentile(
       min_peers: min,
     };
   }
-  if (pool.length < min) {
+  if (pool.length < Math.max(1, min)) {
     return {
       result: gated(insufficientPeersReason(pool.length, min), { source_ref }),
       gate_code: "insufficient_peers",
@@ -152,9 +152,15 @@ export function percentileGateInfo(p: PeerPercentile): PercentileGateInfo | null
   return p.gate_code ? { code: p.gate_code, peers: p.peers_valid, min: p.min_peers } : null;
 }
 
-/** Cuantil por rango más cercano (índice floor(n·p), acotado al último). */
-function nearestRank(sorted: number[], p: number): number {
-  return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * p))];
+/**
+ * Cuantil por interpolación lineal entre rangos (h = (n−1)·p). Con 10..100, la mediana
+ * es 55 (antes el índice floor(n·p) daba 60 y P90 = el máximo: revisión del PR #317).
+ */
+function quantile(sorted: number[], p: number): number {
+  const h = (sorted.length - 1) * p;
+  const lo = Math.floor(h);
+  const hi = Math.min(sorted.length - 1, lo + 1);
+  return sorted[lo] + (h - lo) * (sorted[hi] - sorted[lo]);
 }
 
 /** Media y cuantiles 25/50/75/90 de los pares, con el MISMO mínimo que el percentil. */
@@ -165,7 +171,7 @@ export function peerDistribution(
   const min = opts.minPeers ?? PERCENTILE_MIN_PEERS;
   const source_ref = opts.source_ref ?? PERCENTILE_SOURCE_REF;
   const pool = validPeers(peers);
-  if (pool.length < min) {
+  if (pool.length < Math.max(1, min)) {
     return {
       result: gated<PeerDistributionValue>(insufficientPeersReason(pool.length, min), { source_ref }),
       gate_code: "insufficient_peers",
@@ -180,10 +186,10 @@ export function peerDistribution(
     result: derived<PeerDistributionValue>(
       {
         mean: round1(mean),
-        p25: round1(nearestRank(sorted, 0.25)),
-        p50: round1(nearestRank(sorted, 0.5)),
-        p75: round1(nearestRank(sorted, 0.75)),
-        p90: round1(nearestRank(sorted, 0.9)),
+        p25: round1(quantile(sorted, 0.25)),
+        p50: round1(quantile(sorted, 0.5)),
+        p75: round1(quantile(sorted, 0.75)),
+        p90: round1(quantile(sorted, 0.9)),
       },
       { confidence: ORIENTATIVE_CONFIDENCE, source_ref },
     ),

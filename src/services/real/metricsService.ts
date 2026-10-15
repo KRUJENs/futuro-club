@@ -50,6 +50,38 @@ export function calculateFichaVsi(
   return Math.round(raw * 10) / 10;
 }
 
+const COACH_METRIC_KEYS = Object.keys(FICHA_VSI_WEIGHTS) as (keyof PlayerMetrics)[];
+
+/**
+ * Las 6 barras de la evaluación del entrenador del blob `data.metrics`, o null si falta
+ * alguna (no evaluado del todo). Una barra ausente NO vale 0. Fuente única de «tiene
+ * evaluación completa» (P1 bloque 5a).
+ */
+export function completeCoachMetrics(raw: unknown): PlayerMetrics | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const out = {} as PlayerMetrics;
+  for (const k of COACH_METRIC_KEYS) {
+    const v = r[k];
+    if (typeof v !== "number" || !Number.isFinite(v)) return null;
+    out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * VSI de ficha de un jugador desde su blob `data` — regla ÚNICA de «evaluado» (P1 bloque
+ * 5a, invariante #7): el valor guardado (lo que enseña la ficha) o, si no lo hay,
+ * calculateFichaVsi de las 6 barras COMPLETAS; si no, null («sin evaluar»). Antes
+ * Rankings calculaba con barras parciales (una barra ausente valía 0: `metrics: {}` ⇒ 0).
+ */
+export function fichaVsiFromBlob(d: { vsi?: unknown; metrics?: unknown } | null | undefined): number | null {
+  if (!d) return null;
+  if (typeof d.vsi === "number" && Number.isFinite(d.vsi)) return d.vsi;
+  const m = completeCoachMetrics(d.metrics);
+  return m ? calculateFichaVsi(m) : null;
+}
+
 export const MetricsService = {
   /** VSI de FICHA (evaluación del entrenador) — delega en calculateFichaVsi (arriba). */
   calculateVSI(metrics: PlayerMetrics): number {

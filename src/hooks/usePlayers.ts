@@ -157,7 +157,7 @@ export function useCreatePlayer() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["players-all"] });
-      queryClient.invalidateQueries({ queryKey: ["rankings"] });
+      queryClient.invalidateQueries({ queryKey: ["ranked-players"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
@@ -178,7 +178,7 @@ export function useUpdateMetrics() {
       queryClient.invalidateQueries({ queryKey: ["player", id] });
       queryClient.invalidateQueries({ queryKey: ["player-raw", id] });
       queryClient.invalidateQueries({ queryKey: ["players-all"] });
-      queryClient.invalidateQueries({ queryKey: ["rankings"] });
+      queryClient.invalidateQueries({ queryKey: ["ranked-players"] });
     },
   });
 }
@@ -200,7 +200,7 @@ export function useDeletePlayer() {
       queryClient.removeQueries({ queryKey: ["player", id] });
       queryClient.removeQueries({ queryKey: ["player-raw", id] });
       queryClient.invalidateQueries({ queryKey: ["players-all"] });
-      queryClient.invalidateQueries({ queryKey: ["rankings"] });
+      queryClient.invalidateQueries({ queryKey: ["ranked-players"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });
