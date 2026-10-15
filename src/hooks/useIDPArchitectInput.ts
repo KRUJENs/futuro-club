@@ -247,7 +247,9 @@ export function useIDPArchitectInput(playerId: string | undefined): IDPInputBund
     // decía «no hay datos por dimensión» mientras aún cargaban el perfil, los análisis
     // o el riesgo.
     // `riskLoading` es false mientras la consulta del riesgo espera a las lesiones (está
-    // desactivada): por eso también `injuriesLoading`.
+    // desactivada): por eso también `injuriesLoading`. También espera al jugador «crudo»
+    // (`useRawPlayerById`, otra clave de caché) que este hook no ve: queda una ventana
+    // breve (ver docs/pendientes-metricas.md, restos del 5d).
     loading: loadingPlayer || loadingBehavioral || loadingAnalyses || injuriesLoading || riskLoading,
     dataRichness,
   };
