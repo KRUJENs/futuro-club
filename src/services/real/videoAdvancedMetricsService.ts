@@ -20,29 +20,22 @@ import type { TrackingSnapshot } from "./playerTrackingService";
 import type { TacticalEvent } from "@/lib/tracking/eventDetectionEngine";
 import type { BiomechanicsScore } from "@/lib/mediapipe/biomechanicsEngine";
 
-export interface VideoAdvancedMetricsOptions {
-  /** Datos de nacimiento para RAE (opcional) */
-  birthMonth?: number;
-  birthYear?: number;
-}
-
 export const VideoAdvancedMetricsService = {
   /**
    * Calcula métricas avanzadas combinando:
-   *   - Datos del jugador (para RAE, UBI, TruthFilter, DominantFeatures)
+   *   - Datos del jugador (para DominantFeatures)
    *   - Análisis de video (para VAEP, SPADL, Tracking, Biomechanics)
+   * Sin RAE/UBI/TruthFilter (retirados en el P1 bloque 6; el trimestre de nacimiento vive
+   * en src/lib/shared/relativeAge.ts).
    */
   calculate(
     player: Player,
     packet: VideoObservationPacket,
-    options: VideoAdvancedMetricsOptions = {}
   ): AdvancedPlayerMetrics {
     const { vaepInput, trackingInput, biomechanicsInput } =
       VideoMetricsExtractor.extract(packet);
 
     return calculateAdvancedMetrics(player, {
-      birthMonth: options.birthMonth,
-      birthYear: options.birthYear,
       vaepInput,
       trackingInput,
       biomechanicsInput: biomechanicsInput ?? undefined,
@@ -56,7 +49,6 @@ export const VideoAdvancedMetricsService = {
   calculateFromRaw(
     player: Player,
     rawPacket: unknown,
-    options: VideoAdvancedMetricsOptions = {}
   ): AdvancedPlayerMetrics {
     const packet = typeof rawPacket === "string"
       ? VideoMetricsExtractor.parseRawPacket(JSON.parse(rawPacket))
@@ -66,7 +58,7 @@ export const VideoAdvancedMetricsService = {
       throw new Error("Packet de análisis de video inválido o vacío");
     }
 
-    return this.calculate(player, packet, options);
+    return this.calculate(player, packet);
   },
 
   /**

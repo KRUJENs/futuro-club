@@ -1,10 +1,7 @@
 /**
  * VITAS Advanced Metrics Service
  *
- * Implementa todas las fórmulas avanzadas del sistema VITAS:
- *   — RAE  (Relative Age Effect)
- *   — UBI  (Unified Bias Index)
- *   — TruthFilter  (4 casos de corrección VSI)
+ * Implementa las fórmulas avanzadas del sistema VITAS:
  *   — VAEP / VAEP-90 (stub — requiere datos de eventos de partido)
  *   — DominantFeatures (del perfil de métricas actual)
  *   — SpeedMs, FieldCoverage, SprintCount (stubs — requieren datos GPS/tracking)
@@ -24,56 +21,6 @@ import type { MatchEvent, EventType, EventZone } from "./matchEventsService";
 import type { FieldPosition } from "@/lib/yolo/types";
 
 // ─── Tipos de entrada/salida ──────────────────────────────────────────────────
-
-export interface RAEInput {
-  /** Mes de nacimiento (1=enero … 12=diciembre) */
-  birthMonth: number;
-  /** Año de nacimiento */
-  birthYear: number;
-  /** Mes de corte de la competición (por defecto enero = 1) */
-  cutoffMonth?: number;
-}
-
-export interface RAEResult {
-  /** Cuartil de nacimiento (Q1=ene-mar … Q4=oct-dic con cutoff enero) */
-  birthQuartile: 1 | 2 | 3 | 4;
-  /** Ventaja relativa en meses vs. el nacido más tarde del mismo grupo */
-  ageAdvantageMonths: number;
-  /** Factor de sesgo RAE: 1.0 = sin sesgo; >1 = ventaja; <1 = desventaja */
-  raeBiasFactor: number;
-  /** Etiqueta semántica */
-  label: "early_cohort" | "mid_cohort_early" | "mid_cohort_late" | "late_cohort";
-}
-
-export interface UBIResult {
-  /** Índice unificado de sesgo (0-1, donde 1 = máximo sesgo combinado) */
-  ubi: number;
-  /** Componente RAE del sesgo (0-1) */
-  raeComponent: number;
-  /** Componente PHV del sesgo (0-1) */
-  phvComponent: number;
-  /** Factor de corrección sugerido para el VSI */
-  vsICorrectionFactor: number;
-  /** Descripción del sesgo */
-  description: string;
-}
-
-export type TruthFilterCase = "early_maturers" | "late_maturers" | "ontme_high_rae" | "ontme_low_rae";
-
-export interface TruthFilterResult {
-  /** Caso de corrección aplicado */
-  filterCase: TruthFilterCase;
-  /** VSI original */
-  originalVSI: number;
-  /** VSI ajustado por sesgo */
-  adjustedVSI: number;
-  /** Delta de corrección */
-  delta: number;
-  /** Confianza del ajuste (0-1) */
-  confidence: number;
-  /** Explicación del ajuste */
-  explanation: string;
-}
 
 export interface VAEPInput {
   /** Array de acciones SPADL (id, tipo, posX, posY, resultado) */
@@ -166,35 +113,6 @@ export interface BiomechanicsResult {
   message: string;
 }
 
-// ─── PHV Validation Gate ─────────────────────────────────────────────────────
-
-export interface PhvValidationResult {
-  /** true si el PHV fue calculado con datos antropométricos reales */
-  isComplete: boolean;
-  /** true si player.phvOffset existe y no es null */
-  hasPhvOffset: boolean;
-  /** true si player.phvCategory existe y no es null */
-  hasPhvCategory: boolean;
-  /** Campos faltantes para el cálculo */
-  missingFields: string[];
-}
-
-/**
- * Valida si un jugador tiene datos PHV calculados con mediciones reales.
- * Si no los tiene, TruthFilter, UBI y VSI ajustado NO deben calcularse.
- */
-export function validatePhvData(player: Player): PhvValidationResult {
-  const hasPhvOffset = player.phvOffset !== undefined && player.phvOffset !== null;
-  const hasPhvCategory = player.phvCategory !== undefined && player.phvCategory !== null;
-  const isComplete = hasPhvOffset && hasPhvCategory;
-
-  const missingFields: string[] = [];
-  if (!hasPhvOffset) missingFields.push("phvOffset");
-  if (!hasPhvCategory) missingFields.push("phvCategory");
-
-  return { isComplete, hasPhvOffset, hasPhvCategory, missingFields };
-}
-
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
 const METRIC_LABELS: Record<keyof PlayerMetrics, string> = {
@@ -212,268 +130,6 @@ const NORM_MEAN: PlayerMetrics = {
 };
 const NORM_SD: PlayerMetrics = {
   speed: 14, technique: 13, vision: 14, stamina: 13, shooting: 15, defending: 14,
-};
-
-// ─── RAE — Relative Age Effect ────────────────────────────────────────────────
-
-export const RAEService = {
-  /**
-   * Calcula el efecto de edad relativa de un jugador.
-   * El cutoff por defecto es enero (mes 1), estándar FIFA.
-   *
-   * Fórmula:
-   *   ageAdvantageMonths = ((birthMonth - cutoffMonth + 12) % 12)
-   *   => inverted: cuanto MENOR sea el resultado, más ventaja tiene el jugador
-   *   Q1: 0-2 meses tras cutoff (mayor ventaja)
-   *   Q4: 9-11 meses tras cutoff (menor ventaja)
-   *
-   * raeBiasFactor = 1 + (11 - ageAdvantage) * 0.02
-   *   => Q1 ≈ 1.22, Q4 ≈ 1.00
-   */
-  calculate(input: RAEInput): RAEResult {
-    const cutoff = input.cutoffMonth ?? 1;
-    const relativeMonths = ((input.birthMonth - cutoff + 12) % 12);
-
-    const birthQuartile: 1 | 2 | 3 | 4 =
-      relativeMonths <= 2 ? 1 :
-      relativeMonths <= 5 ? 2 :
-      relativeMonths <= 8 ? 3 : 4;
-
-    const label =
-      birthQuartile === 1 ? "early_cohort" :
-      birthQuartile === 2 ? "mid_cohort_early" :
-      birthQuartile === 3 ? "mid_cohort_late" : "late_cohort";
-
-    // Factor de sesgo: Q1 tiene más presión de selección artificial
-    const raeBiasFactor = 1 + (11 - relativeMonths) * 0.02;
-
-    return {
-      birthQuartile,
-      ageAdvantageMonths: relativeMonths,
-      raeBiasFactor: Math.round(raeBiasFactor * 1000) / 1000,
-      label,
-    };
-  },
-
-  /**
-   * Aplica corrección RAE al VSI:
-   * Los jugadores Q4 (nacidos tarde) son estadísticamente subestimados.
-   * Añade hasta +5 puntos VSI a Q4, resta hasta -2 a Q1.
-   */
-  correctVSI(vsi: number, rae: RAEResult): number {
-    const correction =
-      rae.birthQuartile === 1 ? -2 :
-      rae.birthQuartile === 2 ? 0 :
-      rae.birthQuartile === 3 ? +2 : +5;
-    return Math.min(100, Math.max(0, Math.round((vsi + correction) * 10) / 10));
-  },
-};
-
-// ─── UBI — Unified Bias Index ─────────────────────────────────────────────────
-
-export const UBIService = {
-  /**
-   * Combina sesgo RAE y sesgo PHV en un índice único (0-1).
-   *
-   * Fórmula:
-   *   raeComponent  = (birthQuartile - 1) / 3    → 0=Q1 (sin desventaja), 1=Q4
-   *   phvComponent  = clamp(phvOffset / -2, 0, 1) → 0=ontme, 1=late (-2 años)
-   *   UBI = 0.55 * raeComponent + 0.45 * phvComponent
-   *
-   *   vsICorrectionFactor = 1 + UBI * 0.12  (hasta +12% sobre el VSI)
-   *
-   * Justificación del split 0.55 RAE / 0.45 PHV:
-   *
-   * RAE recibe MAYOR peso (0.55) porque es un sesgo SISTÉMICO de selección:
-   *   - Cobley et al. (2009): en academias europeas, Q1 está sobrerrepresentado 2-3x vs Q4
-   *   - Helsen et al. (2005): el efecto RAE persiste incluso después de controlar por maduración
-   *   - El RAE actúa como filtro de selección: los jugadores Q4 son descartados ANTES de
-   *     poder demostrar su talento, creando un sesgo acumulativo (dropout temprano)
-   *   - Es observable desde los 6 años y afecta desde la primera selección
-   *
-   * PHV recibe peso MENOR (0.45) porque es un sesgo TEMPORAL de rendimiento:
-   *   - El PHV offset se normaliza naturalmente: a los 18-20 años todos han madurado
-   *   - Malina et al. (2004): las diferencias por maduración son máximas a los 13-15 y
-   *     convergen significativamente a los 17-18
-   *   - Un late maturer que SOBREVIVE al proceso de selección (no fue descartado) tiene
-   *     alta probabilidad de alcanzar o superar a los early maturers post-maduración
-   *   - El sesgo PHV es más corregible con paciencia; el RAE es más insidioso
-   *
-   * El factor de corrección VSI (1 + UBI * 0.12) permite ajustar hasta +12%:
-   *   - 12% es conservador: algunos estudios sugieren que Q4 late maturers pueden estar
-   *     subestimados hasta un 15-20%, pero preferimos ajuste moderado para evitar
-   *     sobrecompensar
-   */
-  calculate(
-    raeResult: RAEResult | null,
-    phvOffset: number | null,
-    phvCategory: "early" | "ontme" | "late" | null
-  ): UBIResult {
-    const raeComp = raeResult ? (raeResult.birthQuartile - 1) / 3 : 0;
-
-    // Sesgo PHV. OJO enum invertido: "early" = pre-PHV = madurador TARDÍO
-    // (offset NEGATIVO) → físicamente por detrás hoy, más SUBESTIMADO → mayor
-    // sesgo. "late" = post-PHV = PRECOZ (offset positivo) → sobreestimado ahora,
-    // sesgo inverso menor. (Antes las ramas estaban cruzadas y phvComp salía 0.)
-    let phvComp = 0;
-    if (phvOffset !== null && phvCategory !== null) {
-      if (phvCategory === "early") {
-        phvComp = Math.min(1, Math.max(0, -phvOffset / 2));
-      } else if (phvCategory === "late") {
-        phvComp = Math.min(0.5, Math.max(0, phvOffset / 2));
-      }
-    }
-
-    const ubi = Math.round((0.55 * raeComp + 0.45 * phvComp) * 1000) / 1000;
-    const vsICorrectionFactor = Math.round((1 + ubi * 0.12) * 1000) / 1000;
-
-    const description =
-      ubi >= 0.7 ? "Sesgo alto — jugador probablemente subestimado. Prioridad de seguimiento." :
-      ubi >= 0.4 ? "Sesgo moderado — tener en cuenta al evaluar el VSI." :
-      ubi >= 0.2 ? "Sesgo leve — impacto pequeño en la valoración." :
-                   "Sin sesgo significativo detectado.";
-
-    return {
-      ubi,
-      raeComponent: Math.round(raeComp * 1000) / 1000,
-      phvComponent: Math.round(phvComp * 1000) / 1000,
-      vsICorrectionFactor,
-      description,
-    };
-  },
-};
-
-// ─── TruthFilter — 4 casos de corrección VSI ─────────────────────────────────
-
-export const TruthFilterService = {
-  /**
-   * Determina el caso TruthFilter según la combinación PHV + RAE.
-   *
-   * El TruthFilter es un sistema de 4 casos que corrige el VSI observado
-   * para aproximar el "VSI verdadero" (talento real descontando sesgos).
-   *
-   * Rangos de corrección por caso:
-   *
-   * Caso 1 — early_maturers (phvOffset > +0.5):
-   *   Corrección: -3 a -8 puntos VSI
-   *   Magnitud = min(8, round(phvOffset × 4))
-   *   Confianza: 0.85 con datos PHV reales, 0.60 sin ellos
-   *   Justificación: Los early maturers tienen ventaja física transitoria (más altos,
-   *   más fuertes, más rápidos que sus pares de la misma edad cronológica). Esto infla
-   *   artificialmente su rendimiento en métricas como speed y stamina. La corrección
-   *   negativa busca estimar cómo rendirían sin esa ventaja madurativa.
-   *   Evidencia: Meylan et al. (2010) mostró que el 70% de la ventaja en sprint de
-   *   early maturers desaparece al controlar por edad biológica.
-   *
-   * Caso 2 — late_maturers (phvOffset < -0.5):
-   *   Corrección: +3 a +10 puntos VSI
-   *   Magnitud = min(10, round(|phvOffset| × 4))
-   *   Confianza: 0.88 con datos PHV reales, 0.65 sin ellos
-   *   Justificación: Los late maturers son sistemáticamente subestimados porque compiten
-   *   contra pares que pueden tener 2+ años de ventaja biológica. Su talento técnico y
-   *   táctico está oculto detrás de una desventaja física temporal.
-   *   Evidencia: Deprez et al. (2015) demostró que late maturers que sobreviven al proceso
-   *   de selección tienen mayor probabilidad de alcanzar nivel profesional.
-   *   El rango mayor (+10 vs -8) es intencional: es más dañino descartar un late maturer
-   *   talentoso que sobreestimar ligeramente a un early maturer.
-   *
-   * Caso 3 — ontme_high_rae (nacido Q1/Q2, maduración normal):
-   *   Corrección: -1 a -3 puntos VSI
-   *   Q1: -3, Q2: -1
-   *   Confianza: 0.70
-   *   Justificación: Sin sesgo PHV pero con ventaja RAE. Un jugador Q1 de enero tiene
-   *   hasta 11 meses más de desarrollo que un Q4 de diciembre del mismo año. En sub-12/sub-14,
-   *   esto se traduce en ventaja física y experiencia acumulada.
-   *
-   * Caso 4 — ontme_low_rae (nacido Q3/Q4, maduración normal):
-   *   Corrección: +1 a +4 puntos VSI
-   *   Q4: +4, Q3: +1
-   *   Confianza: 0.72
-   *   Justificación: Sin sesgo PHV pero con desventaja RAE. Estos jugadores compiten
-   *   con hasta 11 meses menos de desarrollo — una corrección moderada al alza
-   *   reconoce esta desventaja cronológica.
-   */
-  detectCase(
-    phvOffset: number | null,
-    phvCategory: "early" | "ontme" | "late" | null,
-    raeResult: RAEResult | null
-  ): TruthFilterCase {
-    // OJO enum invertido: phvCategory "late" = post-PHV = madurador PRECOZ
-    // (offset positivo); "early" = pre-PHV = madurador TARDÍO (offset negativo).
-    if (phvCategory === "late" || (phvOffset !== null && phvOffset > 0.5)) {
-      return "early_maturers"; // precoz (ventaja física temporal)
-    }
-    if (phvCategory === "early" || (phvOffset !== null && phvOffset < -0.5)) {
-      return "late_maturers"; // tardío (talento infravalorado)
-    }
-    if (raeResult && raeResult.birthQuartile <= 2) {
-      return "ontme_high_rae";
-    }
-    return "ontme_low_rae";
-  },
-
-  apply(
-    vsi: number,
-    phvOffset: number | null,
-    phvCategory: "early" | "ontme" | "late" | null,
-    raeResult: RAEResult | null
-  ): TruthFilterResult {
-    const filterCase = TruthFilterService.detectCase(phvOffset, phvCategory, raeResult);
-
-    let delta = 0;
-    let confidence = 0.7;
-    let explanation = "";
-
-    switch (filterCase) {
-      case "early_maturers": {
-        // Magnitud proporcional al offset positivo (precoz); clamp a 0 para no
-        // invertir el signo del delta si llega un offset inesperado.
-        const magnitude = phvOffset !== null ? Math.min(8, Math.max(0, Math.round(phvOffset * 4))) : 3;
-        delta = -magnitude;
-        confidence = phvOffset !== null ? 0.85 : 0.60;
-        explanation = `Madurador temprano (PHV offset +${phvOffset?.toFixed(1) ?? "?"} años). `
-          + `El VSI puede estar inflado por ventaja física transitoria. `
-          + `Corrección: ${delta} puntos para reflejar potencial real a largo plazo.`;
-        break;
-      }
-      case "late_maturers": {
-        const magnitude = phvOffset !== null ? Math.min(10, Math.round(Math.abs(phvOffset) * 4)) : 4;
-        delta = +magnitude;
-        confidence = phvOffset !== null ? 0.88 : 0.65;
-        explanation = `Madurador tardío (PHV offset ${phvOffset?.toFixed(1) ?? "?"} años). `
-          + `El VSI subestima el potencial real del jugador. `
-          + `Corrección: +${delta} puntos para compensar desventaja física temporal.`;
-        break;
-      }
-      case "ontme_high_rae": {
-        const magnitude = raeResult ? (raeResult.birthQuartile === 1 ? 3 : 1) : 1;
-        delta = -magnitude;
-        confidence = 0.70;
-        explanation = `Maduración normal (ontme) pero nacido en Q${raeResult?.birthQuartile ?? "?"} `
-          + `(ventaja RAE moderada). Pequeña corrección a la baja sobre el VSI.`;
-        break;
-      }
-      case "ontme_low_rae": {
-        const magnitude = raeResult ? (raeResult.birthQuartile === 4 ? 4 : 1) : 1;
-        delta = +magnitude;
-        confidence = 0.72;
-        explanation = `Maduración normal (ontme) pero nacido en Q${raeResult?.birthQuartile ?? "?"} `
-          + `(desventaja RAE). Pequeña corrección al alza sobre el VSI.`;
-        break;
-      }
-    }
-
-    const adjustedVSI = Math.min(100, Math.max(0, Math.round((vsi + delta) * 10) / 10));
-
-    return {
-      filterCase,
-      originalVSI: vsi,
-      adjustedVSI,
-      delta,
-      confidence,
-      explanation,
-    };
-  },
 };
 
 // ─── VAEP — Valuing Actions by Estimating Probabilities ──────────────────────
@@ -922,62 +578,27 @@ export const BiomechanicsService = {
 
 // ─── Facade: calcular todas las métricas avanzadas de un jugador ──────────────
 
+// Sin RAE / UBI / TruthFilter / «VSI ajustado» (P1 bloque 6, punto 22): nadie pasaba la
+// fecha de nacimiento (RAE siempre null ⇒ el UBI contaba la edad relativa como 0), sus
+// pesos y correcciones no tenían fuente, y leían la FASE PHV como ritmo de maduración.
+// El trimestre de nacimiento vive ahora en src/lib/shared/relativeAge.ts (única
+// implementación). El VSI ajustado por maduración es SOLO el del motor PHV (inv #4).
 export interface AdvancedPlayerMetrics {
-  rae:              RAEResult | null;
-  ubi:              UBIResult | null;
-  truthFilter:      TruthFilterResult | null;
   /** null si el jugador no tiene métricas del entrenador (sin evaluar) */
   dominantFeatures: DominantFeaturesResult | null;
   vaep:             VAEPResult;
   tracking:         TrackingMetricsResult;
   biomechanics:     BiomechanicsResult;
-  /** VSI final tras aplicar TruthFilter (null si PHV no calculado) */
-  adjustedVSI:      number | null;
-  /** Resultado de validación PHV — indica si los datos están completos */
-  phvValidation:    PhvValidationResult;
 }
 
 export function calculateAdvancedMetrics(
   player: Player,
   options?: {
-    birthMonth?: number;
-    birthYear?: number;
     trackingInput?: TrackingInput;
     vaepInput?: VAEPInput;
     biomechanicsInput?: BiomechanicsInput;
   }
 ): AdvancedPlayerMetrics {
-  // ─── PHV Validation Gate ───────────────────────────────────────
-  // Si el PHV no fue calculado con datos reales, TruthFilter, UBI
-  // y VSI ajustado quedan bloqueados (null).
-  const phvValidation = validatePhvData(player);
-
-  // RAE (independiente de PHV — solo necesita fecha de nacimiento)
-  const rae = (options?.birthMonth && options?.birthYear)
-    ? RAEService.calculate({ birthMonth: options.birthMonth, birthYear: options.birthYear })
-    : null;
-
-  // UBI y TruthFilter: solo si PHV está completo
-  let ubi: UBIResult | null = null;
-  let truthFilter: TruthFilterResult | null = null;
-  let adjustedVSI: number | null = null;
-
-  if (phvValidation.isComplete) {
-    ubi = UBIService.calculate(rae, player.phvOffset!, player.phvCategory!);
-    // TruthFilter ajusta el VSI de ficha por maduración; sin VSI (jugador sin
-    // evaluar, vsi null) no hay base que ajustar: no se fabrica un adjustedVSI
-    // desde null (Math.round(null+delta)→delta sería un 0 coaccionado; invariante #2).
-    if (player.vsi !== null) {
-      truthFilter = TruthFilterService.apply(
-        player.vsi,
-        player.phvOffset!,
-        player.phvCategory!,
-        rae
-      );
-      adjustedVSI = truthFilter.adjustedVSI;
-    }
-  }
-
   // Dominant Features (funciona con datos existentes, independiente de PHV).
   // Sin métricas del entrenador (jugador no evaluado) ⇒ null: no se infieren
   // características dominantes de la nada (invariante #2), y evita Object.keys(undefined).
@@ -997,14 +618,9 @@ export function calculateAdvancedMetrics(
   const biomechanics = BiomechanicsService.calculate(options?.biomechanicsInput ?? null);
 
   return {
-    rae,
-    ubi,
-    truthFilter,
     dominantFeatures,
     vaep,
     tracking,
     biomechanics,
-    adjustedVSI,
-    phvValidation,
   };
 }

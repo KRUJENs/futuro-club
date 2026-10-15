@@ -1,6 +1,6 @@
 {
   "_comment": "Baseline de errores tsc conocidos (tsconfig.app.json). NO editar a mano: regenerar con `node scripts/typecheck-baseline.mjs --update`. Objetivo: que solo baje. Ver scripts/typecheck-baseline.mjs.",
-  "total": 65,
+  "total": 64,
   "errors": {
     "api/_lib/budgetGuard.ts::TS2591::Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.": 4,
     "api/_lib/usageGuard.ts::TS2591::Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node` and then add 'node' to the types field in your tsconfig.": 3,
@@ -38,7 +38,6 @@
     "src/services/roleProfileService.ts::TS2322::Type '{ indicator: string; label: string; raw_value: number; normalized: number; reliability: number; phase_of_play: PhaseOfPlay; impact: \"positivo\" | \"negativo\" | \"neutro\"; contribution: number; positions_impacted: string[]; archetypes_impacted: string[]; explanation: string; }[]' is not assignable to type 'EvidenceIndicator[]'.": 1,
     "src/services/roleProfileService.ts::TS2322::Type '{ ofensivo?: number; defensivo?: number; tecnico?: number; fisico?: number; mixto?: number; }' is not assignable to type 'Record<IdentityType, number>'.": 1,
     "src/test/api/reportQualityCheck.test.ts::TS2698::Spread types may only be created from object types.": 1,
-    "src/test/components/AdvancedMetricsPanel.test.tsx::TS2322::Type '{ rae: RAEResult | null; ubi: UBIResult | null; truthFilter: TruthFilterResult | null; ... 5 more ...; phvValidation?: PhvValidationResult; }' is not assignable to type 'AdvancedPlayerMetrics'.": 1,
     "src/test/components/MatchStatsPanel.test.tsx::TS2578::Unused '@ts-expect-error' directive.": 1,
     "src/test/components/PlayerCard.test.tsx::TS2739::Type '{ id: string; name: string; image: string; vsi: number; positionShort: string; age: number; academy: string; position: string; stats: { speed: number; shooting: number; vision: number; technique: number; defending: number; stamina: number; }; vsiTrend: \"up\"; phvCategory: \"ontime\"; }' is missing the following properties from type 'Player': phvOffset, trending, avatar, recentDrills, lastActive": 7,
     "src/test/components/PlayerCard.test.tsx::TS2739::Type '{ vsi: number; id: string; name: string; image: string; positionShort: string; age: number; academy: string; position: string; stats: { speed: number; shooting: number; vision: number; technique: number; defending: number; stamina: number; }; vsiTrend: \"up\"; phvCategory: \"ontime\"; }' is missing the following properties from type 'Player': phvOffset, trending, avatar, recentDrills, lastActive": 2,
