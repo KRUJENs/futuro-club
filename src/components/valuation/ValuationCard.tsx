@@ -88,7 +88,9 @@ function ValuationNotComputed({ data }: { data: ValuationData }) {
 
 export default function ValuationCard({ data }: ValuationCardProps) {
   const { t } = useTranslation();
-  if (data.overallScore === null || data.tier === null) {
+  // Sin procedencia no se pinta la puntuación (inv #1): el tipo la exige, pero llega de un
+  // JSON (revisión del #320).
+  if (data.overallScore === null || data.tier === null || !data.provenance) {
     return <ValuationNotComputed data={data} />;
   }
   const color = data.tierColor ?? "hsl(var(--primary))";
@@ -115,7 +117,7 @@ export default function ValuationCard({ data }: ValuationCardProps) {
         </div>
         <div className="flex flex-col items-end gap-1">
           <TierBadge tier={data.tier} tierColor={color} score={data.overallScore} />
-          {data.provenance && <ProvenanceBadge provenance={data.provenance} />}
+          <ProvenanceBadge provenance={data.provenance} />
         </div>
       </div>
 

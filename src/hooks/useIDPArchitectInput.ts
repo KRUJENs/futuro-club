@@ -100,7 +100,11 @@ export function useIDPArchitectInput(playerId: string | undefined): IDPInputBund
   // (P1 bloque 2, inv #4).
   const behavioralProfile = behavioralProfileRaw && behavioralProfileRaw.source !== "mock" ? behavioralProfileRaw : undefined;
   const { data: savedAnalyses, isLoading: loadingAnalyses } = useSavedAnalysesV2(playerId ?? "");
-  const { riskData: injuryRisk, injuries, riskLoading } = useInjuryRisk(playerId);
+  const { riskData: injuryRiskRaw, injuries, injuriesLoading, riskLoading } = useInjuryRisk(playerId);
+  // Igual que el perfil conductual: un riesgo de EJEMPLO (demo) no alimenta el IDP ni
+  // cuenta como señal (revisión del #320: entraba como riesgo calculado).
+  const injuryRisk =
+    injuryRiskRaw && !injuryRiskRaw.isMock && injuryRiskRaw.composite?.provenance !== "MOCK" ? injuryRiskRaw : undefined;
   const hasInjuries = Array.isArray(injuries) && injuries.length > 0;
   // Idioma de salida del plan = idioma actual de la UI. Se lee en render (no
   // dentro del memo) para que un cambio de idioma recomponga el input.
@@ -242,7 +246,9 @@ export function useIDPArchitectInput(playerId: string | undefined): IDPInputBund
     // Cargando hasta que lleguen TODAS las entradas (revisión del #320): si no, el panel
     // decía «no hay datos por dimensión» mientras aún cargaban el perfil, los análisis
     // o el riesgo.
-    loading: loadingPlayer || loadingBehavioral || loadingAnalyses || riskLoading,
+    // `riskLoading` es false mientras la consulta del riesgo espera a las lesiones (está
+    // desactivada): por eso también `injuriesLoading`.
+    loading: loadingPlayer || loadingBehavioral || loadingAnalyses || injuriesLoading || riskLoading,
     dataRichness,
   };
 }

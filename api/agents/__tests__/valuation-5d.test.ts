@@ -169,9 +169,40 @@ describe("IDP · sin dimensiones con dato no hay plan (endpoint público del arq
 
   it("keepGoalsWithData: solo dimensiones con dato, una por dimensión y con la baseline exacta", () => {
     const input = { player, vsi: { overall: 70, technical: 64, tactical: null, physical: null, mental: null } } as never;
-    const g = (dimension: string, value: number) => ({ dimension, baselineMetric: { value } });
+    const g = (dimension: string, value: number, target = value + 3) => ({
+      dimension,
+      baselineMetric: { metric: `vsi_${dimension}`, value },
+      targetMetric: { metric: `vsi_${dimension}`, value: target },
+    });
     expect(keepGoalsWithData(input, [g("technical", 64), g("tactical", 60), g("physical", 55)])).toEqual([g("technical", 64)]);
     expect(keepGoalsWithData(input, [g("technical", 64), g("technical", 64)])).toEqual([g("technical", 64)]);
     expect(keepGoalsWithData(input, [g("technical", 70)])).toEqual([]); // la evaluación copiada
+  });
+
+  // Ronda 3 de la revisión del #320.
+  it("keepGoalsWithData: misma métrica que la dimensión, target en la dirección de mejora y baseline fijada al dato", () => {
+    const input = {
+      player,
+      vsi: { overall: 70, technical: 64, tactical: null, physical: null, mental: null },
+      behavioralProfile: { mentalComposite: 72, scanning: 40 },
+      phv: { offset: -0.2, category: "on_time" },
+      recentFatigue: { injuryRisk: 30 },
+    } as never;
+    const g = (dimension: string, metric: string, value: number, target: number, targetMetric = metric) => ({
+      dimension,
+      baselineMetric: { metric, value },
+      targetMetric: { metric: targetMetric, value: target },
+    });
+    // Otra métrica (scanning en vez del composite mental) o target con otra métrica ⇒ fuera.
+    expect(keepGoalsWithData(input, [g("mental", "scanning", 72, 75)])).toEqual([]);
+    expect(keepGoalsWithData(input, [g("technical", "vsi_technical", 64, 67, "vsi_tactical")])).toEqual([]);
+    // Target hacia atrás ⇒ fuera: menos nivel, o MÁS riesgo de lesión.
+    expect(keepGoalsWithData(input, [g("technical", "vsi_technical", 64, 60)])).toEqual([]);
+    expect(keepGoalsWithData(input, [g("maturation", "injury_risk", 30, 35)])).toEqual([]);
+    expect(keepGoalsWithData(input, [g("maturation", "injury_risk", 30, 27)])).toEqual([g("maturation", "injury_risk", 30, 27)]);
+    // Redondeo ±0,5: se acepta y la baseline queda en el valor real; fuera de eso, no.
+    expect(keepGoalsWithData(input, [g("technical", "vsi_technical", 64.4, 67)])).toEqual([g("technical", "vsi_technical", 64, 67)]);
+    expect(keepGoalsWithData(input, [g("technical", "vsi_technical", 64.6, 67)])).toEqual([]);
+    expect(keepGoalsWithData(input, [g("mental", "mental_composite", 72, 75)])).toEqual([g("mental", "mental_composite", 72, 75)]);
   });
 });

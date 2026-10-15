@@ -4573,7 +4573,7 @@
     "progressByDimension": "Voortgang per dimensie",
     "toastCheckinSaved": "Check-in opgeslagen",
     "toastSaveError": "Kon niet opslaan",
-    "noDimensionData": "Er zijn nog geen gemeten gegevens per dimensie (technisch, tactisch, fysiek, mentaal of rijping) om meetbare doelen te stellen, dus er wordt geen plan gemaakt."
+    "noDimensionData": "Er zijn nog geen gegevens per dimensie (technisch, tactisch, fysiek, mentaal of rijping) om meetbare doelen te stellen, dus er wordt geen plan gemaakt."
   },
   "idpDrillRecommendations": {
     "emptyState": "Nog geen drills toegewezen aan de doelen.",

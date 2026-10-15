@@ -4572,7 +4572,7 @@
     "progressByDimension": "Fortschritt nach Dimension",
     "toastCheckinSaved": "Check-in gespeichert",
     "toastSaveError": "Konnte nicht gespeichert werden",
-    "noDimensionData": "Es gibt noch keine gemessenen Daten pro Dimension (Technik, Taktik, Physis, Mentales oder Reifung), um messbare Ziele festzulegen, daher wird kein Plan erstellt."
+    "noDimensionData": "Es gibt noch keine Daten pro Dimension (Technik, Taktik, Physis, Mentales oder Reifung), um messbare Ziele festzulegen, daher wird kein Plan erstellt."
   },
   "idpDrillRecommendations": {
     "emptyState": "Noch keine Drills den Zielen zugeordnet.",

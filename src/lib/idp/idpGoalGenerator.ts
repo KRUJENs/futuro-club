@@ -2,7 +2,7 @@
  * VITAS · IDP Goal Generator (deterministic fallback)
  *
  * When the Claude `_idp-architect` agent is unavailable (no API key, offline,
- * rate limited), this generates a 1-5 goal plan (only dimensions with data) from the player's
+ * rate limited), this generates a 1-4 goal plan (only dimensions with data) from the player's
  * VSI / behavioral / PHV / fatigue data using a rule-based heuristic.
  *
  * The agent's output and this generator share the SAME contract
@@ -102,9 +102,10 @@ function deriveTarget(baseline: number, dimension: IDPDimension, age: number | n
   else if (baseline > 65) pctIncrease = 0.035;
   if (age != null && age >= 18) pctIncrease *= 0.8; // adults plateau faster (sin edad: sin ajuste)
 
-  // Maturation is "lower is better" (injury risk)
+  // Maturation is "lower is better" (injury risk). Nunca por encima de la baseline: con
+  // un riesgo ya por debajo del suelo de 5, la meta subía el riesgo (revisión del #320).
   if (dimension === "maturation") {
-    return Math.max(5, Math.round(baseline * (1 - pctIncrease) * 10) / 10);
+    return Math.min(baseline, Math.max(5, Math.round(baseline * (1 - pctIncrease) * 10) / 10));
   }
   return Math.min(100, Math.round(baseline * (1 + pctIncrease) * 10) / 10);
 }
@@ -118,49 +119,75 @@ const GOAL_TITLE_TEMPLATES: Record<IDPDimension, string> = {
   maturation: "Gestionar carga para reducir riesgo de lesión",
 };
 
+// Sin afirmaciones que el plan no calcula (revisión del #320: decían «por debajo del umbral
+// de la posición», «vs benchmark de edad» o «riesgo elevado» sin compararlo con nada).
 const GOAL_RATIONALE_TEMPLATES: Record<IDPDimension, string> = {
   technical:
-    "El VSI técnico está por debajo del umbral de la posición. Trabajo enfocado en primer toque y pase bajo presión mejorará rendimiento global.",
+    "Meta sobre el nivel técnico disponible. Trabajo enfocado en primer toque y pase bajo presión.",
   tactical:
-    "Décisions tácticas en zonas presionadas son la palanca con mayor retorno este mes. Reps en rondos + juegos posicionales.",
+    "Meta sobre el nivel táctico disponible. Rondos y juegos posicionales para decidir en zonas presionadas.",
   physical:
-    "Margen claro en capacidad aeróbica vs benchmark de edad. Bloques de intervalos cortos + transiciones de alta intensidad.",
+    "Meta sobre el nivel físico disponible. Intervalos cortos y transiciones, con la carga adaptada a la edad.",
   mental:
-    "El perfil conductual muestra margen en composite mental. Drills con alta carga cognitiva y feedback inmediato del coach.",
+    "Meta sobre el nivel mental disponible. Drills con alta carga cognitiva y feedback inmediato del coach.",
   maturation:
-    "Indicadores de riesgo de lesión elevados en ventana PHV actual. Reducir volumen de alta intensidad, priorizar movilidad y recuperación.",
+    "Meta sobre el riesgo de lesión calculado en la ventana PHV. Controlar el volumen de alta intensidad, priorizar movilidad y recuperación.",
 };
 
-/**
- * Dimensiones con dato REAL (las únicas en las que se pueden fijar metas): técnica/
- * táctica/física/mental con su valor, mental también desde el perfil conductual, y
- * maduración solo con PHV y un riesgo de lesión calculado. Una sola definición: la usan
- * el generador, el prompt del agente y los endpoints (P1 bloque 5d, revisión del #320).
- */
-export function idpDimensionsWithData(input: IDPArchitectInput): IDPDimension[] {
-  return scoreDimensions(input).map((d) => d.dimension);
+/** Dimensión con dato REAL: su métrica y su valor (la baseline de cualquier meta). */
+export interface IDPDimensionBaseline {
+  dimension: IDPDimension;
+  metricKey: string;
+  baseline: number;
 }
 
 /**
- * Metas del agente que se pueden aceptar tal cual: de una dimensión CON dato, una sola
- * por dimensión y con la línea base EXACTA del dato de entrada (±0,5 por redondeo). El
- * modelo puede inventar metas de dimensiones sin dato, repetir dimensiones o poner otra
- * baseline (revisión del #320). Los endpoints, si se descarta ALGUNA, usan el plan
- * determinista completo: el foco y los textos del modelo podrían hablar de lo descartado.
+ * Dimensiones con dato REAL (las únicas en las que se pueden fijar metas), con su métrica
+ * y su valor: técnica/táctica/física/mental con su valor, mental también desde el perfil
+ * conductual, y maduración solo con PHV y un riesgo de lesión calculado. Una sola
+ * definición: la usan el generador, el prompt del agente y los endpoints (P1 bloque 5d,
+ * revisión del #320).
  */
-export function keepGoalsWithData<G extends { dimension?: unknown; baselineMetric?: { value?: unknown } }>(
+export function idpDimensionBaselines(input: IDPArchitectInput): IDPDimensionBaseline[] {
+  return scoreDimensions(input).map((d) => ({ dimension: d.dimension, metricKey: d.metricKey, baseline: d.baseline }));
+}
+
+export function idpDimensionsWithData(input: IDPArchitectInput): IDPDimension[] {
+  return idpDimensionBaselines(input).map((d) => d.dimension);
+}
+
+type AgentMetric = { metric?: unknown; value?: unknown };
+
+/**
+ * Metas del agente que se pueden aceptar: de una dimensión CON dato, una sola por
+ * dimensión, con la métrica de esa dimensión (baseline y target) y la línea base del dato
+ * de entrada (±0,5 por redondeo), y con el target en la dirección de mejora (menos riesgo
+ * en maduración; en el resto, no por debajo de la baseline). La baseline aceptada se FIJA
+ * al valor real. El modelo puede inventar metas de dimensiones sin dato, repetir
+ * dimensiones, cambiar de métrica o de baseline (revisión del #320). Los endpoints, si se
+ * descarta ALGUNA, usan el plan determinista completo: el foco y los textos del modelo
+ * podrían hablar de lo descartado.
+ */
+export function keepGoalsWithData<G extends { dimension?: unknown; baselineMetric?: AgentMetric; targetMetric?: AgentMetric }>(
   input: IDPArchitectInput,
   goals: G[],
 ): G[] {
-  const truth = new Map<string, number>(scoreDimensions(input).map((d) => [d.dimension, d.baseline]));
+  const truth = new Map<string, IDPDimensionBaseline>(idpDimensionBaselines(input).map((d) => [d.dimension, d]));
+  const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
   const used = new Set<string>();
-  return goals.filter((g) => {
-    if (typeof g.dimension !== "string" || !truth.has(g.dimension) || used.has(g.dimension)) return false;
-    const v = g.baselineMetric?.value;
-    if (typeof v !== "number" || !Number.isFinite(v) || Math.abs(v - (truth.get(g.dimension) as number)) > 0.5) return false;
-    used.add(g.dimension);
-    return true;
-  });
+  const kept: G[] = [];
+  for (const g of goals) {
+    const t = typeof g.dimension === "string" ? truth.get(g.dimension) : undefined;
+    if (!t || used.has(t.dimension)) continue;
+    const b = g.baselineMetric;
+    const target = g.targetMetric?.value;
+    if (b?.metric !== t.metricKey || g.targetMetric?.metric !== t.metricKey) continue;
+    if (!isNum(b.value) || Math.abs(b.value - t.baseline) > 0.5 || !isNum(target)) continue;
+    if (t.dimension === "maturation" ? target > t.baseline : target < t.baseline) continue;
+    used.add(t.dimension);
+    kept.push({ ...g, baselineMetric: { ...b, value: t.baseline } });
+  }
+  return kept;
 }
 
 /**

@@ -4573,7 +4573,7 @@
     "progressByDimension": "Progreso por dimensión",
     "toastCheckinSaved": "Checkin guardado",
     "toastSaveError": "No se pudo guardar",
-    "noDimensionData": "Todavía no hay datos medidos por dimensión (técnica, táctica, física, mental o maduración) con los que fijar metas medibles, así que no se genera el plan."
+    "noDimensionData": "Todavía no hay datos por dimensión (técnica, táctica, física, mental o maduración) con los que fijar metas medibles, así que no se genera el plan."
   },
   "idpDrillRecommendations": {
     "emptyState": "Aún no hay drills asignados a los goals.",

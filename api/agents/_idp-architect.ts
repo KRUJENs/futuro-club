@@ -132,7 +132,9 @@ export default withHandler(
       }
 
       // Solo se acepta el plan del modelo si TODAS sus metas son de dimensiones con dato,
-      // una por dimensión y con la baseline exacta; si no, el plan determinista completo.
+      // una por dimensión, con su métrica, la baseline del dato y el target en la dirección
+      // de mejora; si no, el plan determinista completo. Las aceptadas llevan la baseline
+      // fijada al valor real.
       const kept = keepGoalsWithData(data, validated.data.goals);
       if (kept.length === 0 || kept.length !== validated.data.goals.length) {
         return successResponse({
@@ -144,7 +146,7 @@ export default withHandler(
       }
 
       return successResponse({
-        plan: validated.data,
+        plan: { ...validated.data, goals: kept },
         promptVersion: PROMPT_VERSION,
         model: MODEL,
         inputTokens: result.usage?.input_tokens ?? 0,

@@ -109,7 +109,8 @@ interface GenerateInput {
 }
 
 interface GenerateResult {
-  plan: DevelopmentPlan;
+  /** Ausente con status «exists» (ya hay plan del mes) y en el demo (`data: null`). */
+  plan?: DevelopmentPlan;
   source: string;
   model: string;
   status?: string;
@@ -151,7 +152,7 @@ export function useGenerateIDP() {
     },
     onSuccess: (result) => {
       // Con status «exists» el servidor no devuelve `plan` (antes: TypeError aquí).
-      const plan = (result as { plan?: { playerId: string; monthStart: string } } | undefined)?.plan;
+      const plan = result?.plan;
       if (plan) {
         qc.invalidateQueries({ queryKey: idpKeys.current(plan.playerId, plan.monthStart) });
       }

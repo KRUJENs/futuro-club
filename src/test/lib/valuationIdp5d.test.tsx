@@ -54,7 +54,7 @@ const COMPUTED: ValuationData = {
     { factor: "vsiTrend", weight: 0.25, score: 60, label: "Tendencia de la evaluación" },
     { factor: "phvCeiling", weight: 0.2, score: null, label: "Techo por maduración", applicable: false, gate_reason: "No aplica: jugador adulto." },
   ],
-  coldStartWarning: null, analysisCount: null, provenance: null,
+  coldStartWarning: null, analysisCount: null, provenance: "DERIVADA",
 };
 
 describe("ValuationCard · sin probabilidades ni confianza inventada", () => {
@@ -142,7 +142,7 @@ describe("revisión del #320 · IDP sin dimensiones con dato y procedencia de la
       player: { id: "p1", name: "Leo", chronologicalAge: 12 },
       vsi: { overall: 70, technical: 64, tactical: null, physical: null, mental: null },
     } as never, "es");
-    expect(p).toContain("DIMENSIONES CON DATO: technical.");
+    expect(p).toContain("DIMENSIONES CON DATO: technical (metric `vsi_technical`, baseline 64).");
     expect(p).toMatch(/Entre 1 y 5 goals/);
     expect(p).not.toMatch(/3-5 goals máximo|Mínimo 3 goals/);
   });
@@ -152,7 +152,7 @@ describe("revisión del #320 · IDP sin dimensiones con dato y procedencia de la
       expect(String(get(j, "idpDashboard.emptyDescription"))).not.toMatch(/3-5/);
       expect(String(get(j, "idpDashboard.noDimensionData"))).not.toMatch(/vídeo|video|vidéo/i);
     }
-    expect(code(idpHookSrc)).toMatch(/loading: loadingPlayer \|\| loadingBehavioral \|\| loadingAnalyses \|\| riskLoading/);
+    expect(code(idpHookSrc)).toMatch(/loading: loadingPlayer \|\| loadingBehavioral \|\| loadingAnalyses \|\| injuriesLoading \|\| riskLoading/);
     expect(code(useIdpSrc)).toMatch(/if \(plan\) \{/);
   });
 
@@ -173,5 +173,48 @@ describe("revisión del #320 · IDP sin dimensiones con dato y procedencia de la
 
   it("el informe de ejemplo de valoración no deriva tramo ni «techo» del VSI", () => {
     expect(code(demoReportsSrc)).not.toMatch(/techoEstimado: tierLabelFor/);
+  });
+});
+
+// Ronda 3 de la revisión del #320.
+describe("revisión del #320 (ronda 3) · procedencia obligatoria, prompt alineado y plan determinista honesto", () => {
+  it("una puntuación SIN procedencia no se pinta (ni con null ni si falta el campo)", () => {
+    render(<ValuationCard data={{ ...COMPUTED, provenance: null }} />);
+    expect(screen.getByTestId("valuation-not-computed")).toBeDefined();
+    expect(screen.queryByTestId("valuation-computed")).toBeNull();
+    const { provenance: _omit, ...sinCampo } = COMPUTED;
+    render(<ValuationCard data={sinCampo as ValuationData} />);
+    expect(screen.queryByTestId("valuation-computed")).toBeNull();
+  });
+
+  it("el aviso no habla de datos «medidos» (lo que desbloquea no es MEDIDA)", () => {
+    for (const [, j] of LOCALES) {
+      expect(String(get(j, "idpDashboard.noDimensionData"))).not.toMatch(/medid[oa]s|measured|mesurée?s|gemessen|misurati|gemeten/i);
+    }
+  });
+
+  it("el prompt da métrica y baseline por dimensión (mental desde el perfil conductual) y no asume nada", () => {
+    const p = buildIDPArchitectPrompt({
+      player: { id: "p1", name: "Leo", chronologicalAge: 12 },
+      behavioralProfile: { mentalComposite: 72, scanning: 40 },
+    } as never, "es");
+    expect(p).toContain("DIMENSIONES CON DATO: mental (metric `mental_composite`, baseline 72).");
+    expect(p).not.toMatch(/asumir equipo de nivel medio|motiva al coach a subir un video|Maturation solo si hay PHV/);
+  });
+
+  it("plan determinista: el objetivo de riesgo nunca sube el riesgo y los textos no afirman lo que no calcula", () => {
+    const plan = generatePlanDeterministic({
+      player: { id: "p1", name: "Leo", chronologicalAge: 12 },
+      phv: { offset: -0.1, category: "on_time" },
+      recentFatigue: { injuryRisk: 3 },
+    } as never);
+    const m = plan.goals.find((g) => g.dimension === "maturation");
+    expect(m?.baselineMetric.value).toBe(3);
+    expect(m?.targetMetric.value).toBeLessThanOrEqual(3);
+    expect(JSON.stringify(plan)).not.toMatch(/umbral de la posición|benchmark de edad|riesgo de lesión elevados|muestra margen/);
+  });
+
+  it("el riesgo de EJEMPLO (demo) no alimenta el IDP, igual que el perfil conductual de ejemplo", () => {
+    expect(code(idpHookSrc)).toMatch(/!injuryRiskRaw\.isMock && injuryRiskRaw\.composite\?\.provenance !== "MOCK"/);
   });
 });

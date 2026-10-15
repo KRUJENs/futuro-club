@@ -27,7 +27,7 @@ import {
 import { generatePlanDeterministic, idpDimensionsWithData, keepGoalsWithData } from "../../src/lib/idp/idpGoalGenerator";
 import { suggestDrillIds } from "../../src/lib/idp/idpDrillMatcher";
 import { generateMilestonesForPlan } from "../../src/lib/idp/idpMilestoneScheduler";
-import { buildIDPArchitectPrompt } from "../../src/lib/idp/idpArchitectPrompt";
+import { buildIDPArchitectPrompt, IDP_PROMPT_VERSION } from "../../src/lib/idp/idpArchitectPrompt";
 import {
   localeSchema,
   normalizeLocale,
@@ -124,16 +124,17 @@ async function callArchitect(
       throw new Error("Missing goals array");
     }
     // Solo se acepta el plan del modelo si TODAS sus metas son de dimensiones con dato, una
-    // por dimensión y con la baseline exacta del dato (P1 bloque 5d, revisión del #320).
-    // Si se sale en alguna, el plan determinista completo (el foco y los textos del modelo
-    // podrían hablar de lo descartado).
-    const goals = parsed.goals as Array<{ dimension?: unknown; baselineMetric?: { value?: unknown } }>;
+    // por dimensión, con su métrica, la baseline del dato y el target en la dirección de
+    // mejora (P1 bloque 5d, revisión del #320). Si se sale en alguna, el plan determinista
+    // completo (el foco y los textos del modelo podrían hablar de lo descartado). Las metas
+    // aceptadas llevan la baseline fijada al valor real.
+    const goals = parsed.goals as IDPArchitectOutput["goals"];
     const kept = keepGoalsWithData(input, goals);
     if (kept.length === 0 || kept.length !== goals.length) {
       throw new Error("Agent goals outside the dimensions with data");
     }
 
-    return { output: parsed as IDPArchitectOutput, source: "agent", model: MODELS.reasoning };
+    return { output: { ...(parsed as IDPArchitectOutput), goals: kept }, source: "agent", model: MODELS.reasoning };
   } catch (err) {
     console.warn("[generate-plan] Architect call failed, falling back:", err);
     return {
@@ -264,7 +265,8 @@ export default withHandler(
       contextNotes: undefined,
       agentSummary: output.agentSummary,
       generatedBy: source === "agent" ? "agent" : "agent", // both go through agent flow
-      agentVersion: model === "deterministic-fallback" ? "deterministic-v1" : "v1.0.0",
+      // Versión real del prompt (antes «v1.0.0» fijo aunque el prompt cambiara).
+      agentVersion: model === "deterministic-fallback" ? "deterministic-v1" : IDP_PROMPT_VERSION,
       createdAt: now,
       updatedAt: now,
       goals,

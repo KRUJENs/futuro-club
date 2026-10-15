@@ -10,11 +10,13 @@
 
 import type { IDPArchitectInput } from "../../agents/contracts";
 import { normalizeLocale, languageDirective, type ReportLocale } from "../shared/locale";
-import { idpDimensionsWithData } from "./idpGoalGenerator";
+import { idpDimensionBaselines } from "./idpGoalGenerator";
 
 // v1.1.0 (P1 bloque 5d): edad, posición y dimensiones pueden faltar («sin dato»).
 // v1.2.0: metas SOLO de dimensiones con dato, entre 1 y 5 (antes 3-5 obligatorias).
-export const IDP_PROMPT_VERSION = "v1.2.0";
+// v1.3.0: métrica y baseline exactas por dimensión; reglas de PHV/BPE/vídeo alineadas con
+// la regla 0; sin «asumir equipo de nivel medio» (revisión del #320).
+export const IDP_PROMPT_VERSION = "v1.3.0";
 
 export function buildIDPArchitectPrompt(
   data: IDPArchitectInput,
@@ -24,7 +26,10 @@ export function buildIDPArchitectPrompt(
   // Dimensiones con dato real: las únicas en las que el agente puede fijar metas (P1 5d,
   // revisión del #320: antes debía dar 3-5 metas con baseline numérica aunque no hubiera
   // dato, y el modelo las rellenaba).
-  const withData = idpDimensionsWithData(data);
+  const withData = idpDimensionBaselines(data);
+  const withDataList = withData.length
+    ? withData.map((d) => `${d.dimension} (metric \`${d.metricKey}\`, baseline ${String(d.baseline)})`).join("; ")
+    : "ninguna";
   // Cada dimensión con su dato o «sin dato» (P1 bloque 5d): el cliente ya no copia la
   // evaluación del entrenador a las 4 dimensiones ni pone 60 de «overall».
   const val = (v: number | null | undefined) => (typeof v === "number" && Number.isFinite(v) ? String(v) : "sin dato");
@@ -94,7 +99,7 @@ ${
     ? `- Nivel del equipo: ${team.teamLevel ?? "N/A"}
 - VSI promedio equipo: ${team.avgVsi ?? "N/A"}
 - Partidos próximo mes: ${team.upcomingFixtures ?? "N/A"}`
-    : "No proporcionado — asumir equipo de nivel medio"
+    : "No proporcionado"
 }
 
 ## PLAN DEL MES ANTERIOR (continuidad)
@@ -108,18 +113,18 @@ ${
 
 ## INSTRUCCIONES METODOLÓGICAS
 
-0. **DIMENSIONES CON DATO: ${withData.join(", ")}.** Crea metas SOLO de estas dimensiones. NUNCA una meta de una dimensión «sin dato» ni una baseline que no esté arriba.
+0. **DIMENSIONES CON DATO: ${withDataList}.** Crea metas SOLO de estas dimensiones, con ESA métrica y ESA baseline. NUNCA una meta de una dimensión «sin dato», ni otra métrica, ni otra baseline.
 1. **Prioriza por debilidad relativa**: entre las dimensiones con dato, identifica dónde el jugador puede crecer más con trabajo focalizado este mes.
-2. **Ajusta por edad y PHV**: si el jugador está en pico de crecimiento (PHV offset cercano a 0), prioriza maduración (control de carga) sobre físico de alta intensidad.
+2. **Ajusta por edad y PHV**: si el jugador está cerca del pico de crecimiento (PHV offset cercano a 0), controla la carga en cualquier meta física; la meta de maduración solo si «maturation» está en la regla 0.
 3. **Considera el contexto del equipo**: un crack en equipo flojo tiene metas distintas a un crack en equipo top. Equipo débil → fundamentos. Equipo elite → matices y composite mental.
 4. **Continúa el trabajo previo**: si una dimensión falló el mes pasado, considéralo (puede que necesite otro mes O cambiar de drill).
-5. **Objetivos medibles**: la baseline de cada goal es EXACTAMENTE el valor de su dimensión mostrado arriba; el target, REALISTA para 30 días (incrementos 3-5% típicos para baselines >60, hasta 8% para <50).
+5. **Objetivos medibles**: baseline y target usan la métrica de su dimensión en la regla 0, y la baseline es EXACTAMENTE su valor; el target, REALISTA para 30 días (incrementos 3-5% típicos para baselines >60, hasta 8% para <50). En \`injury_risk\` el target es MENOR o igual que la baseline (menos riesgo).
 6. **Entre 1 y 5 goals** (como mucho uno por dimensión con dato): no abrumes y no rellenes; si solo hay datos de una dimensión, un solo goal.
-7. **Maturation solo si hay PHV**. Si no, omite esa dimensión.
+7. **Maturation solo si aparece en la regla 0** (exige PHV y un riesgo de lesión calculado). Si no, omite esa dimensión.
 8. **Drills**: NO los listes en el output — el sistema los matcheará automáticamente desde \`DRILLS_LIBRARY\`. Tú solo nombras título y rationale del goal.
-9. **Si el VSI viene "plano" (sin breakdown de video)**: NO afirmes en \`rationale\` que tienes datos por dimensión que no tienes. Habla en términos generales y motiva al coach a subir un video. Ejemplo: en vez de "según las métricas técnicas observadas", di "con datos básicos disponibles". Honestidad sobre las limitaciones del dataset.
+9. **Si no hay desglose por dimensión**: NO afirmes en \`rationale\` datos que no tienes; habla solo de los datos disponibles. Ejemplo: en vez de "según las métricas técnicas observadas", di "con los datos disponibles". Honestidad sobre las limitaciones del dataset.
 10. **Si hay datos de fatiga/ACWR**: úsalos para justificar la dimensión maduración o para advertir sobre carga en dimensión física.
-11. **Si hay perfil conductual (BPE)**: úsalo activamente para la dimensión mental — referencia decisionSpeed, scanning, resilience o leadership por nombre.
+11. **Si hay perfil conductual (BPE)**: úsalo en el rationale de la meta mental — referencia decisionSpeed, scanning, resilience o leadership por nombre; su baseline sigue siendo la de la regla 0.
 
 ## FORMATO DE RESPUESTA (JSON estricto)
 

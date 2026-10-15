@@ -4572,7 +4572,7 @@
     "progressByDimension": "Progresso per dimensione",
     "toastCheckinSaved": "Check-in salvato",
     "toastSaveError": "Impossibile salvare",
-    "noDimensionData": "Non ci sono ancora dati misurati per dimensione (tecnica, tattica, fisica, mentale o maturazione) con cui fissare obiettivi misurabili, quindi il piano non viene generato."
+    "noDimensionData": "Non ci sono ancora dati per dimensione (tecnica, tattica, fisica, mentale o maturazione) con cui fissare obiettivi misurabili, quindi il piano non viene generato."
   },
   "idpDrillRecommendations": {
     "emptyState": "Ancora nessun drill assegnato agli obiettivi.",

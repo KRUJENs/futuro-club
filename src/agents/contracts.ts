@@ -656,7 +656,8 @@ export type BehavioralProfileOutput = z.infer<typeof BehavioralProfileOutputSche
 // CONTRACT 11: IDP ARCHITECT (Sprint IDP - 2026)
 // ─────────────────────────────────────────
 // AI-proposed monthly Individual Development Plan. Hybrid workflow:
-// agent proposes 3-5 goals across 5 dimensions, coach edits + approves.
+// agent proposes 1-5 goals, only in the dimensions with data (one per dimension),
+// coach edits + approves.
 
 const IDPDimensionEnum = z.enum([
   "technical",
