@@ -418,8 +418,7 @@ REGLAS DE CAPABILITIES:
   - tactical: vision(0.4) + positioning(0.3) + technique(0.3)
   - technical: technique(0.5) + vision(0.3) + shooting(0.2)
   - physical: speed(0.5) + stamina(0.4) + defending(0.1)
-- p6m: current + ajuste PHV (early: +3%, ontme: +2%, late: +1%)
-- p18m: current + ajuste PHV × 2.5
+- NO proyectes capacidades a futuro (sin p6m/p18m): no hay base validada (P1 bloque 5c)
 
 REGLAS DE CONFIANZA:
 - minutesPlayed > 500: overallConfidence = 0.85

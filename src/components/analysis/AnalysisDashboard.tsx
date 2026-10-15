@@ -261,7 +261,9 @@ export function AnalysisDashboard({ analysisId, shareToken, onLoaded }: Props) {
           <div className="font-display font-bold text-5xl text-foreground leading-none">{vsi}</div>
         ) : (
           // Sin número: se nombra el hueco (nunca «—»); si está bloqueado, el motivo va debajo.
-          <div className="font-display font-semibold text-sm text-muted-foreground">{t("common.notEvaluated")}</div>
+          // Evaluación del entrenador ausente ⇒ «Sin evaluar»; VSI de vídeo bloqueado ⇒ «Sin
+          // calcular» (lo mismo que la lista de análisis, analysisVsiInline).
+          <div className="font-display font-semibold text-sm text-muted-foreground">{t(isCoachEvaluation ? "common.notEvaluated" : "common.notCalculated")}</div>
         )}
         {isCoachEvaluation && vsi !== null && (
           <div className="text-[10px] mt-1 text-muted-foreground">{t("coachEval.hint")}</div>

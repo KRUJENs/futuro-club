@@ -11,7 +11,7 @@
 import { describe, it, expect } from "vitest";
 import type { TFunction } from "i18next";
 import { analysisVsiInline, isCoachEvaluationAnalysis } from "@/lib/metrics/coachEval";
-import { GLOSSARY } from "@/lib/metrics/glossary";
+import { GLOSSARY, glossaryLookup } from "@/lib/metrics/glossary";
 import { mapDbRowToLegacy, type AnalysisDbRow } from "@/hooks/usePlayerAnalysisV2";
 import biasSrc from "@/pages/BiasAuditDashboard.tsx?raw";
 import snapshotSrc from "@/components/evolution/SnapshotHistoryChart.tsx?raw";
@@ -136,5 +136,37 @@ describe("panel del director y resto de superficies de la evaluación del entren
     expect(String(get(j, "masterDashboard.vitasIndex"))).not.toMatch(/VITAS/);
     expect(String(get(j, "masterDashboard.latePhvLowVsi"))).not.toMatch(/VSI/);
     expect(typeof get(j, "common.notCalculated")).toBe("string");
+  });
+});
+
+// Revisión r2 del #318 (menores y nits cerrados en el bloque 5c).
+describe("revisión r2 del #318", () => {
+  it.each(LOCALES)("%s: el inicio tampoco dice «VSI<65» ni «Índice academia»; auditoría sin «IA»", (_l, j) => {
+    expect(String(get(j, "dashboard.stats.hiddenTalentsDesc"))).not.toMatch(/VSI/);
+    expect(String(get(j, "dashboard.stats.avgVsiDesc"))).not.toMatch(/[ÍI]ndi[cz]e|index/i);
+    expect(String(get(j, "biasAudit.title"))).not.toMatch(/\b(IA|AI|KI)\b/);
+    expect(String(get(j, "biasEquityReport.reportTitle"))).not.toMatch(/\b(IA|AI|KI)\b/);
+    for (const k of ["term", "short", "long"]) {
+      expect(typeof get(j, `videoVsiGlossary.${k}`), k).toBe("string");
+    }
+  });
+
+  it("un análisis SIN informes conserva su VSI (antes «Sin evaluar» de un análisis base evaluado)", () => {
+    const row = {
+      id: "a1", player_id: "p1", video_id: "baseline-p1-1", created_at: "2026-10-01T00:00:00Z",
+      vsi: { vsi: 66.2 }, reports: [],
+    } as unknown as AnalysisDbRow;
+    expect((mapDbRowToLegacy(row) as { vsi?: unknown }).vsi).toBe(66.2);
+  });
+
+  it("cabecera de un análisis de vídeo sin VSI: «Sin calcular», como la lista", () => {
+    expect(code(analysisDashSrc)).toContain('isCoachEvaluation ? "common.notEvaluated" : "common.notCalculated"');
+  });
+
+  it("el término de vídeo se traduce y glossaryLookup encuentra las claves camelCase", () => {
+    expect(GLOSSARY.videoVsi.i18nKey).toBe("videoVsiGlossary");
+    expect(glossaryLookup("coachEval")).toBe(GLOSSARY.coachEval);
+    expect(glossaryLookup("videoVsi")).toBe(GLOSSARY.videoVsi);
+    expect(glossaryLookup("PHV")).toBe(GLOSSARY.phv);
   });
 });

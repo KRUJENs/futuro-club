@@ -63,7 +63,6 @@
     "clearFiltersSm": "Limpiar filtros",
     "viewAll": "Ver todos",
     "export": "Exportar",
-    "compare": "Comparar",
     "audit": "Auditoría",
     "years": "años",
     "players": "Jugadores",
@@ -276,9 +275,9 @@
       "drillsCompleted": "Drills Completados",
       "drillsCompletedDesc": "Histórico total",
       "avgVsi": "Evaluación media del entrenador",
-      "avgVsiDesc": "Índice academia",
+      "avgVsiDesc": "Valoración subjetiva",
       "hiddenTalents": "Talentos Ocultos",
-      "hiddenTalentsDesc": "PHV tardío + VSI<65"
+      "hiddenTalentsDesc": "PHV tardío + eval. entrenador < 65"
     },
     "quickAccess": {
       "masterDashboard": "Master Dashboard",
@@ -1017,7 +1016,6 @@
     "title": "Perfil de rol",
     "subtitle": "Motor de Perfil, Rol y Proyección",
     "auditTitle": "Auditoría de indicadores",
-    "compareTitle": "Comparador de proyección",
     "lowConfidenceWarning": "⚠️ Confianza global inferior al 50%. Las recomendaciones tienen incertidumbre alta. Revisa la sección de riesgos.",
     "retryLoad": "Reintentar carga",
     "backToProfile": "Volver al perfil",
@@ -1027,18 +1025,6 @@
         "inPossession": "En posesión",
         "outOfPossession": "Sin posesión",
         "transition": "Transición"
-      }
-    },
-    "compare": {
-      "horizons": {
-        "0_6m": "0–6 meses",
-        "6_18m": "6–18 meses",
-        "18_36m": "18–36 meses"
-      },
-      "dimensions": {
-        "tactical": "Táctica",
-        "technical": "Técnica",
-        "physical": "Física"
       }
     }
   },
@@ -1184,8 +1170,7 @@
     "preparingVideo": "Preparando video para observación IA…",
     "bunnyStreamWarning": "Configura Bunny Stream en Vercel para análisis de video completo",
     "roleProfileError": "No se pudo cargar el perfil: {{error}}",
-    "auditLoadError": "Error al cargar auditoría: {{error}}",
-    "compareLoadError": "Error al cargar comparación: {{error}}"
+    "auditLoadError": "Error al cargar auditoría: {{error}}"
   },
   "cookies": {
     "banner": "Usamos cookies esenciales para el funcionamiento de la app y cookies analíticas para mejorar tu experiencia.",
@@ -1273,7 +1258,7 @@
     "accessRestricted": "Acceso restringido",
     "accessRestrictedDesc": "Solo administradores pueden ver la auditoría de sesgo del modelo.",
     "backToHome": "Volver al inicio",
-    "title": "Auditoría de Sesgo IA",
+    "title": "Auditoría de sesgo",
     "exportPdf": "Exportar PDF",
     "exportPdfTitle": "Exportar informe de equidad (PDF)",
     "exportPdfAria": "Exportar informe de equidad en PDF",
@@ -1337,38 +1322,8 @@
   "demoData": {
     "title": "Datos de demostración.",
     "generic": "Los valores mostrados son de ejemplo. Se reemplazarán por datos reales cuando estén disponibles.",
-    "coach": "La analítica de sesión (segmentos, balance, participación) usa datos de ejemplo hasta que analices un video de entrenamiento del equipo.",
     "wellbeing": "El bienestar del equipo mostrará datos reales cuando registres asistencia, cuestionarios o análisis de video por jugador.",
     "behavioral": "El perfil mental (velocidad de decisión, IQ de escaneo, resiliencia, liderazgo, arquetipo) es un dato de ejemplo ilustrativo, no medido. Los valores reales requieren seguimiento conductual por jugador."
-  },
-  "coachDash": {
-    "tabSesion": "Última Sesión",
-    "tabPlanificacion": "Planificación",
-    "tabProgresion": "Progresión",
-    "tabReportes": "Reportes Padres",
-    "playerLabel": "Jugador {{number}}",
-    "sessionLoad": "Carga de Sesión",
-    "loadOptimal": "Óptima — 68% del máximo",
-    "statistics": "Estadísticas",
-    "statPlayers": "Jugadores",
-    "statDrills": "Ejercicios",
-    "statDuration": "Duración",
-    "statBalance": "Balance",
-    "alerts": "Alertas",
-    "alertLowParticipation": "2 jugadores con baja participación en táctica",
-    "alertTechniqueBelowLtad": "Técnica 10% bajo el ideal LTAD",
-    "weeklyEvolution": "Evolución Semanal",
-    "colWeek": "Semana",
-    "colBalance": "Balance",
-    "colLoad": "Carga",
-    "colEngagement": "Engagement",
-    "colParticipation": "Participación",
-    "avgBalance": "Balance Promedio",
-    "avgLoad": "Carga Media",
-    "avgEngagement": "Engagement",
-    "sessions": "Sesiones",
-    "unitWeeks": "semanas",
-    "playerSelector": "Jugador:"
   },
   "firstRun": {
     "footRight": "Diestro",
@@ -1503,7 +1458,7 @@
     "submit": "Enviar"
   },
   "biasEquityReport": {
-    "reportTitle": "Informe de Equidad — Auditoría de Sesgo IA",
+    "reportTitle": "Informe de equidad — Auditoría de sesgo",
     "defaultOrg": "Academia",
     "generatedBy": "Generado por: {{name}}",
     "intro": "Este informe evalúa si la evaluación del entrenador (VSI de ficha) trata de forma equitativa a las distintas cohortes de jugadores, midiendo la desviación de cada grupo respecto a la media global por posición, edad y cantidad de videos. La edad se incluye como aproximación a la cohorte de maduración; la evaluación del entrenador no está corregida por maduración.",
@@ -1658,7 +1613,6 @@
     "tabStats": "Stats",
     "tabMovimiento": "Movimiento",
     "tabRol": "Rol",
-    "compareRole": "Comparar rol",
     "auditRole": "Auditoría",
     "tabMental": "Mental",
     "tabSalud": "Salud",
@@ -4097,16 +4051,6 @@
     "best": "mejor",
     "discoverySuggestion": "Hay posiciones donde {{name}} ha rendido bien pero no están en su perfil. Edita el jugador para añadirlas como secundarias y mejorar futuros análisis."
   },
-  "projectionComparator": {
-    "title": "Comparador de proyección",
-    "tactical": "Táctica",
-    "technical": "Técnica",
-    "physical": "Física",
-    "bestPositionNow": "Mejor posición actual",
-    "projection18m": "Proyección 18 meses",
-    "insightLabel": "Insight:",
-    "insightText": "La mayor evolución esperada es en el eje físico (+{{delta}} pts), condicionada a completar la ventana de maduración. El eje técnico muestra la base más sólida con menor margen pero mayor certeza."
-  },
   "quantitativeMetricsPanel": {
     "matchMetrics": "Métricas del Partido",
     "measuredQuantitativeData": "Datos cuantitativos estimados por IA (Gemini)",
@@ -4745,26 +4689,6 @@
     "stepReport": "4. Tu reporte",
     "skipOnboarding": "Saltar onboarding · ir al dashboard"
   },
-  "parentReportView": {
-    "monthlyReport": "Reporte mensual",
-    "monthSummary": "Resumen del Mes",
-    "sessions": "Sesiones",
-    "minutesTrained": "Min entrenados",
-    "participation": "Participación",
-    "engagement": "Compromiso",
-    "evolution": "Evolución",
-    "aboutGrowth": "Sobre su Crecimiento",
-    "positiveAspects": "Aspectos Positivos",
-    "developmentAreas": "Áreas de Desarrollo",
-    "coachNote": "Nota del Entrenador",
-    "trendImproving": "Mejorando",
-    "trendStable": "Estable",
-    "trendDeclining": "Necesita apoyo",
-    "categoryParticipation": "Participación",
-    "categoryTechnique": "Técnica",
-    "categoryPhysical": "Condición Física",
-    "categorySocial": "Integración Social"
-  },
   "positionComparison": {
     "title": "Comparativa por posición",
     "bestFit": "Mejor encaje",
@@ -4800,11 +4724,6 @@
     "ctaWellbeingDetail": "Ver detalle de bienestar y planes de intervención"
   },
   "roleProfileFilterBar": {
-    "horizon": "Horizonte",
-    "horizonCurrent": "Actual",
-    "horizon0_6m": "0–6 meses",
-    "horizon6_18m": "6–18 meses",
-    "horizon18_36m": "18–36 meses",
     "position": "Posición",
     "all": "Todas",
     "dimension": "Dimensión",
@@ -4814,17 +4733,7 @@
     "phase": "Fase",
     "phaseInPossession": "En posesión",
     "phaseOutOfPossession": "Sin posesión",
-    "phaseTransition": "Transición",
-    "projected": "Proyectado"
-  },
-  "sessionBalanceChart": {
-    "technical": "Técnica",
-    "tactical": "Táctica",
-    "physical": "Físico",
-    "game": "Juego",
-    "warmupCooldown": "Entrada/Salida",
-    "title": "Balance de Sesión",
-    "idealBalance": "Balance ideal ({{label}})"
+    "phaseTransition": "Transición"
   },
   "setPieceFolderPage": {
     "folderNotFound": "Carpeta no encontrada",
@@ -5062,9 +4971,6 @@
     "sendInquiry": "Enviar inquiry",
     "listingStatus": "Status del listing:"
   },
-  "metricWithInterval": {
-    "rangeTitle": "Rango probable {{rangeLabel}} · confianza {{confidenceLevel}}%. El margen refleja el volumen y la fuente de los datos — no es un número absoluto."
-  },
   "onboardingPage": {
     "positions": {
       "goalkeeper": "Portero",
@@ -5154,18 +5060,6 @@
     "canExportPDF": "exportar reportes PDF",
     "canViewVideoAnalysis": "ver análisis de video",
     "noPermission": "No tienes permiso para {{action}}"
-  },
-  "sessionTimelineView": {
-    "timeline": "Línea de Tiempo",
-    "totalDuration": "Duración total:",
-    "segmentWarmup": "Calentamiento",
-    "segmentTechnical": "Técnica",
-    "segmentTactical": "Táctica",
-    "segmentPhysical": "Físico",
-    "segmentGameSmallSided": "Juego reducido",
-    "segmentGameFull": "Partido",
-    "segmentCooldown": "Vuelta a calma",
-    "segmentTransitionBreak": "Pausa"
   },
   "sharedAnalysisPage": {
     "invalidLinkMissingToken": "Link inválido · falta token",
@@ -5338,11 +5232,7 @@
     "physicalLabel": "Física",
     "physicalDescription": "Velocidad, resistencia, fuerza, agilidad",
     "current": "Actual",
-    "projectionTitle": "Proyección estimada",
-    "projectedShort": "estim.",
-    "deltaShort": "mejora",
-    "confidenceTooltip": "Confianza de esta estimación",
-    "legend": "Actual = nivel estimado hoy (± margen de confianza). Las filas 0–6m / 6–18m / 18–36m son el nivel proyectado dentro de ese plazo, en meses; el número en color es la mejora prevista respecto a hoy."
+    "legend": "Actual = nivel estimado hoy por la IA a partir de los videos analizados y de la evaluación del entrenador: es una estimación, no una medida. No se proyecta a futuro: no hay base para proyectar."
   },
   "clutchHeatmap": {
     "noData": "Sin datos de clutch disponibles",
@@ -5462,24 +5352,6 @@
     "cognitive": "Cognitivo",
     "description": "Cómo caen la capacidad física y la cognitiva a lo largo del partido (% respecto al inicio). Si la línea cognitiva se mantiene por encima de la física, hay fortaleza mental."
   },
-  "nextSessionRecommender": {
-    "title": "Recomendaciones Próxima Sesión",
-    "areasToImprove": "Áreas de mejora",
-    "suggestedDrills": "Ejercicios sugeridos",
-    "phvNote": "Nota PHV"
-  },
-  "participationHeatmap": {
-    "noData": "Sin datos de participación disponibles",
-    "title": "Participación por Jugador × Ejercicio",
-    "player": "Jugador",
-    "touches": "Toques: ",
-    "distance": "Distancia: ",
-    "intensity": "Intensidad: ",
-    "legendLow": "Bajo",
-    "legendMedium": "Medio",
-    "legendHigh": "Alto",
-    "legendExcellent": "Excelente"
-  },
   "planGuard": {
     "featureVaep": "VAEP · Análisis de eventos",
     "featurePdf": "Exportar PDF",
@@ -5503,13 +5375,6 @@
     "ariaCancelUpload": "Cancelar subida",
     "ariaSelectVideo": "Seleccionar video: {{title}}",
     "ariaDeleteVideo": "Eliminar video"
-  },
-  "roleProfileCompare": {
-    "playerAge": "{{age}} años",
-    "currentPositionsTop5": "Posiciones actuales (top 5)",
-    "projectedPositions": "Posiciones proyectadas ({{horizon}})",
-    "deltaDetailByDimension": "Detalle de delta por dimensión",
-    "pointsUnit": "pts"
   },
   "setPieceStats": {
     "goals": "Goles",
@@ -5545,22 +5410,6 @@
     "emptyFilter": "No hay jugadores con el filtro seleccionado",
     "noAttendance": "sin registros",
     "riskUnavailable": "riesgo sin calcular"
-  },
-  "weekPlannerView": {
-    "noWeeklyPlan": "Sin plan semanal disponible",
-    "weeklyPlan": "Plan Semanal",
-    "loadAdjustment": "Ajuste de carga:",
-    "dayFallback": "Día {{day}}",
-    "day1": "Lunes",
-    "day2": "Martes",
-    "day3": "Miércoles",
-    "day4": "Jueves",
-    "day5": "Viernes",
-    "day6": "Sábado",
-    "day7": "Domingo",
-    "intensityLow": "Baja",
-    "intensityMedium": "Media",
-    "intensityHigh": "Alta"
   },
   "drillRecommendations": {
     "title": "Ejercicios Recomendados",
@@ -5842,25 +5691,6 @@
     "pillars": "Pilares de trabajo",
     "metricsToTrack": "Métricas a seguir",
     "reviewCheckpoints": "Puntos de revisión"
-  },
-  "coachingReport": {
-    "noContent": "Sin datos de coaching",
-    "summary": "Resumen de la sesión",
-    "whatWorkedWell": "Lo que funcionó bien",
-    "whatToImprove": "A mejorar",
-    "nextSession": "Plan próxima sesión",
-    "focus": "Enfoque",
-    "drills": "Ejercicios",
-    "weeklyPlan": "Plan semanal",
-    "spotlight": "Jugadores a destacar",
-    "player": "Jugador",
-    "action": "Acción",
-    "phvAlerts": "Alertas PHV",
-    "sectionTitle": "Reporte IA de coaching",
-    "generate": "Generar reporte IA",
-    "generating": "Generando…",
-    "error": "No se pudo generar el reporte. Inténtalo de nuevo.",
-    "hint": "Genera un reporte narrativo de la sesión con IA (resumen, plan y alertas PHV)."
   },
   "burnoutReport": {
     "noContent": "Sin datos de bienestar",
@@ -6565,5 +6395,20 @@
       "short": "VSI de ficha",
       "long": "Índice 0-100 que pondera las 6 barras que puntúa el entrenador (velocidad, técnica, visión, resistencia, tiro y defensa). Es una valoración subjetiva: no es una medida ni está corregida por maduración."
     }
+  },
+  "coachDash": {
+    "notConnected": {
+      "title": "El panel del entrenador aún no está conectado",
+      "desc": "Se conectará con tus sesiones de entrenamiento reales. Hasta entonces no se muestran cifras: lo que había aquí eran datos de ejemplo (sesión, progresión, informes y plan semanal)."
+    }
+  },
+  "roleProjection": {
+    "title": "Proyección a 0-6, 6-18 y 18-36 meses",
+    "gateReason": "Sin base para proyectar: no hay un modelo validado de cómo evoluciona cada capacidad con la edad y la maduración, así que no se muestra ninguna cifra futura."
+  },
+  "videoVsiGlossary": {
+    "term": "VSI de video",
+    "short": "Índice de los análisis de video",
+    "long": "Índice 0-100 que calcula el análisis de video (IA) con lo observado en el video. Es distinto de la evaluación del entrenador (sus 6 barras) y se bloquea si faltan sus entradas."
   }
 }

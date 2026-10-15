@@ -321,14 +321,59 @@ describe("roleProfileService", () => {
       expect(indicators).not.toContain("shooting");
     });
 
-    it("projections increase over time", async () => {
+    // P1 bloque 5c (decisión del dueño 15 oct): proyecciones 0-6 / 6-18 / 18-36 meses
+    // BLOQUEADAS. Antes: respaldo = actual +2/+5/+8 (táctica) y agente = p18m + 3 a 36 meses.
+    // Salida del agente tal como la devolvía ANTES (con p6m/p18m): aunque el modelo las
+    // siguiera mandando, no deben llegar al perfil.
+    const agentData = () => ({
+      overallConfidence: 0.82,
+      capabilities: {
+        tactical: { current: 78, p6m: 80, p18m: 83 },
+        technical: { current: 80, p6m: 82, p18m: 85 },
+        physical: { current: 60, p6m: 63, p18m: 67 },
+      },
+      dominantIdentity: "tecnico",
+      identityDistribution: { tecnico: 0.4, ofensivo: 0.25, defensivo: 0.2, fisico: 0.1, mixto: 0.05 },
+      topPositions: [{ code: "RCM", fit: 85, confidence: 0.8 }],
+      topArchetypes: [{ code: "filtrador", fit: 88, stability: "estable" }],
+      strengths: ["Pase entre líneas"],
+      risks: ["Resistencia física limitada"],
+      gaps: ["Mayor volumen de carry"],
+    });
+
+    it("sin proyecciones: ni en el respaldo de vídeo ni en el del agente", async () => {
       setupSupabaseMock([makeVideoAnalysis()]);
       mockBuildRoleProfile.mockRejectedValue(new Error("fail"));
+      const fromVideo = await fetchRoleProfile("p1");
+      expect(fromVideo).not.toBeNull();
+      expect(fromVideo).not.toHaveProperty("projections");
 
+      localStorage.clear();
+      setupSupabaseMock([makeVideoAnalysis()]);
+      mockBuildRoleProfile.mockResolvedValue({ success: true, data: agentData() });
+      const fromAgent = await fetchRoleProfile("p1");
+      expect(fromAgent).not.toBeNull();
+      expect(fromAgent!.current.tactical).toBe(78);
+      expect(fromAgent).not.toHaveProperty("projections");
+    });
+
+    // El endpoint responde 200 con un perfil de REGLAS FIJAS (`_fallback: true`) si no hay
+    // API key o el modelo falla. Antes se pintaba y se cacheaba como si fuera del agente.
+    it("respuesta de respaldo del servidor (_fallback) ⇒ no se toma como del agente ni se cachea", async () => {
+      const base = makeVideoAnalysis();
+      const sinDimensiones = {
+        ...base,
+        report: { ...base.report, estadoActual: { ...base.report.estadoActual, dimensionesMedidas: false } },
+      };
+      setupSupabaseMock([sinDimensiones]);
+      mockBuildRoleProfile.mockResolvedValue({
+        success: true,
+        data: { ...agentData(), _fallback: true, _fallbackReason: "no_api_key" },
+      });
       const result = await fetchRoleProfile("p1");
-      expect(result!.projections["0_6m"].tactical).toBeGreaterThan(result!.current.tactical);
-      expect(result!.projections["6_18m"].tactical).toBeGreaterThan(result!.projections["0_6m"].tactical);
-      expect(result!.projections["18_36m"].tactical).toBeGreaterThan(result!.projections["6_18m"].tactical);
+      expect(result).toBeNull(); // sin dimensiones reales de vídeo ⇒ se abstiene
+      const cached = Object.keys(localStorage).filter((k) => k.startsWith("vitas_roleprofile_"));
+      expect(cached).toHaveLength(0);
     });
   });
 
@@ -392,11 +437,6 @@ describe("roleProfileService", () => {
         sample_tier: "bronze",
         overall_confidence: 0.35,
         current: { tactical: 75, technical: 80, physical: 65 },
-        projections: {
-          "0_6m": { tactical: 76, technical: 81, physical: 67 },
-          "6_18m": { tactical: 78, technical: 83, physical: 70 },
-          "18_36m": { tactical: 80, technical: 85, physical: 73 },
-        },
         identity: {
           dominant: "tecnico",
           distribution: { tecnico: 0.5, ofensivo: 0.2, defensivo: 0.15, fisico: 0.15, mixto: 0 },

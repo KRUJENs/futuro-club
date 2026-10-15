@@ -3,7 +3,7 @@
  *
  * Persists training sessions, per-player metrics and parent reports from
  * the Coach Dashboard. Used by:
- *   - /coach (CoachDashboardPage — 4 tabs)
+ *   - /coach (CoachDashboardPage — panel OCULTO hasta P2: P1 bloque 5c; sin llamadores en la UI)
  *   - useCoachingSession hook
  *
  * Tables (migration 044):

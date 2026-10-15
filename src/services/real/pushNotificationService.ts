@@ -125,21 +125,7 @@ export const PushNotificationService = {
     }
   },
 
-  /**
-   * Notify coach that session analysis is ready (Sprint 16).
-   * Deduplicates by sessionId — only fires once per session.
-   */
-  async notifySessionAnalysisReady(sessionId: string, teamName?: string): Promise<void> {
-    const key = `vitas_notified_session_${sessionId}`;
-    if (localStorage.getItem(key)) return; // already notified
-    localStorage.setItem(key, Date.now().toString());
-
-    const label = teamName ? ` (${teamName})` : "";
-    await this.showLocal(
-      "Análisis de sesión listo",
-      `Tu análisis de entrenamiento${label} está disponible. Revísalo en el Coaching Assistant.`,
-      "/pwa-192x192.png",
-      "/coach?tab=sesion",
-    );
-  },
+  // (Sin notifySessionAnalysisReady: no tenía llamadores y llevaba a la pestaña «Sesión»
+  //  del panel del entrenador, que pintaba datos de ejemplo y queda oculto hasta P2 —
+  //  P1 bloque 5c. Al conectar las sesiones reales se vuelve a añadir.)
 };

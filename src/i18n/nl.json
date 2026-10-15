@@ -63,7 +63,6 @@
     "clearFiltersSm": "Filters wissen",
     "viewAll": "Alles bekijken",
     "export": "Exporteren",
-    "compare": "Vergelijken",
     "audit": "Audit",
     "years": "jaar",
     "players": "Spelers",
@@ -276,9 +275,9 @@
       "drillsCompleted": "Voltooide drills",
       "drillsCompletedDesc": "Totaal historie",
       "avgVsi": "Gem. beoordeling door de trainer",
-      "avgVsiDesc": "Academie-index",
+      "avgVsiDesc": "Subjectieve beoordeling",
       "hiddenTalents": "Verborgen talenten",
-      "hiddenTalentsDesc": "Laatrijp PHV + VSI<65"
+      "hiddenTalentsDesc": "Laatrijp PHV + trainersbeoord. < 65"
     },
     "quickAccess": {
       "masterDashboard": "Master Dashboard",
@@ -1017,7 +1016,6 @@
     "title": "Rolprofiel",
     "subtitle": "Motor voor profiel, rol en projectie",
     "auditTitle": "Audit van indicatoren",
-    "compareTitle": "Projectievergelijker",
     "lowConfidenceWarning": "⚠️ Algehele betrouwbaarheid onder 50%. De aanbevelingen hebben een hoge onzekerheid. Bekijk de sectie risico's.",
     "retryLoad": "Opnieuw laden",
     "backToProfile": "Terug naar profiel",
@@ -1027,18 +1025,6 @@
         "inPossession": "In balbezit",
         "outOfPossession": "Zonder balbezit",
         "transition": "Omschakeling"
-      }
-    },
-    "compare": {
-      "horizons": {
-        "0_6m": "0–6 maanden",
-        "6_18m": "6–18 maanden",
-        "18_36m": "18–36 maanden"
-      },
-      "dimensions": {
-        "tactical": "Tactiek",
-        "technical": "Techniek",
-        "physical": "Fysiek"
       }
     }
   },
@@ -1184,8 +1170,7 @@
     "preparingVideo": "Video voorbereiden voor AI-observatie…",
     "bunnyStreamWarning": "Configureer Bunny Stream in Vercel voor volledige video-analyse",
     "roleProfileError": "Het profiel kon niet worden geladen: {{error}}",
-    "auditLoadError": "Fout bij laden van audit: {{error}}",
-    "compareLoadError": "Fout bij laden van vergelijking: {{error}}"
+    "auditLoadError": "Fout bij laden van audit: {{error}}"
   },
   "cookies": {
     "banner": "We gebruiken essentiële cookies voor de werking van de app en analytische cookies om je ervaring te verbeteren.",
@@ -1273,7 +1258,7 @@
     "accessRestricted": "Toegang beperkt",
     "accessRestrictedDesc": "Alleen beheerders kunnen de bias-audit van het model bekijken.",
     "backToHome": "Terug naar start",
-    "title": "AI-bias-audit",
+    "title": "Bias-audit",
     "exportPdf": "PDF exporteren",
     "exportPdfTitle": "Gelijkheidsrapport exporteren (PDF)",
     "exportPdfAria": "Gelijkheidsrapport exporteren als PDF",
@@ -1337,38 +1322,8 @@
   "demoData": {
     "title": "Demogegevens.",
     "generic": "De weergegeven waarden zijn voorbeelden. Ze worden vervangen door echte gegevens zodra die beschikbaar zijn.",
-    "coach": "De sessieanalyse (segmenten, balans, deelname) gebruikt voorbeeldgegevens totdat je een trainingsvideo van het team analyseert.",
     "wellbeing": "Het welzijn van het team toont echte gegevens zodra je aanwezigheid, vragenlijsten of video-analyses per speler registreert.",
     "behavioral": "Het mentale profiel (beslissnelheid, scan-IQ, veerkracht, leiderschap, archetype) is een illustratief voorbeeld, niet gemeten. Echte waarden vereisen gedragsmatige opvolging per speler."
-  },
-  "coachDash": {
-    "tabSesion": "Laatste sessie",
-    "tabPlanificacion": "Planning",
-    "tabProgresion": "Progressie",
-    "tabReportes": "Ouderrapporten",
-    "playerLabel": "Speler {{number}}",
-    "sessionLoad": "Sessiebelasting",
-    "loadOptimal": "Optimaal — 68% van het maximum",
-    "statistics": "Statistieken",
-    "statPlayers": "Spelers",
-    "statDrills": "Oefeningen",
-    "statDuration": "Duur",
-    "statBalance": "Balans",
-    "alerts": "Waarschuwingen",
-    "alertLowParticipation": "2 spelers met lage deelname aan tactiek",
-    "alertTechniqueBelowLtad": "Techniek 10% onder het LTAD-ideaal",
-    "weeklyEvolution": "Wekelijkse evolutie",
-    "colWeek": "Week",
-    "colBalance": "Balans",
-    "colLoad": "Belasting",
-    "colEngagement": "Engagement",
-    "colParticipation": "Deelname",
-    "avgBalance": "Gemiddelde balans",
-    "avgLoad": "Gemiddelde belasting",
-    "avgEngagement": "Engagement",
-    "sessions": "Sessies",
-    "unitWeeks": "weken",
-    "playerSelector": "Speler:"
   },
   "firstRun": {
     "footRight": "Rechts",
@@ -1503,7 +1458,7 @@
     "submit": "Versturen"
   },
   "biasEquityReport": {
-    "reportTitle": "Gelijkheidsrapport — AI-bias-audit",
+    "reportTitle": "Gelijkheidsrapport — Bias-audit",
     "defaultOrg": "Academie",
     "generatedBy": "Gegenereerd door: {{name}}",
     "intro": "Dit rapport beoordeelt of de beoordeling door de trainer (profiel-VSI) de verschillende spelerscohorten gelijk behandelt, door de afwijking van elke groep t.o.v. het globale gemiddelde te meten per positie, leeftijd en aantal video's. Leeftijd dient als benadering van het rijpingscohort; de beoordeling door de trainer is niet gecorrigeerd voor rijping.",
@@ -1658,7 +1613,6 @@
     "tabStats": "Stats",
     "tabMovimiento": "Beweging",
     "tabRol": "Rol",
-    "compareRole": "Rol vergelijken",
     "auditRole": "Audit",
     "tabMental": "Mentaal",
     "tabSalud": "Gezondheid",
@@ -4097,16 +4051,6 @@
     "best": "beste",
     "discoverySuggestion": "Er zijn posities waarop {{name}} goed presteerde, maar die niet in zijn/haar profiel staan. Bewerk de speler om ze als secundair toe te voegen en toekomstige analyses te verbeteren."
   },
-  "projectionComparator": {
-    "title": "Projectievergelijker",
-    "tactical": "Tactiek",
-    "technical": "Techniek",
-    "physical": "Fysiek",
-    "bestPositionNow": "Beste huidige positie",
-    "projection18m": "Projectie 18 maanden",
-    "insightLabel": "Insight:",
-    "insightText": "De grootste verwachte ontwikkeling zit op de fysieke as (+{{delta}} pts), afhankelijk van het voltooien van het rijpingsvenster. De technische as toont de stevigste basis met minder marge maar meer zekerheid."
-  },
   "quantitativeMetricsPanel": {
     "matchMetrics": "Wedstrijdmetrics",
     "measuredQuantitativeData": "Kwantitatieve gegevens geschat door AI (Gemini)",
@@ -4745,26 +4689,6 @@
     "stepReport": "4. Je rapport",
     "skipOnboarding": "Onboarding overslaan · naar het dashboard"
   },
-  "parentReportView": {
-    "monthlyReport": "Maandrapport",
-    "monthSummary": "Maandsamenvatting",
-    "sessions": "Sessies",
-    "minutesTrained": "Getrainde min",
-    "participation": "Deelname",
-    "engagement": "Betrokkenheid",
-    "evolution": "Evolutie",
-    "aboutGrowth": "Over zijn/haar groei",
-    "positiveAspects": "Positieve aspecten",
-    "developmentAreas": "Ontwikkelpunten",
-    "coachNote": "Notitie van de trainer",
-    "trendImproving": "Verbeterend",
-    "trendStable": "Stabiel",
-    "trendDeclining": "Heeft ondersteuning nodig",
-    "categoryParticipation": "Deelname",
-    "categoryTechnique": "Techniek",
-    "categoryPhysical": "Fysieke conditie",
-    "categorySocial": "Sociale integratie"
-  },
   "positionComparison": {
     "title": "Vergelijking per positie",
     "bestFit": "Beste match",
@@ -4800,11 +4724,6 @@
     "ctaWellbeingDetail": "Details van welzijn en interventieplannen bekijken"
   },
   "roleProfileFilterBar": {
-    "horizon": "Horizon",
-    "horizonCurrent": "Huidig",
-    "horizon0_6m": "0–6 maanden",
-    "horizon6_18m": "6–18 maanden",
-    "horizon18_36m": "18–36 maanden",
     "position": "Positie",
     "all": "Alle",
     "dimension": "Dimensie",
@@ -4814,17 +4733,7 @@
     "phase": "Fase",
     "phaseInPossession": "In balbezit",
     "phaseOutOfPossession": "Zonder balbezit",
-    "phaseTransition": "Omschakeling",
-    "projected": "Geprojecteerd"
-  },
-  "sessionBalanceChart": {
-    "technical": "Techniek",
-    "tactical": "Tactiek",
-    "physical": "Fysiek",
-    "game": "Spel",
-    "warmupCooldown": "Warming-up/cooling-down",
-    "title": "Sessiebalans",
-    "idealBalance": "Ideale balans ({{label}})"
+    "phaseTransition": "Omschakeling"
   },
   "setPieceFolderPage": {
     "folderNotFound": "Map niet gevonden",
@@ -5062,9 +4971,6 @@
     "sendInquiry": "Aanvraag verzenden",
     "listingStatus": "Status van de listing:"
   },
-  "metricWithInterval": {
-    "rangeTitle": "Waarschijnlijk bereik {{rangeLabel}} · betrouwbaarheid {{confidenceLevel}}%. De marge weerspiegelt het volume en de bron van de gegevens — het is geen absoluut getal."
-  },
   "onboardingPage": {
     "positions": {
       "goalkeeper": "Keeper",
@@ -5154,18 +5060,6 @@
     "canExportPDF": "PDF-rapporten exporteren",
     "canViewVideoAnalysis": "video-analyses bekijken",
     "noPermission": "Je hebt geen toestemming om {{action}}"
-  },
-  "sessionTimelineView": {
-    "timeline": "Tijdlijn",
-    "totalDuration": "Totale duur:",
-    "segmentWarmup": "Warming-up",
-    "segmentTechnical": "Techniek",
-    "segmentTactical": "Tactiek",
-    "segmentPhysical": "Fysiek",
-    "segmentGameSmallSided": "Positiespel",
-    "segmentGameFull": "Wedstrijd",
-    "segmentCooldown": "Cooling-down",
-    "segmentTransitionBreak": "Pauze"
   },
   "sharedAnalysisPage": {
     "invalidLinkMissingToken": "Ongeldige link · token ontbreekt",
@@ -5338,11 +5232,7 @@
     "physicalLabel": "Fysiek",
     "physicalDescription": "Snelheid, uithoudingsvermogen, kracht, wendbaarheid",
     "current": "Huidig",
-    "projectionTitle": "Geschatte projectie",
-    "projectedShort": "gesch.",
-    "deltaShort": "verbetering",
-    "confidenceTooltip": "Betrouwbaarheid van deze schatting",
-    "legend": "Huidig = geschat niveau vandaag (± betrouwbaarheidsmarge). De rijen 0–6m / 6–18m / 18–36m zijn het verwachte niveau binnen die termijn, in maanden; het gekleurde getal is de verwachte verbetering ten opzichte van vandaag."
+    "legend": "Huidig = het niveau van vandaag, door AI geschat op basis van de geanalyseerde video's en de beoordeling van de trainer: een schatting, geen meting. Geen prognose: daar is geen basis voor."
   },
   "clutchHeatmap": {
     "noData": "Geen clutch-gegevens beschikbaar",
@@ -5462,24 +5352,6 @@
     "cognitive": "Cognitief",
     "description": "Hoe de fysieke en cognitieve capaciteit afnemen tijdens de wedstrijd (% ten opzichte van het begin). Als de cognitieve lijn boven de fysieke blijft, is er mentale kracht."
   },
-  "nextSessionRecommender": {
-    "title": "Aanbevelingen volgende sessie",
-    "areasToImprove": "Verbeterpunten",
-    "suggestedDrills": "Voorgestelde oefeningen",
-    "phvNote": "PHV-notitie"
-  },
-  "participationHeatmap": {
-    "noData": "Geen deelnamegegevens beschikbaar",
-    "title": "Deelname per speler × oefening",
-    "player": "Speler",
-    "touches": "Baltoetsen: ",
-    "distance": "Afstand: ",
-    "intensity": "Intensiteit: ",
-    "legendLow": "Laag",
-    "legendMedium": "Gemiddeld",
-    "legendHigh": "Hoog",
-    "legendExcellent": "Uitstekend"
-  },
   "planGuard": {
     "featureVaep": "VAEP · Actieanalyse",
     "featurePdf": "PDF exporteren",
@@ -5503,13 +5375,6 @@
     "ariaCancelUpload": "Upload annuleren",
     "ariaSelectVideo": "Video selecteren: {{title}}",
     "ariaDeleteVideo": "Video verwijderen"
-  },
-  "roleProfileCompare": {
-    "playerAge": "{{age}} jaar",
-    "currentPositionsTop5": "Huidige posities (top 5)",
-    "projectedPositions": "Verwachte posities ({{horizon}})",
-    "deltaDetailByDimension": "Deltadetail per dimensie",
-    "pointsUnit": "pts"
   },
   "setPieceStats": {
     "goals": "Doelpunten",
@@ -5545,22 +5410,6 @@
     "emptyFilter": "Geen spelers met het geselecteerde filter",
     "noAttendance": "geen registraties",
     "riskUnavailable": "risico niet berekend"
-  },
-  "weekPlannerView": {
-    "noWeeklyPlan": "Geen weekplan beschikbaar",
-    "weeklyPlan": "Weekplan",
-    "loadAdjustment": "Belastingaanpassing:",
-    "dayFallback": "Dag {{day}}",
-    "day1": "Maandag",
-    "day2": "Dinsdag",
-    "day3": "Woensdag",
-    "day4": "Donderdag",
-    "day5": "Vrijdag",
-    "day6": "Zaterdag",
-    "day7": "Zondag",
-    "intensityLow": "Laag",
-    "intensityMedium": "Gemiddeld",
-    "intensityHigh": "Hoog"
   },
   "drillRecommendations": {
     "title": "Aanbevolen oefeningen",
@@ -5842,25 +5691,6 @@
     "pillars": "Werkpijlers",
     "metricsToTrack": "Te volgen metrics",
     "reviewCheckpoints": "Evaluatiepunten"
-  },
-  "coachingReport": {
-    "noContent": "Geen coachinggegevens",
-    "summary": "Sessiesamenvatting",
-    "whatWorkedWell": "Wat goed werkte",
-    "whatToImprove": "Te verbeteren",
-    "nextSession": "Plan volgende sessie",
-    "focus": "Focus",
-    "drills": "Oefeningen",
-    "weeklyPlan": "Weekplan",
-    "spotlight": "Uit te lichten spelers",
-    "player": "Speler",
-    "action": "Actie",
-    "phvAlerts": "PHV-alerts",
-    "sectionTitle": "AI-coachingrapport",
-    "generate": "AI-rapport genereren",
-    "generating": "Genereren…",
-    "error": "Het rapport kon niet worden gegenereerd. Probeer het opnieuw.",
-    "hint": "Genereer een verhalend rapport van de sessie met AI (samenvatting, plan en PHV-alerts)."
   },
   "burnoutReport": {
     "noContent": "Geen welzijnsgegevens",
@@ -6565,5 +6395,20 @@
       "short": "Profiel-VSI",
       "long": "Index 0-100 die de 6 balken weegt die de trainer invult (snelheid, techniek, inzicht, uithoudingsvermogen, schieten en verdedigen). Het is een subjectieve beoordeling: geen meting en niet gecorrigeerd voor rijping."
     }
+  },
+  "coachDash": {
+    "notConnected": {
+      "title": "Het trainerspaneel is nog niet gekoppeld",
+      "desc": "Het wordt gekoppeld aan je echte trainingen. Tot dan worden er geen cijfers getoond: wat hier stond waren voorbeeldgegevens (training, voortgang, rapporten en weekplan)."
+    }
+  },
+  "roleProjection": {
+    "title": "Prognose op 0-6, 6-18 en 18-36 maanden",
+    "gateReason": "Geen basis voor een prognose: er is geen gevalideerd model van hoe elk vermogen zich ontwikkelt met leeftijd en rijping, dus er wordt geen toekomstig cijfer getoond."
+  },
+  "videoVsiGlossary": {
+    "term": "Video-VSI",
+    "short": "Index van de videoanalyses",
+    "long": "Index 0-100 die de videoanalyse (AI) berekent uit wat in de video wordt waargenomen. Hij verschilt van de beoordeling door de trainer (de 6 balken) en wordt geblokkeerd als de invoer ontbreekt."
   }
 }

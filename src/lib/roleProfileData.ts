@@ -102,11 +102,10 @@ export interface RoleProfileData {
   };
   positions: PositionFit[];
   archetypes: ArchetypeFit[];
-  projections: {
-    "0_6m": CapabilityScores;
-    "6_18m": CapabilityScores;
-    "18_36m": CapabilityScores;
-  };
+  // Sin `projections` (0-6 / 6-18 / 18-36 meses) — P1 bloque 5c: eran el nivel actual
+  // + un porcentaje fijo (+2/+5/+8 en el respaldo, «+3» a 36 meses en el del agente,
+  // regla fija del prompt), no una proyección con base. La UI dice «sin base para
+  // proyectar» (ProjectionGateCard), nunca una cifra.
   strengths: StrengthItem[];
   risks: { code: RiskCode; label: string; description: string }[];
   gaps: GapItem[];

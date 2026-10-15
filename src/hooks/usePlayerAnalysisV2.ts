@@ -37,6 +37,7 @@ import { buildDemoAnalysisRows } from "@/lib/demo/demoReports";
 import i18n from "@/i18n";
 import { normalizeLocale } from "@/lib/shared/locale";
 import { finalizeSyncGateMessage } from "@/lib/syncVideoAnalysisGate";
+import type { VideoIntelligenceOutput } from "@/agents/contracts";
 import {
   ClipConsentBlockedError,
   clipConsentErrorFromResponse,
@@ -619,8 +620,10 @@ export type AnalysisDbRow = {
   video_id: string;
   created_at: string;
   vsi: Record<string, unknown> | null;
-  /** Estadísticas cuantitativas de partido (opcional; el demo las sirve, el pipeline real las anida en su propio flujo). */
-  metricasCuantitativas?: Record<string, unknown>;
+  /** Estadísticas cuantitativas de partido (opcional; el demo las sirve, el pipeline real las anida en su propio flujo).
+   *  Tipadas con el contrato (antes Record<string, unknown>): el `report: null` del retorno
+   *  temprano hacía que TS (strictNullChecks off) tipara todo el informe como `any`. */
+  metricasCuantitativas?: VideoIntelligenceOutput["metricasCuantitativas"];
   reports: Array<{ report_type: string; content: Record<string, unknown> }>;
 };
 
@@ -665,7 +668,9 @@ export function mapDbRowToLegacy(row: AnalysisDbRow) {
     (rpts.find((r) => r.report_type === type)?.content ?? {}) as Record<string, unknown>;
 
   if (rpts.length === 0) {
-    return { id: row.id, player_id: row.player_id, video_id: row.video_id, created_at: row.created_at, report: null };
+    // Con `vsi` también sin informes (revisión #318): si no, la lista de análisis decía
+    // «Eval. entrenador: Sin evaluar» de un análisis base que SÍ tenía evaluación.
+    return { id: row.id, player_id: row.player_id, video_id: row.video_id, created_at: row.created_at, vsi: (row.vsi?.vsi as number) ?? null, report: null };
   }
 
   const pr  = get("player-report");
@@ -707,7 +712,7 @@ export function mapDbRowToLegacy(row: AnalysisDbRow) {
       // SIEMPRE null: la fila de `analyses` no trae ningún «ajuste» del VSI. Antes se
       // inventaba como `vsi − 50` (un 50 arbitrario como base): en los análisis base, cuyo
       // VSI es la evaluación del entrenador, pintaba «VSI +22» en la ficha de inteligencia,
-      // el Lab, SoloDrill y la línea de tiempo (P1 bloque 5b, inv #2); y antes aún `?? 50`
+      // el Lab y la línea de tiempo (P1 bloque 5b, inv #2); y antes aún `?? 50`
       // daba «VSI +0 pts». Con null, el render oculta el badge (#40).
       ajusteVSIVideoScore: null,
     },

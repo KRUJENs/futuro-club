@@ -20,7 +20,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Edit, Video, Activity, FlaskConical, Compass, Clock,
   Sparkles, ChevronRight, AlertCircle, Brain, Zap, Printer, Heart, Shield, TrendingUp, Target, Briefcase,
-  GitCompare, ClipboardList, Play, X,
+  ClipboardList, Play, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -70,7 +70,7 @@ import CapabilityCards from "@/components/role-profile/CapabilityCards";
 import PositionFitRanking from "@/components/role-profile/PositionFitRanking";
 import ArchetypeRanking from "@/components/role-profile/ArchetypeRanking";
 import StrengthsRisksPanel from "@/components/role-profile/StrengthsRisksPanel";
-import ProjectionComparator from "@/components/role-profile/ProjectionComparator";
+import ProjectionGateCard from "@/components/role-profile/ProjectionGateCard";
 
 // Sprint 20: Behavioral Profiling Dashboard (lazy loaded)
 import { lazy } from "react";
@@ -544,7 +544,9 @@ export default function PlayerHubPage() {
                   {latestReport.metricasCuantitativas.heatmapPositions &&
                     latestReport.metricasCuantitativas.heatmapPositions.length > 0 && (
                     <PlayerHeatmap
-                      positions={latestReport.metricasCuantitativas.heatmapPositions}
+                      positions={latestReport.metricasCuantitativas.heatmapPositions.filter(
+                        (p): p is { fx: number; fy: number } => typeof p.fx === "number" && typeof p.fy === "number",
+                      )}
                       title={t("playerHubPage.heatmapTitle", { name: player.name })}
                     />
                   )}
@@ -613,19 +615,10 @@ export default function PlayerHubPage() {
                     )}
                   </div>
 
-                  {/* Acciones del perfil de rol · antes /compare y /audit no tenían
-                      ningún punto de entrada en la UI (rutas huérfanas). */}
+                  {/* Acciones del perfil de rol. Sin «Comparar»: comparaba horizontes de
+                      proyección, bloqueados (P1 bloque 5c). */}
                   {id && (
                     <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={() => navigate(`/players/${id}/role-profile/compare`)}
-                      >
-                        <GitCompare size={14} />
-                        {t("playerHubPage.compareRole")}
-                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -664,7 +657,8 @@ export default function PlayerHubPage() {
                     <ArchetypeRanking data={roleData} />
                   </div>
                   <StrengthsRisksPanel data={roleData} />
-                  <ProjectionComparator data={roleData} />
+                  {/* Proyección 0-6 / 6-18 / 18-36 meses: bloqueada con su motivo (P1 bloque 5c). */}
+                  <ProjectionGateCard />
 
                   {/* Cita explícita de los videos fuente al final del informe */}
                   {roleData.source_videos && roleData.source_videos.length > 0 && (

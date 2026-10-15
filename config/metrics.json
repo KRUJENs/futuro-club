@@ -57,7 +57,7 @@
       "ui_paths": ["src/components/VsiGauge.tsx", "src/lib/metrics/coachEval.ts", "src/pages/PlayerHubPage.tsx", "src/pages/PlayerHubPrint.tsx", "src/pages/PlayerReportPrint.tsx", "src/pages/MasterDashboard.tsx", "src/components/player/ShareablePlayerCard.tsx", "src/components/VitasCard.tsx", "src/components/analysis/AnalysisDashboard.tsx", "src/pages/PlayerComparison.tsx"],
       "allowed_literals": [0, 100],
       "gated": false,
-      "notes": "G4: entradas son SLIDERS subjetivos del coach, NO medida. Fórmula+pesos consolidados en calculateFichaVsi de src/services/real/metricsService.ts (fuente única, invariante #7; antes triplicada en metricsService/_crud/_list; el registro citaba un src/lib/scoring/fichaVsi.ts que no existe). El ~58 por defecto se quitó en #146. P1 bloque 5a: api/players/baseline-analysis.ts usa el VSI GUARDADO (antes una MEDIA SIMPLE de las barras, un tercer VSI) y no genera nada sin la evaluación del entrenador: VSI guardado y las 6 barras (antes valían 0). P1 bloque 5b: rotulado «Evaluación del entrenador» en todas las superficies de la app (gauge por defecto, ficha, impresos, PDF de servidor, tarjeta compartible y de VITAS, panel del director, análisis base, chips vía coachEvalInline, avisos push/correo, Telegram y prompts); fuera «VSI Global», «VITAS Score Index», «VSI Score» y los textos que decían «VSI corregido/ajustado por maduración». Tramos (Élite/Pro/Talento/En desarrollo) con UN solo juego de cortes 85/70/50 en config/coachEvaluation.ts («pendiente de validar»; antes 80/65/50, 85/70/50, 85/70/55, 85/70 y Élite ≥70 en Telegram) vía coachEvalTier. El cron de avisos ya no recalcula el VSI con pesos copiados y media simple. NO se rotulan así los VSI que no son del entrenador (revisión #318): la tendencia temporal de la auditoría de sesgo (VSI de los análisis de IA) y la evolución longitudinal (player_metric_snapshots, vídeo) usan su propio término (glosario `videoVsi`); en las listas de análisis guardados, `analysisVsiInline` distingue el análisis base (evaluación del entrenador) del de vídeo. Textos de marketing (landing, precios, guía) y de la zona PHV: ver docs/pendientes-metricas.md."
+      "notes": "G4: entradas son SLIDERS subjetivos del coach, NO medida. Fórmula+pesos consolidados en calculateFichaVsi de src/services/real/metricsService.ts (fuente única, invariante #7; antes triplicada en metricsService/_crud/_list; el registro citaba un src/lib/scoring/fichaVsi.ts que no existe). El ~58 por defecto se quitó en #146. P1 bloque 5a: api/players/baseline-analysis.ts usa el VSI GUARDADO (antes una MEDIA SIMPLE de las barras, un tercer VSI) y no genera nada sin la evaluación del entrenador: VSI guardado y las 6 barras (antes valían 0). P1 bloque 5b: rotulado «Evaluación del entrenador» en todas las superficies de la app (gauge por defecto, ficha, impresos, PDF de servidor, tarjeta compartible y de VITAS, panel del director, análisis base, chips vía coachEvalInline, avisos push/correo, Telegram y prompts); fuera «VSI Global», «VITAS Score Index», «VSI Score» y los textos que decían «VSI corregido/ajustado por maduración». Tramos (Élite/Pro/Talento/En desarrollo) con UN solo juego de cortes 85/70/50 en config/coachEvaluation.ts («pendiente de validar»; antes 80/65/50, 85/70/50, 85/70/55, 85/70 y Élite ≥70 en Telegram) vía coachEvalTier. El cron de avisos ya no recalcula el VSI con pesos copiados y media simple. NO se rotulan así los VSI que no son del entrenador (revisión #318): la tendencia temporal de la auditoría de sesgo (VSI de los análisis de IA) y la evolución longitudinal (player_metric_snapshots, vídeo) usan su propio rótulo (la auditoría, sus claves i18n `biasAudit.recencyChartTitle`/`seriesAvgVideoVsi`; la evolución, el término de glosario `videoVsi`); en las listas de análisis guardados, `analysisVsiInline` distingue el análisis base (evaluación del entrenador) del de vídeo. Textos de marketing (landing, precios, guía) y de la zona PHV: ver docs/pendientes-metricas.md."
     },
     {
       "id": "vsi_delta",
@@ -860,6 +860,36 @@
       "allowed_literals": [0.25, 0.5, 0.75, 0.9, 10],
       "gated": true,
       "notes": "P1 bloque 5a. Implementación ÚNICA de todo percentil y cuantil entre pares (antes 6: MetricsService.calculatePercentile —50 con grupo vacío—, rankingsService y api/rankings/_list.ts —100 con ≤1 valor—, la RPC SQL get_ranked_players —percent_rank() sin mínimo de pares: P0 al evaluado solo en su grupo; el mismo niño P0 por la RPC y P100 por la ruta en memoria—, api/benchmark/peer.ts —pool de TODAS las cuentas y el valor ausente del jugador como 0 ⇒ «P0» que veía la familia— y api/players/baseline-analysis.ts —pool de todas las cuentas, sin mínimo, no evaluados como 0—; más benchmarkService, retirado: comparaba la nota del vídeo con las barras del entrenador /10 leyendo un campo inexistente ⇒ P100 impreso). Rango percentil de punto medio P = round(100·(L+0,5·E)/N) sin contar al propio. value null + gate_reason si el jugador no está evaluado (not_evaluated) o hay menos de PERCENTILE_MIN_PEERS = 10 pares evaluados (insufficient_peers); constante en config/percentiles.ts, procedencia «decisión del producto, 14 oct 2026», no un umbral validado. Población: SOLO jugadores del mismo dueño (players.user_id) y sin jugadores de ejemplo para uno real, hasta que exista el acceso de clubes. Cuantiles 25/50/75/90 por interpolación lineal (h = (n−1)·p) y media a 1 decimal (literal 10), con el mismo mínimo. «Evaluado» = el VSI de ficha GUARDADO en todas las superficies, leído de dos sitios que los escritores guardan a la vez: el blob data.vsi vía fichaVsiFromBlob (Rankings, informe impreso, PDF de servidor, avisos) y la columna players.vsi vía toVsi de api/_lib/vsiStats.ts (análisis base, comparación con pares, Telegram, medias de equipo); las 6 barras completas (completeCoachMetrics) solo se exigen además donde se usan (análisis base, informe impreso, barras del PDF). confidence = ORIENTATIVE_CONFIDENCE: las entradas son barras subjetivas del entrenador. Las barras se leen del blob data->metrics (las columnas metric_* valen 0 sin evaluar: trigger 069 + DEFAULT 0 de la 024, bloque 7)."
+    },
+    {
+      "id": "capacidades_rol_actual",
+      "name": "Capacidades del perfil de rol · nivel actual (táctica, técnica, física)",
+      "concept": "rol.capacidades.actual",
+      "provenance": "ESTIMADA_LLM",
+      "calc_paths": [
+        "api/agents/_role-profile.ts",
+        "src/services/roleProfileService.ts"
+      ],
+      "ui_paths": [
+        "src/components/role-profile/CapabilityCards.tsx"
+      ],
+      "gated": true,
+      "notes": "P1 bloque 5c. Lo estima el agente de perfil de rol (modelo + vídeos analizados + evaluación del entrenador); la UI lo rotula «Estimado por IA» (ProvenanceBadge) y ya no le pone una «confianza» fija por dimensión (0,78/0,80/0,55) ni un margen ± derivado de ella (MetricWithInterval retirado). Sin vídeo analizado ⇒ sin perfil (null). La respuesta de respaldo del servidor (`_fallback: true`: sin API key o error del modelo; reglas fijas sobre las barras del entrenador) ya no se toma como del agente ni se cachea: el servicio se abstiene salvo con dimensiones de vídeo REALES. PENDIENTE (decisión del dueño): la confianza global del perfil (`overallConfidence`) la fija el prompt por tramos de minutos (0,85/0,70/0,55), no el modelo."
+    },
+    {
+      "id": "proyeccion_capacidades_rol",
+      "name": "Proyección de capacidades del perfil de rol (0-6, 6-18 y 18-36 meses)",
+      "concept": "rol.capacidades.proyeccion",
+      "provenance": "ESTIMADA_LLM",
+      "calc_paths": [
+        "src/components/role-profile/ProjectionGateCard.tsx"
+      ],
+      "ui_paths": [
+        "src/components/role-profile/ProjectionGateCard.tsx",
+        "src/pages/PlayerHubPage.tsx"
+      ],
+      "gated": true,
+      "notes": "P1 bloque 5c: BLOQUEADA SIEMPRE por decisión del dueño (15 oct 2026): «sin base para proyectar». Antes: el agente devolvía p6m = actual + 2-3 % y p18m = × 2,5 (regla fija del prompt), el cliente inventaba 18-36 m = p18m + 3 (+2 física), el respaldo de vídeo +2/+5/+8 y el del servidor un factor fijo por la categoría PHV persistida; ProjectionComparator calculaba la «mejor posición a 18 meses» con pesos fijos 0,3/0,4/0,3 y un «insight» de texto fijo, y /role-profile/compare comparaba esos horizontes. Ahora el contrato del agente solo tiene `current`, el prompt prohíbe proyectar, RoleProfileData no tiene `projections`, la ruta /compare redirige al perfil de rol y la UI muestra el motivo (ProjectionGateCard), nunca una cifra."
     }
   ]
 }

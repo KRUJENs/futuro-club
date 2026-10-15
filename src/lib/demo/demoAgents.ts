@@ -149,7 +149,8 @@ function roleProfile(input: unknown, locale: ReportLocale): Record<string, unkno
   const dominant = (Object.entries(raw).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "mixto") as
     "ofensivo" | "defensivo" | "tecnico" | "fisico" | "mixto";
   const avg = Math.round((off + def + tec + fis) / 4);
-  const cap = (base: number) => ({ current: base, p6m: Math.min(99, base + 4), p18m: Math.min(99, base + 9) });
+  // Sin proyecciones (P1 bloque 5c): tampoco en el demo.
+  const cap = (base: number) => ({ current: base });
   const top = topMetric(m, locale);
   const secondary = (p.secondaryPositions as string[]) ?? [];
   const dominantLabel = pickLocale(locale, IDENTITY_LABELS)[dominant] ?? dominant;

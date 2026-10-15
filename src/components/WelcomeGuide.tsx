@@ -83,7 +83,7 @@ const GUIDE_STEPS: GuideStep[] = [
     titleKey: "guide.rankings",
     titleFallback: "Consulta el ranking",
     descKey: "guide.rankingsDesc",
-    descFallback: "Compara jugadores por VSI, posición y grupo de edad",
+    descFallback: "Compara jugadores por evaluación del entrenador, posición y grupo de edad",
     path: "/rankings",
     checkFn: () => {
       try {

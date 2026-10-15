@@ -71,11 +71,12 @@ describe("roleProfileFallback", () => {
     expect(sum).toBeCloseTo(1.0, 1);
   });
 
-  it("capabilities p18m > current", () => {
+  // P1 bloque 5c: sin proyecciones (antes p18m = current × (1 + factor PHV fijo × 2,5)).
+  it("capabilities sin p6m/p18m: solo el nivel actual", () => {
     const r = roleProfileFallback(baseInput, "no_api_key");
-    expect(r.capabilities.tactical.p18m).toBeGreaterThan(r.capabilities.tactical.current);
-    expect(r.capabilities.technical.p18m).toBeGreaterThan(r.capabilities.technical.current);
-    expect(r.capabilities.physical.p18m).toBeGreaterThan(r.capabilities.physical.current);
+    expect(r.capabilities.tactical).not.toHaveProperty("p18m");
+    expect(r.capabilities.technical).not.toHaveProperty("p6m");
+    expect(r.capabilities.physical).not.toHaveProperty("p18m");
   });
 
   it("confidence based on minutesPlayed", () => {

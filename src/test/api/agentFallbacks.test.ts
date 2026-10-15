@@ -121,11 +121,12 @@ describe("roleProfileFallback", () => {
     expect(result.capabilities.tactical.current).toBe(60); // default 60
   });
 
-  it("capabilities projections increase over time", () => {
+  // P1 bloque 5c: sin proyecciones (antes p6m/p18m = current × un factor fijo por PHV).
+  it("capabilities: solo el nivel actual, sin p6m/p18m", () => {
     const result = roleProfileFallback(baseInput, "no_api_key");
-    const { tactical } = result.capabilities;
-    expect(tactical.p6m).toBeGreaterThanOrEqual(tactical.current);
-    expect(tactical.p18m).toBeGreaterThanOrEqual(tactical.p6m);
+    for (const dim of [result.capabilities.tactical, result.capabilities.technical, result.capabilities.physical]) {
+      expect(Object.keys(dim)).toEqual(["current"]);
+    }
   });
 });
 
