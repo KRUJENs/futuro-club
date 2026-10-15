@@ -132,6 +132,22 @@ const GOAL_RATIONALE_TEMPLATES: Record<IDPDimension, string> = {
 };
 
 /**
+ * Dimensiones con dato REAL (las únicas en las que se pueden fijar metas): técnica/
+ * táctica/física/mental con su valor, mental también desde el perfil conductual, y
+ * maduración solo con PHV y un riesgo de lesión calculado. Una sola definición: la usan
+ * el generador, el prompt del agente y los endpoints (P1 bloque 5d, revisión del #320).
+ */
+export function idpDimensionsWithData(input: IDPArchitectInput): IDPDimension[] {
+  return scoreDimensions(input).map((d) => d.dimension);
+}
+
+/** Descarta las metas del agente sobre dimensiones SIN dato (el modelo puede inventarlas). */
+export function keepGoalsWithData<G extends { dimension?: unknown }>(input: IDPArchitectInput, goals: G[]): G[] {
+  const allowed = new Set<string>(idpDimensionsWithData(input));
+  return goals.filter((g) => typeof g.dimension === "string" && allowed.has(g.dimension));
+}
+
+/**
  * Generate the full plan deterministically.
  */
 export function generatePlanDeterministic(input: IDPArchitectInput): IDPArchitectOutput {
@@ -171,9 +187,13 @@ export function generatePlanDeterministic(input: IDPArchitectInput): IDPArchitec
     };
   });
 
-  const topWeakness = weaknesses[0]?.dimension ?? "technical";
+  // Sin ninguna dimensión con dato no hay foco (antes «fundamentos técnicos» por defecto).
+  // Los endpoints no llegan aquí en ese caso (422 idp_no_dimension_data).
+  const topWeakness = weaknesses[0]?.dimension ?? null;
   return {
-    overallFocus: `Foco del mes: ${topWeakness === "technical" ? "fundamentos técnicos" : topWeakness === "tactical" ? "lectura táctica" : topWeakness === "physical" ? "base física" : topWeakness === "mental" ? "carga mental" : "gestión de maduración"}`,
+    overallFocus: topWeakness === null
+      ? "Sin datos por dimensión: no hay foco del mes."
+      : `Foco del mes: ${topWeakness === "technical" ? "fundamentos técnicos" : topWeakness === "tactical" ? "lectura táctica" : topWeakness === "physical" ? "base física" : topWeakness === "mental" ? "carga mental" : "gestión de maduración"}`,
     agentSummary: `Plan generado heurísticamente desde VSI/behavioral/PHV del jugador ${input.player.name}. ${goals.length} objetivos priorizados por debilidad relativa.`,
     goals,
   };

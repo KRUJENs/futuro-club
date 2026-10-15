@@ -221,6 +221,9 @@ export function computeValuation(input: z.infer<typeof valuationSchema>) {
   return {
     playerId: input.playerId,
     overallScore: comp.value,
+    // Procedencia de la puntuación (función determinista sobre sus factores); la UI la
+    // rotula con ProvenanceBadge. Sin puntuación, no hay procedencia que rotular.
+    provenance: comp.value === null ? null : ("DERIVADA" as const),
     tier: tier ? tier.name : null,
     tierColor: tier ? tier.color : null,
     tierDescription: tier ? tier.description : null,

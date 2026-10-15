@@ -135,7 +135,12 @@ export function useGenerateIDP() {
       });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        throw new Error(`generate-plan ${res.status}: ${text.slice(0, 200)}`);
+        const err = new Error(`generate-plan ${res.status}: ${text.slice(0, 200)}`) as Error & { code?: string };
+        // El código del servidor (p. ej. idp_no_dimension_data) para que la UI diga el motivo.
+        try {
+          err.code = (JSON.parse(text) as { errorDetail?: { code?: string } }).errorDetail?.code;
+        } catch { /* cuerpo no JSON */ }
+        throw err;
       }
       const payload = (await res.json()) as { data: GenerateResult };
       // Cache to localStorage immediately

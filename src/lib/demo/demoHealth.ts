@@ -2,10 +2,10 @@
  * VITAS · Salud y Valoración de ejemplo del DEMO (piso piloto)
  *
  * En el demo no hay backend (los agentes injury-risk / valuation viven en /api,
- * interceptado por demoApiGuard → null). Aquí se PRE-HORNEAN ejemplos derivados
- * de la ficha del jugador para que las pestañas Salud y Valoración no queden
- * vacías. Son datos de EJEMPLO: coldStartWarning:true + confianza baja + el
- * GlobalDemoBanner ya declaran que no son datos reales. Nunca se presentan como
+ * interceptado por demoApiGuard → null). Aquí se PRE-HORNEAN ejemplos con valores
+ * FIJOS (no derivados de la ficha) para que las pestañas Salud y Valoración no queden
+ * vacías. Son datos de EJEMPLO: procedencia MOCK («Datos de ejemplo») + el
+ * GlobalDemoBanner declaran que no son datos reales. Nunca se presentan como
  * medidos. Prosa localizada es/en (cae a es en otros idiomas).
  */
 
@@ -45,8 +45,11 @@ export function buildDemoValuation(
       { factor: "context", weight: 0.1, score: 55, label: L("Contexto", "Context") },
       { factor: "consistency", weight: 0.15, score: 50, label: L("Consistencia", "Consistency") },
     ],
-    coldStartWarning: true,
+    // Sin nº de análisis no se afirma «menos de 3» (misma regla que el modelo real); la
+    // puntuación se rotula «Datos de ejemplo» (MOCK) además del banner del demo.
+    coldStartWarning: null,
     analysisCount: null,
+    provenance: "MOCK",
   };
 }
 

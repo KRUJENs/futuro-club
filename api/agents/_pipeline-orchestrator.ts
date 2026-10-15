@@ -446,8 +446,9 @@ export default withHandler(
     // TODO(F3b): sustituir por señales reales (p.ej. scan-rate → mental) cuando
     // haya un clip de validación. Cambiar estos valores mueve el VSI en toda la
     // app (rankings/reportes/valoración) → requiere validación antes de tocarlos.
-    // La biomecánica llega del cliente en camelCase (antes se leía SOLO en snake_case ⇒ el
-    // sub-score físico nunca tenía señal) y el físico exige zancada Y asimetría: antes una
+    // La biomecánica del CLIENTE llega en camelCase (antes se leía SOLO en snake_case, la de
+    // la vía Modal ⇒ por la vía de cliente el físico nunca tenía señal); se aceptan las dos.
+    // El físico exige zancada Y asimetría: antes una
     // de las dos ausente valía 0 (`?? 0`), p. ej. sin zancada ⇒ «sprint 0» (P1 bloque 5d,
     // inv #2). La fórmula no cambia.
     const bmRaw = (analysis.biomechanics ?? {}) as Record<string, unknown>;

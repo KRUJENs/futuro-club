@@ -144,7 +144,22 @@ describe("transfer/list-inquiries · buzón de ofertas sobre un menor", () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe("idp/generate-plan · plan de desarrollo de un menor", () => {
-  const architectInput = { player: { id: "pA", name: "Jugador A", position: "MC", chronologicalAge: 12 } };
+  // Con una dimensión con dato (técnica, de vídeo): sin ninguna no se genera plan (5d).
+  const architectInput = {
+    player: { id: "pA", name: "Jugador A", position: "MC", chronologicalAge: 12 },
+    vsi: { overall: 70, technical: 64, tactical: null, physical: null, mental: null },
+  };
+
+  it("A (dueño) SIN ninguna dimensión con dato → 422 idp_no_dimension_data y no escribe nada (P1 5d)", async () => {
+    const { default: handler } = await import("../idp/_generate-plan");
+    const res = await handler(
+      post("/api/idp/generate-plan", { architectInput: { player: architectInput.player, vsi: { overall: 70, technical: null, tactical: null, physical: null, mental: null } } }),
+    );
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { errorDetail: { code: string } };
+    expect(body.errorDetail.code).toBe("idp_no_dimension_data");
+    expect(writesTo("/rest/v1/development_plans")).toEqual([]);
+  });
 
   it("B (mismo tenant, NO dueño) → 403: ni consulta si ya existe un plan ni escribe nada", async () => {
     const { default: handler } = await import("../idp/_generate-plan");

@@ -35,6 +35,10 @@ import de from "@/i18n/de.json";
 import it_ from "@/i18n/it.json";
 import nl from "@/i18n/nl.json";
 import type { Player } from "@/services/real/playerService";
+import { idpDimensionsWithData } from "@/lib/idp/idpGoalGenerator";
+import idpDashboardSrc from "@/components/idp/IDPDashboard.tsx?raw";
+import useIdpSrc from "@/hooks/useIDP.ts?raw";
+import demoReportsSrc from "@/lib/demo/demoReports.ts?raw";
 
 const LOCALES: Array<[string, Record<string, unknown>]> = [
   ["es", es], ["es-419", esLA], ["en", en], ["fr", fr], ["de", de], ["it", it_], ["nl", nl],
@@ -121,5 +125,44 @@ describe("IDP · cada dimensión con su dato o sin dato", () => {
     expect(p).toMatch(/Edad cronológica: No disponible/);
     expect(p).toMatch(/Posición: No disponible/);
     expect(p).not.toMatch(/\bnull\b|undefined/);
+  });
+});
+
+// Revisión del #320.
+describe("revisión del #320 · IDP sin dimensiones con dato y procedencia de la valoración", () => {
+  it("sin ninguna dimensión con dato el plan NO inventa «fundamentos técnicos» como foco", () => {
+    const plan = generatePlanDeterministic({ player: { id: "p1", name: "Leo", chronologicalAge: 12 } } as never);
+    expect(plan.goals).toHaveLength(0);
+    expect(plan.overallFocus).not.toMatch(/fundamentos técnicos/);
+    expect(idpDimensionsWithData({ player: { id: "p1", name: "Leo", chronologicalAge: 12 } } as never)).toEqual([]);
+  });
+
+  it("el prompt limita las metas a las dimensiones con dato y admite 1-5", () => {
+    const p = buildIDPArchitectPrompt({
+      player: { id: "p1", name: "Leo", chronologicalAge: 12 },
+      vsi: { overall: 70, technical: 64, tactical: null, physical: null, mental: null },
+    } as never, "es");
+    expect(p).toContain("DIMENSIONES CON DATO: technical.");
+    expect(p).toMatch(/Entre 1 y 5 goals/);
+    expect(p).not.toMatch(/3-5 goals máximo/);
+  });
+
+  it("el panel no ofrece «Generar» sin dimensiones con dato y el error 422 se traduce", () => {
+    expect(code(idpDashboardSrc)).toMatch(/disabled=\{generate\.isPending \|\| noDimensionData\}/);
+    expect(code(idpDashboardSrc)).toContain('code === "idp_no_dimension_data"');
+    expect(code(useIdpSrc)).toMatch(/errorDetail\?\.code/);
+    for (const [, j] of LOCALES) expect(typeof get(j, "idpDashboard.noDimensionData")).toBe("string");
+  });
+
+  it("la puntuación calculada lleva su procedencia; el demo, «Datos de ejemplo» y sin afirmar «menos de 3»", () => {
+    render(<ValuationCard data={{ ...COMPUTED, provenance: "DERIVADA" }} />);
+    expect(screen.getByText("Calculado")).toBeDefined();
+    const demo = buildDemoValuation({ id: "a" } as unknown as Player, "es");
+    expect(demo.provenance).toBe("MOCK");
+    expect(demo.coldStartWarning).toBeNull();
+  });
+
+  it("el informe de ejemplo de valoración no deriva tramo ni «techo» del VSI", () => {
+    expect(code(demoReportsSrc)).not.toMatch(/techoEstimado: tierLabelFor/);
   });
 });

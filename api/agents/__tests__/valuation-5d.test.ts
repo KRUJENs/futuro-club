@@ -25,6 +25,8 @@ vi.mock("../../_lib/auth", () => ({
 
 import { computeValuation } from "../_valuation-model";
 import labReport from "../_lab-biomechanics-report";
+import idpArchitect from "../_idp-architect";
+import { keepGoalsWithData } from "../../../src/lib/idp/idpGoalGenerator";
 import modelSrc from "../_valuation-model.ts?raw";
 import orchestratorSrc from "../_pipeline-orchestrator.ts?raw";
 import { VALUATION_SOURCE } from "../../../config/valuation";
@@ -129,6 +131,45 @@ describe("orquestador · sin edad, nivel ni nº de análisis inventados", () => 
         body: JSON.stringify({ playerId: "p1", videoId: "v1", biomechanics: null, playerContext: { position: "MID" } }),
       }),
     );
+    // Pasa la validación del esquema (antes 400) y llega al handler, que sin API key
+    // responde no_api_key: prueba que el esquema aceptó la falta de edad.
     expect(res.status).not.toBe(400);
+    const body = (await res.json()) as { errorDetail?: { code?: string } };
+    expect(body.errorDetail?.code).toBe("no_api_key");
+  });
+});
+
+// Revisión del #320: sin NINGUNA dimensión con dato no hay plan; el agente solo puede
+// fijar metas de dimensiones con dato.
+describe("IDP · sin dimensiones con dato no hay plan (endpoint público del arquitecto)", () => {
+  const post = (body: unknown) =>
+    idpArchitect(
+      new Request("https://x.test/api/agents/idp-architect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }),
+    );
+  const player = { id: "p1", name: "Leo", chronologicalAge: 12 };
+
+  it("solo la evaluación del entrenador (sin desglose) ⇒ 422 idp_no_dimension_data", async () => {
+    const res = await post({ player, vsi: { overall: 70, technical: null, tactical: null, physical: null, mental: null } });
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { errorDetail: { code: string } };
+    expect(body.errorDetail.code).toBe("idp_no_dimension_data");
+  });
+
+  it("con una dimensión con dato ⇒ plan solo de esa dimensión (determinista sin API key)", async () => {
+    const res = await post({ player, vsi: { overall: 70, technical: 64, tactical: null, physical: null, mental: null } });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { plan: { overallFocus: string; goals: Array<{ dimension: string }> } } };
+    expect(body.data.plan.goals.map((g) => g.dimension)).toEqual(["technical"]);
+    expect(body.data.plan.overallFocus).toMatch(/fundamentos técnicos/);
+  });
+
+  it("keepGoalsWithData descarta metas inventadas sobre dimensiones sin dato", () => {
+    const input = { player, vsi: { overall: 70, technical: 64, tactical: null, physical: null, mental: null } } as never;
+    const kept = keepGoalsWithData(input, [{ dimension: "technical" }, { dimension: "tactical" }, { dimension: "physical" }]);
+    expect(kept).toEqual([{ dimension: "technical" }]);
   });
 });

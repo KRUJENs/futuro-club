@@ -448,7 +448,7 @@
     },
     {
       "id": "valoracion_predictiva",
-      "name": "Valoración predictiva (puntuación, tier y probabilidades)",
+      "name": "Valoración predictiva (puntuación compuesta orientativa y tramo; sin probabilidades)",
       "concept": "proyeccion.valoracion",
       "provenance": "DERIVADA",
       "calc_paths": [

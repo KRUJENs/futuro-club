@@ -743,7 +743,9 @@ export const IDPArchitectOutputSchema = z.object({
         weight: z.number().int().min(1).max(5),
       }),
     )
-    .min(3)
+    // 1-5 (antes 3-5): solo dimensiones con dato; con una o dos, no se rellena con metas
+    // inventadas (P1 bloque 5d, revisión del #320).
+    .min(1)
     .max(5),
 });
 

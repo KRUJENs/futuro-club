@@ -16,6 +16,8 @@ import { motion } from "framer-motion";
 import { useTranslation } from "react-i18next";
 import { Trophy, BarChart3, Info } from "lucide-react";
 import TierBadge from "./TierBadge";
+import { ProvenanceBadge } from "@/components/metrics/MetricValue";
+import type { Provenance } from "@/lib/metrics/MetricResult";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -23,6 +25,8 @@ export interface ValuationData {
   playerId: string;
   /** null ⇒ no calculada (ver gate_reason): sin tramo. */
   overallScore: number | null;
+  /** Procedencia de la puntuación (DERIVADA en el modelo real, MOCK en el demo). */
+  provenance?: Provenance | null;
   tier: string | null;
   tierColor: string | null;
   tierDescription: string | null;
@@ -108,7 +112,10 @@ export default function ValuationCard({ data }: ValuationCardProps) {
               : t("valuationCard.orientative")}
           </p>
         </div>
-        <TierBadge tier={data.tier} tierColor={color} score={data.overallScore} />
+        <div className="flex flex-col items-end gap-1">
+          <TierBadge tier={data.tier} tierColor={color} score={data.overallScore} />
+          {data.provenance && <ProvenanceBadge provenance={data.provenance} />}
+        </div>
       </div>
 
       {/* Tier description */}

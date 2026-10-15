@@ -4572,7 +4572,8 @@
     "filterAll": "Todos",
     "progressByDimension": "Progreso por dimensión",
     "toastCheckinSaved": "Checkin guardado",
-    "toastSaveError": "No se pudo guardar"
+    "toastSaveError": "No se pudo guardar",
+    "noDimensionData": "Aún no hay datos por dimensión (técnica, táctica, física, mental o maduración): analiza un video o registra el perfil conductual para poder generar el plan."
   },
   "idpDrillRecommendations": {
     "emptyState": "Aún no hay drills asignados a los goals.",

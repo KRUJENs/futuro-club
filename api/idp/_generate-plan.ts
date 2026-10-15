@@ -24,7 +24,7 @@ import {
   IDPArchitectInputSchema,
   type IDPArchitectOutput,
 } from "../../src/agents/contracts";
-import { generatePlanDeterministic } from "../../src/lib/idp/idpGoalGenerator";
+import { generatePlanDeterministic, idpDimensionsWithData, keepGoalsWithData } from "../../src/lib/idp/idpGoalGenerator";
 import { suggestDrillIds } from "../../src/lib/idp/idpDrillMatcher";
 import { generateMilestonesForPlan } from "../../src/lib/idp/idpMilestoneScheduler";
 import { buildIDPArchitectPrompt } from "../../src/lib/idp/idpArchitectPrompt";
@@ -123,6 +123,11 @@ async function callArchitect(
     if (!parsed.goals || !Array.isArray(parsed.goals)) {
       throw new Error("Missing goals array");
     }
+    // Solo metas de dimensiones CON DATO (P1 bloque 5d, revisión del #320): si el modelo
+    // inventa una meta de una dimensión sin dato, se descarta; si no queda ninguna, se
+    // usa el generador determinista (que solo usa dimensiones con dato).
+    parsed.goals = keepGoalsWithData(input, parsed.goals as Array<{ dimension?: unknown }>);
+    if (parsed.goals.length === 0) throw new Error("No goals on dimensions with data");
 
     return { output: parsed as IDPArchitectOutput, source: "agent", model: MODELS.reasoning };
   } catch (err) {
@@ -161,6 +166,17 @@ export default withHandler(
     // Identidad del coach y tenant del JWT, nunca del cuerpo (salvo servicio).
     const coachId = isServiceCall ? (input.coachId ?? userId ?? undefined) : (userId ?? undefined);
     const planTenantId = isServiceCall ? input.tenantId : (tenantId ?? undefined);
+
+    // Sin NINGUNA dimensión con dato no se genera ni se guarda un plan (P1 bloque 5d,
+    // revisión del #320): antes salía un plan vacío con «Foco del mes: fundamentos
+    // técnicos» inventado, que también veían los padres.
+    if (idpDimensionsWithData(input.architectInput).length === 0) {
+      return errorResponse({
+        code: "idp_no_dimension_data",
+        message: "Sin datos por dimensión (técnica, táctica, física, mental o maduración): no se genera un plan.",
+        status: 422,
+      });
+    }
 
     // 1. Idempotency check — if a draft/active plan exists, return it
     if (SUPABASE_URL && SUPABASE_KEY) {
