@@ -3,9 +3,9 @@
  * Run: npx vitest run --config vitest.api.config.ts api/rankings/__tests__/list-percentile.test.ts
  *
  * Antes: la ruta principal era la RPC SQL get_ranked_players, cuyo percent_rank() daba
- * P0 al jugador evaluado que estaba solo en su grupo de edad (y al último de cada
- * grupo); la ruta en memoria daba P100 con ≤1 valor. Sin mínimo de pares y con una
- * caché de 5 minutos por usuario.
+ * P0 al jugador evaluado que estaba solo en su grupo de edad; la ruta en memoria daba
+ * P100 con ≤1 valor. Sin mínimo de pares y con una caché de 5 minutos por usuario.
+ * (Con ≥ 10 pares el último del grupo sigue saliendo P0: es un resultado real.)
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 

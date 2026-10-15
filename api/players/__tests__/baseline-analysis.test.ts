@@ -101,14 +101,6 @@ beforeEach(() => {
   anthroRow = null;
 });
 
-describe("computeVsi · VSI de ficha GUARDADO (regla única de «evaluado»), sin ajuste PHV ±5", () => {
-  it("devuelve el VSI guardado (el que enseña la app), no la media simple de las barras (64)", async () => {
-    const { computeVsi } = await import("../baseline-analysis");
-    expect(computeVsi({ storedVsi: 67.4 }).vsi).toBe(67.4);
-    expect(computeVsi({ storedVsi: FICHA }).vsi).not.toBe(64);
-  });
-});
-
 describe("phvBlock · el prompt solo afirma PHV con fila fiable", () => {
   it("bloqueado ⇒ «NO DISPONIBLE» + motivo y prohibición de afirmar maduración", async () => {
     const { phvBlock } = await import("../baseline-analysis");
@@ -132,6 +124,9 @@ describe("handler · la categoría persistida NO llega a los 6 prompts", () => {
     const { status, json } = await run();
     expect(status).toBe(200);
     expect(json.data.vsi).toBe(67.4); // el VSI de ficha guardado, sin −5
+    // …y no la media simple de las barras (64) ni un recálculo desde ellas (FICHA):
+    // precondición del fixture para que la aserción anterior distinga las tres reglas.
+    expect([64, FICHA]).not.toContain(67.4);
     expect(sentPrompts.length).toBe(6);
     for (const p of sentPrompts) {
       expect(p).toContain("NO DISPONIBLE");

@@ -100,8 +100,10 @@ beforeEach(() => {
 });
 
 describe("baseline-analysis · evaluación del entrenador obligatoria", () => {
+  // Los dos primeros llevan VSI de ficha guardado: así aíslan la regla de las BARRAS
+  // (con vsi null darían 422 por el VSI aunque la regla de las barras faltara).
   it("sin barras en el blob ⇒ 422 coach_evaluation_missing, sin modelo ni análisis guardado", async () => {
-    playerRow = { ...BASE, metrics: null };
+    playerRow = { ...BASE, vsi: 66.2, metrics: null };
     const res = await handler(post());
     expect(res.status).toBe(422);
     const body = (await res.json()) as { errorDetail: { code: string; message: string } };
@@ -111,10 +113,25 @@ describe("baseline-analysis · evaluación del entrenador obligatoria", () => {
   });
 
   it("evaluación incompleta (falta una barra) ⇒ 422 también (una barra ausente no vale 0)", async () => {
-    playerRow = { ...BASE, metrics: { speed: 70, technique: 70, vision: 65, stamina: 65, shooting: 60 } };
+    playerRow = { ...BASE, vsi: 66.2, metrics: { speed: 70, technique: 70, vision: 65, stamina: 65, shooting: 60 } };
     const res = await handler(post());
     expect(res.status).toBe(422);
     expect(sentPrompts).toHaveLength(0);
+  });
+
+  it("VSI guardado en blanco ⇒ 422 (coerción única toVsi: un hueco no es un VSI 0)", async () => {
+    playerRow = { ...BASE, vsi: "", metrics: { speed: 70, technique: 70, vision: 65, stamina: 65, shooting: 60, defending: 55 } };
+    const res = await handler(post());
+    expect(res.status).toBe(422);
+    expect(sentPrompts).toHaveLength(0);
+  });
+
+  it("VSI guardado como texto numérico (numeric de PostgREST) ⇒ se acepta con su valor", async () => {
+    playerRow = { ...BASE, vsi: "66.2", metrics: { speed: 70, technique: 70, vision: 65, stamina: 65, shooting: 60, defending: 55 } };
+    const res = await handler(post());
+    expect(res.status).toBe(200);
+    const analysis = inserts.find((i) => i.table === "analyses")!.values as { vsi: Record<string, unknown> };
+    expect(analysis.vsi.vsi).toBe(66.2);
   });
 
   it("6 barras pero SIN VSI de ficha guardado ⇒ 422 (regla única de «evaluado»: el guardado)", async () => {

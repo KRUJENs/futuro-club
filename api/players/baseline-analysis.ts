@@ -21,7 +21,8 @@
  *
  * Body: { playerId: string }
  * Returns: { analysisId: string, reportsGenerated: number, vsi: number }
- *          422 { code: "coach_evaluation_missing" } si faltan barras del entrenador
+ *          422 { code: "coach_evaluation_missing" } si falta la evaluación del entrenador
+ *          (VSI de ficha guardado o alguna de las 6 barras)
  *
  * Cost: ~€0.13 por jugador (1× Sonnet + 5× Haiku con prompt caching)
  */
@@ -30,6 +31,7 @@ import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { ownsPlayer } from "../_lib/ownership";
+import { toVsi } from "../_lib/vsiStats";
 import { MODELS, modelParams } from "../_lib/models";
 import { fetchMessages, responseText } from "../_lib/anthropic";
 import { localeSchema, normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
@@ -166,12 +168,14 @@ Sé honesto sobre las limitaciones del análisis sin vídeo.`;
 // ── VSI de ficha + tramo ─────────────────────────────────────────────
 
 // (completeCoachMetrics vive en src/services/real/metricsService.ts: regla única de
-//  «evaluación completa», la misma que usa Rankings vía fichaVsiFromBlob.)
+//  «evaluación completa» de las 6 barras del blob `data.metrics`.)
 
 /**
- * VSI de ficha del jugador (el GUARDADO, el que muestra la app: regla única
- * fichaVsiFromBlob, invariante #7) y su tramo. Antes era una MEDIA SIMPLE de las barras:
- * un tercer VSI distinto del de la ficha para el mismo niño.
+ * VSI de ficha del jugador (el GUARDADO, el que muestra la app) y su tramo. Aquí se lee
+ * de la columna `players.vsi` con toVsi (api/_lib/vsiStats.ts), como peer/Telegram/equipo;
+ * Rankings y el informe impreso lo leen del blob `data.vsi` con fichaVsiFromBlob. Los
+ * escritores (PlayerService, /api/players/crud) guardan ambos a la vez. Antes era una
+ * MEDIA SIMPLE de las barras: un tercer VSI distinto del de la ficha para el mismo niño.
  */
 export function computeVsi(p: { storedVsi: number }): { vsi: number; tier: string; tierLabel: string } {
   const vsi = p.storedVsi;
@@ -352,11 +356,11 @@ export default withHandler(
     // VSI de ficha GUARDADO (regla única de «evaluado») y las 6 barras completas (van al
     // prompt). Ni ceros en el prompt ni un VSI recalculado distinto del de la ficha.
     const coachMetrics = completeCoachMetrics(playerRow.metrics);
-    const storedVsi = playerRow.vsi == null ? null : Number(playerRow.vsi);
-    if (!coachMetrics || storedVsi === null || !Number.isFinite(storedVsi)) {
+    const storedVsi = toVsi(playerRow.vsi);
+    if (!coachMetrics || storedVsi === null) {
       return errorResponse({
         code: "coach_evaluation_missing",
-        message: "Falta la evaluación del entrenador (las 6 barras): sin ella no se generan informes.",
+        message: "Falta la evaluación del entrenador: sin ella no se generan informes.",
         status: 422,
       });
     }

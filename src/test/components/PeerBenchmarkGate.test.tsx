@@ -50,7 +50,7 @@ describe("PeerBenchmark · percentil bloqueado con motivo", () => {
     render(<PeerBenchmark playerId="leo" />);
     await waitFor(() => expect(screen.getByText(/percentile\.gate\.not_evaluated/)).toBeDefined());
     expect(screen.queryByText(/^P\d+$/)).toBeNull();
-    expect(document.body.textContent).not.toMatch(/cross-club|crossClub|red VITAS/i);
+    expect(document.body.textContent).not.toMatch(/cross-club|crossClub|\bred VITAS\b/i);
   });
 
   it("menos de 10 pares ⇒ «faltan jugadores evaluados comparables (N de 10)»", async () => {
@@ -86,7 +86,8 @@ describe("textos · sin «benchmark entre clubes»", () => {
   it.each([["es", es], ["es-419", esLA], ["en", en], ["fr", fr], ["de", de], ["it", it_], ["nl", nl]])(
     "%s no promete cross-club ni «red VITAS»",
     (_l, j) => {
-      expect(JSON.stringify(j)).not.toMatch(/cross[- ]club|red VITAS|VITAS network|réseau VITAS|VITAS-Netzwerk|rete VITAS|VITAS-netwerk/i);
+      // \b: sin él, «red VITAS» con /i casaba dentro de «Powered VITAS», «monitored VITAS»…
+      expect(JSON.stringify(j)).not.toMatch(/cross[- ]club|\bred VITAS\b|VITAS network|réseau VITAS|VITAS-Netzwerk|rete VITAS|VITAS-netwerk/i);
     },
   );
 });

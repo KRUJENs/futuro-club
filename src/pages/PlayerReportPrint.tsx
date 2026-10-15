@@ -144,7 +144,7 @@ export default function PlayerReportPrint() {
     defending: t("playerReportPrint.metricDefending"),
   };
 
-  const radarData = Object.entries(rawPlayer.metrics).map(([key, value]) => ({
+  const radarData = Object.entries(coachMetrics).map(([key, value]) => ({
     subject: metricLabels[key] ?? key,
     value,
     fullMark: 100,
@@ -224,7 +224,7 @@ export default function PlayerReportPrint() {
         <div>
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3">{t("playerReportPrint.values")}</h2>
           <div className="space-y-2.5 mt-2">
-            {Object.entries(rawPlayer.metrics).map(([key, value]) => (
+            {Object.entries(coachMetrics).map(([key, value]) => (
               <div key={key} className="flex items-center gap-2">
                 <span className="text-[10px] text-gray-500 w-20 shrink-0">{metricLabels[key] ?? key}</span>
                 <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
