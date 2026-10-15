@@ -109,7 +109,8 @@ interface GenerateInput {
 }
 
 interface GenerateResult {
-  /** Ausente con status «exists» (ya hay plan del mes) y en el demo (`data: null`). */
+  /** Ausente con status «exists» (ya hay plan del mes). En el demo falta `data` entero
+   *  (`data: null`), de ahí el `?.` al leerlo. */
   plan?: DevelopmentPlan;
   source: string;
   model: string;

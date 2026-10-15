@@ -218,3 +218,25 @@ describe("revisión del #320 (ronda 3) · procedencia obligatoria, prompt alinea
     expect(code(idpHookSrc)).toMatch(/!injuryRiskRaw\.isMock && injuryRiskRaw\.composite\?\.provenance !== "MOCK"/);
   });
 });
+
+// Ronda 4 de la revisión del #320 (5d-bis).
+describe("revisión del #320 (ronda 4) · el prompt no ofrece otras métricas ni afirma lo que no sabe", () => {
+  it("la plantilla JSON pide la métrica de la regla 0 y, sin desglose, no dice «no hay análisis de vídeo»", () => {
+    const p = buildIDPArchitectPrompt({
+      player: { id: "p1", name: "Leo", chronologicalAge: 12 },
+      vsi: { overall: 70, technical: null, tactical: null, physical: null, mental: null },
+      behavioralProfile: { mentalComposite: 72, scanning: 40 },
+    } as never, "es");
+    expect(p).toContain(`"metric": "<la métrica de su dimensión en la regla 0>"`);
+    expect(p).not.toMatch(/"scanning" \||"decision_speed"|no hay análisis de vídeo/);
+  });
+
+  it("el plan determinista no sitúa al jugador «en la ventana PHV» (basta con PHV registrado)", () => {
+    const plan = generatePlanDeterministic({
+      player: { id: "p1", name: "Leo", chronologicalAge: 12 },
+      phv: { offset: -2.5, category: "late" },
+      recentFatigue: { injuryRisk: 30 },
+    } as never);
+    expect(JSON.stringify(plan)).not.toMatch(/en la ventana PHV/);
+  });
+});

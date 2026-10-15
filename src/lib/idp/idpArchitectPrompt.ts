@@ -16,7 +16,9 @@ import { idpDimensionBaselines } from "./idpGoalGenerator";
 // v1.2.0: metas SOLO de dimensiones con dato, entre 1 y 5 (antes 3-5 obligatorias).
 // v1.3.0: métrica y baseline exactas por dimensión; reglas de PHV/BPE/vídeo alineadas con
 // la regla 0; sin «asumir equipo de nivel medio» (revisión del #320).
-export const IDP_PROMPT_VERSION = "v1.3.0";
+// v1.3.1: la plantilla JSON ya no ofrece otras métricas (scanning, decision_speed…) y,
+// sin desglose, no afirma «no hay análisis de vídeo» (puede haberlos sin desglose).
+export const IDP_PROMPT_VERSION = "v1.3.1";
 
 export function buildIDPArchitectPrompt(
   data: IDPArchitectInput,
@@ -38,7 +40,7 @@ export function buildIDPArchitectPrompt(
   const vsi = data.vsi
     ? `Técnico ${val(data.vsi.technical)} · Táctico ${val(data.vsi.tactical)} · Físico ${val(data.vsi.physical)} · Mental ${val(data.vsi.mental)} · Evaluación del entrenador (subjetiva) ${val(data.vsi.overall)}${
         noBreakdown
-          ? " (⚠ sin desglose por dimensión: no hay análisis de vídeo; NO inventes niveles por dimensión)"
+          ? " (⚠ sin desglose por dimensión; NO inventes niveles por dimensión)"
           : " (desglose derivado de análisis de vídeo)"
       }`
     : "No disponible";
@@ -139,7 +141,7 @@ ${
       "description": "Explicación pedagógica de qué se va a trabajar (≥10 chars)",
       "rationale": "POR QUÉ esta meta este mes para este jugador (datos concretos, ≥10 chars)",
       "baselineMetric": {
-        "metric": "vsi_technical" | "vsi_tactical" | "vsi_physical" | "vsi_mental" | "mental_composite" | "injury_risk" | "scanning" | "decision_speed",
+        "metric": "<la métrica de su dimensión en la regla 0>",
         "value": 65,
         "label": "VSI Técnico",
         "unit": "score"

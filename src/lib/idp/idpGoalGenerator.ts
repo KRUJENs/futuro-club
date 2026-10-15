@@ -131,7 +131,7 @@ const GOAL_RATIONALE_TEMPLATES: Record<IDPDimension, string> = {
   mental:
     "Meta sobre el nivel mental disponible. Drills con alta carga cognitiva y feedback inmediato del coach.",
   maturation:
-    "Meta sobre el riesgo de lesión calculado en la ventana PHV. Controlar el volumen de alta intensidad, priorizar movilidad y recuperación.",
+    "Meta sobre el riesgo de lesión calculado (jugador con PHV registrado). Controlar el volumen de alta intensidad, priorizar movilidad y recuperación.",
 };
 
 /** Dimensión con dato REAL: su métrica y su valor (la baseline de cualquier meta). */
