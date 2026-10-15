@@ -50,8 +50,9 @@ describe("useIDPArchitectInput · perfil conductual sin scores", () => {
     expect(result.current.architectInput).not.toBeNull();
     expect(result.current.architectInput?.behavioralProfile).toBeUndefined();
     expect(result.current.dataRichness.hasBehavioralProfile).toBe(false);
-    // La dimensión mental cae al overall (60), no crashea leyendo mentalComposite.
-    expect(result.current.architectInput?.vsi?.mental).toBe(60);
+    // No crashea leyendo mentalComposite, y la dimensión mental queda SIN dato (P1 bloque
+    // 5d): antes caía a la evaluación del entrenador (60) copiada.
+    expect(result.current.architectInput?.vsi?.mental).toBeNull();
     expect(result.current.liveMetrics.mental_composite).toBeUndefined();
   });
 

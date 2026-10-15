@@ -2,8 +2,8 @@
  * VITAS · IDP Architect Agent (Sprint IDP)
  * POST /api/agents/idp-architect
  *
- * Generates a monthly Individual Development Plan proposal (3-5 goals
- * across 5 dimensions) for one player. Coach edits + approves before the
+ * Generates a monthly Individual Development Plan proposal (1-5 goals, only
+ * on dimensions with data) for one player. Coach edits + approves before the
  * plan becomes "active". Hybrid workflow: agent proposes, coach decides.
  *
  * Model: Claude Sonnet (richer reasoning needed than Haiku — pondering
@@ -20,14 +20,14 @@
 
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
-import { successResponse } from "../_lib/apiResponse";
+import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { MODELS, modelParams } from "../_lib/models";
 import { fetchMessages, responseText } from "../_lib/anthropic";
 import {
   IDPArchitectInputSchema,
   IDPArchitectOutputSchema,
 } from "../../src/agents/contracts";
-import { generatePlanDeterministic } from "../../src/lib/idp/idpGoalGenerator";
+import { generatePlanDeterministic, idpDimensionsWithData, keepGoalsWithData } from "../../src/lib/idp/idpGoalGenerator";
 import {
   buildIDPArchitectPrompt,
   IDP_PROMPT_VERSION,
@@ -44,6 +44,15 @@ export default withHandler(
   { schema: IDPArchitectInputSchema, requireAuth: false, maxRequests: 30 },
   async ({ body }) => {
     const data = body as z.infer<typeof IDPArchitectInputSchema>;
+
+    // Sin ninguna dimensión con dato no hay plan (P1 bloque 5d, revisión del #320).
+    if (idpDimensionsWithData(data).length === 0) {
+      return errorResponse({
+        code: "idp_no_dimension_data",
+        message: "Sin datos por dimensión (técnica, táctica, física, mental o maduración): no se genera un plan.",
+        status: 422,
+      });
+    }
 
     // Branch 1: no API key → deterministic fallback
     if (!ANTHROPIC_API_KEY) {
@@ -122,8 +131,22 @@ export default withHandler(
         });
       }
 
+      // Solo se acepta el plan del modelo si TODAS sus metas son de dimensiones con dato,
+      // una por dimensión, con su métrica, la baseline del dato y el target en la dirección
+      // de mejora; si no, el plan determinista completo. Las aceptadas llevan la baseline
+      // fijada al valor real.
+      const kept = keepGoalsWithData(data, validated.data.goals);
+      if (kept.length === 0 || kept.length !== validated.data.goals.length) {
+        return successResponse({
+          plan: generatePlanDeterministic(data),
+          promptVersion: PROMPT_VERSION,
+          model: "deterministic-fallback",
+          source: "fallback_goals_outside_data",
+        });
+      }
+
       return successResponse({
-        plan: validated.data,
+        plan: { ...validated.data, goals: kept },
         promptVersion: PROMPT_VERSION,
         model: MODEL,
         inputTokens: result.usage?.input_tokens ?? 0,

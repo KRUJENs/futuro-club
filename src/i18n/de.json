@@ -1013,7 +1013,7 @@
   },
   "roleProfile": {
     "title": "Rollenprofil",
-    "subtitle": "Engine für Profil, Rolle und Projektion",
+    "subtitle": "Engine für Profil und Rolle",
     "auditTitle": "Indikatoren-Audit",
     "lowConfidenceWarning": "⚠️ Gesamtkonfidenz unter 50 %. Die Empfehlungen haben hohe Unsicherheit. Prüfe den Risikobereich.",
     "retryLoad": "Laden erneut versuchen",
@@ -1666,7 +1666,8 @@
     "loadingWellbeing": "Wohlbefinden-Daten werden geladen...",
     "loadingPlayerData": "Spielerdaten werden geladen...",
     "noAnalysisYet": "Noch keine Videoanalyse für {{name}}",
-    "emptyAnalysisDescription": "Sobald du ein Video hochlädst und analysierst, siehst du hier Pässe, Zweikämpfe, Balleroberungen, Heatmap und Rollenprofil."
+    "emptyAnalysisDescription": "Sobald du ein Video hochlädst und analysierst, siehst du hier Pässe, Zweikämpfe, Balleroberungen, Heatmap und Rollenprofil.",
+    "roleProfileUnavailable": "Kein Rollenprofil: Es braucht eine Videoanalyse mit gemessenen Dimensionen oder einen verfügbaren KI-Agenten. Versuche es später erneut."
   },
   "playerHubPrint": {
     "metricSpeed": "Geschwindigkeit",
@@ -2654,7 +2655,7 @@
         "Optimale Position — Wo er laut seinen Zahlen am besten aufgehoben ist",
         "Archetyp — Dominanter Spielstil",
         "Identität — Verteilung: physisch, technisch, offensiv, defensiv, gemischt",
-        "Prognose — Schätzung auf 6 und 18 Monate, angepasst nach PHV",
+        "Prognose — Wird nicht angezeigt: keine validierte Grundlage, um Fähigkeiten zu prognostizieren",
         "Zusammenfassung — KI-generierter Text mit Profilanalyse"
       ],
       "tip": "Das Role Profile wird jedes Mal neu berechnet, wenn Sie die Metriken des Spielers aktualisieren. Sie können Rollen zwischen Spielern vergleichen und den Änderungsverlauf einsehen."
@@ -4547,7 +4548,7 @@
     "toastUpdateError": "Konnte nicht aktualisiert werden",
     "error": "Fehler",
     "emptyTitle": "Kein Plan für {{month}}",
-    "emptyDescription": "Erstelle einen individuellen Entwicklungsplan mit den aktuellen Daten des Spielers. Das System schlägt 3-5 Ziele für den Monat vor; du prüfst und genehmigst sie.",
+    "emptyDescription": "Erstelle einen individuellen Entwicklungsplan mit den aktuellen Daten des Spielers. Das System schlägt bis zu 5 Ziele für den Monat vor, nur für Dimensionen mit Daten; du prüfst und genehmigst sie.",
     "generating": "Generiert…",
     "generateMonthPlan": "Monatsplan generieren",
     "statusActive": "Aktiv",
@@ -4570,7 +4571,8 @@
     "filterAll": "Alle",
     "progressByDimension": "Fortschritt nach Dimension",
     "toastCheckinSaved": "Check-in gespeichert",
-    "toastSaveError": "Konnte nicht gespeichert werden"
+    "toastSaveError": "Konnte nicht gespeichert werden",
+    "noDimensionData": "Es gibt noch keine Daten pro Dimension (Technik, Taktik, Physis, Mentales oder Reifung), um messbare Ziele festzulegen, daher wird kein Plan erstellt."
   },
   "idpDrillRecommendations": {
     "emptyState": "Noch keine Drills den Zielen zugeordnet.",
@@ -6370,7 +6372,12 @@
   "valuationCard": {
     "title": "Prädiktive Bewertung",
     "notComputedTitle": "Bewertung nicht berechnet",
-    "noData": "keine Daten"
+    "noData": "keine Daten",
+    "orientative": "Richtwert: Gewichte und Stufen noch zu validieren",
+    "orientativeWithCount_one": "Richtwert (Gewichte und Stufen noch zu validieren) · {{count}} Analyse",
+    "orientativeWithCount_other": "Richtwert (Gewichte und Stufen noch zu validieren) · {{count}} Analysen",
+    "coldStart": "Weniger als 3 Analysen: Der Wert kann sich mit mehr Daten stark ändern.",
+    "factors": "Faktoren"
   },
   "percentile": {
     "gate": {

@@ -437,9 +437,11 @@ export function buildDemoAnalysisRows(
       {
         report_type: "valuation-report",
         content: {
+          // P1 bloque 5d: coherente con la valoración de ejemplo FIJA (demoHealth); antes el
+          // tramo salía del VSI y el «techo» de tramo(VSI + 8), una proyección sin base.
           evaluacionGeneral: pickLocale(locale, {
-            es: `${first} se sitúa en el tramo ${tierLabelFor(vsi)} (VSI ${Math.round(vsi)}). Valoración de ejemplo derivada de la ficha; sin datos de mercado reales.`,
-            en: `${first} sits in the ${tierLabelFor(vsi)} tier (VSI ${Math.round(vsi)}). Example valuation derived from the profile; no real market data.`,
+            es: `${first}: valoración de EJEMPLO (demo): el tramo es fijo y no hay datos de mercado.`,
+            en: `${first}: EXAMPLE valuation (demo): the band is fixed and there is no market data.`,
           }),
           tierAnalisis: matBlurb,
           comparablesProfesionales: [{ nombre: pro.nombre, equipo: pro.club, razon: pickLocale(locale, { es: "Perfil de rol similar", en: "Similar role profile" }) }],
@@ -448,9 +450,9 @@ export function buildDemoAnalysisRows(
             { factor: areas[0].title, impacto: "neutro", explicacion: pickLocale(locale, { es: "Margen de mejora", en: "Room to grow" }) },
           ],
           proyeccion: {
-            cortoPlaz: pickLocale(locale, { es: "Consolidación en su categoría", en: "Consolidation in his age group" }),
-            medioPlaz: pickLocale(locale, { es: "Salto de nivel tras el pico de maduración", en: "Level-up after the maturation peak" }),
-            techoEstimado: tierLabelFor(Math.min(99, vsi + 8)),
+            cortoPlaz: pickLocale(locale, { es: "No se proyecta: sin base validada.", en: "Not projected: no validated basis." }),
+            medioPlaz: pickLocale(locale, { es: "No se proyecta: sin base validada.", en: "Not projected: no validated basis." }),
+            techoEstimado: pickLocale(locale, { es: "No se estima.", en: "Not estimated." }),
           },
           recomendacionesDesarrollo: [strengths[0].title, areas[0].title],
           riesgosValoracion: [pickLocale(locale, { es: "Datos de ejemplo — no usar para decisiones reales.", en: "Example data — do not use for real decisions." })],

@@ -1013,7 +1013,7 @@
   },
   "roleProfile": {
     "title": "Profil de rôle",
-    "subtitle": "Moteur de Profil, Rôle et Projection",
+    "subtitle": "Moteur de Profil et Rôle",
     "auditTitle": "Audit des indicateurs",
     "lowConfidenceWarning": "⚠️ Confiance globale inférieure à 50 %. Les recommandations comportent une incertitude élevée. Consultez la section des risques.",
     "retryLoad": "Réessayer le chargement",
@@ -1666,7 +1666,8 @@
     "loadingWellbeing": "Chargement des données de bien-être...",
     "loadingPlayerData": "Chargement des données du joueur...",
     "noAnalysisYet": "Pas encore d'analyse vidéo pour {{name}}",
-    "emptyAnalysisDescription": "Lorsque vous ajouterez et analyserez une vidéo, vous verrez ici les passes, duels, récupérations, carte de chaleur et profil de rôle."
+    "emptyAnalysisDescription": "Lorsque vous ajouterez et analyserez une vidéo, vous verrez ici les passes, duels, récupérations, carte de chaleur et profil de rôle.",
+    "roleProfileUnavailable": "Pas de profil de rôle : il faut une analyse vidéo avec des dimensions mesurées ou que l'agent IA soit disponible. Réessayez plus tard."
   },
   "playerHubPrint": {
     "metricSpeed": "Vitesse",
@@ -2654,7 +2655,7 @@
         "Poste optimal — Là où il est le plus performant selon ses chiffres",
         "Archétype — Style de jeu dominant",
         "Identité — Répartition : physique, technique, offensif, défensif, mixte",
-        "Projection — Estimation à 6 et 18 mois ajustée par le PHV",
+        "Projection — Non affichée : aucune base validée pour projeter les capacités",
         "Résumé — Texte généré par IA avec l'analyse du profil"
       ],
       "tip": "Le Role Profile est recalculé à chaque fois que vous mettez à jour les métriques du joueur. Vous pouvez comparer les rôles entre joueurs et consulter l'historique des modifications."
@@ -4547,7 +4548,7 @@
     "toastUpdateError": "Impossible de mettre à jour",
     "error": "Erreur",
     "emptyTitle": "Aucun plan pour {{month}}",
-    "emptyDescription": "Générez un plan de développement individuel avec les données actuelles du joueur. Le système propose 3-5 objectifs pour le mois ; vous les revoyez et les approuvez.",
+    "emptyDescription": "Générez un plan de développement individuel avec les données actuelles du joueur. Le système propose jusqu'à 5 objectifs pour le mois, uniquement pour les dimensions avec données ; vous les revoyez et les approuvez.",
     "generating": "Génération…",
     "generateMonthPlan": "Générer le plan du mois",
     "statusActive": "Actif",
@@ -4570,7 +4571,8 @@
     "filterAll": "Tous",
     "progressByDimension": "Progrès par dimension",
     "toastCheckinSaved": "Check-in enregistré",
-    "toastSaveError": "Impossible d'enregistrer"
+    "toastSaveError": "Impossible d'enregistrer",
+    "noDimensionData": "Il n'y a pas encore de données par dimension (technique, tactique, physique, mentale ou maturation) pour fixer des objectifs mesurables, donc aucun plan n'est généré."
   },
   "idpDrillRecommendations": {
     "emptyState": "Aucun drill assigné aux objectifs pour l'instant.",
@@ -6370,7 +6372,12 @@
   "valuationCard": {
     "title": "Évaluation prédictive",
     "notComputedTitle": "Évaluation non calculée",
-    "noData": "pas de donnée"
+    "noData": "pas de donnée",
+    "orientative": "Score indicatif : pondérations et paliers à valider",
+    "orientativeWithCount_one": "Score indicatif (pondérations et paliers à valider) · {{count}} analyse",
+    "orientativeWithCount_other": "Score indicatif (pondérations et paliers à valider) · {{count}} analyses",
+    "coldStart": "Moins de 3 analyses : le score peut beaucoup changer avec plus de données.",
+    "factors": "Facteurs"
   },
   "percentile": {
     "gate": {

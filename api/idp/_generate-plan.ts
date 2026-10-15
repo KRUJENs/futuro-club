@@ -24,10 +24,10 @@ import {
   IDPArchitectInputSchema,
   type IDPArchitectOutput,
 } from "../../src/agents/contracts";
-import { generatePlanDeterministic } from "../../src/lib/idp/idpGoalGenerator";
+import { generatePlanDeterministic, idpDimensionsWithData, keepGoalsWithData } from "../../src/lib/idp/idpGoalGenerator";
 import { suggestDrillIds } from "../../src/lib/idp/idpDrillMatcher";
 import { generateMilestonesForPlan } from "../../src/lib/idp/idpMilestoneScheduler";
-import { buildIDPArchitectPrompt } from "../../src/lib/idp/idpArchitectPrompt";
+import { buildIDPArchitectPrompt, IDP_PROMPT_VERSION } from "../../src/lib/idp/idpArchitectPrompt";
 import {
   localeSchema,
   normalizeLocale,
@@ -123,8 +123,18 @@ async function callArchitect(
     if (!parsed.goals || !Array.isArray(parsed.goals)) {
       throw new Error("Missing goals array");
     }
+    // Solo se acepta el plan del modelo si TODAS sus metas son de dimensiones con dato, una
+    // por dimensión, con su métrica, la baseline del dato y el target en la dirección de
+    // mejora (P1 bloque 5d, revisión del #320). Si se sale en alguna, el plan determinista
+    // completo (el foco y los textos del modelo podrían hablar de lo descartado). Las metas
+    // aceptadas llevan la baseline fijada al valor real.
+    const goals = parsed.goals as IDPArchitectOutput["goals"];
+    const kept = keepGoalsWithData(input, goals);
+    if (kept.length === 0 || kept.length !== goals.length) {
+      throw new Error("Agent goals outside the dimensions with data");
+    }
 
-    return { output: parsed as IDPArchitectOutput, source: "agent", model: MODELS.reasoning };
+    return { output: { ...(parsed as IDPArchitectOutput), goals: kept }, source: "agent", model: MODELS.reasoning };
   } catch (err) {
     console.warn("[generate-plan] Architect call failed, falling back:", err);
     return {
@@ -161,6 +171,17 @@ export default withHandler(
     // Identidad del coach y tenant del JWT, nunca del cuerpo (salvo servicio).
     const coachId = isServiceCall ? (input.coachId ?? userId ?? undefined) : (userId ?? undefined);
     const planTenantId = isServiceCall ? input.tenantId : (tenantId ?? undefined);
+
+    // Sin NINGUNA dimensión con dato no se genera ni se guarda un plan (P1 bloque 5d,
+    // revisión del #320): antes salía un plan vacío con «Foco del mes: fundamentos
+    // técnicos» inventado, que también veían los padres.
+    if (idpDimensionsWithData(input.architectInput).length === 0) {
+      return errorResponse({
+        code: "idp_no_dimension_data",
+        message: "Sin datos por dimensión (técnica, táctica, física, mental o maduración): no se genera un plan.",
+        status: 422,
+      });
+    }
 
     // 1. Idempotency check — if a draft/active plan exists, return it
     if (SUPABASE_URL && SUPABASE_KEY) {
@@ -244,7 +265,8 @@ export default withHandler(
       contextNotes: undefined,
       agentSummary: output.agentSummary,
       generatedBy: source === "agent" ? "agent" : "agent", // both go through agent flow
-      agentVersion: model === "deterministic-fallback" ? "deterministic-v1" : "v1.0.0",
+      // Versión real del prompt (antes «v1.0.0» fijo aunque el prompt cambiara).
+      agentVersion: model === "deterministic-fallback" ? "deterministic-v1" : IDP_PROMPT_VERSION,
       createdAt: now,
       updatedAt: now,
       goals,

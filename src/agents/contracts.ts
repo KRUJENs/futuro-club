@@ -656,7 +656,8 @@ export type BehavioralProfileOutput = z.infer<typeof BehavioralProfileOutputSche
 // CONTRACT 11: IDP ARCHITECT (Sprint IDP - 2026)
 // ─────────────────────────────────────────
 // AI-proposed monthly Individual Development Plan. Hybrid workflow:
-// agent proposes 3-5 goals across 5 dimensions, coach edits + approves.
+// agent proposes 1-5 goals, only in the dimensions with data (one per dimension),
+// coach edits + approves.
 
 const IDPDimensionEnum = z.enum([
   "technical",
@@ -677,16 +678,20 @@ export const IDPArchitectInputSchema = z.object({
   player: z.object({
     id: z.string(),
     name: z.string(),
-    position: z.string(),
-    chronologicalAge: z.number().min(6).max(50),
+    // Sin dato ⇒ ausente/null (P1 bloque 5d): antes el cliente mandaba «MID» y 14 años
+    // por defecto, y el plan se ajustaba a una posición y una edad inventadas.
+    position: z.string().optional(),
+    chronologicalAge: z.number().min(6).max(50).nullable(),
     foot: z.string().optional(),
   }),
+  // Cada dimensión con su dato o null (P1 bloque 5d): antes, sin vídeo, el cliente
+  // copiaba la evaluación del entrenador a las 4 dimensiones y ponía 60 de «overall».
   vsi: z.object({
-    overall: z.number(),
-    technical: z.number(),
-    tactical: z.number(),
-    physical: z.number(),
-    mental: z.number(),
+    overall: z.number().nullable(),
+    technical: z.number().nullable(),
+    tactical: z.number().nullable(),
+    physical: z.number().nullable(),
+    mental: z.number().nullable(),
   }).optional(),
   phv: z.object({
     offset: z.number(),
@@ -739,7 +744,9 @@ export const IDPArchitectOutputSchema = z.object({
         weight: z.number().int().min(1).max(5),
       }),
     )
-    .min(3)
+    // 1-5 (antes 3-5): solo dimensiones con dato; con una o dos, no se rellena con metas
+    // inventadas (P1 bloque 5d, revisión del #320).
+    .min(1)
     .max(5),
 });
 

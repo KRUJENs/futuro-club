@@ -38,6 +38,7 @@ import { IDPCheckinForm } from "./IDPCheckinForm";
 import { IDPDataRichnessBanner } from "./IDPDataRichnessBanner";
 import { IDPVideoUploadDialog } from "./IDPVideoUploadDialog";
 import type { IDPArchitectInput, IDPGoal } from "@/lib/idp/idpTypes";
+import { idpDimensionsWithData } from "@/lib/idp/idpGoalGenerator";
 import type { IDPDataRichness } from "@/hooks/useIDPArchitectInput";
 
 interface Props {
@@ -86,13 +87,18 @@ export function IDPDashboard({
     return d.toLocaleDateString("es", { month: "long", year: "numeric" });
   }, [plan?.monthStart]);
 
+  const noDimensionData = !architectInput || idpDimensionsWithData(architectInput).length === 0;
+
   async function handleGenerate() {
     try {
       await generate.mutateAsync({ architectInput, coachId, tenantId });
       toast.success(t("idpDashboard.toastPlanGenerated"));
     } catch (err) {
+      const code = (err as { code?: unknown } | null)?.code;
       toast.error(t("idpDashboard.toastPlanGenerateError"), {
-        description: err instanceof Error ? err.message : t("idpDashboard.errorUnknown"),
+        description: code === "idp_no_dimension_data"
+          ? t("idpDashboard.noDimensionData")
+          : err instanceof Error ? err.message : t("idpDashboard.errorUnknown"),
       });
     }
   }
@@ -157,7 +163,14 @@ export function IDPDashboard({
         <p className="text-sm text-slate-400 max-w-md mx-auto mb-5">
           {t("idpDashboard.emptyDescription")}
         </p>
-        <Button onClick={handleGenerate} disabled={generate.isPending} size="lg">
+        {/* Sin ninguna dimensión con dato no se ofrece generar (P1 5d, revisión del #320):
+            antes salía un plan vacío con un «foco del mes» inventado. */}
+        {noDimensionData && (
+          <p className="text-xs text-amber-500 max-w-md mx-auto mb-4" data-testid="idp-no-dimension-data">
+            {t("idpDashboard.noDimensionData")}
+          </p>
+        )}
+        <Button onClick={handleGenerate} disabled={generate.isPending || noDimensionData} size="lg">
           {generate.isPending ? (
             <>
               <Loader2 className="size-4 mr-2 animate-spin" />

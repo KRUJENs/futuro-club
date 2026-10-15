@@ -1014,7 +1014,7 @@
   },
   "roleProfile": {
     "title": "Role Profile",
-    "subtitle": "Profile, Role and Projection Engine",
+    "subtitle": "Profile and Role Engine",
     "auditTitle": "Indicator Audit",
     "lowConfidenceWarning": "⚠️ Overall confidence below 50%. Recommendations have high uncertainty. Review the risks section.",
     "retryLoad": "Retry load",
@@ -1667,7 +1667,8 @@
     "loadingWellbeing": "Loading wellbeing data...",
     "loadingPlayerData": "Loading player data...",
     "noAnalysisYet": "No video analysis yet for {{name}}",
-    "emptyAnalysisDescription": "Once you upload and analyze a video, you'll see passes, duels, recoveries, heatmap and role profile here."
+    "emptyAnalysisDescription": "Once you upload and analyze a video, you'll see passes, duels, recoveries, heatmap and role profile here.",
+    "roleProfileUnavailable": "No role profile: it needs a video analysis with measured dimensions or the AI agent to be available. Try again later."
   },
   "playerHubPrint": {
     "metricSpeed": "Speed",
@@ -2655,7 +2656,7 @@
         "Optimal position — Where they perform best according to their numbers",
         "Archetype — Dominant style of play",
         "Identity — Breakdown: physical, technical, offensive, defensive, mixed",
-        "Projection — 6- and 18-month estimate adjusted for PHV",
+        "Projection — Not shown: there is no validated basis to project capabilities",
         "Summary — AI-generated text with an analysis of the profile"
       ],
       "tip": "The Role Profile is recalculated every time you update the player's metrics. You can compare roles across players and view the history of changes."
@@ -4548,7 +4549,7 @@
     "toastUpdateError": "Could not update",
     "error": "Error",
     "emptyTitle": "No plan for {{month}}",
-    "emptyDescription": "Generate an individual development plan using the player's current data. The system proposes 3-5 goals for the month; you review and approve them.",
+    "emptyDescription": "Generate an individual development plan using the player's current data. The system proposes up to 5 goals for the month, only for dimensions with data; you review and approve them.",
     "generating": "Generating…",
     "generateMonthPlan": "Generate month plan",
     "statusActive": "Active",
@@ -4571,7 +4572,8 @@
     "filterAll": "All",
     "progressByDimension": "Progress by dimension",
     "toastCheckinSaved": "Checkin saved",
-    "toastSaveError": "Could not save"
+    "toastSaveError": "Could not save",
+    "noDimensionData": "There is no data per dimension yet (technical, tactical, physical, mental or maturation) to set measurable goals, so no plan is generated."
   },
   "idpDrillRecommendations": {
     "emptyState": "No drills assigned to goals yet.",
@@ -6371,7 +6373,12 @@
   "valuationCard": {
     "title": "Predictive valuation",
     "notComputedTitle": "Valuation not calculated",
-    "noData": "no data"
+    "noData": "no data",
+    "orientative": "Indicative score: weights and bands pending validation",
+    "orientativeWithCount_one": "Indicative score (weights and bands pending validation) · {{count}} analysis",
+    "orientativeWithCount_other": "Indicative score (weights and bands pending validation) · {{count}} analyses",
+    "coldStart": "Fewer than 3 analyses: the score may change a lot with more data.",
+    "factors": "Factors"
   },
   "percentile": {
     "gate": {

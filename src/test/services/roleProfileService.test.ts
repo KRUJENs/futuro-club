@@ -375,6 +375,20 @@ describe("roleProfileService", () => {
       const cached = Object.keys(localStorage).filter((k) => k.startsWith("vitas_roleprofile_"));
       expect(cached).toHaveLength(0);
     });
+
+    it("respaldo del servidor CON dimensiones de vídeo reales ⇒ perfil desde el vídeo (no el de reglas) y sin caché", async () => {
+      setupSupabaseMock([makeVideoAnalysis()]); // dimensionesMedidas: true
+      mockBuildRoleProfile.mockResolvedValue({
+        success: true,
+        data: { ...agentData(), _fallback: true, _fallbackReason: "claude_error" },
+      });
+      const result = await fetchRoleProfile("p1");
+      expect(result).not.toBeNull();
+      expect(result!.run_id).toMatch(/^run_video_/); // construido desde las dimensiones del vídeo
+      expect(result!.overall_confidence).not.toBe(0.82); // no la del respaldo de reglas
+      const cached = Object.keys(localStorage).filter((k) => k.startsWith("vitas_roleprofile_"));
+      expect(cached).toHaveLength(0);
+    });
   });
 
   describe("fetchPositionFit", () => {

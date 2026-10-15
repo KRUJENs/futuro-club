@@ -94,13 +94,17 @@ function extractVSIFromAnalyses(analyses: unknown[] | undefined): {
 
 export function useIDPArchitectInput(playerId: string | undefined): IDPInputBundle {
   const { data: player, isLoading: loadingPlayer } = usePlayerById(playerId);
-  const { data: behavioralProfileRaw } = useBehavioralProfile(playerId);
+  const { data: behavioralProfileRaw, isLoading: loadingBehavioral } = useBehavioralProfile(playerId);
   // Un perfil de EJEMPLO (source "mock", solo en el demo) no alimenta el IDP ni cuenta
   // como señal: antes entraba como real y la riqueza de datos lo marcaba en verde
   // (P1 bloque 2, inv #4).
   const behavioralProfile = behavioralProfileRaw && behavioralProfileRaw.source !== "mock" ? behavioralProfileRaw : undefined;
-  const { data: savedAnalyses } = useSavedAnalysesV2(playerId ?? "");
-  const { riskData: injuryRisk, injuries } = useInjuryRisk(playerId);
+  const { data: savedAnalyses, isLoading: loadingAnalyses } = useSavedAnalysesV2(playerId ?? "");
+  const { riskData: injuryRiskRaw, injuries, injuriesLoading, riskLoading } = useInjuryRisk(playerId);
+  // Igual que el perfil conductual: un riesgo de EJEMPLO (demo) no alimenta el IDP ni
+  // cuenta como señal (revisión del #320: entraba como riesgo calculado).
+  const injuryRisk =
+    injuryRiskRaw && !injuryRiskRaw.isMock && injuryRiskRaw.composite?.provenance !== "MOCK" ? injuryRiskRaw : undefined;
   const hasInjuries = Array.isArray(injuries) && injuries.length > 0;
   // Idioma de salida del plan = idioma actual de la UI. Se lee en render (no
   // dentro del memo) para que un cambio de idioma recomponga el input.
@@ -139,28 +143,29 @@ export function useIDPArchitectInput(playerId: string | undefined): IDPInputBund
   const architectInput: IDPArchitectInput | null = useMemo(() => {
     if (!player) return null;
     const p = player as unknown as Record<string, unknown>;
-    const ageYears = typeof p.age === "number" ? p.age : 14;
-    const overallVsi = typeof p.vsi === "number" ? p.vsi : 0;
+    // P1 bloque 5d: sin dato ⇒ null/ausente, nunca un valor por defecto. Antes: edad 14,
+    // «overall» 60 cuando solo había vídeo, la evaluación del entrenador COPIADA a las 4
+    // dimensiones cuando no había vídeo, y posición «MID».
+    const ageYears = typeof p.age === "number" && Number.isFinite(p.age) ? p.age : null;
+    const coachEval = typeof p.vsi === "number" && Number.isFinite(p.vsi) ? p.vsi : null;
     const phvOffset = typeof p.phvOffset === "number" ? p.phvOffset : null;
     const phvCategory = typeof p.phvCategory === "string" ? p.phvCategory : null;
 
-    // VSI breakdown: priorizamos lo más reciente del análisis de video
-    // (escala 0-10 → 0-100). Si no hay video, fallback al overall plano.
+    // Desglose por dimensión: SOLO el del análisis de vídeo (escala 0-10 → 0-100).
     const videoVSI = extractVSIFromAnalyses(savedAnalyses);
     // `?.scores?.` — el perfil puede llegar truthy pero sin `scores` (respuesta
     // parcial de la API); leer `.mentalComposite` sobre undefined crasheaba el
     // módulo IDP entero (error boundary "Algo salió mal").
     const bpeMental = behavioralProfile?.scores?.mentalComposite;
 
-    const vsi = overallVsi > 0 || videoVSI
-      ? {
-          overall: overallVsi || 60,
-          technical: videoVSI?.technical ?? overallVsi,
-          tactical: videoVSI?.tactical ?? overallVsi,
-          physical: videoVSI?.physical ?? overallVsi,
-          mental: bpeMental ?? videoVSI?.mental ?? overallVsi,
-        }
-      : undefined;
+    const dims = {
+      overall: coachEval,
+      technical: videoVSI?.technical ?? null,
+      tactical: videoVSI?.tactical ?? null,
+      physical: videoVSI?.physical ?? null,
+      mental: bpeMental ?? videoVSI?.mental ?? null,
+    };
+    const vsi = Object.values(dims).some((v) => v !== null) ? dims : undefined;
 
     // P1 bloque 4b: solo el riesgo de lesión CALCULADO (compuesto real). Antes se
     // leían acwrValue / fatigueIndex / overallRisk, campos que el informe no tiene
@@ -172,7 +177,7 @@ export function useIDPArchitectInput(playerId: string | undefined): IDPInputBund
       player: {
         id: String(p.id ?? playerId ?? ""),
         name: String(p.name ?? "Jugador"),
-        position: String(p.position ?? p.positionShort ?? "MID"),
+        position: typeof (p.position ?? p.positionShort) === "string" ? String(p.position ?? p.positionShort) : undefined,
         chronologicalAge: ageYears,
         foot: typeof p.foot === "string" ? p.foot : undefined,
       },
@@ -214,13 +219,9 @@ export function useIDPArchitectInput(playerId: string | undefined): IDPInputBund
       if (videoVSI.tactical != null) out.vsi_tactical = videoVSI.tactical;
       if (videoVSI.physical != null) out.vsi_physical = videoVSI.physical;
       if (videoVSI.mental != null) out.vsi_mental = videoVSI.mental;
-    } else if (typeof p?.vsi === "number") {
-      // Fallback: flatten overall across dimensions
-      out.vsi_technical = p.vsi;
-      out.vsi_tactical = p.vsi;
-      out.vsi_physical = p.vsi;
-      out.vsi_mental = p.vsi;
     }
+    // Sin vídeo NO se copia la evaluación del entrenador a cada dimensión (P1 bloque 5d):
+    // cada meta mide su propia dimensión o queda sin medición.
 
     // Behavioral profile metrics (highest signal for mental dimension)
     if (behavioralProfile?.scores) {
@@ -242,7 +243,12 @@ export function useIDPArchitectInput(playerId: string | undefined): IDPInputBund
     architectInput,
     liveMetrics,
     playerName: player?.name,
-    loading: loadingPlayer,
+    // Cargando hasta que lleguen TODAS las entradas (revisión del #320): si no, el panel
+    // decía «no hay datos por dimensión» mientras aún cargaban el perfil, los análisis
+    // o el riesgo.
+    // `riskLoading` es false mientras la consulta del riesgo espera a las lesiones (está
+    // desactivada): por eso también `injuriesLoading`.
+    loading: loadingPlayer || loadingBehavioral || loadingAnalyses || injuriesLoading || riskLoading,
     dataRichness,
   };
 }

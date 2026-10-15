@@ -109,7 +109,8 @@ interface GenerateInput {
 }
 
 interface GenerateResult {
-  plan: DevelopmentPlan;
+  /** Ausente con status «exists» (ya hay plan del mes) y en el demo (`data: null`). */
+  plan?: DevelopmentPlan;
   source: string;
   model: string;
   status?: string;
@@ -135,7 +136,12 @@ export function useGenerateIDP() {
       });
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        throw new Error(`generate-plan ${res.status}: ${text.slice(0, 200)}`);
+        const err = new Error(`generate-plan ${res.status}: ${text.slice(0, 200)}`) as Error & { code?: string };
+        // El código del servidor (p. ej. idp_no_dimension_data) para que la UI diga el motivo.
+        try {
+          err.code = (JSON.parse(text) as { errorDetail?: { code?: string } }).errorDetail?.code;
+        } catch { /* cuerpo no JSON */ }
+        throw err;
       }
       const payload = (await res.json()) as { data: GenerateResult };
       // Cache to localStorage immediately
@@ -145,9 +151,11 @@ export function useGenerateIDP() {
       return payload.data;
     },
     onSuccess: (result) => {
-      qc.invalidateQueries({
-        queryKey: idpKeys.current(result.plan.playerId, result.plan.monthStart),
-      });
+      // Con status «exists» el servidor no devuelve `plan` (antes: TypeError aquí).
+      const plan = result?.plan;
+      if (plan) {
+        qc.invalidateQueries({ queryKey: idpKeys.current(plan.playerId, plan.monthStart) });
+      }
       qc.invalidateQueries({ queryKey: idpKeys.all });
     },
   });
