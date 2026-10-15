@@ -54,7 +54,7 @@ const COMPUTED: ValuationData = {
     { factor: "vsiTrend", weight: 0.25, score: 60, label: "Tendencia de la evaluación" },
     { factor: "phvCeiling", weight: 0.2, score: null, label: "Techo por maduración", applicable: false, gate_reason: "No aplica: jugador adulto." },
   ],
-  coldStartWarning: null, analysisCount: null,
+  coldStartWarning: null, analysisCount: null, provenance: null,
 };
 
 describe("ValuationCard · sin probabilidades ni confianza inventada", () => {
@@ -144,7 +144,16 @@ describe("revisión del #320 · IDP sin dimensiones con dato y procedencia de la
     } as never, "es");
     expect(p).toContain("DIMENSIONES CON DATO: technical.");
     expect(p).toMatch(/Entre 1 y 5 goals/);
-    expect(p).not.toMatch(/3-5 goals máximo/);
+    expect(p).not.toMatch(/3-5 goals máximo|Mínimo 3 goals/);
+  });
+
+  it("ronda 2: textos sin «3-5 objetivos» ni promesas de desbloqueo; «cargando» hasta tener todas las entradas", () => {
+    for (const [, j] of LOCALES) {
+      expect(String(get(j, "idpDashboard.emptyDescription"))).not.toMatch(/3-5/);
+      expect(String(get(j, "idpDashboard.noDimensionData"))).not.toMatch(/vídeo|video|vidéo/i);
+    }
+    expect(code(idpHookSrc)).toMatch(/loading: loadingPlayer \|\| loadingBehavioral \|\| loadingAnalyses \|\| riskLoading/);
+    expect(code(useIdpSrc)).toMatch(/if \(plan\) \{/);
   });
 
   it("el panel no ofrece «Generar» sin dimensiones con dato y el error 422 se traduce", () => {

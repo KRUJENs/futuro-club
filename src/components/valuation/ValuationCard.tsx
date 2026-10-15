@@ -25,8 +25,9 @@ export interface ValuationData {
   playerId: string;
   /** null ⇒ no calculada (ver gate_reason): sin tramo. */
   overallScore: number | null;
-  /** Procedencia de la puntuación (DERIVADA en el modelo real, MOCK en el demo). */
-  provenance?: Provenance | null;
+  /** Procedencia de la puntuación (DERIVADA en el modelo real, MOCK en el demo; null sin
+   *  puntuación). Obligatoria: ninguna puntuación se pinta sin su etiqueta. */
+  provenance: Provenance | null;
   tier: string | null;
   tierColor: string | null;
   tierDescription: string | null;

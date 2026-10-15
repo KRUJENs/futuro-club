@@ -123,11 +123,15 @@ async function callArchitect(
     if (!parsed.goals || !Array.isArray(parsed.goals)) {
       throw new Error("Missing goals array");
     }
-    // Solo metas de dimensiones CON DATO (P1 bloque 5d, revisión del #320): si el modelo
-    // inventa una meta de una dimensión sin dato, se descarta; si no queda ninguna, se
-    // usa el generador determinista (que solo usa dimensiones con dato).
-    parsed.goals = keepGoalsWithData(input, parsed.goals as Array<{ dimension?: unknown }>);
-    if (parsed.goals.length === 0) throw new Error("No goals on dimensions with data");
+    // Solo se acepta el plan del modelo si TODAS sus metas son de dimensiones con dato, una
+    // por dimensión y con la baseline exacta del dato (P1 bloque 5d, revisión del #320).
+    // Si se sale en alguna, el plan determinista completo (el foco y los textos del modelo
+    // podrían hablar de lo descartado).
+    const goals = parsed.goals as Array<{ dimension?: unknown; baselineMetric?: { value?: unknown } }>;
+    const kept = keepGoalsWithData(input, goals);
+    if (kept.length === 0 || kept.length !== goals.length) {
+      throw new Error("Agent goals outside the dimensions with data");
+    }
 
     return { output: parsed as IDPArchitectOutput, source: "agent", model: MODELS.reasoning };
   } catch (err) {

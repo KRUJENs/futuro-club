@@ -4548,7 +4548,7 @@
     "toastUpdateError": "Impossible de mettre à jour",
     "error": "Erreur",
     "emptyTitle": "Aucun plan pour {{month}}",
-    "emptyDescription": "Générez un plan de développement individuel avec les données actuelles du joueur. Le système propose 3-5 objectifs pour le mois ; vous les revoyez et les approuvez.",
+    "emptyDescription": "Générez un plan de développement individuel avec les données actuelles du joueur. Le système propose jusqu'à 5 objectifs pour le mois, uniquement pour les dimensions avec données ; vous les revoyez et les approuvez.",
     "generating": "Génération…",
     "generateMonthPlan": "Générer le plan du mois",
     "statusActive": "Actif",
@@ -4572,7 +4572,7 @@
     "progressByDimension": "Progrès par dimension",
     "toastCheckinSaved": "Check-in enregistré",
     "toastSaveError": "Impossible d'enregistrer",
-    "noDimensionData": "Pas encore de données par dimension (technique, tactique, physique, mentale ou maturation) : analysez une vidéo ou enregistrez le profil comportemental pour générer le plan."
+    "noDimensionData": "Il n'y a pas encore de données mesurées par dimension (technique, tactique, physique, mentale ou maturation) pour fixer des objectifs mesurables, donc aucun plan n'est généré."
   },
   "idpDrillRecommendations": {
     "emptyState": "Aucun drill assigné aux objectifs pour l'instant.",

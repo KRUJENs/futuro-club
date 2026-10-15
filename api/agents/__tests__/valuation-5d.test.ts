@@ -167,9 +167,11 @@ describe("IDP · sin dimensiones con dato no hay plan (endpoint público del arq
     expect(body.data.plan.overallFocus).toMatch(/fundamentos técnicos/);
   });
 
-  it("keepGoalsWithData descarta metas inventadas sobre dimensiones sin dato", () => {
+  it("keepGoalsWithData: solo dimensiones con dato, una por dimensión y con la baseline exacta", () => {
     const input = { player, vsi: { overall: 70, technical: 64, tactical: null, physical: null, mental: null } } as never;
-    const kept = keepGoalsWithData(input, [{ dimension: "technical" }, { dimension: "tactical" }, { dimension: "physical" }]);
-    expect(kept).toEqual([{ dimension: "technical" }]);
+    const g = (dimension: string, value: number) => ({ dimension, baselineMetric: { value } });
+    expect(keepGoalsWithData(input, [g("technical", 64), g("tactical", 60), g("physical", 55)])).toEqual([g("technical", 64)]);
+    expect(keepGoalsWithData(input, [g("technical", 64), g("technical", 64)])).toEqual([g("technical", 64)]);
+    expect(keepGoalsWithData(input, [g("technical", 70)])).toEqual([]); // la evaluación copiada
   });
 });

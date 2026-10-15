@@ -2,7 +2,7 @@
  * VITAS · IDP (Individual Development Plan) — shared types
  *
  * One monthly plan per player. Hybrid generation: AI architect (Claude
- * Sonnet) proposes 3-5 goals across 5 dimensions, coach edits + approves,
+ * Sonnet) proposes 1-5 goals (only dimensions with data), coach edits + approves,
  * progress tracked weekly via milestones, monthly checkin at month end.
  *
  * Mirrors the schema in supabase/migrations/047_development_plans.sql.

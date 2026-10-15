@@ -94,13 +94,13 @@ function extractVSIFromAnalyses(analyses: unknown[] | undefined): {
 
 export function useIDPArchitectInput(playerId: string | undefined): IDPInputBundle {
   const { data: player, isLoading: loadingPlayer } = usePlayerById(playerId);
-  const { data: behavioralProfileRaw } = useBehavioralProfile(playerId);
+  const { data: behavioralProfileRaw, isLoading: loadingBehavioral } = useBehavioralProfile(playerId);
   // Un perfil de EJEMPLO (source "mock", solo en el demo) no alimenta el IDP ni cuenta
   // como señal: antes entraba como real y la riqueza de datos lo marcaba en verde
   // (P1 bloque 2, inv #4).
   const behavioralProfile = behavioralProfileRaw && behavioralProfileRaw.source !== "mock" ? behavioralProfileRaw : undefined;
-  const { data: savedAnalyses } = useSavedAnalysesV2(playerId ?? "");
-  const { riskData: injuryRisk, injuries } = useInjuryRisk(playerId);
+  const { data: savedAnalyses, isLoading: loadingAnalyses } = useSavedAnalysesV2(playerId ?? "");
+  const { riskData: injuryRisk, injuries, riskLoading } = useInjuryRisk(playerId);
   const hasInjuries = Array.isArray(injuries) && injuries.length > 0;
   // Idioma de salida del plan = idioma actual de la UI. Se lee en render (no
   // dentro del memo) para que un cambio de idioma recomponga el input.
@@ -239,7 +239,10 @@ export function useIDPArchitectInput(playerId: string | undefined): IDPInputBund
     architectInput,
     liveMetrics,
     playerName: player?.name,
-    loading: loadingPlayer,
+    // Cargando hasta que lleguen TODAS las entradas (revisión del #320): si no, el panel
+    // decía «no hay datos por dimensión» mientras aún cargaban el perfil, los análisis
+    // o el riesgo.
+    loading: loadingPlayer || loadingBehavioral || loadingAnalyses || riskLoading,
     dataRichness,
   };
 }

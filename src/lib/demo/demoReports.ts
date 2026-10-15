@@ -440,8 +440,8 @@ export function buildDemoAnalysisRows(
           // P1 bloque 5d: coherente con la valoración de ejemplo FIJA (demoHealth); antes el
           // tramo salía del VSI y el «techo» de tramo(VSI + 8), una proyección sin base.
           evaluacionGeneral: pickLocale(locale, {
-            es: `${first}: valoración de EJEMPLO con valores fijos (demo); no deriva de sus datos ni de datos de mercado.`,
-            en: `${first}: EXAMPLE valuation with fixed values (demo); not derived from his data or market data.`,
+            es: `${first}: valoración de EJEMPLO (demo): el tramo es fijo y no hay datos de mercado.`,
+            en: `${first}: EXAMPLE valuation (demo): the band is fixed and there is no market data.`,
           }),
           tierAnalisis: matBlurb,
           comparablesProfesionales: [{ nombre: pro.nombre, equipo: pro.club, razon: pickLocale(locale, { es: "Perfil de rol similar", en: "Similar role profile" }) }],

@@ -74,7 +74,7 @@ describe("ValuationCard", () => {
       playerId: "p1", overallScore: null, tier: null, tierColor: null, tierDescription: null,
       gate_reason: "Valoración no calculada: falta Techo PHV.",
       factors: [{ factor: "phvCeiling", weight: 0.2, score: null, label: "Techo PHV", gate_reason: "PHV bloqueado." }],
-      coldStartWarning: true, analysisCount: 0,
+      coldStartWarning: true, analysisCount: 0, provenance: null,
     };
     render(<ValuationCard data={data} />);
     expect(screen.getByTestId("valuation-not-computed")).toHaveTextContent("falta Techo PHV");

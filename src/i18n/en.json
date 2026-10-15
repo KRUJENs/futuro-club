@@ -4549,7 +4549,7 @@
     "toastUpdateError": "Could not update",
     "error": "Error",
     "emptyTitle": "No plan for {{month}}",
-    "emptyDescription": "Generate an individual development plan using the player's current data. The system proposes 3-5 goals for the month; you review and approve them.",
+    "emptyDescription": "Generate an individual development plan using the player's current data. The system proposes up to 5 goals for the month, only for dimensions with data; you review and approve them.",
     "generating": "Generating…",
     "generateMonthPlan": "Generate month plan",
     "statusActive": "Active",
@@ -4573,7 +4573,7 @@
     "progressByDimension": "Progress by dimension",
     "toastCheckinSaved": "Checkin saved",
     "toastSaveError": "Could not save",
-    "noDimensionData": "There is no data per dimension yet (technical, tactical, physical, mental or maturation): analyse a video or record the behavioural profile to generate the plan."
+    "noDimensionData": "There is no measured data per dimension yet (technical, tactical, physical, mental or maturation) to set measurable goals, so no plan is generated."
   },
   "idpDrillRecommendations": {
     "emptyState": "No drills assigned to goals yet.",

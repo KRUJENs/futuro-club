@@ -2,8 +2,8 @@
  * VITAS · IDP Architect Agent (Sprint IDP)
  * POST /api/agents/idp-architect
  *
- * Generates a monthly Individual Development Plan proposal (3-5 goals
- * across 5 dimensions) for one player. Coach edits + approves before the
+ * Generates a monthly Individual Development Plan proposal (1-5 goals, only
+ * on dimensions with data) for one player. Coach edits + approves before the
  * plan becomes "active". Hybrid workflow: agent proposes, coach decides.
  *
  * Model: Claude Sonnet (richer reasoning needed than Haiku — pondering
@@ -131,19 +131,20 @@ export default withHandler(
         });
       }
 
-      // Solo metas de dimensiones con dato; si no queda ninguna, el determinista.
-      const goals = keepGoalsWithData(data, validated.data.goals);
-      if (goals.length === 0) {
+      // Solo se acepta el plan del modelo si TODAS sus metas son de dimensiones con dato,
+      // una por dimensión y con la baseline exacta; si no, el plan determinista completo.
+      const kept = keepGoalsWithData(data, validated.data.goals);
+      if (kept.length === 0 || kept.length !== validated.data.goals.length) {
         return successResponse({
           plan: generatePlanDeterministic(data),
           promptVersion: PROMPT_VERSION,
           model: "deterministic-fallback",
-          source: "fallback_no_goals_with_data",
+          source: "fallback_goals_outside_data",
         });
       }
 
       return successResponse({
-        plan: { ...validated.data, goals },
+        plan: validated.data,
         promptVersion: PROMPT_VERSION,
         model: MODEL,
         inputTokens: result.usage?.input_tokens ?? 0,

@@ -152,7 +152,7 @@ ${
 }
 \`\`\`
 
-**Importante**: \`suggestedDrills\` SIEMPRE vacío array. El sistema lo rellena. \`weight\` 1-5 donde 5 = prioridad máxima. Mínimo 3 goals, máximo 5.
+**Importante**: \`suggestedDrills\` SIEMPRE vacío array. El sistema lo rellena. \`weight\` 1-5 donde 5 = prioridad máxima. Entre 1 y 5 goals, como mucho uno por dimensión con dato.
 
 Responde ÚNICAMENTE con el JSON, sin texto adicional ni markdown wrapper.
 

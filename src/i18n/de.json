@@ -4548,7 +4548,7 @@
     "toastUpdateError": "Konnte nicht aktualisiert werden",
     "error": "Fehler",
     "emptyTitle": "Kein Plan für {{month}}",
-    "emptyDescription": "Erstelle einen individuellen Entwicklungsplan mit den aktuellen Daten des Spielers. Das System schlägt 3-5 Ziele für den Monat vor; du prüfst und genehmigst sie.",
+    "emptyDescription": "Erstelle einen individuellen Entwicklungsplan mit den aktuellen Daten des Spielers. Das System schlägt bis zu 5 Ziele für den Monat vor, nur für Dimensionen mit Daten; du prüfst und genehmigst sie.",
     "generating": "Generiert…",
     "generateMonthPlan": "Monatsplan generieren",
     "statusActive": "Aktiv",
@@ -4572,7 +4572,7 @@
     "progressByDimension": "Fortschritt nach Dimension",
     "toastCheckinSaved": "Check-in gespeichert",
     "toastSaveError": "Konnte nicht gespeichert werden",
-    "noDimensionData": "Noch keine Daten pro Dimension (Technik, Taktik, Physis, Mentales oder Reifung): Analysiere ein Video oder erfasse das Verhaltensprofil, um den Plan zu erstellen."
+    "noDimensionData": "Es gibt noch keine gemessenen Daten pro Dimension (Technik, Taktik, Physis, Mentales oder Reifung), um messbare Ziele festzulegen, daher wird kein Plan erstellt."
   },
   "idpDrillRecommendations": {
     "emptyState": "Noch keine Drills den Zielen zugeordnet.",

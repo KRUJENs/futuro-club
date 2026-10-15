@@ -4549,7 +4549,7 @@
     "toastUpdateError": "Kon niet bijwerken",
     "error": "Fout",
     "emptyTitle": "Geen plan voor {{month}}",
-    "emptyDescription": "Genereer een individueel ontwikkelplan met de huidige gegevens van de speler. Het systeem stelt 3-5 doelen voor de maand voor; jij bekijkt en keurt ze goed.",
+    "emptyDescription": "Genereer een individueel ontwikkelplan met de huidige gegevens van de speler. Het systeem stelt tot 5 doelen voor de maand voor, alleen voor dimensies met gegevens; jij bekijkt en keurt ze goed.",
     "generating": "Genereren…",
     "generateMonthPlan": "Maandplan genereren",
     "statusActive": "Actief",
@@ -4573,7 +4573,7 @@
     "progressByDimension": "Voortgang per dimensie",
     "toastCheckinSaved": "Check-in opgeslagen",
     "toastSaveError": "Kon niet opslaan",
-    "noDimensionData": "Nog geen gegevens per dimensie (technisch, tactisch, fysiek, mentaal of rijping): analyseer een video of leg het gedragsprofiel vast om het plan te maken."
+    "noDimensionData": "Er zijn nog geen gemeten gegevens per dimensie (technisch, tactisch, fysiek, mentaal of rijping) om meetbare doelen te stellen, dus er wordt geen plan gemaakt."
   },
   "idpDrillRecommendations": {
     "emptyState": "Nog geen drills toegewezen aan de doelen.",

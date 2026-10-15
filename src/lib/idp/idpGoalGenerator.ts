@@ -2,7 +2,7 @@
  * VITAS · IDP Goal Generator (deterministic fallback)
  *
  * When the Claude `_idp-architect` agent is unavailable (no API key, offline,
- * rate limited), this generates a sensible 3-5 goal plan from the player's
+ * rate limited), this generates a 1-5 goal plan (only dimensions with data) from the player's
  * VSI / behavioral / PHV / fatigue data using a rule-based heuristic.
  *
  * The agent's output and this generator share the SAME contract
@@ -77,7 +77,7 @@ function scoreDimensions(input: IDPArchitectInput): DimensionWeakness[] {
   return items.sort((a, b) => a.score - b.score);
 }
 
-/** Pick 3-5 dimensions to target this month, prioritizing weaknesses. */
+/** Pick up to 4 dimensions (of those with data) to target this month, prioritizing weaknesses. */
 function selectTargetDimensions(weaknesses: DimensionWeakness[], teamLevel?: string): DimensionWeakness[] {
   // For weak teams: focus on fundamentals (technical + physical first)
   // For elite teams: more balanced across mental + tactical
@@ -141,10 +141,26 @@ export function idpDimensionsWithData(input: IDPArchitectInput): IDPDimension[] 
   return scoreDimensions(input).map((d) => d.dimension);
 }
 
-/** Descarta las metas del agente sobre dimensiones SIN dato (el modelo puede inventarlas). */
-export function keepGoalsWithData<G extends { dimension?: unknown }>(input: IDPArchitectInput, goals: G[]): G[] {
-  const allowed = new Set<string>(idpDimensionsWithData(input));
-  return goals.filter((g) => typeof g.dimension === "string" && allowed.has(g.dimension));
+/**
+ * Metas del agente que se pueden aceptar tal cual: de una dimensión CON dato, una sola
+ * por dimensión y con la línea base EXACTA del dato de entrada (±0,5 por redondeo). El
+ * modelo puede inventar metas de dimensiones sin dato, repetir dimensiones o poner otra
+ * baseline (revisión del #320). Los endpoints, si se descarta ALGUNA, usan el plan
+ * determinista completo: el foco y los textos del modelo podrían hablar de lo descartado.
+ */
+export function keepGoalsWithData<G extends { dimension?: unknown; baselineMetric?: { value?: unknown } }>(
+  input: IDPArchitectInput,
+  goals: G[],
+): G[] {
+  const truth = new Map<string, number>(scoreDimensions(input).map((d) => [d.dimension, d.baseline]));
+  const used = new Set<string>();
+  return goals.filter((g) => {
+    if (typeof g.dimension !== "string" || !truth.has(g.dimension) || used.has(g.dimension)) return false;
+    const v = g.baselineMetric?.value;
+    if (typeof v !== "number" || !Number.isFinite(v) || Math.abs(v - (truth.get(g.dimension) as number)) > 0.5) return false;
+    used.add(g.dimension);
+    return true;
+  });
 }
 
 /**

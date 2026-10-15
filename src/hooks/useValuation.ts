@@ -24,7 +24,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 async function calculateValuation(playerId: string): Promise<ValuationData | null> {
   // Demo: el agente de valoración vive en /api (interceptado → null). Servimos
-  // una valoración de EJEMPLO derivada de la ficha (coldStartWarning:true).
+  // una valoración de EJEMPLO con valores FIJOS (MOCK), no derivada de la ficha.
   if (IS_DEMO) {
     const player = PlayerService.getById(playerId);
     return player ? buildDemoValuation(player) : null;
