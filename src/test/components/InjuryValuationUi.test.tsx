@@ -71,10 +71,10 @@ describe("InjuryRiskCard", () => {
 describe("ValuationCard", () => {
   it("sin valoración calculada: motivo y factores que faltan; sin tier ni probabilidades", () => {
     const data: ValuationData = {
-      playerId: "p1", overallScore: null, tier: null, tierColor: null, tierDescription: null, probabilities: null,
+      playerId: "p1", overallScore: null, tier: null, tierColor: null, tierDescription: null,
       gate_reason: "Valoración no calculada: falta Techo PHV.",
       factors: [{ factor: "phvCeiling", weight: 0.2, score: null, label: "Techo PHV", gate_reason: "PHV bloqueado." }],
-      coldStartWarning: true, confidenceLevel: 0, dataPointsUsed: 0, analysisCount: 0,
+      coldStartWarning: true, analysisCount: 0,
     };
     render(<ValuationCard data={data} />);
     expect(screen.getByTestId("valuation-not-computed")).toHaveTextContent("falta Techo PHV");

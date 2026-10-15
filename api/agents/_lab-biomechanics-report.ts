@@ -28,7 +28,9 @@ const labSchema = z.object({
   vsi: z.record(z.unknown()).nullable().optional(),
   scanning: z.record(z.unknown()).nullable().optional(),
   playerContext: z.object({
-    chronologicalAge: z.number(),
+    // Opcional (P1 bloque 5d): el orquestador mandaba 12 por defecto si no había edad.
+    // Sin edad, el contexto la omite y la categoría queda en «youth» (el framing protegido).
+    chronologicalAge: z.number().optional(),
     position: z.string().optional(),
   }),
 }).passthrough();
@@ -87,7 +89,7 @@ interface LabReportInput {
   biomechanics: unknown;
   phv?: unknown;
   vsi?: unknown;
-  playerContext: { chronologicalAge: number; position?: string };
+  playerContext: { chronologicalAge?: number; position?: string };
 }
 
 async function callClaude(systemPrompt: string, userMessage: string, apiKey: string) {
@@ -154,7 +156,7 @@ export default withHandler(
 
     // ── Construir mensaje contextualizado ──────────────────────
     const userMessage = `DATOS DEL JUGADOR:
-${JSON.stringify(input.playerContext, null, 2)}
+${JSON.stringify({ ...input.playerContext, chronologicalAge: input.playerContext.chronologicalAge ?? "no disponible" }, null, 2)}
 
 MÉTRICAS BIOMECÁNICAS (extracción automática MediaPipe Pose):
 ${JSON.stringify(input.biomechanics, null, 2)}

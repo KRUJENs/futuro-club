@@ -11,26 +11,24 @@
 import type { IDPArchitectInput } from "../../agents/contracts";
 import { normalizeLocale, languageDirective, type ReportLocale } from "../shared/locale";
 
-export const IDP_PROMPT_VERSION = "v1.0.0";
+// v1.1.0 (P1 bloque 5d): edad, posición y dimensiones pueden faltar («sin dato»).
+export const IDP_PROMPT_VERSION = "v1.1.0";
 
 export function buildIDPArchitectPrompt(
   data: IDPArchitectInput,
   locale: ReportLocale = normalizeLocale(data.locale),
 ): string {
   const p = data.player;
-  // Si los 4 buckets son iguales al overall, los datos vienen del VSI plano
-  // (sin análisis de video). Lo marcamos en el prompt para que el agente
-  // sepa que no debe inventar precisión que no tiene.
-  const sameAcrossDims =
-    data.vsi &&
-    data.vsi.technical === data.vsi.overall &&
-    data.vsi.tactical === data.vsi.overall &&
-    data.vsi.physical === data.vsi.overall;
+  // Cada dimensión con su dato o «sin dato» (P1 bloque 5d): el cliente ya no copia la
+  // evaluación del entrenador a las 4 dimensiones ni pone 60 de «overall».
+  const val = (v: number | null | undefined) => (typeof v === "number" && Number.isFinite(v) ? String(v) : "sin dato");
+  const noBreakdown =
+    data.vsi && [data.vsi.technical, data.vsi.tactical, data.vsi.physical].every((v) => v == null);
   const vsi = data.vsi
-    ? `Técnico ${data.vsi.technical} · Táctico ${data.vsi.tactical} · Físico ${data.vsi.physical} · Mental ${data.vsi.mental} · Overall ${data.vsi.overall}${
-        sameAcrossDims
-          ? " (⚠ overall plano sin breakdown — no hay análisis de video)"
-          : " (breakdown derivado de análisis de video)"
+    ? `Técnico ${val(data.vsi.technical)} · Táctico ${val(data.vsi.tactical)} · Físico ${val(data.vsi.physical)} · Mental ${val(data.vsi.mental)} · Evaluación del entrenador (subjetiva) ${val(data.vsi.overall)}${
+        noBreakdown
+          ? " (⚠ sin desglose por dimensión: no hay análisis de vídeo; NO inventes niveles por dimensión)"
+          : " (desglose derivado de análisis de vídeo)"
       }`
     : "No disponible";
   const phv = data.phv
@@ -46,10 +44,10 @@ export function buildIDPArchitectPrompt(
 
 ## DATOS DEL JUGADOR
 - Nombre: ${p.name}
-- Edad cronológica: ${p.chronologicalAge} años
-- Posición: ${p.position}${p.foot ? ` · Pie dominante: ${p.foot}` : ""}
+- Edad cronológica: ${p.chronologicalAge != null ? `${p.chronologicalAge} años` : "No disponible"}
+- Posición: ${p.position ?? "No disponible"}${p.foot ? ` · Pie dominante: ${p.foot}` : ""}
 
-## VSI (Vitas Skill Index, 0-100)
+## NIVEL POR DIMENSIÓN (0-100; técnica/táctica/física/mental del análisis de vídeo, evaluación del entrenador aparte)
 ${vsi}
 
 ## PHV (Peak Height Velocity)

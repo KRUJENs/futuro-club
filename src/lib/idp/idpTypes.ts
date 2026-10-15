@@ -169,62 +169,13 @@ export interface IDPProgressSummary {
 
 // ── Agent contract types ──────────────────────────────────────────────
 
-/** Input the `_idp-architect` agent receives. */
-export interface IDPArchitectInput {
-  player: {
-    id: string;
-    name: string;
-    position: string;
-    chronologicalAge: number;
-    foot?: string;
-  };
-  vsi?: {
-    overall: number;
-    technical: number;
-    tactical: number;
-    physical: number;
-    mental: number;
-  };
-  phv?: {
-    offset: number;
-    category: string;
-  } | null;
-  behavioralProfile?: {
-    decisionSpeed?: number;
-    scanning?: number;
-    resilience?: number;
-    leadership?: number;
-    mentalComposite?: number;
-    archetype?: string;
-  };
-  recentFatigue?: {
-    acwr?: number;
-    fatigueIndex?: number;
-    injuryRisk?: number;
-  };
-  wellbeing?: {
-    engagementTrend?: "rising" | "stable" | "declining";
-    dropoutRisk?: number;
-  };
-  /** Team context — to differentiate "crack in weak team" vs "crack in top team". */
-  teamContext?: {
-    avgVsi?: number;
-    teamLevel?: "weak" | "average" | "strong" | "elite";
-    upcomingFixtures?: number;
-  };
-  /** Previous month's plan if exists — for continuity. */
-  previousPlanSummary?: {
-    achievedDimensions: IDPDimension[];
-    missedDimensions: IDPDimension[];
-    coachNotes?: string;
-  };
-  /**
-   * Output language of the generated plan (mirrors `IDPArchitectInputSchema.locale`
-   * in `src/agents/contracts.ts`). Set by `useIDPArchitectInput` from the current
-   * UI language; the API falls back to "es" when absent.
-   */
-  locale?: ReportLocale;
-}
+/**
+ * Input the `_idp-architect` agent receives. UNA sola definición: la del contrato
+ * (`IDPArchitectInputSchema`, src/agents/contracts.ts). Antes había aquí una copia a mano
+ * que ya divergía (P1 bloque 5d, invariante #7): edad, posición y dimensiones del VSI
+ * ahora son nullable/opcionales en el contrato.
+ */
+export type { IDPArchitectInput } from "../../agents/contracts";
 
 /** Output structure the `_idp-architect` returns (validated by Zod). */
 export interface IDPArchitectOutput {

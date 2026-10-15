@@ -25,7 +25,7 @@ import { findActiveParentalConsent } from "../_lib/parentalConsent";
 import { deriveSimMetrics } from "../_lib/simMetrics";
 import { normalizeLocale, localeSchema, pickLocale, type ReportLocale } from "../../src/lib/shared/locale";
 import { resolveCategory } from "../../src/lib/shared/category";
-import { gateAnthropometricsRow } from "../../src/lib/phv/phvGate";
+import { gateAnthropometricsRow, gatedMaturity, type PhvGateInput } from "../../src/lib/phv/phvGate";
 import { maturationKnown } from "../../src/lib/fatigue/phvFatigueAdjuster";
 import { fatigueRowForAgents } from "../../src/lib/fatigue/fatigueRowGate";
 import { injuryRiskValue, type InjuryRiskReport } from "../../src/lib/injury/injuryRiskTypes";
@@ -416,9 +416,15 @@ export default withHandler(
 
     const { data: player } = await supabase
       .from("players")
-      .select("id, name, position, secondary_positions, foot, tenant_id")
+      .select("id, name, position, secondary_positions, foot, tenant_id, data")
       .eq("id", analysis.player_id)
       .single();
+    // Timing de maduración vs pares con la PUERTA ÚNICA sobre el blob del jugador (como el
+    // PDF de servidor): sin todas las entradas ⇒ null. Solo lo usa la valoración (5d).
+    const maturityTimingRaw = player?.data
+      ? gatedMaturity((player as { data: PhvGateInput }).data).timing
+      : "unknown";
+    const maturityTiming = maturityTimingRaw === "unknown" ? null : maturityTimingRaw;
 
     // Gate único de PHV (regla del owner 28-sep): el maturity_offset/phv_category
     // de la fila solo pasan a agentes/VSI/analyses.phv si la fila es COMPLETA y su
@@ -440,11 +446,23 @@ export default withHandler(
     // TODO(F3b): sustituir por señales reales (p.ej. scan-rate → mental) cuando
     // haya un clip de validación. Cambiar estos valores mueve el VSI en toda la
     // app (rankings/reportes/valoración) → requiere validación antes de tocarlos.
-    const bm = (analysis.biomechanics ?? {}) as Record<string, number>;
-    const bmPresent = bm.stride_frequency_hz != null || bm.asymmetry_pct != null;
-    const sprintNorm = Math.min(100, (bm.stride_frequency_hz ?? 0) * 25);
-    const asymmetryPen = 100 - Math.min(100, (bm.asymmetry_pct ?? 0) * 5);
-    const physicalValue = bmPresent ? Math.round((sprintNorm + asymmetryPen) / 2) : null;
+    // La biomecánica llega del cliente en camelCase (antes se leía SOLO en snake_case ⇒ el
+    // sub-score físico nunca tenía señal) y el físico exige zancada Y asimetría: antes una
+    // de las dos ausente valía 0 (`?? 0`), p. ej. sin zancada ⇒ «sprint 0» (P1 bloque 5d,
+    // inv #2). La fórmula no cambia.
+    const bmRaw = (analysis.biomechanics ?? {}) as Record<string, unknown>;
+    const bmNum = (...keys: string[]): number | null => {
+      for (const k of keys) {
+        const v = bmRaw[k];
+        if (typeof v === "number" && Number.isFinite(v)) return v;
+      }
+      return null;
+    };
+    const strideHz = bmNum("strideFrequencyHz", "stride_frequency_hz");
+    const asymmetry = bmNum("asymmetryPct", "asymmetry_pct");
+    const physicalValue = strideHz !== null && asymmetry !== null
+      ? Math.round((Math.min(100, strideHz * 25) + (100 - Math.min(100, asymmetry * 5))) / 2)
+      : null;
     const projectionValue = anthro?.adjusted_vsi ?? null;
 
     // Sub-scores como MetricResult (G4-1) + gate del compuesto (G4-2). Las 3 dims que
@@ -665,18 +683,11 @@ export default withHandler(
     // insuficientes → se pasan como null y el calculador marca "datos insuficientes".
     // P1 bloque 4b: zona e índice solo con historial suficiente Y la maduración de esa
     // sesión registrada (la zona dependía de umbrales por maduración). La biomecánica
-    // llega del cliente en camelCase (antes se leía en snake_case: siempre null).
+    // llega del cliente en camelCase (antes se leía en snake_case: siempre null); se lee
+    // con `bmNum` (definido arriba, junto al VSI físico).
     const fatigueReliable = fatigueIsReliable(fatigueHistory.length);
     const fr = fatigueRow;
     const fatigueUsable = fatigueReliable && !!fr && maturationKnown(fr.maturation_band, fr.phv_offset);
-    const bmRaw = (analysis.biomechanics ?? {}) as Record<string, unknown>;
-    const bmNum = (...keys: string[]): number | null => {
-      for (const k of keys) {
-        const v = bmRaw[k];
-        if (typeof v === "number" && Number.isFinite(v)) return v;
-      }
-      return null;
-    };
     let injuryRiskResult: InjuryRiskReport | null = null;
     try {
       const injuryCalcRes = await callInternal("/api/agents/injury-risk-calculator", {
@@ -711,15 +722,16 @@ export default withHandler(
         position: player?.position ?? null,
         currentVsi: vsiValue,
         vsiHistory,
-        phvOffset: anthro?.maturity_offset ?? null,
-        phvCategory: anthro?.phv_category ?? null,
+        // TIMING de la puerta única sobre el blob del jugador (P1 bloque 5d): antes el
+        // modelo leía el offset de la fila (un ESTADO) como «madurador tardío».
+        maturityTiming,
         // Riesgo COMPUESTO real o null (antes overallRisk, que siempre traía un número).
         injuryRisk: injuryRiskValue(injuryRiskResult),
         injuryCategory: injuryRiskResult?.category ?? null,
         positionFitScores: [],
         sessionCount: fatigueHistory.length,
-        analysisCount: 1, // Single analysis context
-        competitiveLevel: "academy",
+        // Sin nº real de análisis ni nivel en la escala del modelo: no se mandan (antes
+        // `analysisCount: 1` fijo y `competitiveLevel: "academy"` fijo, +5 al contexto).
       });
       if (valuationRes.success) {
         valuationResult = valuationRes.data?.data?.report ?? valuationRes.data?.data ?? null;
@@ -753,7 +765,9 @@ export default withHandler(
       // comparable no es una medición validada (revisión #178). No la cruda.
       similarity,
       playerContext: {
-        chronologicalAge: anthro?.chronological_age ?? 12,
+        // Sin edad registrada se OMITE (undefined no viaja en el JSON): antes 12 por
+        // defecto, que además fijaba la categoría «youth» de cualquier adulto (P1 5d).
+        chronologicalAge: anthro?.chronological_age ?? undefined,
         position: player?.position,
         secondaryPositions: (player as { secondary_positions?: string[] } | null)?.secondary_positions ?? [],
         foot: (player as { foot?: string } | null)?.foot,

@@ -1014,7 +1014,7 @@
   },
   "roleProfile": {
     "title": "Rolprofiel",
-    "subtitle": "Motor voor profiel, rol en projectie",
+    "subtitle": "Motor voor profiel en rol",
     "auditTitle": "Audit van indicatoren",
     "lowConfidenceWarning": "⚠️ Algehele betrouwbaarheid onder 50%. De aanbevelingen hebben een hoge onzekerheid. Bekijk de sectie risico's.",
     "retryLoad": "Opnieuw laden",
@@ -1667,7 +1667,8 @@
     "loadingWellbeing": "Welzijnsgegevens laden...",
     "loadingPlayerData": "Spelergegevens laden...",
     "noAnalysisYet": "Nog geen video-analyse voor {{name}}",
-    "emptyAnalysisDescription": "Zodra je een video uploadt en analyseert, zie je hier passes, duels, balveroveringen, heatmap en rolprofiel."
+    "emptyAnalysisDescription": "Zodra je een video uploadt en analyseert, zie je hier passes, duels, balveroveringen, heatmap en rolprofiel.",
+    "roleProfileUnavailable": "Geen rolprofiel: er is een videoanalyse met gemeten dimensies nodig of de AI-agent moet beschikbaar zijn. Probeer het later opnieuw."
   },
   "playerHubPrint": {
     "metricSpeed": "Snelheid",
@@ -2655,7 +2656,7 @@
         "Optimale positie — Waar hij het best presteert volgens zijn cijfers",
         "Archetype — Dominante speelstijl",
         "Identiteit — Verdeling: fysiek, technisch, aanvallend, verdedigend, gemengd",
-        "Prognose — Schatting op 6 en 18 maanden, gecorrigeerd voor PHV",
+        "Prognose — Niet getoond: er is geen gevalideerde basis om vermogens te voorspellen",
         "Samenvatting — Door AI gegenereerde tekst met analyse van het profiel"
       ],
       "tip": "Role Profile wordt opnieuw berekend telkens wanneer je de statistieken van de speler bijwerkt. Je kunt rollen tussen spelers vergelijken en de wijzigingsgeschiedenis bekijken."
@@ -6371,7 +6372,12 @@
   "valuationCard": {
     "title": "Voorspellende waardering",
     "notComputedTitle": "Waardering niet berekend",
-    "noData": "geen gegevens"
+    "noData": "geen gegevens",
+    "orientative": "Indicatieve score: gewichten en niveaus nog te valideren",
+    "orientativeWithCount_one": "Indicatieve score (gewichten en niveaus nog te valideren) · {{count}} analyse",
+    "orientativeWithCount_other": "Indicatieve score (gewichten en niveaus nog te valideren) · {{count}} analyses",
+    "coldStart": "Minder dan 3 analyses: de score kan met meer gegevens sterk veranderen.",
+    "factors": "Factoren"
   },
   "percentile": {
     "gate": {

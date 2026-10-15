@@ -51,25 +51,27 @@ async function call(h: (r: Request) => Promise<Response>, path: string, body: un
   return { status: res.status, json: (await res.json()) as { data?: Record<string, unknown> } };
 }
 
+// P1 bloque 5d: todos los factores con dato real (sin defaults); el techo se lee del TIMING.
 const VAL_BASE = {
-  playerId: "p1", age: 13.5, position: "MID", currentVsi: 62, vsiHistory: [], positionFitScores: [],
-  sessionCount: 3, analysisCount: 3, competitiveLevel: "academy",
+  playerId: "p1", age: 13.5, position: "MID", currentVsi: 62, vsiHistory: [],
+  positionFitScores: [{ position: "MID", fit: 70 }],
+  sessionCount: 3, consistencyScore: 60, analysisCount: 3, competitiveLevel: "academy",
 };
 
-describe("valoración · sin PHV o sin riesgo de lesión no hay puntuación", () => {
-  it("sin offset PHV ni riesgo → puntuación, tier y probabilidades null con motivo (antes 50 y 60 por defecto)", async () => {
-    const { status, json } = await call(valuationModel, "valuation-model", { ...VAL_BASE, phvOffset: null, injuryRisk: null });
+describe("valoración · sin maduración o sin riesgo de lesión no hay puntuación", () => {
+  it("sin timing de maduración ni riesgo → puntuación y tier null con motivo (antes 50 y 60 por defecto)", async () => {
+    const { status, json } = await call(valuationModel, "valuation-model", { ...VAL_BASE, maturityTiming: null, injuryRisk: null });
     expect(status).toBe(200);
     const r = json.data!.report as Record<string, unknown>;
     expect(r).toMatchObject({ overallScore: null, tier: null, probabilities: null });
-    expect(String(r.gate_reason)).toMatch(/Techo PHV/);
+    expect(String(r.gate_reason)).toMatch(/Techo por maduración/);
     const factors = r.factors as Array<{ factor: string; score: number | null; gate_reason: string | null }>;
     expect(factors.find((f) => f.factor === "phvCeiling")).toMatchObject({ score: null });
     expect(factors.find((f) => f.factor === "injuryAdjusted")).toMatchObject({ score: null });
   });
 
-  it("control positivo: con offset PHV y riesgo calculado SÍ hay puntuación y tier", async () => {
-    const { json } = await call(valuationModel, "valuation-model", { ...VAL_BASE, phvOffset: -0.8, injuryRisk: 35 });
+  it("control positivo: con timing de maduración y riesgo calculado SÍ hay puntuación y tier", async () => {
+    const { json } = await call(valuationModel, "valuation-model", { ...VAL_BASE, maturityTiming: "late", injuryRisk: 35 });
     const r = json.data!.report as Record<string, unknown>;
     expect(typeof r.overallScore).toBe("number");
     expect(typeof r.tier).toBe("string");

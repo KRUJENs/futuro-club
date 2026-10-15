@@ -28,50 +28,33 @@ interface DimensionWeakness {
 function scoreDimensions(input: IDPArchitectInput): DimensionWeakness[] {
   const items: DimensionWeakness[] = [];
 
-  // Technical / Tactical / Physical / Mental from VSI breakdown
-  if (input.vsi) {
-    items.push({
-      dimension: "technical",
-      score: input.vsi.technical,
-      metricKey: "vsi_technical",
-      baseline: input.vsi.technical,
-      label: "VSI Técnico",
-    });
-    items.push({
-      dimension: "tactical",
-      score: input.vsi.tactical,
-      metricKey: "vsi_tactical",
-      baseline: input.vsi.tactical,
-      label: "VSI Táctico",
-    });
-    items.push({
-      dimension: "physical",
-      score: input.vsi.physical,
-      metricKey: "vsi_physical",
-      baseline: input.vsi.physical,
-      label: "VSI Físico",
-    });
-    items.push({
-      dimension: "mental",
-      score: input.vsi.mental,
-      metricKey: "vsi_mental",
-      baseline: input.vsi.mental,
-      label: "VSI Mental",
-    });
+  // Technical / Tactical / Physical / Mental: SOLO las dimensiones con dato (P1 bloque
+  // 5d). Antes, sin vídeo, llegaban todas con la evaluación del entrenador copiada y
+  // se fijaban metas sobre un nivel que nadie había medido en esa dimensión.
+  const fromVsi: Array<{ dimension: IDPDimension; value: number | null | undefined; metricKey: string; label: string }> = [
+    { dimension: "technical", value: input.vsi?.technical, metricKey: "vsi_technical", label: "VSI Técnico" },
+    { dimension: "tactical", value: input.vsi?.tactical, metricKey: "vsi_tactical", label: "VSI Táctico" },
+    { dimension: "physical", value: input.vsi?.physical, metricKey: "vsi_physical", label: "VSI Físico" },
+    { dimension: "mental", value: input.vsi?.mental, metricKey: "vsi_mental", label: "VSI Mental" },
+  ];
+  for (const d of fromVsi) {
+    if (typeof d.value === "number" && Number.isFinite(d.value)) {
+      items.push({ dimension: d.dimension, score: d.value, metricKey: d.metricKey, baseline: d.value, label: d.label });
+    }
   }
 
   // Mental enhanced by behavioral profile if available (replaces VSI mental)
   if (input.behavioralProfile?.mentalComposite != null) {
+    const bpe: DimensionWeakness = {
+      dimension: "mental",
+      score: input.behavioralProfile.mentalComposite,
+      metricKey: "mental_composite",
+      baseline: input.behavioralProfile.mentalComposite,
+      label: "Composite Mental (BPE)",
+    };
     const idx = items.findIndex((i) => i.dimension === "mental");
-    if (idx >= 0) {
-      items[idx] = {
-        dimension: "mental",
-        score: input.behavioralProfile.mentalComposite,
-        metricKey: "mental_composite",
-        baseline: input.behavioralProfile.mentalComposite,
-        label: "Composite Mental (BPE)",
-      };
-    }
+    if (idx >= 0) items[idx] = bpe;
+    else items.push(bpe);
   }
 
   // Maturation only if PHV data AND a computed injury risk are present (P1 bloque 4b:
@@ -112,12 +95,12 @@ function selectTargetDimensions(weaknesses: DimensionWeakness[], teamLevel?: str
 }
 
 /** Build target value: nudge baseline upward by a realistic monthly delta. */
-function deriveTarget(baseline: number, dimension: IDPDimension, age: number): number {
+function deriveTarget(baseline: number, dimension: IDPDimension, age: number | null): number {
   // Monthly improvement is harder at higher baselines and for older players.
   let pctIncrease = 0.05; // 5% default
   if (baseline > 80) pctIncrease = 0.025;
   else if (baseline > 65) pctIncrease = 0.035;
-  if (age >= 18) pctIncrease *= 0.8; // adults plateau faster
+  if (age != null && age >= 18) pctIncrease *= 0.8; // adults plateau faster (sin edad: sin ajuste)
 
   // Maturation is "lower is better" (injury risk)
   if (dimension === "maturation") {

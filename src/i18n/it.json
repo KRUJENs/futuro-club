@@ -1013,7 +1013,7 @@
   },
   "roleProfile": {
     "title": "Profilo di ruolo",
-    "subtitle": "Motore di profilo, ruolo e proiezione",
+    "subtitle": "Motore di profilo e ruolo",
     "auditTitle": "Audit degli indicatori",
     "lowConfidenceWarning": "⚠️ Confidenza globale inferiore al 50%. Le raccomandazioni hanno un'elevata incertezza. Controlla la sezione dei rischi.",
     "retryLoad": "Riprova caricamento",
@@ -1666,7 +1666,8 @@
     "loadingWellbeing": "Caricamento dei dati sul benessere...",
     "loadingPlayerData": "Caricamento dei dati del giocatore...",
     "noAnalysisYet": "Ancora nessuna analisi video per {{name}}",
-    "emptyAnalysisDescription": "Quando caricherai e analizzerai un video, qui vedrai passaggi, duelli, recuperi, mappa di calore e profilo di ruolo."
+    "emptyAnalysisDescription": "Quando caricherai e analizzerai un video, qui vedrai passaggi, duelli, recuperi, mappa di calore e profilo di ruolo.",
+    "roleProfileUnavailable": "Nessun profilo di ruolo: serve un'analisi video con dimensioni misurate o che l'agente IA sia disponibile. Riprova più tardi."
   },
   "playerHubPrint": {
     "metricSpeed": "Velocità",
@@ -2654,7 +2655,7 @@
         "Posizione ottimale — Dove rende meglio in base ai suoi numeri",
         "Archetipo — Stile di gioco dominante",
         "Identità — Distribuzione: fisico, tecnico, offensivo, difensivo, misto",
-        "Proiezione — Stima a 6 e 18 mesi corretta per PHV",
+        "Proiezione — Non mostrata: non c'è una base validata per proiettare le capacità",
         "Sintesi — Testo generato dall'IA con l'analisi del profilo"
       ],
       "tip": "Il Role Profile viene ricalcolato ogni volta che aggiorni le metriche del giocatore. Puoi confrontare i ruoli tra giocatori e vedere la cronologia delle modifiche."
@@ -6370,7 +6371,12 @@
   "valuationCard": {
     "title": "Valutazione predittiva",
     "notComputedTitle": "Valutazione non calcolata",
-    "noData": "nessun dato"
+    "noData": "nessun dato",
+    "orientative": "Punteggio indicativo: pesi e fasce da validare",
+    "orientativeWithCount_one": "Punteggio indicativo (pesi e fasce da validare) · {{count}} analisi",
+    "orientativeWithCount_other": "Punteggio indicativo (pesi e fasce da validare) · {{count}} analisi",
+    "coldStart": "Meno di 3 analisi: il punteggio può cambiare molto con più dati.",
+    "factors": "Fattori"
   },
   "percentile": {
     "gate": {

@@ -677,16 +677,20 @@ export const IDPArchitectInputSchema = z.object({
   player: z.object({
     id: z.string(),
     name: z.string(),
-    position: z.string(),
-    chronologicalAge: z.number().min(6).max(50),
+    // Sin dato ⇒ ausente/null (P1 bloque 5d): antes el cliente mandaba «MID» y 14 años
+    // por defecto, y el plan se ajustaba a una posición y una edad inventadas.
+    position: z.string().optional(),
+    chronologicalAge: z.number().min(6).max(50).nullable(),
     foot: z.string().optional(),
   }),
+  // Cada dimensión con su dato o null (P1 bloque 5d): antes, sin vídeo, el cliente
+  // copiaba la evaluación del entrenador a las 4 dimensiones y ponía 60 de «overall».
   vsi: z.object({
-    overall: z.number(),
-    technical: z.number(),
-    tactical: z.number(),
-    physical: z.number(),
-    mental: z.number(),
+    overall: z.number().nullable(),
+    technical: z.number().nullable(),
+    tactical: z.number().nullable(),
+    physical: z.number().nullable(),
+    mental: z.number().nullable(),
   }).optional(),
   phv: z.object({
     offset: z.number(),

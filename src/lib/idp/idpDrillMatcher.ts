@@ -47,7 +47,8 @@ interface MatchedDrill {
 
 interface MatchOptions {
   dimension: IDPDimension;
-  age: number;
+  /** Sin edad registrada (null) no se filtra por rango de edad (P1 bloque 5d). */
+  age: number | null;
   position?: string;
   /** Free-text goal title — boosts drills with overlapping keywords. */
   goalTitle?: string;
@@ -70,8 +71,10 @@ function scoreDrill(d: DrillDocument, opts: MatchOptions): MatchedDrill | null {
 
   // 2. Age range
   const [minAge, maxAge] = d.ageRange;
-  if (opts.age < minAge || opts.age > maxAge) return null;
-  score += 15;
+  if (opts.age != null) {
+    if (opts.age < minAge || opts.age > maxAge) return null;
+    score += 15;
+  }
 
   // 3. Position fit (optional boost, not required)
   if (opts.position) {

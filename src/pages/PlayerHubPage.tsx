@@ -122,9 +122,6 @@ import { usePlan } from "@/hooks/usePlan";
 import UpgradePrompt from "@/components/UpgradePrompt";
 // Sprint 13: Valuation dashboard
 import ValuationCard from "@/components/valuation/ValuationCard";
-import TierProgressionChart from "@/components/valuation/TierProgressionChart";
-import ProbabilityDisplay from "@/components/valuation/ProbabilityDisplay";
-import CeilingComparison from "@/components/valuation/CeilingComparison";
 import { useValuation } from "@/hooks/useValuation";
 
 type TabKey = "resumen" | "stats" | "movimiento" | "rol" | "mental" | "salud" | "bienestar" | "plan" | "valoracion" | "historico";
@@ -260,7 +257,7 @@ export default function PlayerHubPage() {
   }, [player, snapshot]);
 
   // Role profile (lazy · solo si hay análisis y se mira la pestaña)
-  const { data: roleData } = useRoleProfile(tab === "rol" ? id : undefined, null);
+  const { data: roleData, isLoading: roleLoading } = useRoleProfile(tab === "rol" ? id : undefined, null);
 
   // ── Estados principales ─────────────────────────────────────────
   if (!player) {
@@ -685,10 +682,18 @@ export default function PlayerHubPage() {
                     )}
                   </p>
                 </div>
-              ) : (
+              ) : roleLoading ? (
                 <div className="glass rounded-xl p-6 text-center">
                   <Sparkles size={20} className="mx-auto text-muted-foreground mb-2" />
                   <p className="text-sm text-muted-foreground">{t("playerHubPage.generatingRoleProfile")}</p>
+                </div>
+              ) : (
+                // Sin perfil (abstención o error) se dice POR QUÉ: antes el mismo «Generando
+                // perfil…» se quedaba para siempre (revisión del #319; inv #2: un null
+                // muestra su motivo).
+                <div className="glass rounded-xl p-6 text-center" data-testid="role-profile-unavailable">
+                  <Compass size={20} className="mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">{t("playerHubPage.roleProfileUnavailable")}</p>
                 </div>
               )}
             </motion.div>
@@ -816,23 +821,8 @@ export default function PlayerHubPage() {
                   {/* En demo la valoración deriva de datos de ejemplo, no de mercado real. */}
                   {IS_DEMO && <DemoDataBanner />}
                   <ValuationCard data={valuationData} />
-                  {/* P1 bloque 4b: sin valoración calculada no hay probabilidades ni tier. */}
-                  {valuationData.overallScore !== null && valuationData.probabilities && valuationData.tier && (
-                    <>
-                      <div className="glass rounded-2xl p-4">
-                        <ProbabilityDisplay
-                          probabilities={valuationData.probabilities}
-                          tierColor={valuationData.tierColor}
-                        />
-                      </div>
-                      <div className="glass rounded-2xl p-4">
-                        <TierProgressionChart data={[]} />
-                      </div>
-                      <div className="glass rounded-2xl p-4">
-                        <CeilingComparison comparables={[]} tier={valuationData.tier} tierColor={valuationData.tierColor} />
-                      </div>
-                    </>
-                  )}
+                  {/* P1 bloque 5d: sin probabilidades (sin fuente) ni los gráficos de
+                      progresión de tramo y de comparables (siempre recibían datos vacíos). */}
                 </div>
               ) : (
                 <div className="glass rounded-xl p-6 text-center">

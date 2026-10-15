@@ -138,4 +138,20 @@ describe("textos (7 idiomas)", () => {
     const legend = String(get(j, "capabilityCards.legend"));
     expect(legend).not.toMatch(/±|0[–-]6|18[–-]36/);
   });
+
+  // Revisión del #319: la guía y el subtítulo aún anunciaban la proyección.
+  it.each(LOCALES)("%s: la guía ya no promete «estimación a 6 y 18 meses»; subtítulo sin «Proyección»", (_l, j) => {
+    const list = JSON.stringify(get(j, "userGuide.roleProfile.list"));
+    expect(list).not.toMatch(/\b6\b.{0,12}\b18\b/);
+    expect(String(get(j, "roleProfile.subtitle"))).not.toMatch(/Proyecci|Projecti|Prognose|Proiezion|projectie/i);
+    expect(typeof get(j, "playerHubPage.roleProfileUnavailable")).toBe("string");
+  });
+});
+
+describe("Hub · sin perfil de rol se dice por qué (revisión del #319)", () => {
+  it("«Generando…» solo mientras carga; si el perfil se abstiene o falla, el motivo", () => {
+    const src = code(hubPageSrc);
+    expect(src).toMatch(/roleLoading \? \(/);
+    expect(src).toContain('t("playerHubPage.roleProfileUnavailable")');
+  });
 });
