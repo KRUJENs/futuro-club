@@ -117,6 +117,13 @@ describe("baseline-analysis · evaluación del entrenador obligatoria", () => {
     expect(sentPrompts).toHaveLength(0);
   });
 
+  it("6 barras pero SIN VSI de ficha guardado ⇒ 422 (regla única de «evaluado»: el guardado)", async () => {
+    playerRow = { ...BASE, vsi: null, metrics: { speed: 70, technique: 70, vision: 65, stamina: 65, shooting: 60, defending: 55 } };
+    const res = await handler(post());
+    expect(res.status).toBe(422);
+    expect(sentPrompts).toHaveLength(0);
+  });
+
   it("las barras se leen del BLOB (data->metrics), nunca de las columnas metric_* (0 del trigger)", async () => {
     playerRow = { ...BASE, metrics: null };
     await handler(post());

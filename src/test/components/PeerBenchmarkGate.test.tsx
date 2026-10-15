@@ -18,6 +18,13 @@ vi.mock("react-i18next", () => ({
 vi.mock("@/lib/apiAuth", () => ({ getAuthHeaders: vi.fn(async () => ({ Authorization: "Bearer t" })) }));
 
 import PeerBenchmark from "@/components/PeerBenchmark";
+import es from "@/i18n/es.json";
+import esLA from "@/i18n/es-419.json";
+import en from "@/i18n/en.json";
+import fr from "@/i18n/fr.json";
+import de from "@/i18n/de.json";
+import it_ from "@/i18n/it.json";
+import nl from "@/i18n/nl.json";
 
 const gatedMetric = (code: string, peers: number) => ({
   player: null,
@@ -46,7 +53,7 @@ describe("PeerBenchmark · percentil bloqueado con motivo", () => {
     expect(document.body.textContent).not.toMatch(/cross-club|crossClub|red VITAS/i);
   });
 
-  it("menos de 10 pares ⇒ «solo N jugadores (mínimo 10)»", async () => {
+  it("menos de 10 pares ⇒ «faltan jugadores evaluados comparables (N de 10)»", async () => {
     respond({ stratum: STRATUM, minPeers: 10, vsi: gatedMetric("insufficient_peers", 3), byMetric: {} });
     render(<PeerBenchmark playerId="leo" />);
     await waitFor(() => expect(screen.getByText(/percentile\.gate\.insufficient_peers/)).toBeDefined());
@@ -71,4 +78,15 @@ describe("PeerBenchmark · percentil bloqueado con motivo", () => {
     expect(screen.getByText("peerBenchmark.title")).toBeDefined();
     expect(screen.getByText(/percentile\.gate\.not_evaluated/)).toBeDefined();
   });
+});
+
+// Decisión del dueño (14 oct 2026): solo los jugadores propios hasta que exista el acceso
+// de clubes. Ningún texto (app ni landing) puede prometer una comparación entre clubes.
+describe("textos · sin «benchmark entre clubes»", () => {
+  it.each([["es", es], ["es-419", esLA], ["en", en], ["fr", fr], ["de", de], ["it", it_], ["nl", nl]])(
+    "%s no promete cross-club ni «red VITAS»",
+    (_l, j) => {
+      expect(JSON.stringify(j)).not.toMatch(/cross[- ]club|red VITAS|VITAS network|réseau VITAS|VITAS-Netzwerk|rete VITAS|VITAS-netwerk/i);
+    },
+  );
 });

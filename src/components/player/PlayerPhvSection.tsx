@@ -96,6 +96,8 @@ export default function PlayerPhvSection({ player, hasPhv, onSaved }: Props) {
         queryClient.invalidateQueries({ queryKey: ["player", player.id] }),
         queryClient.invalidateQueries({ queryKey: ["player-raw", player.id] }),
         queryClient.invalidateQueries({ queryKey: ["players-all"] }),
+        // Rankings recalcula fase/timing PHV desde la ficha: sin esto iba hasta 5 min por detrás.
+        queryClient.invalidateQueries({ queryKey: ["ranked-players"] }),
       ]);
       rerenderAfterSave((n) => n + 1);
       if (result.status === "queued") {

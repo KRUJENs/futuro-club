@@ -85,6 +85,13 @@ describe("rankings · percentil entre pares (implementación única)", () => {
     expect(playersUrls[0]).toContain("user_id=eq.coach-percentile");
   });
 
+  it("barras COMPLETAS sin VSI guardado ⇒ sin evaluar, igual que la ficha y la vista de familia", async () => {
+    const bars = { speed: 70, technique: 70, vision: 70, stamina: 70, shooting: 70, defending: 70 };
+    rows = [{ id: "sin-vsi", data: { name: "sin-vsi", age: 14, position: "MC", metrics: bars }, updated_at: "2026-10-01" }];
+    const players = await list();
+    expect(players.find((p) => p.id === "sin-vsi")!.vsi).toBeNull();
+  });
+
   it("barras parciales sin VSI guardado ⇒ sin evaluar (una barra ausente no vale 0)", async () => {
     rows = [
       { id: "vacio", data: { name: "vacio", age: 14, position: "MC", metrics: {} }, updated_at: "2026-10-01" },

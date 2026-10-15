@@ -180,6 +180,8 @@ export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gen
       queryClient.invalidateQueries({ queryKey: ["player", playerId] }),
       queryClient.invalidateQueries({ queryKey: ["player-raw", playerId] }),
       queryClient.invalidateQueries({ queryKey: ["players-all"] }),
+      // Rankings recalcula fase/timing PHV desde la ficha: sin esto iba hasta 5 min por detrás.
+      queryClient.invalidateQueries({ queryKey: ["ranked-players"] }),
     ]).catch(() => {});
     return status;
   }

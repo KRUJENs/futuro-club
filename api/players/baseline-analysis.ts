@@ -6,14 +6,15 @@
  * (evaluación subjetiva del entrenador + PHV + antropometría). Sin biomecánica
  * ni similarity de vídeo.
  *
- * P1 bloque 5: SIN la evaluación del entrenador (las 6 barras del blob `data.metrics`)
- * no se genera nada (422 coach_evaluation_missing, decisión del dueño 15 oct 2026).
- * Antes las barras ausentes valían 0 (`Number(metric_*) || 0`, y la columna la rellena
- * con 0 el trigger de la 069) y el modelo recibía «Velocidad: 0 … VSI cacheado: 0/100»
- * de un niño sin evaluar. El VSI es el de ficha (calculateFichaVsi, fuente única), no
- * una media simple; y ya no se guarda un percentil (lo daba contra jugadores de TODAS
- * las cuentas, con los no evaluados como 0): la comparación con pares es
- * /api/benchmark/peer (implementación única, solo jugadores propios).
+ * P1 bloque 5: SIN la evaluación del entrenador (VSI de ficha guardado + las 6 barras
+ * del blob `data.metrics`) no se genera nada (422 coach_evaluation_missing, decisión del
+ * dueño 15 oct 2026). Antes las barras ausentes valían 0 (`Number(metric_*) || 0`, y la
+ * columna la rellena con 0 el trigger de la 069) y el modelo recibía «Velocidad: 0 … VSI
+ * cacheado: 0/100» de un niño sin evaluar. El VSI es el de ficha GUARDADO (regla única de
+ * «evaluado», el que enseña la app), no una media simple de las barras; y ya no se guarda
+ * un percentil (lo daba contra jugadores de TODAS las cuentas, con los no evaluados como
+ * 0): la comparación con pares es /api/benchmark/peer (implementación única, solo
+ * jugadores propios).
  *
  * Útil cuando todavía no hay análisis de vídeo (Bunny no pagado, MVP, etc.)
  * y queremos llenar el dashboard de reportes con una valoración inicial.
@@ -33,7 +34,7 @@ import { MODELS, modelParams } from "../_lib/models";
 import { fetchMessages, responseText } from "../_lib/anthropic";
 import { localeSchema, normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
 import { trustAnthropometricsRow, PHV_STATUS_LABEL_ES, type PhvCategory } from "../../src/lib/phv/phvGate";
-import { calculateFichaVsi, completeCoachMetrics, type PlayerMetrics } from "../../src/services/real/metricsService";
+import { completeCoachMetrics, type PlayerMetrics } from "../../src/services/real/metricsService";
 import { createClient } from "@supabase/supabase-js";
 
 export const config = { runtime: "edge" };
@@ -168,13 +169,12 @@ Sé honesto sobre las limitaciones del análisis sin vídeo.`;
 //  «evaluación completa», la misma que usa Rankings vía fichaVsiFromBlob.)
 
 /**
- * VSI de ficha del jugador (el que muestra la app: el guardado, o calculateFichaVsi de las
- * 6 barras — fuente única, invariante #7) y su tramo. Antes era una MEDIA SIMPLE de las
- * barras: un tercer VSI distinto del de la ficha para el mismo niño.
+ * VSI de ficha del jugador (el GUARDADO, el que muestra la app: regla única
+ * fichaVsiFromBlob, invariante #7) y su tramo. Antes era una MEDIA SIMPLE de las barras:
+ * un tercer VSI distinto del de la ficha para el mismo niño.
  */
-export function computeVsi(p: { metrics: PlayerMetrics; storedVsi?: number | null }): { vsi: number; tier: string; tierLabel: string } {
-  const vsi =
-    typeof p.storedVsi === "number" && Number.isFinite(p.storedVsi) ? p.storedVsi : calculateFichaVsi(p.metrics);
+export function computeVsi(p: { storedVsi: number }): { vsi: number; tier: string; tierLabel: string } {
+  const vsi = p.storedVsi;
 
   // SIN ajuste PHV ±5 (retirado · regla del owner 28-sep, inv #7): leía la
   // categoría PERSISTIDA —de ESTADO, early = pre-PHV— como si fuera timing
@@ -348,17 +348,19 @@ export default withHandler(
       .maybeSingle();
     const anthroTrust = trustAnthropometricsRow(anthroRaw);
 
-    // Sin la evaluación COMPLETA del entrenador no se genera nada (invariante #2):
-    // ni ceros en el prompt ni un VSI de ceros guardado en analyses.
+    // Sin la evaluación del entrenador no se genera nada (invariante #2): hace falta el
+    // VSI de ficha GUARDADO (regla única de «evaluado») y las 6 barras completas (van al
+    // prompt). Ni ceros en el prompt ni un VSI recalculado distinto del de la ficha.
     const coachMetrics = completeCoachMetrics(playerRow.metrics);
-    if (!coachMetrics) {
+    const storedVsi = playerRow.vsi == null ? null : Number(playerRow.vsi);
+    if (!coachMetrics || storedVsi === null || !Number.isFinite(storedVsi)) {
       return errorResponse({
         code: "coach_evaluation_missing",
         message: "Falta la evaluación del entrenador (las 6 barras): sin ella no se generan informes.",
         status: 422,
       });
     }
-    const vsiBase = computeVsi({ metrics: coachMetrics, storedVsi: playerRow.vsi == null ? null : Number(playerRow.vsi) });
+    const vsiBase = computeVsi({ storedVsi });
 
     const profile: PlayerProfile = {
       id: playerRow.id,

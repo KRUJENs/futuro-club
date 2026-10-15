@@ -11,6 +11,8 @@ import useRankingsSrc from "@/hooks/useRankings.ts?raw";
 import usePlayersSrc from "@/hooks/usePlayers.ts?raw";
 import useSupabaseSyncSrc from "@/hooks/useSupabaseSync.ts?raw";
 import playerFormSrc from "@/pages/PlayerForm.tsx?raw";
+import anthroFormSrc from "@/components/player/AnthropometricsForm.tsx?raw";
+import phvSectionSrc from "@/components/player/PlayerPhvSection.tsx?raw";
 
 describe("invalidación de Rankings", () => {
   it("la consulta de Rankings usa la clave ranked-players", () => {
@@ -21,6 +23,9 @@ describe("invalidación de Rankings", () => {
     ["usePlayers", usePlayersSrc],
     ["useSupabaseSync", useSupabaseSyncSrc],
     ["PlayerForm", playerFormSrc],
+    // Al guardar medidas cambian la fase/timing PHV que pinta y filtra Rankings.
+    ["AnthropometricsForm", anthroFormSrc],
+    ["PlayerPhvSection", phvSectionSrc],
   ])("%s invalida ranked-players y nunca la clave inexistente rankings", (_name, src) => {
     expect(src).not.toMatch(/queryKey:\s*\["rankings"\]/);
     expect(src).toMatch(/queryKey:\s*\["ranked-players"\]/);

@@ -11,9 +11,10 @@
  *   mínimo de 10 pares; si no, null + motivo (P1 bloque 5)
  * - Total count for pagination
  *
- * Sin la RPC SQL get_ranked_players (P1 bloque 5): su `percent_rank()` daba P0 al
- * jugador evaluado que estaba solo en su grupo de edad y al último de cada grupo (el
- * mismo niño salía P0 por la RPC y P100 por esta ruta). La ruta en memoria ya cargaba
+ * Sin la RPC SQL get_ranked_players (P1 bloque 5): su `percent_rank()` no tenía mínimo
+ * de pares (P0 al jugador evaluado que estaba solo en su grupo de edad) y el mismo niño
+ * salía P0 por la RPC y P100 por esta ruta. Con ≥10 pares, el último sigue siendo P0
+ * y el primero P100: eso sí es un resultado real. La ruta en memoria ya cargaba
  * todos los jugadores del usuario, filtraba y paginaba tras la puerta PHV; ahora es la
  * única. La función SQL queda en la base sin uso (sin EXECUTE para clientes, 072).
  * Sin caché de módulo de 5 minutos: con una sola ruta, la lista no puede ir por detrás
@@ -172,9 +173,9 @@ export default withHandler(
       allPlayers = allRows.map((row) => {
         const d = row.data as Record<string, unknown>;
         const metrics = (d.metrics ?? {}) as Record<string, number>;
-        // VSI de ficha con la regla ÚNICA de «evaluado» (fichaVsiFromBlob): el guardado
-        // o, si no lo hay, el de las 6 barras COMPLETAS; si no, null ("sin evaluar").
-        // Antes una barra ausente valía 0 (`metrics: {}` ⇒ VSI 0 que competía como par).
+        // VSI de ficha con la regla ÚNICA de «evaluado» (fichaVsiFromBlob): el GUARDADO,
+        // el mismo que enseña la ficha; si no, null ("sin evaluar"). Antes se recalculaba
+        // con barras parciales (una barra ausente valía 0: `metrics: {}` ⇒ VSI 0 como par).
         const vsi: number | null = fichaVsiFromBlob(d);
         const age = (d.age as number) ?? 15;
         // Flecha ↑/↓ solo desde dos evaluaciones reales con fecha (fuente única

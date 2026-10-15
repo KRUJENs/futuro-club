@@ -101,16 +101,11 @@ beforeEach(() => {
   anthroRow = null;
 });
 
-describe("computeVsi · VSI de ficha (fuente única), sin ajuste PHV ±5", () => {
-  it("sin VSI guardado ⇒ calculateFichaVsi de las 6 barras (antes: media simple, 64)", async () => {
+describe("computeVsi · VSI de ficha GUARDADO (regla única de «evaluado»), sin ajuste PHV ±5", () => {
+  it("devuelve el VSI guardado (el que enseña la app), no la media simple de las barras (64)", async () => {
     const { computeVsi } = await import("../baseline-analysis");
-    expect(computeVsi({ metrics: METRICS }).vsi).toBe(FICHA);
-    expect(FICHA).not.toBe(64);
-  });
-
-  it("con VSI de ficha guardado ⇒ ese (el que enseña la app); la PHV ya no entra", async () => {
-    const { computeVsi } = await import("../baseline-analysis");
-    expect(computeVsi({ metrics: METRICS, storedVsi: 67.4 }).vsi).toBe(67.4);
+    expect(computeVsi({ storedVsi: 67.4 }).vsi).toBe(67.4);
+    expect(computeVsi({ storedVsi: FICHA }).vsi).not.toBe(64);
   });
 });
 

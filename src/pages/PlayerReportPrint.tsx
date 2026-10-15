@@ -10,7 +10,7 @@ import { useRawPlayerById } from "@/hooks/usePlayers";
 import { adaptPlayerForUI } from "@/services/real/adapters";
 import { phvGate } from "@/lib/phv/phvGate";
 import { PhvGateNotice } from "@/components/phv/PhvGateNotice";
-import { MetricsService } from "@/services/real/metricsService";
+import { MetricsService, completeCoachMetrics, fichaVsiFromBlob } from "@/services/real/metricsService";
 import { useEffect, useRef } from "react";
 import { DominantFeaturesService } from "@/services/real/advancedMetricsService";
 import {
@@ -100,17 +100,19 @@ export default function PlayerReportPrint() {
 
   if (isLoading) return <div className="p-8 text-center">{t("playerReportPrint.loading")}</div>;
   if (!rawPlayer) return <div className="p-8 text-center">{t("playerReportPrint.playerNotFound")}</div>;
-  // Jugador sin evaluar (sin las 6 barras del entrenador): no hay VSI de ficha ni
-  // radar que imprimir. Se nombra el hueco en vez de fabricar un informe con ceros
-  // (invariante #2). El resto del cuerpo asume métricas presentes tras este gate.
-  if (!rawPlayer.metrics) {
+  // Jugador sin evaluar: sin VSI de ficha guardado (regla única fichaVsiFromBlob) o sin
+  // las 6 barras completas no hay VSI ni radar que imprimir. Se nombra el hueco en vez
+  // de fabricar un informe con ceros (invariante #2). Antes bastaba con que existiera
+  // `metrics` y se recalculaba: `metrics: {}` imprimía «VSI 0» (revisión del PR #317).
+  const coachMetrics = completeCoachMetrics(rawPlayer.metrics);
+  const vsi = fichaVsiFromBlob(rawPlayer);
+  if (!coachMetrics || vsi === null) {
     return <div className="p-8 text-center text-muted-foreground">{t("common.notEvaluated")}</div>;
   }
 
   const player = adaptPlayerForUI(rawPlayer);
-  const vsi = MetricsService.calculateVSI(rawPlayer.metrics);
   const vsiTier = MetricsService.classifyVSI(vsi);
-  const dominantFeatures = DominantFeaturesService.calculate(rawPlayer.metrics);
+  const dominantFeatures = DominantFeaturesService.calculate(coachMetrics);
 
   // Evolución y variación del VSI SOLO desde evaluaciones del entrenador con fecha y
   // origen: la misma fuente única (src/lib/scoring/vsiDelta.ts) que el panel de familia

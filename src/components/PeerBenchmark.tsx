@@ -139,7 +139,9 @@ export default function PeerBenchmark({ playerId, variant = "full" }: Props) {
         )}
       </div>
 
-      {/* Por métrica · solo en la variante completa; sin percentil ⇒ su motivo */}
+      {/* Por métrica · solo en la variante completa; sin percentil ⇒ su motivo. La
+          procedencia (DERIVADA ⇒ «Calculado») se rotula una vez arriba para toda la
+          sección: todas las filas salen del mismo cálculo (percentile.ts). */}
       {variant === "full" && (
         <div className="space-y-1.5">
           {METRIC_KEYS.map((key) => {

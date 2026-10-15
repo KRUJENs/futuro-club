@@ -80,6 +80,19 @@ describe("PlayerReportPrint — evolución y variación del VSI con fecha y proc
     window.print = vi.fn();
   });
 
+  // P1 bloque 5a (revisión #317): «evaluado» = VSI de ficha guardado + 6 barras. Antes
+  // bastaba con que existiera `metrics`: `metrics: {}` imprimía «VSI 0».
+  it.each([
+    ["barras vacías", { ...BASE, metrics: {}, vsi: undefined }],
+    ["barras completas sin VSI guardado", { ...BASE, vsi: undefined }],
+    ["VSI guardado sin las 6 barras", { ...BASE, metrics: { speed: 70 } }],
+  ])("%s ⇒ «sin evaluar», nunca un informe con VSI 0", (_c, player) => {
+    mockRawPlayer.mockReturnValue(player);
+    const { container } = render(<PlayerReportPrint />);
+    expect(container.textContent).toContain("common.notEvaluated");
+    expect(screen.queryByTestId("report-vsi-delta")).toBeNull();
+  });
+
   it("solo historial legacy: sin gráfica, sin «En ascenso», variación bloqueada con su motivo", () => {
     mockRawPlayer.mockReturnValue(SAMU_LEGACY);
     const { container } = render(<PlayerReportPrint />);
