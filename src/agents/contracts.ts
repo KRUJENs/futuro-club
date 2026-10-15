@@ -163,10 +163,12 @@ export const RoleProfileOutputSchema = z.object({
     fit: z.number().min(0).max(100),
     stability: z.enum(["emergente", "en_desarrollo", "estable", "consolidado"]),
   })).max(5),
+  // Solo el nivel ACTUAL estimado. Sin p6m/p18m (P1 bloque 5c): eran una regla fija del
+  // prompt («current + 2-3 %», «× 2,5»), no una proyección con base; bloqueadas.
   capabilities: z.object({
-    tactical: z.object({ current: z.number(), p6m: z.number(), p18m: z.number() }),
-    technical: z.object({ current: z.number(), p6m: z.number(), p18m: z.number() }),
-    physical: z.object({ current: z.number(), p6m: z.number(), p18m: z.number() }),
+    tactical: z.object({ current: z.number() }),
+    technical: z.object({ current: z.number() }),
+    physical: z.object({ current: z.number() }),
   }),
   strengths: z.array(z.string()).max(4),
   risks: z.array(z.string()).max(3),

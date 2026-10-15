@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { type RoleProfileData, type PositionFit, type ArchetypeFit, type EvidenceIndicator, type GapItem } from "@/lib/roleProfileData";
-import type { Player } from "@/services/real/playerService";
 import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabase";
 
 // ─── Zod Schemas for validation ──────────────────────────────────────────
@@ -62,11 +61,7 @@ const RoleProfileSchema = z.object({
   }),
   positions: z.array(PositionFitSchema),
   archetypes: z.array(ArchetypeFitSchema),
-  projections: z.object({
-    "0_6m": CapabilityScoresSchema,
-    "6_18m": CapabilityScoresSchema,
-    "18_36m": CapabilityScoresSchema,
-  }),
+  // Sin `projections` (P1 bloque 5c): bloqueadas, ver RoleProfileData.
   strengths: z.array(z.object({
     label: z.string(),
     evidence: z.string(),
@@ -115,7 +110,9 @@ const RoleProfileSchema = z.object({
 const ROLE_PROFILE_CACHE_PREFIX = "vitas_roleprofile_";
 // Súbelo si cambia la forma del perfil o la lógica del agente, para invalidar
 // las cachés viejas (la clave incluye la versión → un bump provoca cache-miss).
-const ROLE_PROFILE_CACHE_VERSION = "v2"; // v2: sin los proxies pressing/positioning
+// v2: sin los proxies pressing/positioning · v3 (P1 bloque 5c): sin proyecciones y sin
+// perfiles construidos por el fallback del servidor (antes se cacheaban como del agente).
+const ROLE_PROFILE_CACHE_VERSION = "v3";
 
 /** Pie dominante para el perfil; sin pie registrado ⇒ undefined (nunca «ambidiestro» por defecto). */
 function footLabel(foot: "right" | "left" | "both" | undefined): "derecho" | "izquierdo" | "ambidiestro" | undefined {
@@ -256,7 +253,14 @@ export async function fetchRoleProfile(playerId: string): Promise<RoleProfileDat
 
     const res = await AgentService.buildRoleProfile(agentInput);
 
-    if (res.success && res.data) {
+    // El endpoint responde 200 con un perfil de REGLAS FIJAS (`_fallback: true`: sin
+    // API key, error o JSON ilegible del modelo; api/_lib/agentFallbacks.ts) — capacidades
+    // = medias de las barras del entrenador, confianza por tramo de minutos, posición por
+    // texto. Antes se pintaba y se cacheaba como si fuera del agente («Estimado por IA»).
+    // Se trata como fallo del agente (P1 bloque 5c, inv #2/#3).
+    const isServerFallback = (res.data as { _fallback?: unknown } | undefined)?._fallback === true;
+
+    if (res.success && res.data && !isServerFallback) {
       const d = res.data;
 
       // Construir evidencia desde dimensiones del video (no métricas manuales).
@@ -315,11 +319,6 @@ export async function fetchRoleProfile(playerId: string): Promise<RoleProfileDat
           tactical:  d.capabilities.tactical.current,
           technical: d.capabilities.technical.current,
           physical:  d.capabilities.physical.current,
-        },
-        projections: {
-          "0_6m":   { tactical: Math.min(100, d.capabilities.tactical.p6m),      technical: Math.min(100, d.capabilities.technical.p6m),      physical: Math.min(100, d.capabilities.physical.p6m) },
-          "6_18m":  { tactical: Math.min(100, d.capabilities.tactical.p18m),     technical: Math.min(100, d.capabilities.technical.p18m),     physical: Math.min(100, d.capabilities.physical.p18m) },
-          "18_36m": { tactical: Math.min(100, d.capabilities.tactical.p18m + 3), technical: Math.min(100, d.capabilities.technical.p18m + 3), physical: Math.min(100, d.capabilities.physical.p18m + 2) },
         },
         identity: {
           dominant:     d.dominantIdentity,
@@ -400,11 +399,6 @@ export async function fetchRoleProfile(playerId: string): Promise<RoleProfileDat
     sample_tier: videoAnalyses.length >= 3 ? "gold" : videoAnalyses.length >= 2 ? "silver" : "bronze",
     overall_confidence: 0.65,
     current: { tactical: tacticalScore, technical: technicalScore, physical: physicalScore },
-    projections: {
-      "0_6m":   { tactical: Math.min(100, tacticalScore + 2),  technical: Math.min(100, technicalScore + 2),  physical: Math.min(100, physicalScore + 3) },
-      "6_18m":  { tactical: Math.min(100, tacticalScore + 5),  technical: Math.min(100, technicalScore + 5),  physical: Math.min(100, physicalScore + 7) },
-      "18_36m": { tactical: Math.min(100, tacticalScore + 8),  technical: Math.min(100, technicalScore + 7),  physical: Math.min(100, physicalScore + 10) },
-    },
     identity: {
       dominant: technicalScore >= tacticalScore && technicalScore >= physicalScore ? "tecnico"
         : tacticalScore >= physicalScore ? "defensivo" : "fisico",
@@ -458,85 +452,6 @@ export async function fetchRoleProfile(playerId: string): Promise<RoleProfileDat
   return null;
 }
 
-// ─── Metrics-only profile (DEPRECATED) ────────────────────────────────────
-//
-// VITAS no genera informes sin un video real que los respalde.
-// La función se conserva temporalmente porque su tipo está referenciado en
-// tests legacy · pero no se llama desde producción. Cuando un jugador no
-// tiene video, getRoleProfile() devuelve null y el UI muestra empty state.
-
- 
-function buildMetricsOnlyProfile(player: Player): RoleProfileData | null {
-  const m = player.metrics;
-  const tacticalScore = m.vision;
-  const technicalScore = Math.round((m.technique + m.shooting) / 2);
-  const physicalScore = Math.round((m.speed + m.stamina) / 2);
-
-  const posCode = mapPositionToCode(player.position, player.foot);
-  const dominantType: RoleProfileData["identity"]["dominant"] =
-    technicalScore >= tacticalScore && technicalScore >= physicalScore ? "tecnico"
-    : tacticalScore >= physicalScore ? "defensivo" : "fisico";
-
-  const profile: RoleProfileData = {
-    run_id: `run_metrics_${Date.now()}`,
-    player_id: player.id,
-    player_name: player.name,
-    player_age: player.age,
-    dominant_foot: footLabel(player.foot),
-    minutes_played: player.minutesPlayed,
-    competitive_level: player.competitiveLevel || undefined,
-    sample_tier: "bronze",
-    overall_confidence: 0.35,
-    current: { tactical: tacticalScore, technical: technicalScore, physical: physicalScore },
-    projections: {
-      "0_6m":   { tactical: Math.min(100, tacticalScore + 1), technical: Math.min(100, technicalScore + 1), physical: Math.min(100, physicalScore + 2) },
-      "6_18m":  { tactical: Math.min(100, tacticalScore + 3), technical: Math.min(100, technicalScore + 3), physical: Math.min(100, physicalScore + 5) },
-      "18_36m": { tactical: Math.min(100, tacticalScore + 5), technical: Math.min(100, technicalScore + 5), physical: Math.min(100, physicalScore + 8) },
-    },
-    identity: {
-      dominant: dominantType,
-      distribution: {
-        tecnico: technicalScore / 100,
-        ofensivo: m.shooting / 100,
-        defensivo: m.defending / 100,
-        fisico: physicalScore / 100,
-        mixto: 0,
-      },
-      explanation: "Perfil estimado a partir de métricas manuales. Sube un video para un análisis más preciso.",
-    },
-    positions: [
-      {
-        code: posCode as RoleProfileData["positions"][0]["code"],
-        prob: 0.4,
-        score: Math.max(tacticalScore, technicalScore, physicalScore),
-        confidence: 0.35,
-        reason: "Posición registrada — sin análisis de video disponible",
-      },
-    ],
-    archetypes: [],
-    strengths: buildStrengthsFromMetrics(m),
-    risks: [
-      {
-        code: "NO_VIDEO_ANALYSIS",
-        label: "Sin análisis de video",
-        description: "Este perfil se basa solo en métricas manuales. Genera un informe VITAS Intelligence para mayor precisión.",
-      },
-    ],
-    gaps: buildGapsFromMetrics(m),
-    consolidation_notes: [
-      "Perfil basado en métricas manuales, sin análisis de video.",
-      "Confianza: Bronce (35%). Sube un video para subir a Plata o superior.",
-    ],
-    evidence: [],
-  };
-
-  const parsed = RoleProfileSchema.safeParse(profile);
-  if (parsed.success) return parsed.data as RoleProfileData;
-
-  console.warn("[roleProfileService] Metrics-only profile validation failed");
-  return null;
-}
-
 /**
  * Map Spanish position to position code.
  * Respeta la lateralidad declarada en el nombre de posición + el pie hábil.
@@ -575,48 +490,6 @@ function mapPositionToCode(position: string, foot?: "right" | "left" | "both"): 
   if (lower.includes("extremo") || lower.includes("banda")) return sideHint === "L" ? "LW" : "RW";
   if (lower.includes("delantero") || lower.includes("punta") || lower.includes("9")) return "ST";
   return "RCM";
-}
-
-/** Extract strengths from player metrics (top 2 metrics > 65) */
-function buildStrengthsFromMetrics(m: Player["metrics"]) {
-  const entries = [
-    { key: "speed", label: "Velocidad", value: m.speed },
-    { key: "technique", label: "Técnica", value: m.technique },
-    { key: "vision", label: "Visión de juego", value: m.vision },
-    { key: "stamina", label: "Resistencia", value: m.stamina },
-    { key: "shooting", label: "Disparo", value: m.shooting },
-    { key: "defending", label: "Defensa", value: m.defending },
-  ];
-  return entries
-    .filter(e => e.value >= 65)
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 3)
-    .map(e => ({
-      label: e.label,
-      evidence: `Métrica manual: ${e.value}/100`,
-      confidence: 0.4,
-    }));
-}
-
-/** Extract gaps from player metrics (bottom 2 metrics < 45) */
-function buildGapsFromMetrics(m: Player["metrics"]): GapItem[] {
-  const entries = [
-    { key: "speed", label: "Velocidad", value: m.speed },
-    { key: "technique", label: "Técnica", value: m.technique },
-    { key: "vision", label: "Visión de juego", value: m.vision },
-    { key: "stamina", label: "Resistencia", value: m.stamina },
-    { key: "shooting", label: "Disparo", value: m.shooting },
-    { key: "defending", label: "Defensa", value: m.defending },
-  ];
-  return entries
-    .filter(e => e.value < 45)
-    .sort((a, b) => a.value - b.value)
-    .slice(0, 2)
-    .map((e, i) => ({
-      label: e.label,
-      priority: (i === 0 ? "alta" : "media") as GapItem["priority"],
-      relatedPositions: [],
-    }));
 }
 
 // ─── Position Override ──────────────────────────────────────────────────

@@ -8,8 +8,7 @@ import CapabilityCards from "@/components/role-profile/CapabilityCards";
 import PositionFitRanking from "@/components/role-profile/PositionFitRanking";
 import ArchetypeRanking from "@/components/role-profile/ArchetypeRanking";
 import StrengthsRisksPanel from "@/components/role-profile/StrengthsRisksPanel";
-import ProjectionComparator from "@/components/role-profile/ProjectionComparator";
-import ViewModeToggle, { ViewMode } from "@/components/role-profile/ViewModeToggle";
+import ProjectionGateCard from "@/components/role-profile/ProjectionGateCard";
 import RoleProfileFilterBar, { type RoleProfileFilters } from "@/components/role-profile/RoleProfileFilterBar";
 import EmptyState from "@/components/role-profile/EmptyState";
 import { PlayerHeaderSkeleton, IdentityCardSkeleton, CapabilityCardsSkeleton, PositionFitSkeleton } from "@/components/role-profile/Skeletons";
@@ -18,7 +17,7 @@ import TrackingSnapshotPanel from "@/components/TrackingSnapshotPanel";
 import { PlayerTrackingService, type TrackingSnapshot } from "@/services/real/playerTrackingService";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, GitCompare, Table2, Zap, MapPin } from "lucide-react";
+import { FileText, Table2, Zap, MapPin } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { POSITION_CODES, POSITION_LABELS, type PositionCode } from "@/lib/roleProfileData";
@@ -26,7 +25,6 @@ import { POSITION_CODES, POSITION_LABELS, type PositionCode } from "@/lib/rolePr
 export default function RoleProfile() {
   const { t } = useTranslation();
   const { id } = useParams();
-  const [mode, setMode] = useState<ViewMode>("scout");
   const [filters, setFilters] = useState<RoleProfileFilters | null>(null);
   const [positionOverride, setPositionOverride] = useState<string | null>(null);
   const [trackingSnapshot, setTrackingSnapshot] = useState<TrackingSnapshot | null>(null);
@@ -62,13 +60,8 @@ export default function RoleProfile() {
             <h2 className="font-display text-2xl font-bold">{t("roleProfile.title")}</h2>
           </div>
           <div className="flex items-center gap-3">
-            <ViewModeToggle mode={mode} onChange={setMode} />
-            <Link to={`/players/${id}/role-profile/compare`}>
-              <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-                <GitCompare className="w-3.5 h-3.5" />
-                {t("common.compare")}
-              </Button>
-            </Link>
+            {/* Sin «Comparar» (comparaba horizontes de proyección) ni el conmutador
+                Scout/Analista (solo decidía si se veía la proyección): bloqueadas, P1 bloque 5c. */}
             <Link to={`/players/${id}/role-profile/audit`}>
               <Button variant="outline" size="sm" className="gap-1.5 text-xs">
                 <Table2 className="w-3.5 h-3.5" />
@@ -255,7 +248,8 @@ export default function RoleProfile() {
             {/* Movimiento + Escaneo · snapshot guardado desde VITAS Lab */}
             <TrackingSnapshotPanel playerId={id ?? ""} snapshot={trackingSnapshot} />
 
-            {(mode === "scout" || filters?.showProjected) && <ProjectionComparator data={data} />}
+            {/* Proyección 0-6 / 6-18 / 18-36 meses: bloqueada con su motivo (P1 bloque 5c). */}
+            <ProjectionGateCard />
 
             {/* Cita explícita de los videos fuente */}
             {data.source_videos && data.source_videos.length > 0 && (

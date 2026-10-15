@@ -90,12 +90,12 @@ export function roleProfileFallback(body: RoleProfileInput, reason: FallbackReas
   const tactical = Math.round((vision + defending) / 2);
   const technical = Math.round((technique + vision) / 2);
   const physical = Math.round((speed + stamina) / 2);
-  const phvFactor = p.phvCategory === "early" ? 0.03 : p.phvCategory === "late" ? 0.01 : 0.02;
-
+  // Solo el nivel actual: sin p6m/p18m (P1 bloque 5c). Antes «proyectaba» con un factor
+  // fijo por la categoría PHV persistida (+3 % / +2 % / +1 %, ×2,5 a 18 meses).
   const capabilities = {
-    tactical: { current: tactical, p6m: Math.round(tactical * (1 + phvFactor)), p18m: Math.round(tactical * (1 + phvFactor * 2.5)) },
-    technical: { current: technical, p6m: Math.round(technical * (1 + phvFactor)), p18m: Math.round(technical * (1 + phvFactor * 2.5)) },
-    physical: { current: physical, p6m: Math.round(physical * (1 + phvFactor)), p18m: Math.round(physical * (1 + phvFactor * 2.5)) },
+    tactical: { current: tactical },
+    technical: { current: technical },
+    physical: { current: physical },
   };
 
   // Confidence based on minutes

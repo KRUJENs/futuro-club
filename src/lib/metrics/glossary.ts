@@ -29,6 +29,7 @@ export const GLOSSARY: Record<string, GlossaryTerm> = {
     term: "VSI de vídeo",
     short: "Índice de los análisis de vídeo",
     long: "Índice 0-100 que calcula el análisis de vídeo (IA) con lo observado en el vídeo. Es distinto de la evaluación del entrenador (sus 6 barras) y se bloquea si faltan sus entradas.",
+    i18nKey: "videoVsiGlossary",
   },
   phv: {
     term: "PHV",
@@ -59,5 +60,7 @@ export const GLOSSARY: Record<string, GlossaryTerm> = {
 
 /** Normaliza una clave ("Scan IQ", "PHV offset") a la del glosario. */
 export function glossaryLookup(key: string): GlossaryTerm | undefined {
-  return GLOSSARY[key.toLowerCase().replace(/[^a-z]/g, "")];
+  // Sin distinguir mayúsculas: las claves pueden ser camelCase (coachEval, videoVsi).
+  const k = key.replace(/[^a-zA-Z]/g, "").toLowerCase();
+  return Object.entries(GLOSSARY).find(([name]) => name.toLowerCase() === k)?.[1];
 }

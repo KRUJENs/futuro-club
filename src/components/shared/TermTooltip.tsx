@@ -15,7 +15,7 @@ import { useTranslation } from "react-i18next";
 import { GLOSSARY } from "@/lib/metrics/glossary";
 
 interface TermTooltipProps {
-  /** clave del glosario: "vsi" | "phv" | "vaep" | "acwr" | "scaniq" | "dmscore" */
+  /** clave del glosario: "coachEval" | "videoVsi" | "phv" | "vaep" | "acwr" | "scaniq" | "dmscore" */
   termKey: string;
   children?: React.ReactNode;
   className?: string;

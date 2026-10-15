@@ -3,16 +3,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTranslation } from "react-i18next";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { POSITION_CODES, POSITION_LABELS, type PositionCode } from "@/lib/roleProfileData";
 
 // ─── Schema ──────────────────────────────────────────────────────────────
 
 const FilterSchema = z.object({
-  horizon: z.enum(["current", "0_6m", "6_18m", "18_36m"]),
   currentPosition: z.enum(["all", ...POSITION_CODES] as [string, ...string[]]),
-  showProjected: z.boolean(),
   dimension: z.enum(["all", "tactical", "technical", "physical"]),
   phase: z.enum(["all", "in_possession", "out_of_possession", "transition"]),
 });
@@ -20,9 +17,7 @@ const FilterSchema = z.object({
 export type RoleProfileFilters = z.infer<typeof FilterSchema>;
 
 const DEFAULTS: RoleProfileFilters = {
-  horizon: "current",
   currentPosition: "all",
-  showProjected: false,
   dimension: "all",
   phase: "all",
 };
@@ -50,27 +45,8 @@ export default function RoleProfileFilterBar({ onChange, defaults }: Props) {
 
   return (
     <div className="flex flex-wrap items-center gap-3 p-3 bg-card border border-border rounded-lg">
-      {/* Horizon */}
-      <div className="flex items-center gap-2">
-        <Label className="text-xs text-muted-foreground whitespace-nowrap">{t("roleProfileFilterBar.horizon")}</Label>
-        <Controller
-          control={control}
-          name="horizon"
-          render={({ field }) => (
-            <Select value={field.value} onValueChange={(v) => { field.onChange(v); handleChange(); }}>
-              <SelectTrigger className="h-8 w-28 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="current">{t("roleProfileFilterBar.horizonCurrent")}</SelectItem>
-                <SelectItem value="0_6m">{t("roleProfileFilterBar.horizon0_6m")}</SelectItem>
-                <SelectItem value="6_18m">{t("roleProfileFilterBar.horizon6_18m")}</SelectItem>
-                <SelectItem value="18_36m">{t("roleProfileFilterBar.horizon18_36m")}</SelectItem>
-              </SelectContent>
-            </Select>
-          )}
-        />
-      </div>
+      {/* Sin selector de horizonte (0-6 / 6-18 / 18-36 meses) ni interruptor «Proyectado»:
+          las proyecciones están bloqueadas (P1 bloque 5c, ProjectionGateCard). */}
 
       {/* Current position */}
       <div className="flex items-center gap-2">
@@ -134,18 +110,6 @@ export default function RoleProfileFilterBar({ onChange, defaults }: Props) {
                 <SelectItem value="transition">{t("roleProfileFilterBar.phaseTransition")}</SelectItem>
               </SelectContent>
             </Select>
-          )}
-        />
-      </div>
-
-      {/* Projected toggle */}
-      <div className="flex items-center gap-2 ml-auto">
-        <Label className="text-xs text-muted-foreground">{t("roleProfileFilterBar.projected")}</Label>
-        <Controller
-          control={control}
-          name="showProjected"
-          render={({ field }) => (
-            <Switch checked={field.value} onCheckedChange={(v) => { field.onChange(v); handleChange(); }} />
           )}
         />
       </div>

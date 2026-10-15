@@ -58,12 +58,12 @@ La distribución de identidad debe sumar exactamente 1.0.
 
 REGLAS DE CAPABILITIES:
 - current: promedio ponderado de métricas relevantes por dimensión
-- p6m: current + ajuste PHV (early: +3%, ontme: +2%, late: +1%)
-- p18m: current + ajuste PHV × 2.5
+- NO proyectes capacidades a futuro (ni a 6, 18 o 36 meses): no hay base validada
+  para una proyección. Devuelve SOLO el nivel actual.
 - Si player.phvCategory NO viene (phvDataAvailable=false: el PHV no se calcula sin
   TODAS las medidas introducidas — talla, peso, talla sentado, pierna, fecha de
-  nacimiento y sexo), usa +2% genérico SIN atribuirlo a la maduración y NO
-  menciones PHV, estirón, maduración ni offset en ningún campo: no hay dato.
+  nacimiento y sexo), NO menciones PHV, estirón, maduración ni offset en ningún
+  campo: no hay dato.
 
 REGLAS DE CONFIANZA:
 - minutesPlayed > 500: overallConfidence = 0.85
@@ -92,9 +92,9 @@ ESTRUCTURA JSON EXACTA — usa EXACTAMENTE estos nombres de campo (el cliente lo
   "positionAlternatives": [ { "code": "ST", "fit": 0-100, "alreadyDeclared": false, "reason": "…", "confidence": 0-1 } ],
   "topArchetypes": [ { "code": "regateador", "fit": 0-100, "stability": "emergente|en_desarrollo|estable|consolidado" } ],
   "capabilities": {
-    "tactical":  { "current": 0-100, "p6m": 0-100, "p18m": 0-100 },
-    "technical": { "current": 0-100, "p6m": 0-100, "p18m": 0-100 },
-    "physical":  { "current": 0-100, "p6m": 0-100, "p18m": 0-100 }
+    "tactical":  { "current": 0-100 },
+    "technical": { "current": 0-100 },
+    "physical":  { "current": 0-100 }
   },
   "strengths": ["…"],
   "risks": ["…"],

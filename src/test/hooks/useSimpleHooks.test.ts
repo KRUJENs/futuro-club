@@ -69,11 +69,6 @@ vi.mock("@/services/roleProfileService", () => ({
     },
     positions: [{ code: "RCM", prob: 0.5, score: 75, confidence: 0.35, reason: "Test" }],
     archetypes: [],
-    projections: {
-      "0_6m": { tactical: 76, technical: 81, physical: 67 },
-      "6_18m": { tactical: 78, technical: 83, physical: 70 },
-      "18_36m": { tactical: 80, technical: 85, physical: 73 },
-    },
     strengths: [],
     risks: [],
     gaps: [],
