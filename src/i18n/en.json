@@ -707,10 +707,8 @@
     "expertDesk": "Need specialist assistance?",
     "expertDeskDesc": "Our biomechanics and scouting experts are available for detailed report reviews.",
     "contactExpert": "Contact Expert Desk",
-    "biasHigh": "High bias alert",
-    "biasMed": "Medium bias alert",
-    "biasLow": "Low bias alert",
-    "biasNoMaturity": "No bias alert: maturation not recorded with enough confidence"
+    "biasLate": "possible undervaluation",
+    "biasEarly": "possible overvaluation"
   },
   "clubAccess": {
     "directorTitle": "Club access",

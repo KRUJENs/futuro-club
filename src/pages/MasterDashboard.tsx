@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { PlayerService } from "@/services/real/playerService";
 import { computeDashboardStats } from "@/services/real/adapters";
-import { maturityBiasAlert, type MaturityBiasAlert } from "@/lib/metrics/maturityBiasAlert";
+import { maturityBiasAlert, type MaturityBiasSignal } from "@/lib/metrics/maturityBiasAlert";
 import { coachEvalTier, type CoachEvalTier } from "@/services/real/metricsService";
 import { COACH_EVAL_TIERS } from "../../config/coachEvaluation";
 import { realVsiEvaluations } from "@/lib/scoring/vsiDelta";
@@ -34,10 +34,12 @@ const sidebarItems = [
   { path: "/settings", icon: Settings, labelKey: "masterDashboard.navSettings" },
 ];
 
-const biasColors: Record<MaturityBiasAlert, { bg: string; text: string; labelKey: string }> = {
-  low: { bg: "bg-primary/20", text: "text-primary", labelKey: "master.biasLow" },
-  med: { bg: "bg-gold/20", text: "text-gold", labelKey: "master.biasMed" },
-  high: { bg: "bg-destructive/20", text: "text-destructive", labelKey: "master.biasHigh" },
+// Señal de DIRECCIÓN (la del propio motor de maduración), no un nivel: tardío ⇒ posible
+// infravaloración, precoz ⇒ posible sobrevaloración, en fase ⇒ solo su timing.
+const biasStyles: Record<MaturityBiasSignal, { bg: string; text: string; directionKey: string | null }> = {
+  late: { bg: "bg-destructive/20", text: "text-destructive", directionKey: "master.biasLate" },
+  early: { bg: "bg-gold/20", text: "text-gold", directionKey: "master.biasEarly" },
+  on_time: { bg: "bg-primary/20", text: "text-primary", directionKey: null },
 };
 
 // Tramos de la evaluación del entrenador: cortes ÚNICOS (config/coachEvaluation.ts vía
@@ -81,8 +83,8 @@ const MasterDashboard = () => {
           : true
       )
       .map((p) => {
-        // Solo desde la maduración canónica firme; sin ella, null y la fila pinta el
-        // motivo (nunca «MED» por defecto ni un corte de percentil sin fuente).
+        // Solo desde la maduración canónica firme con timing afirmado; sin ella, value null
+        // y la fila pinta el motivo del motor (nunca un nivel por defecto ni un percentil).
         const biasAlert = maturityBiasAlert(p);
         const academy =
           (user?.user_metadata?.organization as string | undefined) ||
@@ -354,7 +356,8 @@ const MasterDashboard = () => {
                   </div>
                 ) : (
                   playerReports.map((report) => {
-                    const bias = report.biasAlert ? biasColors[report.biasAlert] : null;
+                    const signal = report.biasAlert.value;
+                    const bias = signal ? biasStyles[signal] : null;
                     return (
                       <div
                         key={report.id}
@@ -387,14 +390,15 @@ const MasterDashboard = () => {
                           </div>
                         </div>
                         <div className="flex items-center justify-between mt-3">
-                          {bias ? (
+                          {signal && bias ? (
                             <span
                               className={`px-2 py-0.5 rounded text-[10px] font-display font-bold uppercase tracking-wider ${bias.bg} ${bias.text}`}
                             >
-                              {t(bias.labelKey)}
+                              {t(`maturity.timing.${signal}`)}
+                              {bias.directionKey ? ` · ${t(bias.directionKey)}` : ""}
                             </span>
                           ) : (
-                            <span className="text-[10px] text-muted-foreground">{t("master.biasNoMaturity")}</span>
+                            <span className="text-[10px] text-muted-foreground">{report.biasAlert.gate_reason}</span>
                           )}
                           <ExternalLink size={12} className="text-muted-foreground" />
                         </div>

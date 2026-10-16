@@ -706,10 +706,8 @@
     "expertDesk": "Need specialist assistance?",
     "expertDeskDesc": "Our biomechanics and scouting experts are available for detailed report reviews.",
     "contactExpert": "Contact Expert Desk",
-    "biasHigh": "Hoher Bias-Hinweis",
-    "biasMed": "Mittlerer Bias-Hinweis",
-    "biasLow": "Niedriger Bias-Hinweis",
-    "biasNoMaturity": "Kein Bias-Hinweis: Reifung nicht mit ausreichender Sicherheit erfasst"
+    "biasLate": "mögliche Unterbewertung",
+    "biasEarly": "mögliche Überbewertung"
   },
   "clubAccess": {
     "directorTitle": "Vereinszugang",

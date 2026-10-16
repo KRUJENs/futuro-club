@@ -31,7 +31,7 @@ export interface MetricResult<T = number> {
 
 /**
  * Confianza por defecto de una métrica DERIVADA ORIENTATIVA: la función es determinista,
- * pero una entrada o un parámetro NO está validado. Usos: tracking sin calibración de
+ * pero una entrada o un parámetro NO está validado. Usos (entre otros): tracking sin calibración de
  * campo certificada (píxeles reescalados, no metros fiables), percentiles y deltas de
  * la evaluación del entrenador (`percentile.ts`, `vsiDelta.ts`) y el trimestre de
  * nacimiento con el corte de categoría por defecto (`relativeAge.ts`). Constante compartida para

@@ -8,6 +8,7 @@ import {
   birthQuarter,
   BIRTH_DATE_MISSING_REASON,
   INVALID_CUTOFF_REASON,
+  CUTOFF_NOT_REGISTERED_REASON,
   type CategoryCutoff,
 } from "@/lib/shared/relativeAge";
 import { ORIENTATIVE_CONFIDENCE } from "@/lib/metrics/MetricResult";
@@ -89,9 +90,18 @@ describe("birthQuarter", () => {
     }
   });
 
-  it("corte presente pero no válido (null, mes fuera de 1-12, sin fuente) ⇒ bloqueado, NUNCA cae a enero", () => {
+  it("corte NO registrado (null) ⇒ bloqueado con su propio motivo, NUNCA cae a enero", () => {
+    const r = birthQuarter("2012-03-01", { cutoff: null as unknown as CategoryCutoff, now: NOW });
+    expect(r.value).toBeNull();
+    expect(r.gate_reason).toBe(CUTOFF_NOT_REGISTERED_REASON);
+  });
+
+  it("corte presente pero no válido (mes fuera de 1-12, sin fuente) ⇒ bloqueado, NUNCA cae a enero", () => {
     const bad = [
-      null,
+      {},
+      { month: "8", source: "x" },
+      { month: Number.NaN, source: "x" },
+      { month: 8, source: 123 },
       { month: 0, source: "x" },
       { month: 13, source: "x" },
       { month: 1.5, source: "x" },

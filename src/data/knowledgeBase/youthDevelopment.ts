@@ -98,7 +98,7 @@ EARLY MATURERS (offset > +0.5): Ventajas: más altos, más fuertes, más rápido
 
 LATE MATURERS (offset < -0.5): Desventajas: más pequeños, más lentos, pierden selecciones por tamaño. Ventajas: si sobreviven el proceso, suelen tener mejor técnica (compensaron con inteligencia), mayor motivación (tuvieron que esforzarse más), y al madurar igualan o superan a los early. Ejemplos: Messi (late), Modric (late), Xavi (late), Iniesta (late).
 
-IMPLICACIÓN PARA VITAS: Tener en cuenta la maduración es CRÍTICO: sin ella se sobrevalora a los early maturers y se descarta a los late maturers. Lo que VITAS hace hoy: calcula la maduración (PHV) solo cuando el jugador tiene todas sus medidas (talla, peso, talla sentado, longitud de pierna, fecha de nacimiento y sexo), y el VSI ajustado por maduración solo se muestra en la tarjeta de maduración del jugador y en la alerta de talento oculto. Los rankings y la comparación de jugadores usan la evaluación SIN ajustar: ahí el scout debe tener en cuenta la maduración por su cuenta.`,
+IMPLICACIÓN PARA VITAS: Tener en cuenta la maduración es CRÍTICO: sin ella se sobrevalora a los early maturers y se descarta a los late maturers. Lo que VITAS hace hoy: calcula la maduración (PHV) solo cuando el jugador tiene todas sus medidas (talla, peso, talla sentado, longitud de pierna —o talla menos talla sentado—, fecha de nacimiento y sexo), y el VSI ajustado por maduración solo se muestra en la tarjeta de maduración del jugador y en la alerta de talento oculto. Los rankings y la comparación de jugadores usan la evaluación SIN ajustar: ahí el scout debe tener en cuenta la maduración por su cuenta.`,
     metadata: { ageRange: "10-18", tags: ["phv", "maduracion", "crecimiento", "sesgo"] },
   },
   {

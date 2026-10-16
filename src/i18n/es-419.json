@@ -707,10 +707,8 @@
     "expertDesk": "Need specialist assistance?",
     "expertDeskDesc": "Our biomechanics and scouting experts are available for detailed report reviews.",
     "contactExpert": "Contact Expert Desk",
-    "biasHigh": "Alerta de sesgo alta",
-    "biasMed": "Alerta de sesgo media",
-    "biasLow": "Alerta de sesgo baja",
-    "biasNoMaturity": "Sin alerta de sesgo: la maduración no está registrada con confianza suficiente"
+    "biasLate": "posible infravaloración",
+    "biasEarly": "posible sobrevaloración"
   },
   "clubAccess": {
     "directorTitle": "Acceso al club",

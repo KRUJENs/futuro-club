@@ -706,10 +706,8 @@
     "expertDesk": "Serve assistenza specializzata?",
     "expertDeskDesc": "I nostri esperti di biomeccanica e scouting sono disponibili per revisioni dettagliate dei report.",
     "contactExpert": "Contatta l'Expert Desk",
-    "biasHigh": "Allerta bias alta",
-    "biasMed": "Allerta bias media",
-    "biasLow": "Allerta bias bassa",
-    "biasNoMaturity": "Nessuna allerta bias: maturazione non registrata con affidabilità sufficiente"
+    "biasLate": "possibile sottovalutazione",
+    "biasEarly": "possibile sopravvalutazione"
   },
   "clubAccess": {
     "directorTitle": "Accesso al club",

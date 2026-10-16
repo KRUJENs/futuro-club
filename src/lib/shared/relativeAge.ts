@@ -33,6 +33,9 @@ export const BIRTH_DATE_MISSING_REASON =
 export const INVALID_CUTOFF_REASON =
   "Mes de corte de la categoría no válido o sin fuente: no se calcula el trimestre de nacimiento.";
 
+export const CUTOFF_NOT_REGISTERED_REASON =
+  "No está registrado el corte de la categoría de esta competición: no se calcula el trimestre de nacimiento.";
+
 /** Corte de la categoría registrado para una competición: mes 1-12 y de dónde sale. */
 export interface CategoryCutoff {
   month: number;
@@ -43,14 +46,19 @@ export interface CategoryCutoff {
  * Trimestre de nacimiento (1-4) respecto al mes de corte de la categoría.
  * Sin `cutoff` ⇒ `RELATIVE_AGE_CUTOFF_MONTH` (año natural, «pendiente de validar») y
  * confianza orientativa. Con un `cutoff` registrado (mes + fuente) ⇒ confianza plena de una
- * DERIVADA. Un `cutoff` presente pero no válido (null, mes fuera de 1-12, sin fuente) se
- * BLOQUEA: nunca cae en silencio al corte por defecto.
+ * DERIVADA. `cutoff: null` (corte no registrado) o un `cutoff` no válido (mes fuera de 1-12,
+ * sin fuente) se BLOQUEAN con su motivo: nunca caen en silencio al corte por defecto.
  */
 export function birthQuarter(
   birthDate: unknown,
   opts: { cutoff?: CategoryCutoff; now?: Date } = {},
 ): MetricResult<BirthQuarter> {
   const usesDefault = opts.cutoff === undefined;
+  // null = la competición no tiene corte registrado (p. ej. la columna vacía): su propio
+  // motivo, y NUNCA el corte por defecto en silencio.
+  if (opts.cutoff === null) {
+    return gated<BirthQuarter>(CUTOFF_NOT_REGISTERED_REASON, { source_ref: RELATIVE_AGE_SOURCE_REF });
+  }
   const cutoff = usesDefault ? RELATIVE_AGE_CUTOFF_MONTH : opts.cutoff?.month;
   const cutoffSource = usesDefault ? RELATIVE_AGE_CUTOFF_SOURCE : opts.cutoff?.source;
   if (
