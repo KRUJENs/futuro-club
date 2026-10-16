@@ -415,11 +415,8 @@
       "trendStable": "Stable ➡️",
       "vsiEvolution": "VSI Evolution",
       "advancedAnalysis": "Advanced Analysis",
-      "truthFilter": "Adjusted VSI (TruthFilter)",
-      "ubiBiasIndex": "UBI (Bias Index)",
       "dominantFeatures": "Dominant Features",
       "areasToDevelope": "Areas to develop",
-      "correctionFactor": "correction factor",
       "vaepTitle": "VAEP · Value per Event",
       "vaepNoEvents": "No events yet — press LOG to record match actions.",
       "topActions": "Top actions:",
@@ -709,7 +706,9 @@
     "systemReliability": "System Reliability",
     "expertDesk": "Need specialist assistance?",
     "expertDeskDesc": "Our biomechanics and scouting experts are available for detailed report reviews.",
-    "contactExpert": "Contact Expert Desk"
+    "contactExpert": "Contact Expert Desk",
+    "biasLate": "possible undervaluation",
+    "biasEarly": "possible overvaluation"
   },
   "clubAccess": {
     "directorTitle": "Club access",
@@ -899,11 +898,6 @@
     "vaepRegisterDesc": "Register events in the profile to see real VAEP",
     "sprintCount": "Sprint Count",
     "sprintDesc": "High-intensity actions >25km/h",
-    "ubiIndex": "UBI Index",
-    "ubiDesc": "Corrected biological bias index (RAE + PHV)",
-    "realTalent": "REAL TALENT",
-    "medBias": "MEDIUM BIAS",
-    "highBias": "HIGH BIAS",
     "superior": "SUPERIOR",
     "below": "BELOW",
     "diversityScore": "Diversity",
@@ -911,8 +905,7 @@
     "ageAdjusted": "Age-adjusted",
     "positionSpecificPhv": "Position-specific PHV",
     "weightedSimilarity": "Weighted similarity",
-    "sprintNoData": "No measured sprints (needs calibrated tracking)",
-    "ubiNoData": "No index calculated (missing maturation data and birth date)"
+    "sprintNoData": "No measured sprints (needs calibrated tracking)"
   },
   "intelligence": {
     "currentState": "Current State",
@@ -1824,12 +1817,8 @@
     "levelDeveloping": "Developing",
     "viewFullReport": "View full report →",
     "confidenceShort": "{{pct}}% conf.",
-    "adjustedVsiTruthFilter": "Adjusted VSI (TruthFilter)",
     "pendingDash": "— Pending",
-    "truthFilterPendingWarning": "⚠ Record anthropometric measurements (height, weight, sitting height) to calculate PHV and enable the adjusted VSI.",
-    "ubiBiasIndexTitle": "UBI (Bias Index)",
     "pending": "Pending",
-    "ubiPendingWarning": "⚠ PHV data is required to calculate the unified bias index.",
     "profileDescOffensive": "clearly offensive profile, oriented toward creating danger in the final third",
     "profileDescDefensive": "solid defensive profile, with strengths in recovery and positioning",
     "profileDescTechnical": "outstanding technical profile, able to handle the ball under pressure",

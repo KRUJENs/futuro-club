@@ -98,7 +98,7 @@ EARLY MATURERS (offset > +0.5): Ventajas: más altos, más fuertes, más rápido
 
 LATE MATURERS (offset < -0.5): Desventajas: más pequeños, más lentos, pierden selecciones por tamaño. Ventajas: si sobreviven el proceso, suelen tener mejor técnica (compensaron con inteligencia), mayor motivación (tuvieron que esforzarse más), y al madurar igualan o superan a los early. Ejemplos: Messi (late), Modric (late), Xavi (late), Iniesta (late).
 
-IMPLICACIÓN PARA VITAS: El ajuste VSI por PHV (TruthFilter) es CRÍTICO. Sin este ajuste, el sistema sobrevaloraría early maturers y descartaría late maturers. La corrección de sesgo madurativo es una de las ventajas más importantes de VITAS sobre el scouting tradicional.`,
+IMPLICACIÓN PARA VITAS: Tener en cuenta la maduración es CRÍTICO: sin ella se sobrevalora a los early maturers y se descarta a los late maturers. Lo que VITAS hace hoy: calcula la maduración (PHV) solo cuando el jugador tiene todas sus medidas (talla, peso, talla sentado, longitud de pierna —o talla menos talla sentado—, fecha de nacimiento y sexo), y el VSI ajustado por maduración solo se muestra en la tarjeta de maduración del jugador y en la alerta de talento oculto. Los rankings y la comparación de jugadores usan la evaluación SIN ajustar: ahí el scout debe tener en cuenta la maduración por su cuenta.`,
     metadata: { ageRange: "10-18", tags: ["phv", "maduracion", "crecimiento", "sesgo"] },
   },
   {
@@ -140,15 +140,12 @@ MAGNITUD DEL SESGO: Estudios (Helsen et al., 2005) muestran que en academias de 
 
 POR QUÉ PERSISTE: Los entrenadores y scouts seleccionan inconscientemente a jugadores que son más grandes, más rápidos y más fuertes para su categoría. Un jugador nacido en enero de 2012 compitiendo contra uno de diciembre de 2012 tiene casi un año más de desarrollo — parece "mejor" pero simplemente es "mayor".
 
-CÓMO MITIGA VITAS:
-1. Corrección RAE en VSI: Q1 recibe -2 puntos, Q4 recibe +5 puntos. Esto compensa la ventaja/desventaja de nacimiento.
-2. El UBI (Unified Bias Index) combina RAE + PHV para dar una corrección integral.
-3. El TruthFilter aplica la corrección automáticamente a cada evaluación.
+QUÉ HACE HOY VITAS: todavía NO calcula ni muestra el trimestre de nacimiento del jugador (llegará con su confianza y con el corte de cada competición, que depende de la federación). VITAS NO corrige ninguna evaluación por edad relativa: no hay una corrección validada (en puntos o en %) y no se aplica ninguna. Mientras tanto, el scout debe mirar la fecha de nacimiento por su cuenta; el trimestre será un dato, no un veredicto.
 
 CÓMO DEBERÍA ACTUAR UN SCOUT:
 - Siempre verificar fecha de nacimiento ANTES de evaluar.
 - Si un jugador Q4 rinde "al nivel" de sus pares Q1, en realidad está rindiendo POR ENCIMA de su nivel de desarrollo.
-- Un jugador Q4 con VSI 60 puede tener más potencial que un Q1 con VSI 72 — la corrección de VITAS intenta capturar esto.
+- Un jugador Q4 con una evaluación más baja puede tener más potencial que un Q1 con una más alta: VITAS no lo corrige con una fórmula; es criterio del scout.
 - En selecciones y academias, implementar políticas de cuota por cuartil de nacimiento.
 
 DATO CLAVE: En el fútbol profesional adulto, el sesgo RAE DESAPARECE. Los jugadores Q4 que sobreviven el sistema juvenil tienen la misma probabilidad de éxito que los Q1. Esto confirma que el sesgo es de SELECCIÓN, no de talento real.`,

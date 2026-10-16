@@ -30,8 +30,11 @@ export interface MetricResult<T = number> {
 }
 
 /**
- * Confianza por defecto de una métrica DERIVADA ORIENTATIVA (sin calibración de campo
- * certificada → son píxeles reescalados, no metros fiables). Constante compartida para
+ * Confianza por defecto de una métrica DERIVADA ORIENTATIVA: la función es determinista,
+ * pero una entrada o un parámetro NO está validado. Usos (entre otros): tracking sin calibración de
+ * campo certificada (píxeles reescalados, no metros fiables), percentiles y deltas de
+ * la evaluación del entrenador (`percentile.ts`, `vsiDelta.ts`) y el trimestre de
+ * nacimiento con el corte de categoría por defecto (`relativeAge.ts`). Constante compartida para
  * NO repetir el literal en cada ruta de cálculo (contrato `.claude/rules/metricas.md`:
  * las constantes de una ruta de cálculo van fuera de ella). Este fichero no es
  * calc_path de ninguna métrica, así que aquí el valor no es una "constante mágica".

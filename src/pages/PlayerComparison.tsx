@@ -2,13 +2,13 @@ import { useState, useMemo, type ReactNode } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Download, Share2, TrendingUp, Zap, Target, Brain, Users, Star, FileText,
+  ArrowLeft, Download, Share2, TrendingUp, Zap, Brain, Users, Star, FileText,
 } from "lucide-react";
 import { useAllPlayers } from "@/hooks/usePlayers";
 import { useQuery } from "@tanstack/react-query";
 import { PlayerService } from "@/services/real/playerService";
 import { findSimilarPlayers, scoreToBadge, type SimilarityResult } from "@/services/real/similarityService";
-import { calculateAdvancedMetrics, VAEPService } from "@/services/real/advancedMetricsService";
+import { VAEPService } from "@/services/real/advancedMetricsService";
 import { useMatchEvents } from "@/hooks/useMatchEvents";
 import { useSavedAnalysesV2 } from "@/hooks/usePlayerAnalysisV2";
 import RadarChartComponent from "@/components/RadarChart";
@@ -166,10 +166,6 @@ const PlayerComparison = () => {
   const { data: eventsA = [] } = useMatchEvents(rawA?.id);
   const { data: eventsB = [] } = useMatchEvents(rawB?.id);
 
-  // Métricas avanzadas reales
-  const advA = useMemo(() => rawA ? calculateAdvancedMetrics(rawA) : null, [rawA]);
-  const advB = useMemo(() => rawB ? calculateAdvancedMetrics(rawB) : null, [rawB]);
-
   const vaepA = useMemo(
     () => VAEPService.calculateFromEvents(eventsA, rawA?.minutesPlayed ?? 0),
     [eventsA, rawA]
@@ -272,28 +268,14 @@ const PlayerComparison = () => {
       noData: t("compare.sprintNoData"),
       format: (v: number) => v.toFixed(1),
     },
-    {
-      id: "ubi",
-      name: t("compare.ubiIndex"),
-      description: t("compare.ubiDesc"),
-      icon: <Target size={18} className="text-electric" />,
-      // Sin bonus PHV fijo (+5 / −3 por el phvCategory persistido): era un ajuste
-      // de maduración paralelo al motor canónico (inv #7) y se aplicaba sin
-      // medidas. La corrección por maduración vive SOLO en el factor gateado.
-      getValueA: () => (advA?.ubi ? Math.round(advA.ubi.ubi * 100) : null),
-      getValueB: () => (advB?.ubi ? Math.round(advB.ubi.ubi * 100) : null),
-      noData: t("compare.ubiNoData"),
-    },
+    // Sin «Índice UBI» (P1 bloque 6, punto 22): nadie pasaba la fecha de nacimiento (la
+    // edad relativa contaba como 0), sus pesos no tenían fuente, leía la FASE PHV como
+    // ritmo de maduración y sus rótulos («TALENTO REAL» / «SESGO ALTO») salían
+    // invertidos. Volverá como señal de sesgo con su confianza en el bloque 8.
   ];
 
-  const getMetricLabel = (val: number, isWinner: boolean, metricId: string) => {
-    if (metricId === "ubi") {
-      if (val > 80) return t("compare.realTalent");
-      if (val > 65) return t("compare.medBias");
-      return t("compare.highBias");
-    }
-    return isWinner ? t("compare.superior") : t("compare.below");
-  };
+  const getMetricLabel = (isWinner: boolean) =>
+    isWinner ? t("compare.superior") : t("compare.below");
 
   // «Ganador» = el de evaluación del entrenador más alta, y SOLO si ambos están
   // evaluados (P1 bloque 5b). Antes: «el modelo proyecta un X% de llegar a élite en 36
@@ -571,7 +553,7 @@ const PlayerComparison = () => {
                     </span>
                   </div>
                   <p className="text-[9px] font-display uppercase tracking-wider text-muted-foreground mt-1">
-                    {getMetricLabel(valA, aWins, metric.id)}
+                    {getMetricLabel(aWins)}
                   </p>
                 </div>
 
@@ -598,7 +580,7 @@ const PlayerComparison = () => {
                     </span>
                   </div>
                   <p className="text-[9px] font-display uppercase tracking-wider text-muted-foreground mt-1">
-                    {getMetricLabel(valB, !aWins, metric.id)}
+                    {getMetricLabel(!aWins)}
                   </p>
                 </div>
               </div>

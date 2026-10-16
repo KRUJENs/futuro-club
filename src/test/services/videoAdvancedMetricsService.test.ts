@@ -67,9 +67,13 @@ describe("VideoAdvancedMetricsService", () => {
       expect(result.vaep.vaep90).not.toBeNull();
 
       expect(result.dominantFeatures.dominant.length).toBeGreaterThan(0);
-      expect(result.ubi).toBeDefined();
-      expect(result.truthFilter).toBeDefined();
-      expect(result.adjustedVSI).toBeGreaterThan(0);
+    });
+
+    it("sin UBI / TruthFilter / «VSI ajustado» / RAE (retirados en el P1 bloque 6, punto 22)", () => {
+      const result = VideoAdvancedMetricsService.calculate(makePlayer(), makePacket());
+      for (const k of ["rae", "ubi", "truthFilter", "adjustedVSI", "phvValidation"]) {
+        expect(result).not.toHaveProperty(k);
+      }
     });
 
     it("VAEP90 es positivo cuando hay acciones mayormente exitosas", () => {
@@ -77,17 +81,6 @@ describe("VideoAdvancedMetricsService", () => {
       const packet = makePacket();
       const result = VideoAdvancedMetricsService.calculate(player, packet);
       expect(result.vaep.vaep90).toBeGreaterThan(0);
-    });
-
-    it("calcula RAE cuando se proveen datos de nacimiento", () => {
-      const player = makePlayer();
-      const packet = makePacket();
-      const result = VideoAdvancedMetricsService.calculate(player, packet, {
-        birthMonth: 12,
-        birthYear: 2008,
-      });
-      expect(result.rae).not.toBeNull();
-      expect(result.rae?.birthQuartile).toBe(4); // Dic es Q4
     });
 
     it("tracking incluye fieldCoverage desde positions", () => {

@@ -120,7 +120,7 @@ El jugador élite busca el balón cuando van perdiendo, mantiene intensidad en l
 6. LO QUE NO DIFERENCIA (sorprendentemente):
 Estatura (no predice a los 12-14). Velocidad pura (moderadamente predictiva, pero menos que técnica+visión). Fuerza (correlaciona con maduración, no con talento). Notas escolares (no hay correlación significativa).
 
-IMPLICACIÓN PARA VITAS: El VSI con ajuste PHV + TruthFilter intenta capturar los factores 1-4. Los agentes de video deben observar y reportar los factores 3 y 5 que solo se ven en video, no en métricas numéricas.`,
+IMPLICACIÓN PARA VITAS: La evaluación del entrenador, leída junto con el estado de maduración (PHV), intenta capturar los factores 1-4. Los agentes de video deben observar y reportar los factores 3 y 5 que solo se ven en video, no en métricas numéricas.`,
     metadata: { ageRange: "10-21", tags: ["elite", "diferenciacion", "talento", "prediccion"] },
   },
   {

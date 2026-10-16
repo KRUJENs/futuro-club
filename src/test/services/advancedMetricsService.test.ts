@@ -1,256 +1,20 @@
 /**
  * VITAS · Tests — AdvancedMetricsService
- * Verifica: RAE, UBI, TruthFilter, VAEP (events), DominantFeatures, TrackingService
+ * Verifica: VAEP (events), DominantFeatures, TrackingService. RAE / UBI / TruthFilter se
+ * retiraron en el P1 bloque 6 (punto 22); el trimestre de nacimiento se prueba en
+ * src/test/lib/relativeAge.test.ts.
  */
 import { describe, it, expect, beforeEach } from "vitest";
+import * as advancedMetricsModule from "@/services/real/advancedMetricsService";
 import {
-  RAEService,
-  UBIService,
-  TruthFilterService,
   VAEPService,
   DominantFeaturesService,
   TrackingService,
   calculateAdvancedMetrics,
 } from "@/services/real/advancedMetricsService";
-import type { RAEResult, SPADLAction } from "@/services/real/advancedMetricsService";
+import type { SPADLAction } from "@/services/real/advancedMetricsService";
 import type { MatchEvent } from "@/services/real/matchEventsService";
 import type { Player } from "@/services/real/playerService";
-
-// ─── RAE ────────────────────────────────────────────────────────────────────
-
-describe("RAEService", () => {
-  describe("calculate", () => {
-    it("enero (mes 1) con cutoff enero = Q1 (early_cohort)", () => {
-      const result = RAEService.calculate({ birthMonth: 1, birthYear: 2010 });
-      expect(result.birthQuartile).toBe(1);
-      expect(result.label).toBe("early_cohort");
-      expect(result.ageAdvantageMonths).toBe(0);
-    });
-
-    it("marzo (mes 3) con cutoff enero = Q1", () => {
-      const result = RAEService.calculate({ birthMonth: 3, birthYear: 2010 });
-      expect(result.birthQuartile).toBe(1);
-      expect(result.ageAdvantageMonths).toBe(2);
-    });
-
-    it("abril (mes 4) con cutoff enero = Q2 (mid_cohort_early)", () => {
-      const result = RAEService.calculate({ birthMonth: 4, birthYear: 2010 });
-      expect(result.birthQuartile).toBe(2);
-      expect(result.label).toBe("mid_cohort_early");
-    });
-
-    it("julio (mes 7) con cutoff enero = Q3 (mid_cohort_late)", () => {
-      const result = RAEService.calculate({ birthMonth: 7, birthYear: 2010 });
-      expect(result.birthQuartile).toBe(3);
-      expect(result.label).toBe("mid_cohort_late");
-    });
-
-    it("diciembre (mes 12) con cutoff enero = Q4 (late_cohort)", () => {
-      const result = RAEService.calculate({ birthMonth: 12, birthYear: 2010 });
-      expect(result.birthQuartile).toBe(4);
-      expect(result.label).toBe("late_cohort");
-      expect(result.ageAdvantageMonths).toBe(11);
-    });
-
-    it("Q1 tiene raeBiasFactor mayor que Q4", () => {
-      const q1 = RAEService.calculate({ birthMonth: 1, birthYear: 2010 });
-      const q4 = RAEService.calculate({ birthMonth: 12, birthYear: 2010 });
-      expect(q1.raeBiasFactor).toBeGreaterThan(q4.raeBiasFactor);
-    });
-
-    it("cutoff personalizado (agosto) cambia cuartiles", () => {
-      // Agosto como cutoff: agosto=Q1, noviembre=Q2...
-      const result = RAEService.calculate({ birthMonth: 8, birthYear: 2010, cutoffMonth: 8 });
-      expect(result.birthQuartile).toBe(1);
-      expect(result.ageAdvantageMonths).toBe(0);
-    });
-  });
-
-  describe("correctVSI", () => {
-    it("Q1 reduce VSI en -2", () => {
-      const rae: RAEResult = { birthQuartile: 1, ageAdvantageMonths: 0, raeBiasFactor: 1.22, label: "early_cohort" };
-      expect(RAEService.correctVSI(70, rae)).toBe(68);
-    });
-
-    it("Q4 aumenta VSI en +5", () => {
-      const rae: RAEResult = { birthQuartile: 4, ageAdvantageMonths: 11, raeBiasFactor: 1.0, label: "late_cohort" };
-      expect(RAEService.correctVSI(70, rae)).toBe(75);
-    });
-
-    it("VSI corregido no excede 100", () => {
-      const rae: RAEResult = { birthQuartile: 4, ageAdvantageMonths: 11, raeBiasFactor: 1.0, label: "late_cohort" };
-      expect(RAEService.correctVSI(98, rae)).toBe(100);
-    });
-
-    it("VSI corregido no baja de 0", () => {
-      const rae: RAEResult = { birthQuartile: 1, ageAdvantageMonths: 0, raeBiasFactor: 1.22, label: "early_cohort" };
-      expect(RAEService.correctVSI(1, rae)).toBe(0);
-    });
-  });
-});
-
-// ─── UBI ────────────────────────────────────────────────────────────────────
-
-describe("UBIService", () => {
-  describe("calculate", () => {
-    it("Q1 + ontme = sesgo bajo (solo RAE component)", () => {
-      const rae: RAEResult = { birthQuartile: 1, ageAdvantageMonths: 0, raeBiasFactor: 1.22, label: "early_cohort" };
-      const result = UBIService.calculate(rae, 0, "ontme");
-      expect(result.raeComponent).toBe(0); // (1-1)/3 = 0
-      expect(result.ubi).toBeLessThanOrEqual(0.1);
-    });
-
-    it("Q4 + madurador tardío = sesgo alto (ambos componentes)", () => {
-      // Enum invertido: phvCategory "early" = pre-PHV = madurador TARDÍO
-      // (offset negativo, hidden gem infravalorado) → phvComponent alto.
-      const rae: RAEResult = { birthQuartile: 4, ageAdvantageMonths: 11, raeBiasFactor: 1.0, label: "late_cohort" };
-      const result = UBIService.calculate(rae, -2, "early");
-      expect(result.raeComponent).toBe(1); // (4-1)/3 = 1
-      expect(result.phvComponent).toBe(1); // clamp(-(-2)/2, 0, 1) = 1
-      expect(result.ubi).toBe(1); // 0.55*1 + 0.45*1 = 1
-    });
-
-    it("vsICorrectionFactor es 1 + UBI * 0.12", () => {
-      const rae: RAEResult = { birthQuartile: 4, ageAdvantageMonths: 11, raeBiasFactor: 1.0, label: "late_cohort" };
-      const result = UBIService.calculate(rae, -2, "early"); // madurador tardío
-      expect(result.vsICorrectionFactor).toBe(1.12); // 1 + 1.0 * 0.12
-    });
-
-    it("null inputs = sin sesgo", () => {
-      const result = UBIService.calculate(null, null, null);
-      expect(result.ubi).toBe(0);
-      expect(result.vsICorrectionFactor).toBe(1);
-    });
-
-    it("madurador precoz tiene phvComponent > 0 (sobreestimado)", () => {
-      // phvCategory "late" = post-PHV = madurador PRECOZ (offset positivo,
-      // ventaja física temporal) → phvComponent positivo pero capado a 0.5.
-      const rae: RAEResult = { birthQuartile: 2, ageAdvantageMonths: 3, raeBiasFactor: 1.16, label: "mid_cohort_early" };
-      const result = UBIService.calculate(rae, 1.5, "late");
-      expect(result.phvComponent).toBeGreaterThan(0);
-      // late phvComp = min(0.5, max(0, 1.5/2)) = 0.75 → capped at 0.5
-      expect(result.phvComponent).toBeLessThanOrEqual(0.5);
-    });
-
-    it("UBI siempre entre 0 y 1", () => {
-      const rae: RAEResult = { birthQuartile: 4, ageAdvantageMonths: 11, raeBiasFactor: 1.0, label: "late_cohort" };
-      const result = UBIService.calculate(rae, -5, "late");
-      expect(result.ubi).toBeGreaterThanOrEqual(0);
-      expect(result.ubi).toBeLessThanOrEqual(1);
-    });
-
-    it("split RAE/PHV es 0.55/0.45", () => {
-      // Solo RAE (Q4, ontme)
-      const raeOnly: RAEResult = { birthQuartile: 4, ageAdvantageMonths: 11, raeBiasFactor: 1.0, label: "late_cohort" };
-      const r1 = UBIService.calculate(raeOnly, 0, "ontme");
-      expect(r1.ubi).toBeCloseTo(0.55, 2); // 0.55 * 1 + 0.45 * 0
-
-      // Solo PHV (Q1, madurador tardío = enum "early", offset -2)
-      const q1: RAEResult = { birthQuartile: 1, ageAdvantageMonths: 0, raeBiasFactor: 1.22, label: "early_cohort" };
-      const r2 = UBIService.calculate(q1, -2, "early");
-      expect(r2.ubi).toBeCloseTo(0.45, 2); // 0.55 * 0 + 0.45 * 1
-    });
-  });
-});
-
-// ─── TruthFilter ────────────────────────────────────────────────────────────
-
-describe("TruthFilterService", () => {
-  describe("detectCase", () => {
-    it("early maturer → early_maturers", () => {
-      expect(TruthFilterService.detectCase(1.5, "early", null)).toBe("early_maturers");
-    });
-
-    it("late maturer → late_maturers", () => {
-      // madurador tardío = enum "early" (pre-PHV, offset negativo)
-      expect(TruthFilterService.detectCase(-1.5, "early", null)).toBe("late_maturers");
-    });
-
-    it("ontme + Q1 → ontme_high_rae", () => {
-      const rae: RAEResult = { birthQuartile: 1, ageAdvantageMonths: 0, raeBiasFactor: 1.22, label: "early_cohort" };
-      expect(TruthFilterService.detectCase(0, "ontme", rae)).toBe("ontme_high_rae");
-    });
-
-    it("ontme + Q4 → ontme_low_rae", () => {
-      const rae: RAEResult = { birthQuartile: 4, ageAdvantageMonths: 11, raeBiasFactor: 1.0, label: "late_cohort" };
-      expect(TruthFilterService.detectCase(0, "ontme", rae)).toBe("ontme_low_rae");
-    });
-
-    it("phvOffset > 0.5 sin category → early_maturers", () => {
-      expect(TruthFilterService.detectCase(0.8, null, null)).toBe("early_maturers");
-    });
-
-    it("phvOffset < -0.5 sin category → late_maturers", () => {
-      expect(TruthFilterService.detectCase(-0.8, null, null)).toBe("late_maturers");
-    });
-  });
-
-  describe("apply", () => {
-    it("early maturer reduce VSI (delta negativo)", () => {
-      const result = TruthFilterService.apply(75, 1.5, "early", null);
-      expect(result.filterCase).toBe("early_maturers");
-      expect(result.delta).toBeLessThan(0);
-      expect(result.adjustedVSI).toBeLessThan(75);
-      // magnitude = min(8, round(1.5 * 4)) = min(8, 6) = 6
-      expect(result.delta).toBe(-6);
-      expect(result.confidence).toBe(0.85);
-    });
-
-    it("late maturer aumenta VSI (delta positivo)", () => {
-      // madurador tardío = enum "early" (pre-PHV, offset negativo)
-      const result = TruthFilterService.apply(60, -2.0, "early", null);
-      expect(result.filterCase).toBe("late_maturers");
-      expect(result.delta).toBeGreaterThan(0);
-      expect(result.adjustedVSI).toBeGreaterThan(60);
-      // magnitude = min(10, round(2.0 * 4)) = min(10, 8) = 8
-      expect(result.delta).toBe(8);
-      expect(result.confidence).toBe(0.88);
-    });
-
-    it("early maturer delta max es -8", () => {
-      const result = TruthFilterService.apply(80, 3.0, "early", null);
-      // magnitude = min(8, round(3.0 * 4)) = min(8, 12) = 8
-      expect(result.delta).toBe(-8);
-    });
-
-    it("late maturer delta max es +10", () => {
-      // madurador tardío = enum "early"; magnitud usa abs(offset)
-      const result = TruthFilterService.apply(50, -4.0, "early", null);
-      // magnitude = min(10, round(|−4.0| * 4)) = min(10, 16) = 10
-      expect(result.delta).toBe(10);
-    });
-
-    it("ontme Q1 reduce VSI en -3", () => {
-      const rae: RAEResult = { birthQuartile: 1, ageAdvantageMonths: 0, raeBiasFactor: 1.22, label: "early_cohort" };
-      const result = TruthFilterService.apply(70, 0, "ontme", rae);
-      expect(result.filterCase).toBe("ontme_high_rae");
-      expect(result.delta).toBe(-3);
-    });
-
-    it("ontme Q4 aumenta VSI en +4", () => {
-      const rae: RAEResult = { birthQuartile: 4, ageAdvantageMonths: 11, raeBiasFactor: 1.0, label: "late_cohort" };
-      const result = TruthFilterService.apply(70, 0, "ontme", rae);
-      expect(result.filterCase).toBe("ontme_low_rae");
-      expect(result.delta).toBe(4);
-    });
-
-    it("adjustedVSI nunca excede 100", () => {
-      const result = TruthFilterService.apply(98, -3.0, "late", null);
-      expect(result.adjustedVSI).toBeLessThanOrEqual(100);
-    });
-
-    it("adjustedVSI nunca baja de 0", () => {
-      const result = TruthFilterService.apply(3, 2.5, "early", null);
-      expect(result.adjustedVSI).toBeGreaterThanOrEqual(0);
-    });
-
-    it("sin datos PHV, confianza es menor", () => {
-      const withPHV = TruthFilterService.apply(70, 1.5, "early", null);
-      const withoutPHV = TruthFilterService.apply(70, null, "early", null);
-      expect(withPHV.confidence).toBeGreaterThan(withoutPHV.confidence);
-    });
-  });
-});
 
 // ─── VAEP ───────────────────────────────────────────────────────────────────
 
@@ -458,13 +222,20 @@ describe("calculateAdvancedMetrics · jugador sin métricas del entrenador", () 
     expect(result.dominantFeatures).toBeNull();
   });
 
-  it("adjustedVSI/truthFilter null aunque tenga PHV completo: no fabrica VSI desde null (invariante #2)", () => {
-    // Jugador sin evaluar (vsi null) PERO con PHV completo (offset+categoría): el
-    // TruthFilter NO debe coaccionar null→0 y fabricar un adjustedVSI.
-    const withPhv = { ...unratedPlayer, phvOffset: -1.5, phvCategory: "late" } as unknown as Player;
-    const result = calculateAdvancedMetrics(withPhv, { birthMonth: 3, birthYear: 2011 });
-    expect(result.adjustedVSI).toBeNull();
-    expect(result.truthFilter).toBeNull();
+  it("sin UBI / TruthFilter / «VSI ajustado» / RAE aunque tenga PHV y VSI (P1 bloque 6, punto 22)", () => {
+    // Antes: con offset+categoría el UBI salía siempre (edad relativa = 0 porque nadie
+    // pasaba la fecha) y el TruthFilter sumaba puntos al VSI con correcciones sin fuente.
+    const withPhv = { ...unratedPlayer, vsi: 70, phvOffset: -1.5, phvCategory: "early" } as unknown as Player;
+    const result = calculateAdvancedMetrics(withPhv);
+    for (const k of ["rae", "ubi", "truthFilter", "adjustedVSI", "phvValidation"]) {
+      expect(result).not.toHaveProperty(k);
+    }
+  });
+
+  it("el módulo ya no exporta RAEService / UBIService / TruthFilterService / validatePhvData", () => {
+    for (const k of ["RAEService", "UBIService", "TruthFilterService", "validatePhvData"]) {
+      expect(advancedMetricsModule).not.toHaveProperty(k);
+    }
   });
 });
 

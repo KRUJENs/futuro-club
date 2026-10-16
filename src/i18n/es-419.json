@@ -415,11 +415,8 @@
       "trendStable": "Estable ➡️",
       "vsiEvolution": "Evolución VSI",
       "advancedAnalysis": "Análisis Avanzado",
-      "truthFilter": "VSI Ajustado (TruthFilter)",
-      "ubiBiasIndex": "UBI (Índice de Sesgo)",
       "dominantFeatures": "Características Dominantes",
       "areasToDevelope": "Áreas a desarrollar",
-      "correctionFactor": "factor corrección",
       "vaepTitle": "VAEP · Valor por Evento",
       "vaepNoEvents": "Sin eventos aún — presiona LOG para registrar acciones de partido.",
       "topActions": "Top acciones:",
@@ -709,7 +706,9 @@
     "systemReliability": "System Reliability",
     "expertDesk": "Need specialist assistance?",
     "expertDeskDesc": "Our biomechanics and scouting experts are available for detailed report reviews.",
-    "contactExpert": "Contact Expert Desk"
+    "contactExpert": "Contact Expert Desk",
+    "biasLate": "posible infravaloración",
+    "biasEarly": "posible sobrevaloración"
   },
   "clubAccess": {
     "directorTitle": "Acceso al club",
@@ -899,11 +898,6 @@
     "vaepRegisterDesc": "Registra eventos en el perfil para ver VAEP real",
     "sprintCount": "Sprint Count",
     "sprintDesc": "Acciones de alta intensidad >25km/h",
-    "ubiIndex": "UBI Index",
-    "ubiDesc": "Índice de sesgo biológico corregido (RAE + PHV)",
-    "realTalent": "TALENTO REAL",
-    "medBias": "SESGO MEDIO",
-    "highBias": "SESGO ALTO",
     "superior": "SUPERIOR",
     "below": "POR DEBAJO",
     "diversityScore": "Diversidad",
@@ -911,8 +905,7 @@
     "ageAdjusted": "Ajustado por edad",
     "positionSpecificPhv": "PHV por posición",
     "weightedSimilarity": "Similitud ponderada",
-    "sprintNoData": "Sin sprints medidos (hace falta tracking calibrado)",
-    "ubiNoData": "Sin índice calculado (faltan datos de maduración y fecha de nacimiento)"
+    "sprintNoData": "Sin sprints medidos (hace falta tracking calibrado)"
   },
   "intelligence": {
     "currentState": "Estado Actual",
@@ -1824,12 +1817,8 @@
     "levelDeveloping": "En Desarrollo",
     "viewFullReport": "Ver informe completo →",
     "confidenceShort": "{{pct}}% conf.",
-    "adjustedVsiTruthFilter": "VSI Ajustado (TruthFilter)",
     "pendingDash": "— Pendiente",
-    "truthFilterPendingWarning": "⚠ Registra mediciones antropométricas (altura, peso, altura sentado) para calcular el PHV y activar el VSI ajustado.",
-    "ubiBiasIndexTitle": "UBI (Índice de Sesgo)",
     "pending": "Pendiente",
-    "ubiPendingWarning": "⚠ Necesita datos PHV para calcular el índice de sesgo unificado.",
     "profileDescOffensive": "perfil claramente ofensivo, orientado a generar peligro en el tercio final",
     "profileDescDefensive": "perfil defensivo sólido, con fortalezas en recuperación y posicionamiento",
     "profileDescTechnical": "perfil técnico destacado, con capacidad de manejar el balón bajo presión",
