@@ -24,6 +24,7 @@ import { GEMINI_MODEL } from "../../src/lib/shared/geminiModel";
 import { assertAllowedVideoUrl, fetchAllowedVideo, VideoUrlError } from "../_lib/videoUrlGuard";
 import { enforceUserVideoObservationConsent } from "../_lib/analysisConsentGate";
 import { ownsPlayer, ownsVideo } from "../_lib/ownership";
+import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 
 export const config = { runtime: "nodejs", maxDuration: 120 };
 
@@ -68,8 +69,8 @@ interface GeminiObservation {
     robos: number;              // tackles: recuperación POR CONTACTO (entrada al cuerpo/balón)
     anticipaciones: number;     // intercepciones: cortar línea de pase ANTES de que el rival reciba
     perdidas: number;           // turnovers: errores no forzados que entregan posesión
-    duelosGanados: number;
-    duelosPerdidos: number;
+    // Sin duelosGanados/duelosPerdidos (P1 bloque 6): sin criterio validado de duelo y el
+    // ensayo del 29 sep mostró que el modelo inventa eventos (src/lib/tracking/duels.ts).
     disparosAlArco: number;
     disparosFuera: number;
     centros: number;
@@ -311,7 +312,6 @@ METODOLOGÍA DE OBSERVACIÓN (sigue este orden):
    - Robos (tackles): SUBTIPO de recuperación — ganar balón POR CONTACTO físico (entrada al pie/cuerpo). Requiere duelo físico
    - Anticipaciones (intercepciones): SUBTIPO de recuperación — cortar línea de pase ANTES que el rival reciba. NO hay contacto con el rival
    - Pérdidas (turnovers): errores NO FORZADOS que entregan posesión (mal control, pase imposible, regate temerario en zona propia). NO cuentan si el rival forzó la pérdida con una gran acción defensiva
-   - Duelos ganados y perdidos (1v1 ofensivo y defensivo)
    - Disparos al arco y fuera
    - Centros intentados
    - Faltas cometidas y recibidas
@@ -351,8 +351,6 @@ Genera un análisis detallado con esta estructura JSON exacta (sin markdown, sin
     "robos": 1,
     "anticipaciones": 1,
     "perdidas": 2,
-    "duelosGanados": 3,
-    "duelosPerdidos": 1,
     "disparosAlArco": 1,
     "disparosFuera": 0,
     "centros": 2,
@@ -504,7 +502,8 @@ ${analysisScope === "player"
         // pero por seguridad intentamos extraer si viene envuelto
         const jsonMatch = fullText.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          observations = JSON.parse(jsonMatch[0]) as GeminiObservation;
+          // Saneado: aunque el modelo devuelva duelos (no se le piden), no salen de aquí.
+          observations = stripDuelOutcomes(JSON.parse(jsonMatch[0])) as GeminiObservation;
         } else {
           throw new Error("No se encontró JSON en la respuesta");
         }

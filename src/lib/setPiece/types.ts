@@ -92,32 +92,6 @@ export interface SetPieceAggregateStats {
   }>;
 }
 
-export interface PlayerSetPieceProfile {
-  playerId: string;
-  playerName: string;
-  asTaker: {
-    corners: number;
-    freeKicks: number;
-    penalties: number;
-    accuracy: number; // 0-100
-    avgXG: number;
-    preferredFoot: "left" | "right" | "both";
-    preferredZone: SetPieceSide;
-  };
-  asTarget: {
-    headerWins: number;
-    goalsFromSetPieces: number;
-    avgPositionInBox: PitchPosition;
-    aerialDuelsWonPct: number;
-  };
-  asDefender: {
-    clearances: number;
-    aerialDuelsWonPct: number;
-    goalsConcededFromSetPieces: number;
-  };
-  setPieceIQ: number; // 0-100 composite score
-}
-
 export interface SetPieceRecommendation {
   id: string;
   type: SetPieceType;

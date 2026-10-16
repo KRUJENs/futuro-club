@@ -18,10 +18,11 @@
  *   const blob = exporter.download("csv", "session_2026-05-19");
  */
 
-import type { Track, PhysicalMetrics, ScanEvent, DuelEvent } from "@/lib/yolo/types";
+import type { Track, PhysicalMetrics, ScanEvent } from "@/lib/yolo/types";
 import type { BiomechanicsScore } from "@/lib/mediapipe/biomechanicsEngine";
 import type { TacticalEvent, EventSummary } from "./eventDetectionEngine";
 import { PUBLIC_HOST } from "@/lib/publicUrl";
+import { duelsMetric, DUELS_GATE_REASON } from "./duels";
 
 /* ── Types ─────────────────────────────────────────────────────── */
 
@@ -56,12 +57,10 @@ export interface SessionExportData {
   focusTrackId: number | null;
   /** Tactical events */
   events: TacticalEvent[];
-  /** Event summary */
-  eventSummary: EventSummary;
+  /** Event summary — null si no hay (antes un resumen de CEROS que se leía como «0 pases») */
+  eventSummary: EventSummary | null;
   /** Scan events */
   scanEvents: ScanEvent[];
-  /** Duel events */
-  duelEvents: DuelEvent[];
   /** Focus player positions for heatmap */
   focusPositions: Array<{ fx: number; fy: number; tMs: number }>;
 }
@@ -136,7 +135,8 @@ export class AnalyticsExporter {
       eventSummary: this.data.eventSummary,
       events: this.data.events,
       scanEvents: this.data.scanEvents,
-      duelEvents: this.data.duelEvents,
+      // Duelos: hueco con su motivo (P1 bloque 6), nunca «0G / 0P».
+      duels: duelsMetric(),
     };
 
     if (options.includeRawTracks) {
@@ -418,7 +418,7 @@ ${meta.calibrationReliable ? "" : `
   </div>` : ""}` : ""}
 
   <h2>Eventos Tácticos</h2>
-  <div class="grid">
+  ${s ? `<div class="grid">
     <div class="card">
       <div class="label">Pases</div>
       <div class="value">${s.passesCompleted}/${s.passesAttempted}</div>
@@ -426,7 +426,8 @@ ${meta.calibrationReliable ? "" : `
     </div>
     <div class="card">
       <div class="label">Duelos</div>
-      <div class="value">${s.duelsWon}G / ${s.duelsLost}P</div>
+      <div class="value" style="font-size: 0.85rem">No disponible</div>
+      <div class="unit">${DUELS_GATE_REASON}</div>
     </div>
     <div class="card">
       <div class="label">Disparos</div>
@@ -442,7 +443,7 @@ ${meta.calibrationReliable ? "" : `
       <div class="label">Sprints Tácticos</div>
       <div class="value">${s.sprintBursts}</div>
     </div>
-  </div>
+  </div>` : `<div class="card"><div class="unit">Sin resumen de eventos tácticos en esta sesión.</div></div>`}
 
   <div class="footer">
     Generado por VITAS Football Intelligence · ${new Date().toISOString().slice(0, 10)} · ${PUBLIC_HOST}
@@ -456,13 +457,11 @@ ${meta.calibrationReliable ? "" : `
 
 function mapToSPADLType(type: string): string {
   const map: Record<string, string> = {
-    // Base 14 types
+    // Base 12 types (sin duelos: P1 bloque 6)
     pass: "pass",
     through_ball: "pass",
     cross: "cross",
     shot: "shot",
-    duel_ground: "tackle",
-    duel_aerial: "take_on",
     recovery: "interception",
     tackle: "tackle",
     interception: "interception",
@@ -471,7 +470,7 @@ function mapToSPADLType(type: string): string {
     press_trigger: "tackle",
     set_piece: "freekick_short",
     offside_line_break: "dribble",
-    // Sprint 3: 21 ball-aware types
+    // Sprint 3: 19 ball-aware types
     reception: "receival",
     dribble: "dribble",
     clearance: "clearance",
@@ -487,8 +486,6 @@ function mapToSPADLType(type: string): string {
     switch_play: "pass",
     ball_recovery: "interception",
     turnover: "bad_touch",
-    aerial_won: "take_on",
-    aerial_lost: "take_on",
     dispossessed: "bad_touch",
     second_assist: "pass",
     chance_created: "pass",

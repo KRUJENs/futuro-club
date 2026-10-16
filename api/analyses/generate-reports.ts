@@ -29,6 +29,7 @@ import { createClient } from "@supabase/supabase-js";
 import { localeSchema } from "../../src/lib/shared/locale";
 import { gateClipAnalysis, clipGateErrorResponse } from "../_lib/analysisConsentGate";
 import { ownsPlayer, ownsVideo } from "../_lib/ownership";
+import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 
 export const config = { runtime: "edge" };
 
@@ -75,7 +76,9 @@ export default withHandler(
       playedPosition,
       locale,
       category,
-    } = body as z.infer<typeof schema>;
+      // Saneado al ESCRIBIR (P1 bloque 6): un cliente antiguo (PWA en caché) aún puede
+      // mandar duelsWon/duelEvents… sin criterio validado; no se guardan ni llegan a agentes.
+    } = stripDuelOutcomes(body as z.infer<typeof schema>);
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
       auth: { persistSession: false },

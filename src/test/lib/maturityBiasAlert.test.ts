@@ -48,7 +48,7 @@ describe("maturityBiasAlert", () => {
       expect(r.value).toBe(signal);
       expect(r.provenance).toBe("DERIVADA");
       expect(r.gate_reason).toBeNull();
-      expect(r.confidence).toBe(gate.offset.confidence);
+      expect(r.confidence).toBe(gate.aphv.confidence);
     }
   });
 
@@ -64,10 +64,16 @@ describe("maturityBiasAlert", () => {
     expect(get(es, "master.biasEarly")).toMatch(/sobrevalor/);
     expect(get(en, "master.biasLate")).toMatch(/undervalu/);
     expect(get(en, "master.biasEarly")).toMatch(/overvalu/);
+    expect(get(esLatam, "master.biasLate")).toMatch(/infravalor/);
+    expect(get(esLatam, "master.biasEarly")).toMatch(/sobrevalor/);
     expect(get(fr, "master.biasLate")).toMatch(/sous-évalu/);
+    expect(get(fr, "master.biasEarly")).toMatch(/surévalu/);
     expect(get(de, "master.biasLate")).toMatch(/Unterbewert/);
+    expect(get(de, "master.biasEarly")).toMatch(/Überbewert/);
     expect(get(it_, "master.biasLate")).toMatch(/sottovalut/);
+    expect(get(it_, "master.biasEarly")).toMatch(/sopravvalut/);
     expect(get(nl, "master.biasLate")).toMatch(/onderwaard/);
+    expect(get(nl, "master.biasEarly")).toMatch(/overwaard/);
   });
 
   it("gate CERRADO (falta sexo, talla sentado o fecha) ⇒ null + el motivo del gate, y el gate para traducirlo", () => {
@@ -80,6 +86,15 @@ describe("maturityBiasAlert", () => {
       expect(gate.ok).toBe(false);
       expect(signal.gate_reason).toBe(phvGate(p as never, AT).gate_reason);
     }
+  });
+
+  it("gate CERRADO por medidas fuera de rango (adulto) ⇒ null + motivo del gate, nunca el corte en silencio", () => {
+    const adult = { ...LATE, birthDate: "1990-01-01" };
+    const { signal, gate } = maturityBiasAlert(adult, AT);
+    expect(gate.ok).toBe(false);
+    expect(gate.ok ? null : gate.reason).toBe("out_of_range");
+    expect(signal.value).toBeNull();
+    expect(signal.gate_reason).toBe(gate.gate_reason);
   });
 
   it("gate ABIERTO pero sin timing afirmado (lejos del PHV) ⇒ null con la nota real del motor", () => {
@@ -107,7 +122,7 @@ describe("MasterDashboard usa la señal honesta", () => {
     expect(code).not.toMatch(/percentilesAmong/);
     expect(code).not.toMatch(/pct\s*>\s*70/);
     expect(code).toMatch(/maturityBiasAlert\(p\)/);
-    expect(code).not.toMatch(/\.gate_reason\}/); // nunca se pinta el texto del motor sin traducir
+    expect(code).not.toMatch(/\.gate_reason\s*\}/); // nunca se pinta el texto del motor sin traducir
     expect(code).toMatch(/<PhvGateNotice gate=\{report\.biasAlert\.gate\}/);
     expect(code).toMatch(/t\("maturity\.timing\.unknown"\)/);
     expect(code).toMatch(/MATURITY_BIAS_DIRECTION_KEY\[signal\]/);

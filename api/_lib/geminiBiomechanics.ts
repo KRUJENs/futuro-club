@@ -71,8 +71,8 @@ export const GEMINI_EVENT_FIELDS = {
   tackles: "robos",
   interceptions: "anticipaciones",
   turnovers: "perdidas",
-  duels_won: "duelosGanados",
-  duels_lost: "duelosPerdidos",
+  // Sin duels_won/duels_lost (P1 bloque 6): sin criterio validado de duelo
+  // (src/lib/tracking/duels.ts); el modelo ya no los cuenta.
   shots_on_target: "disparosAlArco",
   shots_off_target: "disparosFuera",
   scans: "escaneos",

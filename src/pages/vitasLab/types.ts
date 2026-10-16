@@ -75,8 +75,6 @@ export interface AnalysisReport {
       pasesFallados:    number;
       precisionPases:   number;
       recuperaciones:   number;
-      duelosGanados:    number;
-      duelosPerdidos:   number;
       disparosAlArco:   number;
       disparosFuera:    number;
     };

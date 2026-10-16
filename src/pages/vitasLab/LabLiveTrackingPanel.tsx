@@ -33,7 +33,6 @@ const LabLiveTrackingPanel = ({
         focusTrackId={tracking.state.focusTrackId}
         metrics={tracking.state.sessionMetrics}
         scanCount={tracking.state.scanEvents.length}
-        duelCount={tracking.state.duelEvents.length}
         onFocusTrack={tracking.setFocusTrackId}
         voronoiRegions={tracking.state.voronoiRegions}
         showVoronoi={showVoronoi}
@@ -80,11 +79,6 @@ const LabLiveTrackingPanel = ({
               {eventSummary.passesAttempted > 0 && (
                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">
                   {t("vitasLab.passesLabel")} {eventSummary.passesCompleted}/{eventSummary.passesAttempted}
-                </span>
-              )}
-              {eventSummary.duelsWon + eventSummary.duelsLost > 0 && (
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400">
-                  {t("vitasLab.duelsLabel")} {eventSummary.duelsWon}{t("vitasLab.wonAbbr")}/{eventSummary.duelsLost}{t("vitasLab.lostAbbr")}
                 </span>
               )}
               {eventSummary.recoveries > 0 && (

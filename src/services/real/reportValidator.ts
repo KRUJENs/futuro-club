@@ -250,17 +250,8 @@ export function validatePlayerReport(
         });
       }
     }
-
-    const totalDuels = events.duelosGanados + events.duelosPerdidos;
-    if (totalDuels > 100) {
-      issues.push({
-        rule: "event_plausibility",
-        severity: "warning",
-        fields: ["metricasCuantitativas.eventos"],
-        message: `${totalDuels} duelos totales es excesivo para un video corto. Rango típico: 5-50.`,
-        suggestedFix: "Revisa el conteo de eventos. Un jugador raramente supera 30-40 duelos en un partido completo.",
-      });
-    }
+    // Sin regla de duelos (P1 bloque 6): el informe ya no lleva duelos (sin criterio
+    // validado, src/lib/tracking/duels.ts); la «plausibilidad 5-50» no tenía fuente.
   }
 
   // ── Regla 7: Jugador referencia score coherente ─────────────────────

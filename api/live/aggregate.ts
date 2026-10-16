@@ -28,6 +28,7 @@ import { normalizeLocale, languageDirective } from "../../src/lib/shared/locale"
 import { isAllowedVideoUrl } from "../_lib/videoUrlGuard";
 import { enforceStoredConsentForVideoUrl } from "../_lib/analysisConsentGate";
 import { ownsPlayer, ownsVideo } from "../_lib/ownership";
+import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 
 // Node.js runtime for Gemini video analysis (up to 120s)
 export const config = { runtime: "nodejs", maxDuration: 120 };
@@ -197,7 +198,9 @@ function buildVideoSection(obs: Record<string, unknown>): string {
     );
   }
 
-  const eventos = obs.eventosContados as Record<string, number> | undefined;
+  // Sin duelos del modelo de vídeo (P1 bloque 6): las observaciones antiguas aún los traen.
+  // Los duelos que ETIQUETA el entrenador en directo (arriba) son otro concepto y se quedan.
+  const eventos = stripDuelOutcomes(obs.eventosContados as Record<string, number> | undefined);
   if (eventos && Object.keys(eventos).length > 0) {
     lines.push("Conteo de eventos (video):");
     for (const [k, v] of Object.entries(eventos)) {

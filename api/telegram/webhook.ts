@@ -119,7 +119,7 @@ const TOOLS = [
   },
   {
     name: "get_match_stats",
-    description: "Stats del último video analizado de un jugador: pases (precisión, completados/fallados), duelos (ganados/perdidos), recuperaciones, robos, anticipaciones, pérdidas, disparos, físicas (vel máx/prom, distancia, sprints). Usa cuando piden 'estadísticas de X', 'cómo jugó X', 'stats de pase de X'.",
+    description: "Stats del último video analizado de un jugador: pases (precisión, completados/fallados), recuperaciones, robos, anticipaciones, pérdidas, disparos, físicas (vel máx/prom, distancia, sprints). Usa cuando piden 'estadísticas de X', 'cómo jugó X', 'stats de pase de X'.",
     input_schema: {
       type: "object",
       required: ["name_query"],
@@ -162,8 +162,9 @@ const TOOLS = [
 // ─── Helpers ─────────────────────────────────────────────────────
 
 /**
- * Extrae stats clave (pases, recup, duelos, físicas) del report.metricasCuantitativas
- * Devuelve null si no hay datos.
+ * Extrae stats clave (pases, recup, físicas) del report.metricasCuantitativas
+ * Devuelve null si no hay datos. Sin duelos (P1 bloque 6): sin criterio validado de
+ * duelo (src/lib/tracking/duels.ts); los informes antiguos que los traen no se citan.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractKeyStats(report: any): Record<string, unknown> | null {
@@ -171,7 +172,6 @@ function extractKeyStats(report: any): Record<string, unknown> | null {
   if (!m) return null;
   return {
     pases:           m.pases ? { completados: m.pases.completados, fallados: m.pases.fallados, precision: m.pases.precision } : null,
-    duelos:          m.duelos ? { ganados: m.duelos.ganados, perdidos: m.duelos.perdidos } : null,
     recuperaciones:  m.eventos?.recuperaciones ?? null,
     robos:           m.eventos?.robos ?? null,
     anticipaciones:  m.eventos?.anticipaciones ?? null,
@@ -636,7 +636,7 @@ export default withHandler(
         `📋 Comandos\n\n` +
         `/jugadores — top 15 por evaluación del entrenador\n` +
         `/equipo — stats agregadas (evaluación del entrenador, PHV)\n` +
-        `/stats <nombre> [como <pos>] — pase/duelos/recup del último video\n` +
+        `/stats <nombre> [como <pos>] — pase/recup del último video\n` +
         `/posiciones <nombre> — polivalencia (videos por posición jugada)\n` +
         `/ultimo — último partido finalizado\n` +
         `/drill <tema> — drills para entrenar (pase, regate, etc.)\n` +
@@ -835,8 +835,6 @@ export default withHandler(
       const lines: string[] = [`📊 ${matches[0].name} · último video (${date})${headerSuffix}`, ""];
       const p = stats.pases as { completados: number; fallados: number; precision: number } | null;
       if (p) lines.push(`⚽ Pases: ${p.completados}/${p.completados + p.fallados} (${p.precision}% precisión)`);
-      const d = stats.duelos as { ganados: number; perdidos: number } | null;
-      if (d) lines.push(`💥 Duelos: ${d.ganados}/${d.ganados + d.perdidos} ganados`);
       if (stats.recuperaciones != null) lines.push(`🛡 Recuperaciones: ${stats.recuperaciones}`);
       if (stats.robos != null) lines.push(`🔪 Robos: ${stats.robos}`);
       if (stats.anticipaciones != null) lines.push(`👁 Anticipaciones: ${stats.anticipaciones}`);

@@ -40,6 +40,7 @@ import {
   VSI_TIERS as VIDEO_VSI_TIERS,
   determineTier as videoVsiTier,
 } from "./_vsi-calculator";
+import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 
 export const config = { runtime: "edge" };
 
@@ -497,12 +498,16 @@ export default withHandler(
     // docx #14 · Observaciones DIRECTAS del vídeo (extraídas UNA vez: las usan la
     // derivación del comparable Y el sharedContext de los agentes). Gated en ORIGEN
     // (P1). Gemini: biomechanics.gemini_observation; cliente: analysis.client_metrics.
-    const geminiObs =
+    // Saneado al LEER (P1 bloque 6): filas guardadas antes del bloque traen duelos
+    // (duels_won, duelosGanados, duelsWon…) sin criterio validado → no llegan a ningún agente.
+    const geminiObs = stripDuelOutcomes(
       (analysis.biomechanics as { gemini_observation?: Record<string, unknown> } | null)
-        ?.gemini_observation ?? null;
-    const clientMetrics =
+        ?.gemini_observation ?? null,
+    );
+    const clientMetrics = stripDuelOutcomes(
       (analysis as { client_metrics?: { eventSummary?: unknown; physicalMetrics?: unknown } | null })
-        .client_metrics ?? null;
+        .client_metrics ?? null,
+    );
     const videoObservations =
       geminiObs || clientMetrics?.eventSummary || clientMetrics?.physicalMetrics
         ? {
@@ -755,7 +760,7 @@ export default withHandler(
       playerId: analysis.player_id,
       videoId: analysis.video_id,
       analysisId: analysis.id,
-      biomechanics: analysis.biomechanics,
+      biomechanics: stripDuelOutcomes(analysis.biomechanics), // sin duelos antiguos (P1 bloque 6)
       videoObservations, // docx #14 · observaciones directas del vídeo (gated en origen)
       vsiHistory, // tendencia VSI histórica → los narradores pueden citar evolución
       scanning: scanResult, // NUEVO Sprint 4 · scan rate detection
@@ -865,7 +870,7 @@ export default withHandler(
             phv_category: anthro?.phv_category ?? null,
             position: player?.position ?? null,
             features: {
-              biomechanics: analysis.biomechanics ?? null,
+              biomechanics: stripDuelOutcomes(analysis.biomechanics ?? null),
               scanning: scanResult ?? null,
               similarity: similarityRes.success ? (similarityRes.data?.data ?? similarityRes.data) : null,
               subscores: simDerived?.metrics ?? null, // derivadas de eventos (o null si abstención)

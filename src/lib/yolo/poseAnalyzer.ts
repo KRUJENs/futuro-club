@@ -1,21 +1,20 @@
 /**
  * VITAS · Pose Analyzer
  *
- * Detecta eventos de escaneo (giro de cabeza) y duelos
- * a partir de los keypoints COCO-17 de YOLOv8n-pose.
+ * Detecta eventos de escaneo (giro de cabeza) a partir de los keypoints COCO-17
+ * de YOLOv8n-pose. Sin duelos (P1 bloque 6): contaba cualquier par de pistas a
+ * ≤ 1,8 m —compañeros incluidos— y nunca resolvía el ganador; el concepto vive
+ * bloqueado en src/lib/tracking/duels.ts.
  *
  * COCO keypoints:
  *   0=nariz  1=ojoIzq  2=ojoDer  3=orejaIzq  4=orejaDer
  *   5=hombroIzq  6=hombroDer  11=caderaIzq  12=caderaDer
  */
 
-import type { Track, ScanEvent, DuelEvent, Keypoint } from "./types";
-import { fieldDistance } from "./homography";
+import type { Track, ScanEvent, Keypoint } from "./types";
 
 const SCAN_ANGLE_THRESH   = 28;   // grados — diferencia de ángulo para detectar escaneo
 const SCAN_MIN_FRAMES     = 2;    // frames mínimos para confirmar escaneo
-const DUEL_DISTANCE_M     = 1.8;  // metros — distancia máxima para considerar duelo
-const DUEL_MIN_FRAMES     = 3;    // frames mínimos para confirmar duelo
 const KP_CONF_THRESH      = 0.3;  // confianza mínima de keypoint
 
 // ─── Tipos internos ───────────────────────────────────────────────────────────
@@ -26,18 +25,10 @@ interface ScanState {
   startMs: number;
 }
 
-interface DuelState {
-  trackIds: [number, number];
-  framesCount: number;
-  startMs: number;
-  type: "aerial" | "ground";
-}
-
 // ─── Analyzer ─────────────────────────────────────────────────────────────────
 
 export class PoseAnalyzer {
   private scanStates  = new Map<number, ScanState>();
-  private duelStates  = new Map<string, DuelState>();
 
   /** Accumulated scan counts per track ID — Sprint 14: used by ParticipationTracker */
   private scanCounts  = new Map<number, number>();
@@ -48,9 +39,8 @@ export class PoseAnalyzer {
     tracks:      Track[],
     timestampMs: number,
     fps:         number
-  ): { scans: ScanEvent[]; duels: DuelEvent[] } {
+  ): { scans: ScanEvent[] } {
     const newScans: ScanEvent[] = [];
-    const newDuels: DuelEvent[] = [];
 
     // ── Escaneo por jugador ───────────────────────────────────────────────────
     for (const track of tracks) {
@@ -98,57 +88,13 @@ export class PoseAnalyzer {
       }
     }
 
-    // ── Duelos entre pares de jugadores ───────────────────────────────────────
-    for (let i = 0; i < tracks.length; i++) {
-      for (let j = i + 1; j < tracks.length; j++) {
-        const a = tracks[i];
-        const b = tracks[j];
-        if (!a.lastFieldPos || !b.lastFieldPos) continue;
-
-        const dist = fieldDistance(a.lastFieldPos, b.lastFieldPos);
-        const key  = [Math.min(a.id, b.id), Math.max(a.id, b.id)].join("-");
-
-        if (dist <= DUEL_DISTANCE_M) {
-          const duelType = detectDuelType(a.keypoints, b.keypoints);
-
-          let state = this.duelStates.get(key);
-          if (!state) {
-            state = {
-              trackIds:   [a.id, b.id],
-              framesCount: 0,
-              startMs:    timestampMs,
-              type:       duelType,
-            };
-            this.duelStates.set(key, state);
-          }
-          state.framesCount++;
-
-          if (state.framesCount === DUEL_MIN_FRAMES) {
-            const midField = {
-              fx: ((a.lastFieldPos.fx + b.lastFieldPos.fx) / 2),
-              fy: ((a.lastFieldPos.fy + b.lastFieldPos.fy) / 2),
-            };
-            newDuels.push({
-              trackIds:    [a.id, b.id],
-              timestampMs: state.startMs,
-              fieldPos:    midField,
-              type:        state.type,
-              winnerId:    null, // se determina en frame posterior
-            });
-          }
-        } else {
-          this.duelStates.delete(key);
-        }
-      }
-    }
-
     // Limpiar tracks que ya no están activos
     const activeIds = new Set(tracks.map(t => t.id));
     for (const id of this.scanStates.keys()) {
       if (!activeIds.has(id)) this.scanStates.delete(id);
     }
 
-    return { scans: newScans, duels: newDuels };
+    return { scans: newScans };
   }
 
   /**
@@ -178,7 +124,6 @@ export class PoseAnalyzer {
 
   reset(): void {
     this.scanStates.clear();
-    this.duelStates.clear();
     this.scanCounts.clear();
     this.accumulatedScans = [];
   }
@@ -228,22 +173,4 @@ function detectScanDirection(keypoints: Keypoint[]): "left" | "right" | null {
   }
 
   return null;
-}
-
-// ─── Detectar tipo de duelo (aéreo vs en suelo) ───────────────────────────────
-
-function detectDuelType(kpA: Keypoint[], kpB: Keypoint[]): "aerial" | "ground" {
-  if (kpA.length < 17 || kpB.length < 17) return "ground";
-
-  // Si las caderas de ambos jugadores están por encima de sus rodillas → salto
-  const hipAy   = (kpA[11].y + kpA[12].y) / 2;
-  const kneeAy  = (kpA[13].y + kpA[14].y) / 2;
-  const hipBy   = (kpB[11].y + kpB[12].y) / 2;
-  const kneeby  = (kpB[13].y + kpB[14].y) / 2;
-
-  // En imagen: Y menor = más arriba; si cadera está cerca de rodilla en Y → saltando
-  const aJumping = Math.abs(hipAy - kneeAy) < 20;
-  const bJumping = Math.abs(hipBy - kneeby) < 20;
-
-  return (aJumping || bJumping) ? "aerial" : "ground";
 }

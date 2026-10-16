@@ -1,10 +1,10 @@
 /**
  * VITAS · Advanced Event Types (Sprint 3 — Expanded Event Detection)
  *
- * 21 new ball-aware tactical event types that extend the base 14 types
+ * 19 new ball-aware tactical event types that extend the base 12 types
  * from eventDetectionEngine.ts. These require ball tracking data to detect.
  *
- * Total: 14 (base) + 21 (new) = 35 tactical event types.
+ * Total: 12 (base) + 19 (new) = 31 tactical event types (sin duelos, P1 bloque 6).
  *
  * References:
  *   - Opta F24 event taxonomy
@@ -30,18 +30,16 @@ export type BallEventType =
   | "switch_play"         // Long diagonal pass switching sides (>30m horizontal)
   | "ball_recovery"       // Team regains possession after opponent had it
   | "turnover"            // Loss of possession (ball goes to opponent)
-  | "aerial_won"          // Won aerial duel (header, chest control)
-  | "aerial_lost"         // Lost aerial duel
   | "dispossessed"        // Opponent takes ball from player in possession
   | "second_assist"       // Pass before the assist pass
   | "chance_created"      // Action creating a clear goalscoring opportunity
   | "progressive_carry";  // Ball carry advancing >10m toward goal
 
-// ─── Combined type (all 35) ───────────────────────────────────────────────
+// ─── Combined type (all 31) ───────────────────────────────────────────────
 
 import type { TacticalEventType as BaseEventType } from "./eventDetectionEngine";
 
-/** All 35 tactical event types (14 base + 21 ball-aware) */
+/** All 31 tactical event types (12 base + 19 ball-aware). Sin duelos (P1 bloque 6). */
 export type ExpandedEventType = BaseEventType | BallEventType;
 
 // ─── Event metadata extensions ─────────────────────────────────────────────
@@ -90,8 +88,6 @@ export const BALL_EVENT_SPADL_MAP: Record<BallEventType, string> = {
   switch_play: "pass",
   ball_recovery: "interception",
   turnover: "bad_touch",
-  aerial_won: "take_on",
-  aerial_lost: "take_on",
   dispossessed: "bad_touch",
   second_assist: "pass",
   chance_created: "pass",

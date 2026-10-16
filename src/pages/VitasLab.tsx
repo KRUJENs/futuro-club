@@ -440,11 +440,9 @@ const VitasLab = () => {
       sessionMetrics: tracking.state.sessionMetrics,
       calibrationConfidence: tracking.state.calibrationConfidence,
       scanCount:      tracking.state.scanEvents.length,
-      duelCount:      tracking.state.duelEvents.length,
       tracksCount:    tracking.state.currentTracks.length,
       focusTrackId:   tracking.state.focusTrackId,
       scanEvents:     tracking.state.scanEvents,
-      duelEvents:     tracking.state.duelEvents,
       focusPositions: focusTrack?.positions.map(p => ({ fx: p.fx, fy: p.fy, tMs: p.timestampMs })),
       tacticalEvents:     focusEvents,
       biomechanicsScore:  mediaPipe.biomechanics ?? undefined,
@@ -698,7 +696,7 @@ const VitasLab = () => {
       const hasClientData = mediaPipe.biomechanics || tracking.state.sessionMetrics || eventSummary;
       if (hasClientData) {
         // Build physical metrics from YOLO tracking. DOS gates fail-closed:
-        //  - CALIBRACIÓN: las cifras en metros (velocidad/distancia/sprints/duelos)
+        //  - CALIBRACIÓN: las cifras en metros (velocidad/distancia/sprints)
         //    sin calibración fiable serían píxeles disfrazados.
         //  - IDENTIDAD (#24): sin identidad fiable del track enfocado, las métricas
         //    por-jugador pudieron acumularse tras un ID-switch → atribuidas al jugador
@@ -719,8 +717,8 @@ const VitasLab = () => {
             physicalMetrics.avgSpeedMs = sm.avgSpeedMs;
             physicalMetrics.distanceCoveredM = sm.distanceCoveredM;
             physicalMetrics.sprintCount = sm.sprintCount;
-            // Duelos: distancia en metros (≤1.8 m) + por-jugador → calibración + identidad.
-            physicalMetrics.duelCount = tracking.state.duelEvents.length;
+            // Sin duelos (P1 bloque 6): antes se mandaba el total de pares a ≤ 1,8 m de
+            // TODAS las pistas como si fueran del jugador.
           }
           // Escaneo (ángulo de cabeza): indep. de calibración pero SÍ de identidad
           // (es del jugador enfocado) → gatea solo por identidad.
@@ -755,8 +753,6 @@ const VitasLab = () => {
             passCompletionPct: eventSummary.passCompletionPct,
             passesAttempted: eventSummary.passesAttempted,
             passesCompleted: eventSummary.passesCompleted,
-            duelsWon: eventSummary.duelsWon,
-            duelsLost: eventSummary.duelsLost,
             recoveries: eventSummary.recoveries,
             sprintBursts: eventSummary.sprintBursts,
             shots: eventSummary.shots,

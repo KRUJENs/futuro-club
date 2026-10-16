@@ -3,7 +3,7 @@
  *
  * Cubre:
  *  - Input null/undefined → null
- *  - Solo eventos (gemini_only) → pases/duelos/recuperaciones/disparos + rating
+ *  - Solo eventos (gemini_only) → pases/recuperaciones/disparos + rating (sin duelos: P1 bloque 6)
  *  - Solo físicas (yolo_only) → fisicas + rating parcial
  *  - Ambos (yolo+gemini) → rating compuesto completo
  *  - Edge cases: zero totals, 100% precision, ratings cualitativos
@@ -24,8 +24,6 @@ function mkEventosOnly(overrides: Partial<MC["eventos"]> = {}): MC {
       pasesFallados: 10,
       precisionPases: 80,
       recuperaciones: 5,
-      duelosGanados: 6,
-      duelosPerdidos: 4,
       disparosAlArco: 3,
       disparosFuera: 2,
       ...overrides,
@@ -96,7 +94,7 @@ describe("matchStatsService", () => {
 
     it("es aditivo: los campos numéricos existentes no cambian", () => {
       expect(res.pases!.completados).toBe(40);
-      expect(res.duelos!.ganados).toBe(6);
+      expect(res.recuperaciones!.total).toBe(5);
     });
 
     it("sin eventos no hay eventMetrics", () => {
@@ -127,13 +125,15 @@ describe("matchStatsService", () => {
       expect(res.pases!.rating).toBe("excelente"); // 80 >= 80
     });
 
-    it("duelos calculados correctamente", () => {
-      expect(res.duelos).toBeDefined();
-      expect(res.duelos!.ganados).toBe(6);
-      expect(res.duelos!.perdidos).toBe(4);
-      expect(res.duelos!.total).toBe(10);
-      expect(res.duelos!.efectividad).toBe(60);
-      expect(res.duelos!.rating).toBe("competitivo"); // 60 >= 55
+    it("sin KPI de duelos (P1 bloque 6): ni con un informe antiguo que aún los traiga", () => {
+      expect(res).not.toHaveProperty("duelos");
+      const legacy = mkEventosOnly();
+      Object.assign(legacy.eventos as object, { duelosGanados: 6, duelosPerdidos: 4 });
+      const r = computeMatchStats(legacy)!;
+      expect(r).not.toHaveProperty("duelos");
+      expect(r.totalDefensivas).toBe(5);
+      expect(r.totalAcciones).toBe(50 + 5 + 5);
+      expect(r.performanceRating).toBe(res.performanceRating); // los duelos no pesan en el rating
     });
 
     it("recuperaciones con rating correcto", () => {
@@ -152,8 +152,8 @@ describe("matchStatsService", () => {
 
     it("totales agregados correctos", () => {
       expect(res.totalOfensivas).toBe(40 + 3);       // pases completados + disparos al arco
-      expect(res.totalDefensivas).toBe(6 + 5);       // duelos ganados + recuperaciones
-      expect(res.totalAcciones).toBe(50 + 10 + 5 + 5); // pases + duelos + rec + disparos
+      expect(res.totalDefensivas).toBe(5);           // recuperaciones (sin duelos)
+      expect(res.totalAcciones).toBe(50 + 5 + 5);    // pases + rec + disparos
     });
 
     it("rating compuesto entre 0 y 10", () => {
@@ -175,7 +175,7 @@ describe("matchStatsService", () => {
       expect(res.tieneEventos).toBe(false);
       expect(res.tieneFisicas).toBe(true);
       expect(res.pases).toBeUndefined();
-      expect(res.duelos).toBeUndefined();
+      expect(res).not.toHaveProperty("duelos");
     });
 
     it("físicas correctamente mapeadas", () => {
@@ -230,16 +230,6 @@ describe("matchStatsService", () => {
       expect(Number.isFinite(res.performanceRating)).toBe(true);
     });
 
-    it("duelos con 0 totales → igualado + efectividad 0", () => {
-      const res = computeMatchStats(mkEventosOnly({
-        duelosGanados: 0,
-        duelosPerdidos: 0,
-      }))!;
-      expect(res.duelos!.total).toBe(0);
-      expect(res.duelos!.efectividad).toBe(0);
-      expect(res.duelos!.rating).toBe("igualado");
-    });
-
     it("disparos con 0 totales → precision 0 (no NaN)", () => {
       const res = computeMatchStats(mkEventosOnly({
         disparosAlArco: 0,
@@ -258,15 +248,6 @@ describe("matchStatsService", () => {
       }))!;
       expect(res.pases!.precision).toBe(100);
       expect(res.pases!.rating).toBe("elite");
-    });
-
-    it("duelos 90% → dominante", () => {
-      const res = computeMatchStats(mkEventosOnly({
-        duelosGanados: 9,
-        duelosPerdidos: 1,
-      }))!;
-      expect(res.duelos!.efectividad).toBe(90);
-      expect(res.duelos!.rating).toBe("dominante");
     });
 
     it("recuperaciones 0 → bajo", () => {
@@ -301,8 +282,6 @@ describe("matchStatsService", () => {
         pasesCompletados: 100,
         pasesFallados: 0,
         precisionPases: 100,
-        duelosGanados: 20,
-        duelosPerdidos: 0,
         recuperaciones: 15,
         disparosAlArco: 10,
         disparosFuera: 0,
@@ -316,8 +295,6 @@ describe("matchStatsService", () => {
         pasesCompletados: 5,
         pasesFallados: 20,
         precisionPases: 20,
-        duelosGanados: 1,
-        duelosPerdidos: 10,
         recuperaciones: 0,
         disparosAlArco: 0,
         disparosFuera: 3,
@@ -345,7 +322,6 @@ describe("matchStatsService", () => {
         expect(Number.isFinite(r.performanceRating)).toBe(true);
         expect(Number.isFinite(r.totalAcciones)).toBe(true);
         if (r.pases) expect(Number.isFinite(r.pases.precision)).toBe(true);
-        if (r.duelos) expect(Number.isFinite(r.duelos.efectividad)).toBe(true);
         if (r.disparos) expect(Number.isFinite(r.disparos.precision)).toBe(true);
         if (r.fisicas) {
           expect(Number.isFinite(r.fisicas.velocidadMaxKmh)).toBe(true);

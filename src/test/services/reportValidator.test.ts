@@ -297,16 +297,15 @@ describe("validatePlayerReport", () => {
   });
 
   describe("event_plausibility", () => {
-    it("totalDuels > 100 → warning", () => {
+    it("sin regla de duelos (P1 bloque 6): un informe antiguo con 110 duelos no genera aviso ni cita duelos", () => {
       const report = makeValidPlayerReport();
       report.metricasCuantitativas.eventos.duelosGanados = 60;
       report.metricasCuantitativas.eventos.duelosPerdidos = 50;
 
       const result = validatePlayerReport(report, defaultPlayerContext);
 
-      const issue = result.issues.find((i: any) => i.rule === "event_plausibility");
-      expect(issue).toBeDefined();
-      expect(issue!.severity).toBe("warning");
+      expect(result.issues.find((i: any) => i.rule === "event_plausibility")).toBeUndefined();
+      expect(JSON.stringify(result.issues)).not.toMatch(/duelo/i);
     });
   });
 

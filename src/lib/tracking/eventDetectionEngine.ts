@@ -2,8 +2,11 @@
  * VITAS · Event Detection Engine (Tracking 9/10)
  *
  * Automated tactical event recognition from tracking data.
- * Detects passes, shots, duels, recoveries, tackles, and set pieces
+ * Detects passes, shots, recoveries, tackles, and set pieces
  * using physics-based heuristics on player positions and velocities.
+ * Sin duelos (P1 bloque 6): la detección por proximidad no separaba equipos y
+ * disparaba un evento por fotograma; el ganador («el más rápido») era inventado.
+ * El concepto vive bloqueado en src/lib/tracking/duels.ts.
  *
  * Input: Track[] from YOLO + MediaPipe keypoints (optional)
  * Output: TacticalEvent[] with classifications, confidence, and spatial context
@@ -15,18 +18,16 @@
  *   - Metrica Sports open-data event definitions
  */
 
-import type { Track, ScanEvent, DuelEvent, Keypoint } from "@/lib/yolo/types";
+import type { Track, ScanEvent, Keypoint } from "@/lib/yolo/types";
 import type { BallEventType } from "./advancedEventTypes";
 import { computeXgSimple } from "@/lib/xg/xgModel";
 
 /* ── Types ─────────────────────────────────────────────────────── */
 
-/** Base player-only event types (14) */
+/** Base player-only event types (12) */
 export type BaseEventType =
   | "pass"
   | "shot"
-  | "duel_aerial"
-  | "duel_ground"
   | "recovery"
   | "tackle"
   | "interception"
@@ -38,7 +39,7 @@ export type BaseEventType =
   | "cross"
   | "through_ball";
 
-/** All 35 tactical event types (14 base + 21 ball-aware from Sprint 3) */
+/** All 31 tactical event types (12 base + 19 ball-aware from Sprint 3) */
 export type TacticalEventType = BaseEventType | BallEventType;
 
 export type EventOutcome = "success" | "fail" | "neutral" | "unknown";
@@ -73,8 +74,6 @@ export interface EventDetectionConfig {
   sprintThresholdMs: number;
   /** Minimum deceleration (m/s²) to detect a tackle/press (default: -3.5) */
   decelThresholdMs2: number;
-  /** Maximum distance (m) between players to consider a duel (default: 2.0) */
-  duelProximityM: number;
   /** Ball speed proxy: max player speed change in one frame to detect a kick (default: 4.0 m/s) */
   kickSpeedChangeMs: number;
   /** Pass detection: direction alignment threshold in degrees (default: 30°) */
@@ -99,10 +98,6 @@ export interface EventSummary {
   passesAttempted: number;
   /** Total passes completed */
   passesCompleted: number;
-  /** Successful duels */
-  duelsWon: number;
-  /** Failed duels */
-  duelsLost: number;
   /** Recoveries */
   recoveries: number;
   /** Sprints detected */
@@ -122,7 +117,6 @@ export interface EventSummary {
 const DEFAULT_CONFIG: EventDetectionConfig = {
   sprintThresholdMs: 5.8,       // ~21 km/h
   decelThresholdMs2: -3.5,
-  duelProximityM: 2.0,
   kickSpeedChangeMs: 4.0,
   passAngleThresholdDeg: 30,
   carryMinDistanceM: 5.0,
@@ -240,44 +234,6 @@ export class EventDetectionEngine {
               distanceM: round2(fieldDistance(pos, lastFieldPos(nearestOpponent)!)),
             },
           }));
-        }
-      }
-
-      // ── Duel detection: two players converging rapidly ──
-      for (const other of tracks) {
-        if (other.id <= track.id) continue; // avoid duplicates
-        const otherPos = lastFieldPos(other);
-        if (!otherPos) continue;
-        const dist = fieldDistance(pos, otherPos);
-
-        if (dist < this.config.duelProximityM) {
-          const bothMoving = track.smoothSpeedMs > 1.5 && other.smoothSpeedMs > 1.5;
-          const prevOther = prevMap.get(other.id);
-          const prevOtherPos = prevOther ? lastFieldPos(prevOther) : null;
-          const prevDist = prevOtherPos && prevPos ? fieldDistance(prevPos, prevOtherPos) : dist + 1;
-
-          // Only trigger if converging (distance decreasing)
-          if (prevDist > dist && bothMoving) {
-            // Determine if aerial (check keypoints Y position) or ground
-            const isAerial = this.detectAerialDuel(track, other);
-
-            frameEvents.push(this.createEvent({
-              type: isAerial ? "duel_aerial" : "duel_ground",
-              timestampMs,
-              frameIndex,
-              actorTrackId: track.id,
-              receiverTrackId: other.id,
-              startPosition: pos,
-              endPosition: otherPos,
-              outcome: this.determineDuelOutcome(track, other, dt),
-              confidence: Math.min(1, (2.0 - dist) / 2.0 + 0.3),
-              metadata: {
-                distanceM: round2(dist),
-                actor_speedMs: round2(track.smoothSpeedMs),
-                opponent_speedMs: round2(other.smoothSpeedMs),
-              },
-            }));
-          }
         }
       }
 
@@ -462,8 +418,6 @@ export class EventDetectionEngine {
 
     const passes = events.filter(e => e.type === "pass" || e.type === "through_ball");
     const passesCompleted = passes.filter(e => e.outcome === "success").length;
-    const duels = events.filter(e => e.type === "duel_ground" || e.type === "duel_aerial");
-    const duelsWon = duels.filter(e => e.outcome === "success").length;
     const shots = events.filter(e => e.type === "shot");
     const xgTotal = shots.reduce((s, e) => s + (Number(e.metadata.xgApprox) || 0), 0);
 
@@ -481,11 +435,6 @@ export class EventDetectionEngine {
         : 0,
       passesAttempted: passes.length,
       passesCompleted,
-      duelsWon,
-      // Solo los duelos con resultado 'fail' cuentan como perdidos. Antes era
-      // (total - won), que metía los 'neutral' (indeterminados) como perdidos →
-      // sesgo sistemático a la baja. Un duelo sin ganador claro no es una derrota. (G3)
-      duelsLost: duels.filter(e => e.outcome === "fail").length,
       recoveries: byType.recovery ?? 0,
       sprintBursts: byType.sprint_burst ?? 0,
       pressTriggers: byType.press_trigger ?? 0,
@@ -591,28 +540,6 @@ export class EventDetectionEngine {
     }
 
     return bestReceiver;
-  }
-
-  private determineDuelOutcome(actor: Track, opponent: Track, dt: number): EventOutcome {
-    // Simple heuristic: player who maintains higher speed after duel frame wins
-    if (actor.smoothSpeedMs > opponent.smoothSpeedMs + 0.5) return "success";
-    if (opponent.smoothSpeedMs > actor.smoothSpeedMs + 0.5) return "fail";
-    return "neutral";
-  }
-
-  private detectAerialDuel(a: Track, b: Track): boolean {
-    // Check if either player's shoulder keypoints are elevated
-    // (simplified: if both players have similar Y for head keypoints = standing up = aerial)
-    if (!a.keypoints || !b.keypoints || a.keypoints.length < 17 || b.keypoints.length < 17) {
-      return false;
-    }
-    // COCO nose (idx 0): if both noses are above bbox center → aerial
-    const aHead = a.keypoints[0];
-    const bHead = b.keypoints[0];
-    if (!aHead || !bHead) return false;
-    const aBboxCenterY = a.bbox[1] + a.bbox[3] / 2;
-    const bBboxCenterY = b.bbox[1] + b.bbox[3] / 2;
-    return aHead.y < aBboxCenterY * 0.8 && bHead.y < bBboxCenterY * 0.8;
   }
 
   private computePassAngle(from: { fx: number; fy: number }, to: { fx: number; fy: number }): number {

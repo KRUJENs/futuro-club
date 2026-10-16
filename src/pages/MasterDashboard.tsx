@@ -80,8 +80,9 @@ const MasterDashboard = () => {
           : true
       )
       .map((p) => {
-        // Solo desde la maduración canónica firme con timing afirmado; sin ella, value null
-        // y la fila pinta el motivo del motor (nunca un nivel por defecto ni un percentil).
+        // Solo desde la maduración canónica firme con timing afirmado; sin ella, value null y
+        // la fila pinta el motivo TRADUCIDO (PhvGateNotice o «Timing por determinar»), nunca
+        // un nivel por defecto ni un percentil.
         const biasAlert = maturityBiasAlert(p);
         const academy =
           (user?.user_metadata?.organization as string | undefined) ||

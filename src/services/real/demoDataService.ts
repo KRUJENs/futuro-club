@@ -149,8 +149,7 @@ function buildDemoSnapshot(player: Player): TrackingSnapshot {
   const seed = ([...player.id].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7) || 7) % 97;
   const distance = Math.round(4200 + m.stamina * 42);
   const scanCount = Math.round(20 + m.vision * 0.3);
-  const duelsWon = Math.round(4 + m.defending * 0.06);
-  const duelsLost = Math.round(3 + (100 - m.defending) * 0.04);
+  // Sin duelos de ejemplo (P1 bloque 6): la métrica está bloqueada también en el demo.
   const sprintCount = Math.round(6 + m.speed * 0.14);
   const focusPositions = Array.from({ length: 24 }, (_, i) => {
     const a = (seed + i * 37) * 0.11;
@@ -180,16 +179,12 @@ function buildDemoSnapshot(player: Player): TrackingSnapshot {
         sprint: Math.round(distance * 0.08),
       },
       scanCount,
-      duelsWon,
-      duelsLost,
       avgVoronoiAreaM2: +(80 + m.vision * 0.6).toFixed(1),
     },
     scanCount,
-    duelCount: duelsWon + duelsLost,
     tracksCount: 22,
     focusTrackId: 1,
     scanEvents: [],
-    duelEvents: [],
     focusPositions,
   };
 }

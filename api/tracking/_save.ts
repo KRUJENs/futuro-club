@@ -7,6 +7,7 @@ import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { ownsPlayer } from "../_lib/ownership";
+import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 
 export const config = { runtime: "edge" };
 
@@ -17,6 +18,8 @@ const TrackingSaveSchema = z.object({
   durationMs: z.number().int().min(0).default(0),
   metrics: z.record(z.unknown()).default({}),
   scanEvents: z.array(z.unknown()).default([]),
+  // Se ACEPTA (clientes antiguos en caché) pero se IGNORA: sin criterio validado de duelo
+  // (P1 bloque 6, src/lib/tracking/duels.ts). Se guarda siempre [].
   duelEvents: z.array(z.unknown()).default([]),
   calibrationPreset: z.string().default("full_corners"),
 });
@@ -43,9 +46,9 @@ export default withHandler(
       video_id:          body.videoId,
       target_track_id:   body.targetTrackId ?? null,
       duration_ms:       body.durationMs    ?? 0,
-      metrics:           body.metrics       ?? {},
+      metrics:           stripDuelOutcomes(body.metrics ?? {}),
       scan_events:       body.scanEvents    ?? [],
-      duel_events:       body.duelEvents    ?? [],
+      duel_events:       [],
       calibration_preset: body.calibrationPreset ?? "full_corners",
     };
 

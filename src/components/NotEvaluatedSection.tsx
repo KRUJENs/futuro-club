@@ -74,7 +74,9 @@ function detectMissing(player: Player, hasAnalysis: boolean, hasTracking: boolea
     });
   }
 
-  if (hasAnalysis && !quant?.duelsWon && !quant?.duelsLost) {
+  // Duelos: SIEMPRE bloqueados (P1 bloque 6, src/lib/tracking/duels.ts). Antes se miraba
+  // un campo que ya no existe; ahora el motivo es el canónico, no «no se detectaron».
+  if (hasAnalysis) {
     missing.push({
       nameKey: "notEvaluatedSection.duelsName",
       reasonKey: "notEvaluatedSection.duelsReason",

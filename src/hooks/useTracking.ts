@@ -30,7 +30,6 @@ import {
   type PixelSpace,
   type Track,
   type ScanEvent,
-  type DuelEvent,
   type VoronoiRegion,
   type PhysicalMetrics,
   type TrackingStatus,
@@ -43,6 +42,7 @@ import type { BallTrackingState, PossessionTeam } from "./useBallTracking";
 import { PlayerIdentityManager } from "@/lib/yolo/playerIdentityManager";
 import { isTrackIdentityReliable } from "@/lib/yolo/tracker";
 import { gated, derived, ORIENTATIVE_CONFIDENCE, type MetricResult } from "@/lib/metrics/MetricResult";
+import { duelsMetric } from "@/lib/tracking/duels";
 import { autoCalibrate as runAutoCalibrate } from "@/lib/tracking/autoCalibrationBridge";
 import { autoCalibrationConfidence } from "@/lib/tracking/autoCalibrationConfidence";
 import type { CalibrationConfidence } from "@/lib/yolo/fieldRegistration";
@@ -61,7 +61,6 @@ export interface TrackingState {
   progressMessage: string;
   currentTracks:   Track[];
   scanEvents:      ScanEvent[];
-  duelEvents:      DuelEvent[];
   voronoiRegions:  VoronoiRegion[];
   focusTrackId:    number | null;
   sessionMetrics:  PhysicalMetrics | null;
@@ -128,9 +127,9 @@ const EMPTY_METRICS: PhysicalMetrics = {
   maxSpeedMs: 0, avgSpeedMs: 0, distanceCoveredM: 0,
   sprintCount: 0, sprintDistanceM: 0, maxAccelMs2: 0,
   intensityZones: { walk: 0, jog: 0, run: 0, sprint: 0 },
-  scanCount: 0, duelsWon: 0, duelsLost: 0, avgVoronoiAreaM2: 0,
+  scanCount: 0, avgVoronoiAreaM2: 0,
   identityReliable: false,
-  duels: gated("Sin sesión de tracking"),
+  duels: duelsMetric(),
   maxSpeed: gated("Sin sesión de tracking"),
   sprints: gated("Sin sesión de tracking"),
   avgSpeed: gated("Sin sesión de tracking"),
@@ -183,7 +182,6 @@ export function useTracking(options: UseTrackingOptions) {
     progressMessage: "",
     currentTracks:   [],
     scanEvents:      [],
-    duelEvents:      [],
     voronoiRegions:  [],
     focusTrackId:    null,
     sessionMetrics:  null,
@@ -215,7 +213,6 @@ export function useTracking(options: UseTrackingOptions) {
   // simultáneo). Se promedian al cerrar la sesión → space por jugador, sin sesgo.
   const voronoiSamplesRef = useRef<Map<number, number[]>>(new Map());
   const scanEventsRef   = useRef<ScanEvent[]>([]);
-  const duelEventsRef   = useRef<DuelEvent[]>([]);
   const allTracksRef    = useRef<Track[]>([]);
   const sessionStartRef = useRef<number>(0);
   // Refs to avoid stale closures in polling intervals
@@ -280,21 +277,19 @@ export function useTracking(options: UseTrackingOptions) {
             event.frameSpace ?? { width: FRAME_SIZE, height: FRAME_SIZE };
           const frameSpace: PixelSpace = event.frameSpace ?? { width: FRAME_SIZE, height: FRAME_SIZE };
 
-          // Pose analysis (scanning + duels) en espacio FRAME, NO en el nativo.
+          // Pose analysis (escaneo) en espacio FRAME, NO en el nativo.
           // PoseAnalyzer tiene umbrales en PÍXELES fijos (escaneo: |nariz − medio
-          // orejas| > 8 px; duelo aéreo: |cadera − rodilla| < 20 px) que siempre se
+          // orejas| > 8 px) que siempre se
           // evaluaron sobre el frame 640² que ve el modelo. Pasarle cajas nativas los
           // haría depender de la resolución (a 4K el umbral de escaneo sería ~6× más
           // laxo) → mismo gesto, distinto `scans` según la cámara. Se llevan los
           // tracks al FRAME: umbrales idénticos a los de antes, sin re-validar nada.
-          // Las posiciones en METROS (duelos por distancia) no cambian con el escalado.
-          const { scans, duels } = analyzerRef.current.analyzeTracks(
+          const { scans } = analyzerRef.current.analyzeTracks(
             tracksInSpace(tracks, trackSpace, frameSpace),
             event.timestampMs,
             TARGET_FPS
           );
           if (scans.length)  scanEventsRef.current  = [...scanEventsRef.current,  ...scans];
-          if (duels.length)  duelEventsRef.current  = [...duelEventsRef.current,  ...duels];
 
           // Voronoi cada VORONOI_INTERVAL_MS
           let voronoiRegions: VoronoiRegion[] = [];
@@ -391,7 +386,6 @@ export function useTracking(options: UseTrackingOptions) {
             currentTracks:  tracks,
             trackSpace,
             scanEvents:     scanEventsRef.current,
-            duelEvents:     duelEventsRef.current,
             ...(voronoiRegions.length ? { voronoiRegions } : {}),
             ...(updatedIdentities ? {
               identities: updatedIdentities,
@@ -419,7 +413,6 @@ export function useTracking(options: UseTrackingOptions) {
   const startTracking = useCallback(async (videoEl: HTMLVideoElement) => {
     videoRef.current = videoEl;
     scanEventsRef.current  = [];
-    duelEventsRef.current  = [];
     allTracksRef.current   = [];
     sessionStartRef.current = Date.now();
     analyzerRef.current.reset();
@@ -432,7 +425,6 @@ export function useTracking(options: UseTrackingOptions) {
       status:        "loading-model",
       modelProgress: 0,
       scanEvents:    [],
-      duelEvents:    [],
       voronoiRegions: [],
       sessionMetrics: null,
       error:         null,
@@ -599,7 +591,6 @@ export function useTracking(options: UseTrackingOptions) {
       allTracksRef.current,
       focusTrackIdRef.current,
       scanEventsRef.current,
-      duelEventsRef.current,
       voronoiSamplesRef.current
     );
 
@@ -729,7 +720,6 @@ export function computeSessionMetrics(
   tracks:       Track[],
   focusId:      number | null,
   scans:        ScanEvent[],
-  duels:        DuelEvent[],
   voronoiSamples: Map<number, number[]> = new Map()
 ): PhysicalMetrics {
   // Si hay un track enfocado, usar sus métricas; si no, promediar todos
@@ -768,7 +758,6 @@ export function computeSessionMetrics(
   const sprints  = focusTracks.reduce((s, t) => s + countSprintEvents(t), 0);
 
   const focusScans = scans.filter(s => !focusId || s.trackId === focusId);
-  const focusDuels = duels.filter(d => !focusId || d.trackIds.includes(focusId));
 
   // ¿Se pudo medir biomecánica del jugador enfocado en ALGÚN frame? En la ruta
   // detección-primero (recall, opt-in) un jugador siempre lejano es solo-posición:
@@ -813,13 +802,11 @@ export function computeSessionMetrics(
     maxAccelMs2:      Math.max(...focusTracks.map(t => t.accelMs2), 0),
     intensityZones:   zones,
     scanCount:        focusScans.length,
-    duelsWon:         focusDuels.filter(d => d.winnerId === focusId).length,
-    duelsLost:        focusDuels.filter(d => d.winnerId !== null && d.winnerId !== focusId).length,
     avgVoronoiAreaM2: avgVoronoi ?? 0, // vivo: componente; sesión: media muestreada (G7)
     identityReliable,
-    // Duelos G/P BLOQUEADOS: winnerId nunca se resuelve en la ruta tracking (poseAnalyzer
-    // deja winnerId=null) → won/lost serían siempre 0. Honesto: gated, no "0G/0P". (G3)
-    duels:            gated("Ganador de duelo no calculado (pendiente G3)"),
+    // Duelos: siempre bloqueados con su motivo (ruta única src/lib/tracking/duels.ts,
+    // P1 bloque 6). Ni se detectan ni se cuentan: no hay criterio validado.
+    duels:            duelsMetric(),
     // Físicas envueltas en MetricResult (G1). DERIVADA + orientativa (confidence baja):
     // sin calibración certificada son píxeles reescalados. Valores idénticos a los
     // campos numéricos de arriba; el gate por calibración y el pico p95 son G2.

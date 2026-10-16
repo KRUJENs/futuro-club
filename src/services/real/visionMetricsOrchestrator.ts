@@ -115,9 +115,8 @@ export interface VisionInputs {
   // From XgAccumulator
   xg?: XgSummary;
 
-  // Scan/duel counts from PoseAnalyzer
+  // Scan counts from PoseAnalyzer (sin duelos: P1 bloque 6, src/lib/tracking/duels.ts)
   scanCount?: number;
-  duelCount?: number;
 }
 
 /**
@@ -167,8 +166,6 @@ export function orchestrateVisionMetrics(inputs: VisionInputs): VisionMetrics {
     passCompletionPct: 0,
     passesAttempted: 0,
     passesCompleted: 0,
-    duelsWon: 0,
-    duelsLost: 0,
     recoveries: 0,
     sprintBursts: 0,
     pressTriggers: 0,
