@@ -49,12 +49,12 @@ export const GLOSSARY: Record<string, GlossaryTerm> = {
   scaniq: {
     term: "Scan IQ",
     short: "Escaneo pre-recepción",
-    long: "Frecuencia con que el jugador escanea el entorno antes de recibir el balón, calibrada por edad (investigación de Jordet).",
+    long: "Frecuencia con que el jugador escanea el entorno antes de recibir el balón. Hoy NO se calcula: no hay una base validada por edad ni un detector de recepciones con la identidad del jugador.",
   },
   dmscore: {
     term: "DM Score",
     short: "Decision-Making Score",
-    long: "Score 0-100 de toma de decisiones: Scan IQ + velocidad de decisión + composure bajo presión + lectura táctica.",
+    long: "Compuesto de toma de decisiones (Scan IQ, velocidad de decisión, temple bajo presión y lectura táctica). Hoy NO se calcula: sus pesos no tienen fuente y sus componentes no están medidos.",
   },
 };
 

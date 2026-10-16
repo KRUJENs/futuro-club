@@ -90,8 +90,7 @@ const IDPDashboard = lazy(() =>
 );
 
 // Sprint 1: Decision-Making Score + Scan IQ
-import { useDMScore } from "@/hooks/useDMScore";
-import { ScanningVideoAnalyses } from "@/services/real/scanningVideoDetector";
+import { dmScoreMetric, scanIQMetric } from "@/lib/dmscore";
 const DMScoreCard = lazy(() =>
   import("@/components/dmscore/DMScoreCard").then((m) => ({ default: m.DMScoreCard })),
 );
@@ -709,7 +708,7 @@ export default function PlayerHubPage() {
               transition={{ duration: 0.2 }}
               className="space-y-4"
             >
-              <DMScoreSection playerId={id} />
+              <DMScoreSection />
               <BehavioralDashboard playerId={id} />
             </motion.div>
           )}
@@ -1019,30 +1018,14 @@ function WellbeingTab({ playerId }: { playerId: string }) {
 
 // ── DM-Score Section (Sprint 1: Decision-Making + Scan IQ) ────────
 
-function DMScoreSection({ playerId }: { playerId: string }) {
-  const { data } = useDMScore(playerId);
-  if (!data) return null;
-
-  const latestScan = ScanningVideoAnalyses.getLatestForPlayer(playerId);
-
+// Ambos BLOQUEADOS con su motivo (P1 bloque 6b): sin base validada ni detector de
+// recepciones con identidad del jugador. Antes: useDMScore (edad 14 por defecto) y un
+// Scan IQ «calibrado por edad» rotulado «Vídeo real». Hueco visible, nunca una cifra.
+function DMScoreSection() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      <DMScoreCard result={data.dmScore} />
-      {data.scanIQ && (
-        <ScanIQCard
-          result={data.scanIQ}
-          source={data.scanSource}
-          stats={
-            latestScan
-              ? {
-                  receptionsAnalyzed: latestScan.receptionsAnalyzed,
-                  successWithScan: latestScan.successWithScan,
-                  successWithoutScan: latestScan.successWithoutScan,
-                }
-              : undefined
-          }
-        />
-      )}
+      <DMScoreCard metric={dmScoreMetric()} />
+      <ScanIQCard metric={scanIQMetric()} />
     </div>
   );
 }

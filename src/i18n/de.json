@@ -3404,20 +3404,6 @@
     "partialDataDescription": "Es liegen nur Teildaten vor. Einige Indikatoren können unterrepräsentiert oder in ihrer Zuverlässigkeit reduziert sein.",
     "retry": "Erneut versuchen"
   },
-  "scanIQCard": {
-    "subtitle": "Visuelles Umblicken vor der Annahme · kalibriert {{ageBand}}",
-    "realVideo": "Echtes Video",
-    "estimated": "Geschätzt",
-    "scansLikeAge": "Blickt um wie ein ~{{age}}-Jähriger (+{{delta}})",
-    "percentilePrefix": "Perzentil",
-    "percentileSuffix": "seines Alters · {{scans}} Scans/Annahme",
-    "successWithScan": "Erfolg mit Scan",
-    "successWithoutScan": "vs. ohne Scan",
-    "receptionsCount": " · {{count}} Annahmen",
-    "researchPrefix": "Forschung (Jordet, Premier League): Spieler, die es zum Profi schaffen, blickten",
-    "researchEmphasis": "mit 12-14 Jahren 2× häufiger um",
-    "researchSuffix": ". Es ist der früheste und stabilste Indikator für Elite-Potenzial."
-  },
   "scanningIntelligenceReport": {
     "title": "Bericht zum Umblicken vor der Annahme",
     "player": "Spieler",
@@ -4074,63 +4060,34 @@
     "sampleLabel": "Stichprobe"
   },
   "scanningAnalyzerDialog": {
-    "toastSuccess": "Umblicken analysiert · Scan-IQ {{scanIQ}}/100",
+    "toastSuccess": "Demo-Beispiel geladen",
     "toastError": "Fehler beim Analysieren des Umblickens",
-    "title": "Umblicken aus Video analysieren",
+    "title": "Scan IQ · Demo-Beispiel",
     "playerLabel": "Spieler",
-    "subtitleSuffix": "zählt Scans in den 10 s vor jeder Annahme",
-    "intro": "Wähle ein Video. Die Pipeline führt Pose-Estimation für den Zielspieler durch und zählt die Kopfdrehungen vor jeder Annahme.",
-    "uploadedVideo": "hochgeladenes Video",
+    "subtitleSuffix": "kein Video analysiert",
     "demoMatch": "Demo-Spiel",
-    "pipelineTitle": "Was macht die Pipeline?",
-    "pipelineStep1": "Tracking des Zielspielers während des gesamten Spiels",
-    "pipelineStep2": "Pose-Estimation · erkennt Kopfdrehungen >30°",
-    "pipelineStep3": "Identifiziert jede Ballannahme",
-    "pipelineStep4": "Zählt Scans in den 10 Sekunden vor jeder Annahme",
-    "pipelineStep5": "Korreliert mit der Qualität der anschließenden Entscheidung",
     "analyzing": "Analysiert",
     "analysisComplete": "Analyse abgeschlossen",
-    "receptionsAnalyzed": "{{count}} Annahmen analysiert",
     "scansPerReception": "Scans / Annahme",
     "successWithScan": "Erfolg mit Scan",
     "cancel": "Abbrechen",
     "analyze": "Analysieren",
-    "closeAndViewReport": "Schließen und Bericht ansehen"
+    "closeAndViewReport": "Schließen und Bericht ansehen",
+    "demoIntro": "Demo-Modus: Wähle ein Beispielspiel, um einen BEISPIEL-Scan-IQ zu laden. Es wird kein Video analysiert."
   },
   "scanningIntelligencePage": {
-    "demoNotice": "Der Scan-IQ und das Ranking unten sind BEISPIELWERTE (aus dem Spieler abgeleitet, nicht gemessen). Der echte Scan-IQ erscheint, wenn du ein Video des Spielers analysierst.",
+    "demoNotice": "Der Scan IQ und der Bericht unten sind ein festes BEISPIEL (für alle Spieler gleich), keine Messung.",
     "headerSubtitle": "Umblicken vor der Ballannahme",
-    "playerAnalyzedSingular": "Spieler analysiert",
-    "playerAnalyzedPlural": "Spieler analysiert",
     "createPlayerFirst": "Erstelle zuerst einen Spieler.",
-    "demoLoaded": "Demo-Scan-IQ für {{name}} geladen ({{scanIQ}}/100)",
+    "demoLoaded": "Demo-Beispiel für {{name}} geladen",
     "demoButtonTitle": "Scan-IQ mit Beispieldaten ansehen (ohne Video-Upload)",
     "demoData": "Demo-Daten",
-    "uploadVideoTitle": "Lade ein Video hoch und analysiere sein Umblicken",
-    "uploadVideo": "Video hochladen",
-    "analyzeVideoTitle": "Analysiere das Umblicken des Spielers aus einem Video",
+    "analyzeVideoTitle": "Lade das Beispiel aus einem Demospiel",
     "analyzeVideo": "Video analysieren",
-    "statAvgScanIQ": "Durchschn. Scan-IQ",
-    "statElitePlayers": "Elite-Spieler",
-    "statToImprove": "Zu verbessern",
-    "statTopPlayer": "Top-Spieler",
-    "latestVideoAnalysisLabel": "Letzte Umblick-Analyse aus Video:",
-    "receptions": "Annahmen",
-    "videoScanIQ": "Scan-IQ des Videos",
-    "searchPlayer": "Spieler suchen…",
-    "yearsAbbrev": "J",
-    "tierElite": "Elite",
-    "tierProfessional": "Professionell",
-    "tierRegional": "Regional",
-    "tierBase": "Basis",
-    "noPlayerMatches": "Kein Spieler passt zu \"{{query}}\"",
-    "mentalProfilePrompt": "Möchtest du das vollständige mentale Profil von {{name}} sehen?",
-    "openMentalProfile": "Mentales Profil öffnen →",
-    "selectPlayerLeft": "Wähle links einen Spieler.",
-    "scanIQUpdated": "Scan-IQ auf {{scanIQ}}/100 für {{name}} aktualisiert",
     "emptyTitle": "Noch keine Spieler",
-    "emptyDescription": "Die Umblick-Analyse zählt, wie oft jeder Spieler in den 10 s vor der Ballannahme die Umgebung absucht, und korreliert das mit der Qualität seiner anschließenden Entscheidung. Du brauchst Spieler im Team, um es zu sehen.",
-    "createFirstPlayer": "Ersten Spieler erstellen"
+    "createFirstPlayer": "Ersten Spieler erstellen",
+    "gateUnlock": "Wird aktiviert, sobald es einen Detektor für Ballannahmen mit der Identität des Spielers (Rückennummer) und eine altersbezogene Referenz mit Quelle gibt, validiert an von Hand annotierten Clips.",
+    "demoHint": "Lade das Beispiel mit den Schaltflächen oben (Demodaten oder ein Demospiel)."
   },
   "smartMatchPrompt": {
     "example1": "Ich brauche einen linksfüßigen U19-Innenverteidiger mit Führung und Kopfballstärke. Budget 400k.",
@@ -4843,16 +4800,6 @@
     "backToDashboard": "Zurück zum Dashboard",
     "adminPanelDesc": "Vollständiges Panel für Kennzahlen und Analytik (nur Admin)"
   },
-  "dmScoreCard": {
-    "subtitle": "Wie er das echte Spiel verarbeitet — was isolierte Drills nicht sehen",
-    "confidence": "Konfidenz {{count}}%",
-    "sourceLabel": "Quelle: {{source}}",
-    "sourceReal": "echtes Video",
-    "sourceMock": "geschätzt",
-    "sourceBpe": "mentales Profil",
-    "sourceVideo": "Videoanalyse",
-    "sourceUnknown": "—"
-  },
   "folderPicker": {
     "removedFromFolder": "Aus dem Ordner entfernt",
     "addedToFolder": "Zum Ordner hinzugefügt",
@@ -5116,7 +5063,8 @@
     "zoneWalk": "Gehen",
     "zoneJog": "Traben",
     "zoneRun": "Laufen",
-    "reAnalyze": "Mit neuerem Video neu analysieren"
+    "reAnalyze": "Mit neuerem Video neu analysieren",
+    "scansNotAttributable": "Nicht zuordenbar"
   },
   "transferFilters": {
     "freeSearch": "Freie Suche",
@@ -6397,5 +6345,11 @@
     "value": "Nicht verfügbar",
     "hint": "Kein validiertes Zweikampfkriterium",
     "reason": "VITAS zählt keine Zweikämpfe: Es gibt kein validiertes Kriterium dafür, was ein Zweikampf ist und wer ihn gewinnt (die menschliche Annotation fehlt). Sie werden nicht aus der Nähe abgeleitet."
+  },
+  "scanIqGate": {
+    "reason": "Scan IQ nicht verfügbar: Es gibt keine validierte Grundlage, um das Umblicken nach Alter zu bewerten, und die Videoanalyse erkennt weder Ballannahmen noch den Spieler."
+  },
+  "dmScoreGate": {
+    "reason": "Decision-Making Score nicht verfügbar: Seine Gewichte haben keine Quelle und seine Komponenten werden nicht gemessen (Scan IQ gesperrt; Entscheidungsgeschwindigkeit und Nervenstärke nicht validiert; taktisches Lesen nicht aus dem Video gemessen)."
   }
 }

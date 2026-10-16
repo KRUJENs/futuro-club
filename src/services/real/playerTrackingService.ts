@@ -49,7 +49,9 @@ export interface TrackingSnapshot {
    * puntos del campo. Los snapshots antiguos no la tienen (undefined) → aviso.
    */
   calibrationConfidence?: CalibrationConfidence;
-  scanCount:      number;
+  /** Escaneos del jugador ENFOCADO; null si no hay pista enfocada o no fueron medibles
+   *  (P1 bloque 6b). Snapshots anteriores pueden traer los de TODAS las pistas (bloque 7). */
+  scanCount:      number | null;
   // Sin duelCount/duelEvents (P1 bloque 6): no hay criterio validado de duelo
   // (src/lib/tracking/duels.ts). Los snapshots antiguos que los traen se ignoran.
   tracksCount:    number;

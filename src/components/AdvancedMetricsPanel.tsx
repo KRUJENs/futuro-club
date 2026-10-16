@@ -232,7 +232,10 @@ function buildTrackingFromSnapshot(s: TrackingSnapshot): {
     sprintCount:      m.sprintCount,
     sprintDistanceM:  m.sprintDistanceM > 0 ? m.sprintDistanceM : null,
     status:           "calculated",
-    message:          `Calculado desde ${s.tracksCount} tracks · ${s.scanCount} escaneos detectados (VITAS Lab)`,
+    // Escaneos del jugador enfocado; sin pista enfocada no se citan (P1 bloque 6b).
+    message:          s.scanCount != null
+      ? `Calculado desde ${s.tracksCount} tracks · ${s.scanCount} escaneos detectados (VITAS Lab)`
+      : `Calculado desde ${s.tracksCount} tracks (VITAS Lab)`,
   };
 }
 

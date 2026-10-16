@@ -7,14 +7,18 @@
  * - Bar chart distribution of scans count per reception
  * - Correlation panel: scans → post-reception decision quality
  *
- * Phase 1 uses deterministic mock data generated from playerId so the same
- * player always shows the same report. Phase 2 replaces with real data from
- * the scanningIntelligenceDetector output.
+ * P1 bloque 6b (punto 9): FUERA del demo no se pinta nada de esto (no hay detector de
+ * recepciones ni identidad del jugador): el motivo de Scan IQ. En el DEMO, un EJEMPLO
+ * FIJO (semilla constante, el mismo para todos los jugadores; MOCK con banner en la
+ * página). Antes las recepciones, presiones y resultados salían de un hash del id del
+ * jugador, también fuera del demo (BehavioralDashboard).
  */
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
+import { IS_DEMO } from "@/lib/demoMode";
+import { SCAN_IQ_DEMO_EXAMPLE } from "@/lib/dmscore/scanIQExample";
 import {
   Eye,
   Target,
@@ -28,7 +32,7 @@ import {
 interface Props {
   playerId: string;
   playerName?: string;
-  /** Optional pre-computed score (0-100). If absent, derives from playerId. */
+  /** Ya no se usa: el informe es un ejemplo fijo (demo) o el motivo del bloqueo. */
   scanningScore?: number;
 }
 
@@ -69,8 +73,11 @@ function seededRng(seed: string): () => number {
   };
 }
 
-function generateReceptions(playerId: string, scoreHint: number): ReceptionEvent[] {
-  const rng = seededRng(`scan_${playerId}`);
+/** Semilla CONSTANTE del ejemplo del demo: nada derivado del id del jugador. */
+const EXAMPLE_SEED = "vitas-demo-scan-example";
+
+function generateReceptions(scoreHint: number): ReceptionEvent[] {
+  const rng = seededRng(EXAMPLE_SEED);
   const count = 18 + Math.floor(rng() * 8);
   // Higher score → more scans on average
   const avgScansTarget = 1.5 + (scoreHint / 100) * 3.5;
@@ -101,7 +108,7 @@ function generateReceptions(playerId: string, scoreHint: number): ReceptionEvent
     const forwardOriented = scansPreReception >= 2 && rng() > 0.3;
 
     events.push({
-      id: `recv_${playerId}_${events.length}`,
+      id: `recv_example_${events.length}`,
       minute,
       scansPreReception,
       outcome,
@@ -128,21 +135,29 @@ function getAgeBenchmark(scoringScore: number): {
   return { group: "Base", percentile: 35, description: "Mejorar el hábito de escanear antes de recibir" };
 }
 
-export default function ScanningIntelligenceReport({
-  playerId,
-  playerName,
-  scanningScore,
-}: Props) {
-  const { t } = useTranslation();
-  // Derive score from playerId if not provided (same seed as overview)
-  const score = useMemo(() => {
-    if (scanningScore !== undefined) return scanningScore;
-    const rng = seededRng(playerId);
-    rng(); // skip first
-    return Math.round(40 + rng() * 55);
-  }, [playerId, scanningScore]);
+export default function ScanningIntelligenceReport(props: Props) {
+  return IS_DEMO ? <ScanningExampleReport {...props} /> : <ScanningReportGated />;
+}
 
-  const receptions = useMemo(() => generateReceptions(playerId, score), [playerId, score]);
+/** Fuera del demo: el motivo del bloqueo de Scan IQ (inv #2), nunca un informe. */
+function ScanningReportGated() {
+  const { t } = useTranslation();
+  return (
+    <div className="rounded-xl border border-dashed border-border bg-secondary/20 p-4" data-testid="scanning-report-gated">
+      <div className="flex items-center gap-2 mb-1">
+        <Eye size={14} className="text-pink-500" />
+        <h3 className="text-sm font-display font-bold text-foreground">{t("scanningIntelligenceReport.title")}</h3>
+      </div>
+      <p className="text-xs text-muted-foreground">{t("scanIqGate.reason")}</p>
+    </div>
+  );
+}
+
+/** DEMO: ejemplo fijo (MOCK), el mismo para todos los jugadores. */
+function ScanningExampleReport({ playerName }: Props) {
+  const { t } = useTranslation();
+  const score = SCAN_IQ_DEMO_EXAMPLE.scanIQ;
+  const receptions = useMemo(() => generateReceptions(score), [score]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const stats = useMemo(() => {

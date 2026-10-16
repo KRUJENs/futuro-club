@@ -108,7 +108,9 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
 
       {/* Eventos clave */}
       <div className="grid grid-cols-3 gap-2">
-        <StatCard icon={<Eye size={12} className="text-cyan-400" />} label={t("trackingSnapshotPanel.labelScans")} value={`${snapshot.scanCount}`} unit={t("trackingSnapshotPanel.unitHeadTurns")} />
+        {/* Escaneos del jugador ENFOCADO; null ⇒ motivo (sin pista enfocada o no medibles),
+            nunca un 0 ni los de todas las pistas (P1 bloque 6b). */}
+        <StatCard icon={<Eye size={12} className="text-cyan-400" />} label={t("trackingSnapshotPanel.labelScans")} value={snapshot.scanCount != null ? `${snapshot.scanCount}` : t("trackingSnapshotPanel.scansNotAttributable")} unit={snapshot.scanCount != null ? t("trackingSnapshotPanel.unitHeadTurns") : ""} />
         {/* Duelos SIEMPRE bloqueados (P1 bloque 6): antes «0/0 ganados» (el ganador nunca
             se resolvía). Hueco con su motivo, también para snapshots guardados antes. */}
         <StatCard icon={<Swords size={12} className="text-orange-400" />} label={t("trackingSnapshotPanel.labelDuels")} value={duelsGateText(t).value} unit={duelsGateText(t).hint} />

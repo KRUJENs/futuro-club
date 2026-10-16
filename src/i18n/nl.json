@@ -3405,20 +3405,6 @@
     "partialDataDescription": "Er zijn slechts gedeeltelijke gegevens beschikbaar. Sommige indicatoren kunnen ondervertegenwoordigd zijn of een verminderde betrouwbaarheid hebben.",
     "retry": "Opnieuw proberen"
   },
-  "scanIQCard": {
-    "subtitle": "Visuele exploratie vóór balaanname · gekalibreerd {{ageBand}}",
-    "realVideo": "Echte video",
-    "estimated": "Geschat",
-    "scansLikeAge": "Scant als iemand van ~{{age}} jaar (+{{delta}})",
-    "percentilePrefix": "Percentiel",
-    "percentileSuffix": "van zijn/haar leeftijd · {{scans}} scans/balaanname",
-    "successWithScan": "Succes met scan",
-    "successWithoutScan": "vs zonder scan",
-    "receptionsCount": " · {{count}} balaannames",
-    "researchPrefix": "Onderzoek (Jordet, Premier League): spelers die profvoetballer worden, scanden",
-    "researchEmphasis": "2× vaker op 12-14-jarige leeftijd",
-    "researchSuffix": ". Het is de vroegste en meest stabiele indicator van elitepotentieel."
-  },
   "scanningIntelligenceReport": {
     "title": "Rapport over scannen vóór balaanname",
     "player": "Speler",
@@ -4075,63 +4061,34 @@
     "sampleLabel": "Steekproef"
   },
   "scanningAnalyzerDialog": {
-    "toastSuccess": "Scannen geanalyseerd · Scan IQ {{scanIQ}}/100",
+    "toastSuccess": "Demovoorbeeld geladen",
     "toastError": "Fout bij analyseren van het scannen",
-    "title": "Scannen analyseren vanuit video",
+    "title": "Scan IQ · demovoorbeeld",
     "playerLabel": "Speler",
-    "subtitleSuffix": "telt scans in de 10s vóór elke balaanname",
-    "intro": "Selecteer een video. De pipeline draait pose estimation op de doelspeler en telt de hoofdbewegingen vóór elke balaanname.",
-    "uploadedVideo": "geüploade video",
+    "subtitleSuffix": "geen video geanalyseerd",
     "demoMatch": "demowedstrijd",
-    "pipelineTitle": "Wat doet de pipeline?",
-    "pipelineStep1": "Tracking van de doelspeler gedurende de hele wedstrijd",
-    "pipelineStep2": "Pose estimation · detecteert hoofdbewegingen >30°",
-    "pipelineStep3": "Identificeert elke balaanname",
-    "pipelineStep4": "Telt scans in de 10 seconden vóór elke balaanname",
-    "pipelineStep5": "Correleert met de kwaliteit van de daaropvolgende beslissing",
     "analyzing": "Analyseren",
     "analysisComplete": "Analyse voltooid",
-    "receptionsAnalyzed": "{{count}} balaannames geanalyseerd",
     "scansPerReception": "Scans / balaanname",
     "successWithScan": "Succes met scan",
     "cancel": "Annuleren",
     "analyze": "Analyseren",
-    "closeAndViewReport": "Sluiten en rapport bekijken"
+    "closeAndViewReport": "Sluiten en rapport bekijken",
+    "demoIntro": "Demomodus: kies een voorbeeldwedstrijd om een VOORBEELD-Scan IQ te laden. Er wordt geen video geanalyseerd."
   },
   "scanningIntelligencePage": {
-    "demoNotice": "De Scan IQ en de ranglijst hieronder zijn VOORBEELDwaarden (afgeleid van de speler, niet gemeten). De echte Scan IQ verschijnt bij het analyseren van een video van de speler.",
+    "demoNotice": "De Scan IQ en het rapport hieronder zijn een vast VOORBEELD (voor alle spelers hetzelfde), geen meting.",
     "headerSubtitle": "Scannen vóór balaanname",
-    "playerAnalyzedSingular": "speler geanalyseerd",
-    "playerAnalyzedPlural": "spelers geanalyseerd",
     "createPlayerFirst": "Maak eerst een speler aan.",
-    "demoLoaded": "Demo-Scan IQ geladen voor {{name}} ({{scanIQ}}/100)",
+    "demoLoaded": "Demovoorbeeld geladen voor {{name}}",
     "demoButtonTitle": "Bekijk de Scan IQ met voorbeeldgegevens (zonder video te uploaden)",
     "demoData": "Demogegevens",
-    "uploadVideoTitle": "Upload een video en analyseer het scannen",
-    "uploadVideo": "Video uploaden",
-    "analyzeVideoTitle": "Analyseer het scannen van de speler vanuit een video",
+    "analyzeVideoTitle": "Laad het voorbeeld uit een demowedstrijd",
     "analyzeVideo": "Video analyseren",
-    "statAvgScanIQ": "Gemiddelde Scan IQ",
-    "statElitePlayers": "Elitespelers",
-    "statToImprove": "Te verbeteren",
-    "statTopPlayer": "Topspeler",
-    "latestVideoAnalysisLabel": "Laatste scan-analyse vanuit video:",
-    "receptions": "balaannames",
-    "videoScanIQ": "Scan IQ van de video",
-    "searchPlayer": "Speler zoeken…",
-    "yearsAbbrev": "j",
-    "tierElite": "Elite",
-    "tierProfessional": "Professioneel",
-    "tierRegional": "Regionaal",
-    "tierBase": "Basis",
-    "noPlayerMatches": "Geen enkele speler komt overeen met \"{{query}}\"",
-    "mentalProfilePrompt": "Wil je het volledige mentale profiel van {{name}} bekijken?",
-    "openMentalProfile": "Mentaal profiel openen →",
-    "selectPlayerLeft": "Selecteer een speler links.",
-    "scanIQUpdated": "Scan IQ bijgewerkt naar {{scanIQ}}/100 voor {{name}}",
     "emptyTitle": "Nog geen spelers",
-    "emptyDescription": "De scan-analyse telt hoe vaak elke speler naar de omgeving kijkt in de 10s vóór balaanname en correleert dat met de kwaliteit van zijn/haar daaropvolgende beslissing. Je hebt spelers in het team nodig om het te zien.",
-    "createFirstPlayer": "Eerste speler aanmaken"
+    "createFirstPlayer": "Eerste speler aanmaken",
+    "gateUnlock": "Wordt geactiveerd zodra er een detector van balaannames is met de identiteit van de speler (rugnummer) en een leeftijdsreferentie met bron, gevalideerd met handmatig geannoteerde clips.",
+    "demoHint": "Laad het voorbeeld met de knoppen hierboven (demodata of een demowedstrijd)."
   },
   "smartMatchPrompt": {
     "example1": "Ik zoek een linksbenige centrale verdediger onder 19 met leiderschap en kopspel. Budget 400k.",
@@ -4844,16 +4801,6 @@
     "backToDashboard": "Terug naar dashboard",
     "adminPanelDesc": "Volledig paneel met metrics en analytics (alleen beheerder)"
   },
-  "dmScoreCard": {
-    "subtitle": "Hoe hij/zij het echte spel verwerkt — wat geïsoleerde drills niet zien",
-    "confidence": "Betrouwbaarheid {{count}}%",
-    "sourceLabel": "bron: {{source}}",
-    "sourceReal": "echte video",
-    "sourceMock": "geschat",
-    "sourceBpe": "mentaal profiel",
-    "sourceVideo": "video-analyse",
-    "sourceUnknown": "—"
-  },
   "folderPicker": {
     "removedFromFolder": "Uit de map verwijderd",
     "addedToFolder": "Toegevoegd aan de map",
@@ -5117,7 +5064,8 @@
     "zoneWalk": "Wandelen",
     "zoneJog": "Joggen",
     "zoneRun": "Rennen",
-    "reAnalyze": "Opnieuw analyseren met recentere video"
+    "reAnalyze": "Opnieuw analyseren met recentere video",
+    "scansNotAttributable": "Niet toe te wijzen"
   },
   "transferFilters": {
     "freeSearch": "Vrij zoeken",
@@ -6398,5 +6346,11 @@
     "value": "Niet beschikbaar",
     "hint": "Geen gevalideerd duelcriterium",
     "reason": "VITAS telt geen duels: er is geen gevalideerd criterium voor wat een duel is of wie het wint (de menselijke annotatie ontbreekt). Ze worden niet afgeleid uit nabijheid."
+  },
+  "scanIqGate": {
+    "reason": "Scan IQ niet beschikbaar: er is geen gevalideerde basis om het scannen naar leeftijd te beoordelen, en de video-analyse detecteert geen balaannames en herkent de speler niet."
+  },
+  "dmScoreGate": {
+    "reason": "Decision-Making Score niet beschikbaar: de gewichten hebben geen bron en de onderdelen worden niet gemeten (Scan IQ geblokkeerd; beslissnelheid en kalmte niet gevalideerd; tactisch lezen niet gemeten uit de video)."
   }
 }

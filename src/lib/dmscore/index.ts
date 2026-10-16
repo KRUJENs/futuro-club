@@ -1,24 +1,7 @@
 /**
- * VITAS · DM-Score module — public API (Sprint 1.1 + 1.2)
+ * VITAS · DM-Score / Scan IQ — API pública. Ambos BLOQUEADOS con su motivo (P1 bloque 6b).
  */
-export {
-  SCAN_BENCHMARKS,
-  DECISION_SPEED_BENCHMARKS,
-  scanBandForAge,
-} from "./benchmarks";
-export type { AgeBandBenchmark } from "./benchmarks";
+export { scanIQMetric, SCAN_IQ_GATE_REASON, SCAN_IQ_SOURCE_REF } from "./scanIQ";
+export { scanIQDemoExample, SCAN_IQ_DEMO_EXAMPLE } from "./scanIQExample";
 
-export { computeScanIQ } from "./scanIQ";
-export type { ScanIQResult } from "./scanIQ";
-
-export {
-  computeDMScore,
-  DM_WEIGHTS,
-  DM_COMPONENT_LABELS,
-} from "./dmScore";
-export type {
-  DMScoreInput,
-  DMScoreResult,
-  DMScoreBreakdownItem,
-  DMComponentKey,
-} from "./dmScore";
+export { dmScoreMetric, DM_SCORE_GATE_REASON, DM_SCORE_SOURCE_REF } from "./dmScore";
