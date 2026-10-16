@@ -417,7 +417,6 @@
       "advancedAnalysis": "Geavanceerde analyse",
       "dominantFeatures": "Dominante kenmerken",
       "areasToDevelope": "Ontwikkelpunten",
-      "correctionFactor": "correctiefactor",
       "vaepTitle": "VAEP · Waarde per actie",
       "vaepNoEvents": "Nog geen acties — druk op LOG om wedstrijdacties te registreren.",
       "topActions": "Topacties:",
@@ -707,7 +706,11 @@
     "systemReliability": "Systeembetrouwbaarheid",
     "expertDesk": "Hulp van een specialist nodig?",
     "expertDeskDesc": "Onze biomechanica- en scoutingexperts staan klaar voor gedetailleerde rapportbeoordelingen.",
-    "contactExpert": "Neem contact op met Expert Desk"
+    "contactExpert": "Neem contact op met Expert Desk",
+    "biasHigh": "Hoge bias-melding",
+    "biasMed": "Gemiddelde bias-melding",
+    "biasLow": "Lage bias-melding",
+    "biasNoMaturity": "Geen bias-melding: rijping niet met voldoende zekerheid vastgelegd"
   },
   "clubAccess": {
     "directorTitle": "Toegang tot de club",

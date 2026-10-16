@@ -19,10 +19,9 @@ import {
 } from "lucide-react";
 import { PlayerService } from "@/services/real/playerService";
 import { computeDashboardStats } from "@/services/real/adapters";
-import { percentilesAmong } from "@/lib/metrics/percentile";
+import { maturityBiasAlert, type MaturityBiasAlert } from "@/lib/metrics/maturityBiasAlert";
 import { coachEvalTier, type CoachEvalTier } from "@/services/real/metricsService";
 import { COACH_EVAL_TIERS } from "../../config/coachEvaluation";
-import { gatedMaturity } from "@/lib/phv/phvGate";
 import { realVsiEvaluations } from "@/lib/scoring/vsiDelta";
 import { coachEvalInline } from "@/lib/metrics/coachEval";
 import { useTranslation } from "react-i18next";
@@ -35,10 +34,10 @@ const sidebarItems = [
   { path: "/settings", icon: Settings, labelKey: "masterDashboard.navSettings" },
 ];
 
-const biasColors: Record<string, { bg: string; text: string; label: string }> = {
-  low: { bg: "bg-primary/20", text: "text-primary", label: "LOW BIAS ALERT" },
-  med: { bg: "bg-gold/20", text: "text-gold", label: "MED BIAS ALERT" },
-  high: { bg: "bg-destructive/20", text: "text-destructive", label: "HIGH BIAS ALERT" },
+const biasColors: Record<MaturityBiasAlert, { bg: string; text: string; labelKey: string }> = {
+  low: { bg: "bg-primary/20", text: "text-primary", labelKey: "master.biasLow" },
+  med: { bg: "bg-gold/20", text: "text-gold", labelKey: "master.biasMed" },
+  high: { bg: "bg-destructive/20", text: "text-destructive", labelKey: "master.biasHigh" },
 };
 
 // Tramos de la evaluación del entrenador: cortes ÚNICOS (config/coachEvaluation.ts vía
@@ -72,13 +71,8 @@ const MasterDashboard = () => {
 
   const stats = useMemo(() => computeDashboardStats(players), [players]);
 
-  // Player reports reales con bias calculado — TODOS los jugadores
+  // Player reports reales con el aviso de sesgo madurativo — TODOS los jugadores
   const playerReports = useMemo(() => {
-    // Percentil con la implementación única (src/lib/metrics/percentile.ts): entre los
-    // propios jugadores, sin demo para uno real y con mínimo de 10 pares; si no, null.
-    const percentiles = percentilesAmong(
-      players.map((p) => ({ id: p.id, value: p.vsi, isDemo: p.isDemo === true })),
-    );
     return players
       .filter((p) =>
         searchQuery
@@ -87,18 +81,9 @@ const MasterDashboard = () => {
           : true
       )
       .map((p) => {
-        const pct = percentiles.get(p.id)?.result.value ?? null;
-        // Sesgo desde el motor canónico, con gating: solo marcamos "high" (talento
-        // infravalorado) a un madurador TARDÍO con confianza suficiente, no a
-        // cualquier pre-púber (evita falso positivo).
-        const mat = gatedMaturity(p);
-        const matFirm = mat.confidence === "high" || mat.confidence === "moderate";
-        // pct es null sin evaluar o con menos de 10 pares: en ese caso no se marca
-        // sesgo por percentil, queda "med" salvo señal de maduración.
-        const biasAlert: "low" | "med" | "high" =
-          matFirm && mat.timing === "late" ? "high"
-          : matFirm && mat.timing === "early" ? "low"
-          : pct != null && pct > 70 ? "low" : "med";
+        // Solo desde la maduración canónica firme; sin ella, null y la fila pinta el
+        // motivo (nunca «MED» por defecto ni un corte de percentil sin fuente).
+        const biasAlert = maturityBiasAlert(p);
         const academy =
           (user?.user_metadata?.organization as string | undefined) ||
           (user?.user_metadata?.academyName as string | undefined) ||
@@ -369,7 +354,7 @@ const MasterDashboard = () => {
                   </div>
                 ) : (
                   playerReports.map((report) => {
-                    const bias = biasColors[report.biasAlert];
+                    const bias = report.biasAlert ? biasColors[report.biasAlert] : null;
                     return (
                       <div
                         key={report.id}
@@ -402,11 +387,15 @@ const MasterDashboard = () => {
                           </div>
                         </div>
                         <div className="flex items-center justify-between mt-3">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-display font-bold uppercase tracking-wider ${bias.bg} ${bias.text}`}
-                          >
-                            {bias.label}
-                          </span>
+                          {bias ? (
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-display font-bold uppercase tracking-wider ${bias.bg} ${bias.text}`}
+                            >
+                              {t(bias.labelKey)}
+                            </span>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">{t("master.biasNoMaturity")}</span>
+                          )}
                           <ExternalLink size={12} className="text-muted-foreground" />
                         </div>
                       </div>

@@ -417,7 +417,6 @@
       "advancedAnalysis": "Erweiterte Analyse",
       "dominantFeatures": "Dominante Merkmale",
       "areasToDevelope": "Entwicklungsfelder",
-      "correctionFactor": "Korrekturfaktor",
       "vaepTitle": "VAEP · Wert pro Aktion",
       "vaepNoEvents": "Noch keine Aktionen — tippe auf LOG, um Spielaktionen zu erfassen.",
       "topActions": "Top-Aktionen:",
@@ -706,7 +705,11 @@
     "systemReliability": "System Reliability",
     "expertDesk": "Need specialist assistance?",
     "expertDeskDesc": "Our biomechanics and scouting experts are available for detailed report reviews.",
-    "contactExpert": "Contact Expert Desk"
+    "contactExpert": "Contact Expert Desk",
+    "biasHigh": "Hoher Bias-Hinweis",
+    "biasMed": "Mittlerer Bias-Hinweis",
+    "biasLow": "Niedriger Bias-Hinweis",
+    "biasNoMaturity": "Kein Bias-Hinweis: Reifung nicht mit ausreichender Sicherheit erfasst"
   },
   "clubAccess": {
     "directorTitle": "Vereinszugang",

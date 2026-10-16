@@ -417,7 +417,6 @@
       "advancedAnalysis": "Advanced Analysis",
       "dominantFeatures": "Dominant Features",
       "areasToDevelope": "Areas to develop",
-      "correctionFactor": "correction factor",
       "vaepTitle": "VAEP · Value per Event",
       "vaepNoEvents": "No events yet — press LOG to record match actions.",
       "topActions": "Top actions:",
@@ -707,7 +706,11 @@
     "systemReliability": "System Reliability",
     "expertDesk": "Need specialist assistance?",
     "expertDeskDesc": "Our biomechanics and scouting experts are available for detailed report reviews.",
-    "contactExpert": "Contact Expert Desk"
+    "contactExpert": "Contact Expert Desk",
+    "biasHigh": "High bias alert",
+    "biasMed": "Medium bias alert",
+    "biasLow": "Low bias alert",
+    "biasNoMaturity": "No bias alert: maturation not recorded with enough confidence"
   },
   "clubAccess": {
     "directorTitle": "Club access",

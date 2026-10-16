@@ -30,18 +30,33 @@ export const RELATIVE_AGE_SOURCE_REF = "src/lib/shared/relativeAge.ts";
 export const BIRTH_DATE_MISSING_REASON =
   "Falta la fecha de nacimiento del jugador (o no es una fecha válida): no se calcula el trimestre de nacimiento.";
 
-export const INVALID_CUTOFF_REASON = "Mes de corte de la categoría no válido: no se calcula el trimestre de nacimiento.";
+export const INVALID_CUTOFF_REASON =
+  "Mes de corte de la categoría no válido o sin fuente: no se calcula el trimestre de nacimiento.";
+
+/** Corte de la categoría registrado para una competición: mes 1-12 y de dónde sale. */
+export interface CategoryCutoff {
+  month: number;
+  source: string;
+}
 
 /**
  * Trimestre de nacimiento (1-4) respecto al mes de corte de la categoría.
- * `cutoffMonth` por defecto = `RELATIVE_AGE_CUTOFF_MONTH` (año natural, «pendiente de validar»).
+ * Sin `cutoff` ⇒ `RELATIVE_AGE_CUTOFF_MONTH` (año natural, «pendiente de validar») y
+ * confianza orientativa. Con un `cutoff` registrado (mes + fuente) ⇒ confianza plena de una
+ * DERIVADA. Un `cutoff` presente pero no válido (null, mes fuera de 1-12, sin fuente) se
+ * BLOQUEA: nunca cae en silencio al corte por defecto.
  */
 export function birthQuarter(
   birthDate: unknown,
-  opts: { cutoffMonth?: number; now?: Date } = {},
+  opts: { cutoff?: CategoryCutoff; now?: Date } = {},
 ): MetricResult<BirthQuarter> {
-  const cutoff = opts.cutoffMonth ?? RELATIVE_AGE_CUTOFF_MONTH;
-  if (!Number.isInteger(cutoff) || cutoff < 1 || cutoff > 12) {
+  const usesDefault = opts.cutoff === undefined;
+  const cutoff = usesDefault ? RELATIVE_AGE_CUTOFF_MONTH : opts.cutoff?.month;
+  const cutoffSource = usesDefault ? RELATIVE_AGE_CUTOFF_SOURCE : opts.cutoff?.source;
+  if (
+    !Number.isInteger(cutoff) || cutoff < 1 || cutoff > 12 ||
+    typeof cutoffSource !== "string" || cutoffSource.trim() === ""
+  ) {
     return gated<BirthQuarter>(INVALID_CUTOFF_REASON, { source_ref: RELATIVE_AGE_SOURCE_REF });
   }
   const iso = toIsoBirthDate(birthDate, opts.now);
@@ -52,8 +67,9 @@ export function birthQuarter(
   const monthsAfterCutoff = (month - cutoff + 12) % 12; // 0..11
   const quarter = (Math.floor(monthsAfterCutoff / 3) + 1) as BirthQuarter;
   return derived<BirthQuarter>(quarter, {
-    // El corte no está validado por competición ⇒ confianza orientativa.
-    confidence: ORIENTATIVE_CONFIDENCE,
-    source_ref: `${RELATIVE_AGE_SOURCE_REF} · corte mes ${cutoff} · ${RELATIVE_AGE_CUTOFF_SOURCE}`,
+    // Corte por defecto (no validado por competición) ⇒ confianza orientativa; con el corte
+    // registrado de la competición, la función es exacta (confianza por defecto de derived).
+    ...(usesDefault ? { confidence: ORIENTATIVE_CONFIDENCE } : {}),
+    source_ref: `${RELATIVE_AGE_SOURCE_REF} · corte mes ${cutoff} · ${cutoffSource}`,
   });
 }

@@ -417,7 +417,6 @@
       "advancedAnalysis": "Análisis Avanzado",
       "dominantFeatures": "Características Dominantes",
       "areasToDevelope": "Áreas a desarrollar",
-      "correctionFactor": "factor corrección",
       "vaepTitle": "VAEP · Valor por Evento",
       "vaepNoEvents": "Sin eventos aún — presiona LOG para registrar acciones de partido.",
       "topActions": "Top acciones:",
@@ -707,7 +706,11 @@
     "systemReliability": "System Reliability",
     "expertDesk": "Need specialist assistance?",
     "expertDeskDesc": "Our biomechanics and scouting experts are available for detailed report reviews.",
-    "contactExpert": "Contact Expert Desk"
+    "contactExpert": "Contact Expert Desk",
+    "biasHigh": "Alerta de sesgo alta",
+    "biasMed": "Alerta de sesgo media",
+    "biasLow": "Alerta de sesgo baja",
+    "biasNoMaturity": "Sin alerta de sesgo: la maduración no está registrada con confianza suficiente"
   },
   "clubAccess": {
     "directorTitle": "Acceso al club",

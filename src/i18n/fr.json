@@ -417,7 +417,6 @@
       "advancedAnalysis": "Analyse avancée",
       "dominantFeatures": "Caractéristiques dominantes",
       "areasToDevelope": "Axes de progression",
-      "correctionFactor": "facteur de correction",
       "vaepTitle": "VAEP · Valeur par événement",
       "vaepNoEvents": "Aucun événement pour l'instant — appuyez sur LOG pour enregistrer des actions de match.",
       "topActions": "Top actions :",
@@ -706,7 +705,11 @@
     "systemReliability": "Fiabilité du système",
     "expertDesk": "Besoin de l'aide d'un spécialiste ?",
     "expertDeskDesc": "Nos experts en biomécanique et scouting sont disponibles pour des revues détaillées de rapports.",
-    "contactExpert": "Contacter l'Expert Desk"
+    "contactExpert": "Contacter l'Expert Desk",
+    "biasHigh": "Alerte de biais élevée",
+    "biasMed": "Alerte de biais moyenne",
+    "biasLow": "Alerte de biais faible",
+    "biasNoMaturity": "Pas d'alerte de biais : maturation non enregistrée avec une confiance suffisante"
   },
   "clubAccess": {
     "directorTitle": "Accès au club",
