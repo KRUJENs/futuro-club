@@ -19,7 +19,8 @@ import {
 } from "lucide-react";
 import { PlayerService } from "@/services/real/playerService";
 import { computeDashboardStats } from "@/services/real/adapters";
-import { maturityBiasAlert, type MaturityBiasSignal } from "@/lib/metrics/maturityBiasAlert";
+import { maturityBiasAlert, MATURITY_BIAS_DIRECTION_KEY } from "@/lib/metrics/maturityBiasAlert";
+import { PhvGateNotice } from "@/components/phv/PhvGateNotice";
 import { coachEvalTier, type CoachEvalTier } from "@/services/real/metricsService";
 import { COACH_EVAL_TIERS } from "../../config/coachEvaluation";
 import { realVsiEvaluations } from "@/lib/scoring/vsiDelta";
@@ -34,13 +35,9 @@ const sidebarItems = [
   { path: "/settings", icon: Settings, labelKey: "masterDashboard.navSettings" },
 ];
 
-// Señal de DIRECCIÓN (la del propio motor de maduración), no un nivel: tardío ⇒ posible
-// infravaloración, precoz ⇒ posible sobrevaloración, en fase ⇒ solo su timing.
-const biasStyles: Record<MaturityBiasSignal, { bg: string; text: string; directionKey: string | null }> = {
-  late: { bg: "bg-destructive/20", text: "text-destructive", directionKey: "master.biasLate" },
-  early: { bg: "bg-gold/20", text: "text-gold", directionKey: "master.biasEarly" },
-  on_time: { bg: "bg-primary/20", text: "text-primary", directionKey: null },
-};
+// Señal de DIRECCIÓN (la del propio motor de maduración, src/lib/metrics/maturityBiasAlert.ts),
+// no un nivel. Color neutro e informativo en las dos direcciones: no es un juicio sobre el niño.
+const BIAS_CHIP_CLASS = "bg-primary/15 text-primary";
 
 // Tramos de la evaluación del entrenador: cortes ÚNICOS (config/coachEvaluation.ts vía
 // coachEvalTier, P1 bloque 5b). Antes 80/65/50 aquí y 85/70/50 en el indicador.
@@ -356,8 +353,8 @@ const MasterDashboard = () => {
                   </div>
                 ) : (
                   playerReports.map((report) => {
-                    const signal = report.biasAlert.value;
-                    const bias = signal ? biasStyles[signal] : null;
+                    const signal = report.biasAlert.signal.value;
+                    const directionKey = signal ? MATURITY_BIAS_DIRECTION_KEY[signal] : null;
                     return (
                       <div
                         key={report.id}
@@ -390,15 +387,19 @@ const MasterDashboard = () => {
                           </div>
                         </div>
                         <div className="flex items-center justify-between mt-3">
-                          {signal && bias ? (
+                          {signal ? (
                             <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-display font-bold uppercase tracking-wider ${bias.bg} ${bias.text}`}
+                              className={`px-2 py-0.5 rounded text-[10px] font-display font-bold uppercase tracking-wider ${BIAS_CHIP_CLASS}`}
                             >
                               {t(`maturity.timing.${signal}`)}
-                              {bias.directionKey ? ` · ${t(bias.directionKey)}` : ""}
+                              {directionKey ? ` · ${t(directionKey)}` : ""}
                             </span>
+                          ) : !report.biasAlert.gate.ok ? (
+                            // Gate del PHV cerrado: el motivo traducido del componente ÚNICO.
+                            <PhvGateNotice gate={report.biasAlert.gate} variant="inline" className="text-[10px]" />
                           ) : (
-                            <span className="text-[10px] text-muted-foreground">{report.biasAlert.gate_reason}</span>
+                            // Gate abierto pero sin timing afirmado por el motor.
+                            <span className="text-[10px] text-muted-foreground">{t("maturity.timing.unknown")}</span>
                           )}
                           <ExternalLink size={12} className="text-muted-foreground" />
                         </div>

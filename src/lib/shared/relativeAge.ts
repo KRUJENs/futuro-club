@@ -51,7 +51,7 @@ export interface CategoryCutoff {
  */
 export function birthQuarter(
   birthDate: unknown,
-  opts: { cutoff?: CategoryCutoff; now?: Date } = {},
+  opts: { cutoff?: CategoryCutoff | null; now?: Date } = {},
 ): MetricResult<BirthQuarter> {
   const usesDefault = opts.cutoff === undefined;
   // null = la competición no tiene corte registrado (p. ej. la columna vacía): su propio
