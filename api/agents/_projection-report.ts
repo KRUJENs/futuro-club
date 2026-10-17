@@ -44,7 +44,7 @@ const projectionSchema = z.object({
   }).passthrough(),
 }).passthrough();
 
-const PROMPT_VERSION = "projection-v1.2.0"; // v1.2 = tendencia real (vsiHistory) + key_drivers desde observaciones (docx #14 P2)
+const PROMPT_VERSION = "projection-v1.3.0"; // v1.3 = sin duelos como ejemplo de key_driver (P1 bloque 6); v1.2 = tendencia real (vsiHistory) + key_drivers desde observaciones (docx #14 P2)
 
 function buildSystemPrompt(locale: ReportLocale, category: PlayerCategory): string {
   return `Eres el motor de Proyección 3 años de VITAS.
@@ -215,7 +215,7 @@ OBSERVACIÓN DIRECTA DEL VÍDEO (eventos — base de key_drivers/factores de la 
 ${JSON.stringify(input.videoObservations ?? "no_data", null, 2)}
 
 Genera el reporte Proyección 3 años en JSON estricto, usando los valores de la curva proyectada.
-REGLAS docx #14: la curva ya es determinista — NO la infles. Si el HISTÓRICO tiene ≥2 puntos, narra la tendencia REAL (subió/bajó de X a Y); si está vacío, di "primer análisis — sin tendencia". Los key_drivers/factores deben citar un evento observado concreto de la OBSERVACIÓN DIRECTA (p. ej. duelos, pases progresivos); si no hay observaciones, márcalos como "sin observación de vídeo" en vez de genéricos.`;
+REGLAS docx #14: la curva ya es determinista — NO la infles. Si el HISTÓRICO tiene ≥2 puntos, narra la tendencia REAL (subió/bajó de X a Y); si está vacío, di "primer análisis — sin tendencia". Los key_drivers/factores deben citar un evento observado concreto de la OBSERVACIÓN DIRECTA (p. ej. pases progresivos, recuperaciones); si no hay observaciones, márcalos como "sin observación de vídeo" en vez de genéricos. DUELOS: VITAS no cuenta duelos (no hay un criterio validado de qué es un duelo ni de quién lo gana): NUNCA cites duelos ganados/perdidos ni un % de duelos como factor, aunque aparezcan en datos antiguos.`;
 
       const locale = normalizeLocale(input.locale);
       // C1 multi-categoría: override explícito > edad cronológica > default youth

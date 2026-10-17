@@ -4,7 +4,7 @@
  * todo dato antiguo con duelos se sanea al escribir y al leer (src/lib/tracking/duels.ts).
  */
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { detectObservedWeaknesses } from "../agents/_development-plan";
 
@@ -48,6 +48,35 @@ describe("prompts sin duelos", () => {
     expect(read("api/agents/_development-plan.ts")).toMatch(/dev-plan-v1\.3\.0/);
   });
 
+  it("proyección: sin duelos como ejemplo de key_driver, con la regla y versión nueva", () => {
+    const pj = code("api/agents/_projection-report.ts");
+    expect(pj).not.toMatch(/p\. ej\. duelos/);
+    expect(pj).toMatch(/NUNCA cites duelos/);
+    expect(pj).toMatch(/projection-v1\.3\.0/);
+  });
+
+  it("video-observation: sin ejemplos ni focos de duelos, con la regla que prohíbe contarlos o valorarlos", () => {
+    const vo = code("api/agents/video-observation.ts");
+    expect(vo).toMatch(/En NINGÚN campo cuentes ni valores duelos/);
+    // Fuera de la propia regla (que los nombra para prohibirlos), ni ejemplos ni focos.
+    const sinRegla = vo.split("\n").filter((l) => !/En NINGÚN campo cuentes/.test(l)).join("\n");
+    expect(sinRegla).not.toMatch(/duelo aéreo|duelos aéreos|duelos 1v1|1v1 defensivo|ganar cada duelo|juego aéreo/);
+  });
+
+  it("barrido: ningún prompt de api/agents nombra duelos salvo la regla que los prohíbe", () => {
+    const dir = resolve(__dirname, "..", "agents");
+    const files = readdirSync(dir).filter((f) => f.endsWith(".ts"));
+    expect(files.length).toBeGreaterThan(20);
+    const allowed = /stripDuelOutcomes|VITAS no cuenta (ni valora )?duelos/;
+    const offending: string[] = [];
+    for (const f of files) {
+      code(`api/agents/${f}`).split("\n").forEach((line) => {
+        if (/duel/i.test(line) && !allowed.test(line)) offending.push(`${f}: ${line.trim().slice(0, 120)}`);
+      });
+    }
+    expect(offending).toEqual([]);
+  });
+
   it("Telegram: /stats y la herramienta ya no ofrecen duelos", () => {
     const tg = code("api/telegram/webhook.ts");
     expect(tg).not.toMatch(/duelos:\s+m\.duelos|💥 Duelos|pase\/duelos\/recup|duelos \(ganados\/perdidos\)/);
@@ -66,6 +95,10 @@ describe("saneado de datos antiguos al escribir y al leer", () => {
     ["api/live/aggregate.ts", /stripDuelOutcomes\(obs\.eventosContados/],
     ["api/team/baseline-analysis.ts", /stripDuelOutcomes\(video\.eventosContados/],
     ["api/team/compare-rival.ts", /stripDuelOutcomes\(video\.eventosContados/],
+    // Lectura para la UI («Datos técnicos», también en el enlace de la familia); el
+    // comportamiento lo prueba api/analyses/__tests__/vsi-legacy-series.test.ts.
+    ["api/analyses/reports.ts", /biomechanics: stripDuelOutcomes\(analysisRes\.data\.biomechanics\)/],
+    ["api/analyses/share.ts", /biomechanics: stripDuelOutcomes\(analysis\.biomechanics\)/],
   ])("%s pasa por el saneador único", (path, re) => {
     expect(code(path)).toMatch(re);
   });

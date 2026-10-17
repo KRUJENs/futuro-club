@@ -103,6 +103,13 @@ describe("deriveSimMetrics · path cliente (eventSummary)", () => {
 
   it("solo duelos (sin otros eventos) ⇒ abstención: no son señal (P1 bloque 6)", () => {
     expect(deriveSimMetrics({ eventSummary: { duelsWon: 6, duelsLost: 4 } }, null)).toBeNull();
+    // Forma REAL de un cliente antiguo: totalEvents contaba los duelos (uno por fotograma).
+    expect(
+      deriveSimMetrics(
+        { eventSummary: { totalEvents: 40, passesAttempted: 0, passesCompleted: 0, recoveries: 0, shots: 0, duelsWon: 6, duelsLost: 4 } },
+        null,
+      ),
+    ).toBeNull();
     expect(deriveSimMetrics({ gemini: { eventosContados: { duelosGanados: 6, duelosPerdidos: 4 } } }, null)).toBeNull();
   });
 });

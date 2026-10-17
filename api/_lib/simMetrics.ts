@@ -82,8 +82,10 @@ export function deriveSimMetrics(
   // Abstención por CONTENIDO, no solo por presencia: un {} o un todo-ceros NO es señal
   // (evita fabricar un comparable "neutro" de 50s desde un objeto vacío — revisión #178).
   const ecHasEvents = ecRaw ? Object.values(ecRaw).some((v) => num(v) > 0) : false;
+  // Sin `totalEvents` (P1 bloque 6): en clientes/filas antiguos contaba también los duelos
+  // (uno por fotograma), así que un total > 0 no prueba que haya un evento usable.
   const esHasEvents = es
-    ? ["totalEvents", "passesAttempted", "passesCompleted", "recoveries", "shots"].some(
+    ? ["passesAttempted", "passesCompleted", "recoveries", "shots"].some(
         (k) => num((es as Record<string, unknown>)[k]) > 0,
       )
     : false;
@@ -134,8 +136,8 @@ export function deriveSimMetrics(
     const passPct = es!.passCompletionPct;
     technique = typeof passPct === "number" ? clamp(passPct) : 50;
     if (typeof passPct === "number") ratioDerivedDims++;
-    // defending ← recoveries (volumen). Sin % de duelos (P1 bloque 6): el ganador nunca se
-    // resolvía en el cliente (siempre 0/0) y no hay criterio validado.
+    // defending ← recoveries (volumen). Sin % de duelos (P1 bloque 6): no hay criterio
+    // validado (el motor del cliente decidía «gana el más rápido»).
     const recVol = Math.min(100, (num(es!.recoveries) / REC_FULL) * 100);
     defending = clamp(recVol);
     // shooting ← xG por disparo (proxy) — pendiente de validar

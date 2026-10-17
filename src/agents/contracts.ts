@@ -394,7 +394,8 @@ export const VideoIntelligenceOutputSchema = z.object({
       robos:            z.number().optional(),  // tackles: ganar balón por contacto/entrada
       anticipaciones:   z.number().optional(),  // interceptaciones: cortar línea de pase
       // Sin duelosGanados/duelosPerdidos (P1 bloque 6): sin criterio validado de duelo
-      // (src/lib/tracking/duels.ts). zod descarta esas claves de los informes antiguos.
+      // (src/lib/tracking/duels.ts). Este esquema solo da el tipo (z.infer, no se parsea):
+      // los datos antiguos los limpia stripDuelOutcomes.
       disparosAlArco:   z.number(),
       disparosFuera:    z.number(),
       // Pérdidas de balón (opcional): fallo técnico que da posesión al rival

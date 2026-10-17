@@ -37,9 +37,19 @@ const STORED_VSI = {
   trend: { slope: 4.75, momentum: "up", confidence: "medium", delta: null, samples: 3 },
   history: [57.5, 67.4, 67],
 };
+// Fila de Gemini anterior al bloque 6 (P1, punto 3): duelos estimados por el modelo de
+// vídeo. «Datos técnicos» (AnalysisDashboard) pinta este JSON, también en el enlace público.
+const STORED_BIOMECHANICS = {
+  source: "gemini",
+  duels_won: 3,
+  duels_lost: 1,
+  sprint_count: 4,
+  gate_reasons: { duels_won: "estimado por el modelo de vídeo", sprint_count: "ok" },
+  gemini_observation: { eventosContados: { duelosGanados: 3, duelosPerdidos: 1, pasesCompletados: 12 } },
+};
 const ANALYSIS_ROW = {
   id: ANALYSIS_ID, status: "completed", vsi: STORED_VSI, phv: null, similarity: null,
-  biomechanics: null, completed_at: "2026-08-20T10:00:00Z", player_id: "p-samu",
+  biomechanics: STORED_BIOMECHANICS, completed_at: "2026-08-20T10:00:00Z", player_id: "p-samu",
   video_id: "baseline-p-samu-1", user_id: "user-coach-1", created_at: "2026-08-20T09:59:00Z",
 };
 
@@ -76,6 +86,17 @@ function expectLegacySeriesRemoved(vsi: Record<string, unknown>) {
   expect(vsi).toMatchObject({ vsi: 67, tierLabel: "Talento" });
 }
 
+function expectDuelsRemoved(biomechanics: Record<string, unknown>) {
+  expect(JSON.stringify(biomechanics)).not.toMatch(/duel/i);
+  // El resto de la biomecánica se sirve igual (control: no se vacía el objeto).
+  expect(biomechanics).toMatchObject({
+    source: "gemini",
+    sprint_count: 4,
+    gate_reasons: { sprint_count: "ok" },
+    gemini_observation: { eventosContados: { pasesCompletados: 12 } },
+  });
+}
+
 describe("analyses — la serie VSI legacy sin fechas no sale de la API", () => {
   beforeEach(() => {
     mockVerifyAuth.mockReset();
@@ -92,6 +113,7 @@ describe("analyses — la serie VSI legacy sin fechas no sale de la API", () => 
     expect(res.status).toBe(200);
     const body = await res.json();
     expectLegacySeriesRemoved(body.data.analysis.vsi);
+    expectDuelsRemoved(body.data.analysis.biomechanics);
     expect(body.data.analysis.id).toBe(ANALYSIS_ID);
   });
 
@@ -107,6 +129,7 @@ describe("analyses — la serie VSI legacy sin fechas no sale de la API", () => 
     expect(res.status).toBe(200);
     const body = await res.json();
     expectLegacySeriesRemoved(body.data.analysis.vsi);
+    expectDuelsRemoved(body.data.analysis.biomechanics);
     expect(body.data.shared).toBe(true);
   });
 });

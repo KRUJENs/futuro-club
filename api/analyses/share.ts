@@ -16,6 +16,7 @@ import { hmacSha256Hex, timingSafeEqual } from "../_lib/edgeCrypto";
 import { ownsRowOrItsPlayer } from "../_lib/ownership";
 import { createClient } from "@supabase/supabase-js";
 import { withoutUndatedVsiSeries } from "../../src/lib/scoring/vsiDelta";
+import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 
 export const config = { runtime: "edge" };
 
@@ -137,7 +138,13 @@ export default withHandler(
     return successResponse({
       // Enlace público (familia): vsi.trend / vsi.history de filas antiguas = serie legacy
       // SIN fechas (57.5 fabricado) → se retiran al leer (src/lib/scoring/vsiDelta.ts).
-      analysis: { ...analysis, vsi: withoutUndatedVsiSeries(analysis.vsi) },
+      // Duelos de filas anteriores al bloque 6 (Gemini: duels_won, eventosContados…) →
+      // fuera también: «Datos técnicos» pinta este JSON en el enlace de la familia.
+      analysis: {
+        ...analysis,
+        biomechanics: stripDuelOutcomes(analysis.biomechanics),
+        vsi: withoutUndatedVsiSeries(analysis.vsi),
+      },
       player: player ?? null,
       reports: reports ?? [],
       shared: true,

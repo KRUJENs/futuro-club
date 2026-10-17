@@ -209,10 +209,10 @@ export default withHandler(
 
       const positionFocusMap: Record<string, string> = {
         GK: "FOCO POSICIONAL (Portero): Observa posicionamiento en el arco, decisión de salir o quedarse, juego con los pies, distribución, comunicación con la defensa, valentía en 1v1, reflejos.",
-        RB: "FOCO POSICIONAL (Lateral derecho): Observa incorporaciones al ataque, centros, 1v1 defensivo, posicionamiento en repliegue, amplitud que da al equipo, timing de subida.",
-        LB: "FOCO POSICIONAL (Lateral izquierdo): Observa incorporaciones al ataque, centros, 1v1 defensivo, posicionamiento en repliegue, amplitud que da al equipo, timing de subida.",
-        RCB: "FOCO POSICIONAL (Central derecho): Observa anticipación, lectura de línea de pase, juego aéreo, salida con balón, coberturas, duelos 1v1, comunicación con la línea defensiva.",
-        LCB: "FOCO POSICIONAL (Central izquierdo): Observa anticipación, lectura de línea de pase, juego aéreo, salida con balón, coberturas, duelos 1v1, comunicación con la línea defensiva.",
+        RB: "FOCO POSICIONAL (Lateral derecho): Observa incorporaciones al ataque, centros, posicionamiento en repliegue, amplitud que da al equipo, timing de subida.",
+        LB: "FOCO POSICIONAL (Lateral izquierdo): Observa incorporaciones al ataque, centros, posicionamiento en repliegue, amplitud que da al equipo, timing de subida.",
+        RCB: "FOCO POSICIONAL (Central derecho): Observa anticipación, lectura de línea de pase, salida con balón, coberturas, comunicación con la línea defensiva.",
+        LCB: "FOCO POSICIONAL (Central izquierdo): Observa anticipación, lectura de línea de pase, salida con balón, coberturas, comunicación con la línea defensiva.",
         DM: "FOCO POSICIONAL (Pivote/Mediocentro defensivo): Observa posicionamiento entre líneas, interceptaciones, distribución de juego, orientación corporal al recibir, capacidad de filtrar pases verticales, cobertura de espacios, pressing.",
         RCM: "FOCO POSICIONAL (Interior derecho): Observa llegada al área, asociaciones en corto, cambios de ritmo, pases entre líneas, equilibrio ataque-defensa, transiciones.",
         LCM: "FOCO POSICIONAL (Interior izquierdo): Observa llegada al área, asociaciones en corto, cambios de ritmo, pases entre líneas, equilibrio ataque-defensa, transiciones.",
@@ -291,7 +291,7 @@ METODOLOGÍA DE OBSERVACIÓN (sigue este orden):
    - RESILIENCIA: ¿Cómo reacciona después de un error? ¿Pide el balón o se esconde?
    - COMUNICACIÓN: ¿Señala? ¿Organiza? ¿Grita instrucciones a compañeros?
    - TOLERANCIA AL RIESGO: ¿Intenta pases difíciles o siempre elige lo seguro?
-   - HAMBRE COMPETITIVA: ¿Presiona cada balón? ¿Se frustra con errores propios? ¿Quiere ganar cada duelo?
+   - HAMBRE COMPETITIVA: ¿Presiona cada balón? ¿Se frustra con errores propios? ¿Disputa cada balón?
    - LENGUAJE CORPORAL: Postura erguida vs hombros caídos, cabeza arriba vs baja
    Clasifica cada indicador como: alto, medio, bajo — con evidencia del video
 
@@ -309,7 +309,7 @@ METODOLOGÍA DE OBSERVACIÓN (sigue este orden):
    - Pressing EFECTIVO (genera recuperación o error) vs inefectivo
    - Escaneos visuales (giros de cabeza antes de recibir)
    - Recuperaciones (CUALQUIER balón ganado sin importar método — suma de robos + anticipaciones + otros)
-   - Robos (tackles): SUBTIPO de recuperación — ganar balón POR CONTACTO físico (entrada al pie/cuerpo). Requiere duelo físico
+   - Robos (tackles): SUBTIPO de recuperación — ganar balón POR CONTACTO físico (entrada al pie/cuerpo). Requiere contacto con el rival
    - Anticipaciones (intercepciones): SUBTIPO de recuperación — cortar línea de pase ANTES que el rival reciba. NO hay contacto con el rival
    - Pérdidas (turnovers): errores NO FORZADOS que entregan posesión (mal control, pase imposible, regate temerario en zona propia). NO cuentan si el rival forzó la pérdida con una gran acción defensiva
    - Disparos al arco y fuera
@@ -328,7 +328,7 @@ Genera un análisis detallado con esta estructura JSON exacta (sin markdown, sin
     "velocidadDecision": {"observaciones": ["Decide rápido en espacios reducidos, elige pase vertical sobre opción segura", "Tiempo de decisión corto tras control orientado"], "score_estimado": 7},
     "tecnicaConBalon": {"observaciones": ["Primer toque orientado limpio bajo presión de 2 rivales", "Conducción con cambio de ritmo en zona 14"], "score_estimado": 6},
     "inteligenciaTactica": {"observaciones": ["Se posiciona en el half-space entre líneas de presión rival", "Escanea 2 veces antes de recibir — lee el juego"], "score_estimado": 7},
-    "capacidadFisica": {"observaciones": ["Buena aceleración en los primeros 5 metros", "Aguanta contacto físico en duelo pero pierde en duelo aéreo"], "score_estimado": 5},
+    "capacidadFisica": {"observaciones": ["Buena aceleración en los primeros 5 metros", "Protege el balón de espaldas con el cuerpo antes de descargar de cara"], "score_estimado": 5},
     "liderazgoPresencia": {"observaciones": ["Pide el balón en situaciones de presión — no se esconde", "Comunica con central para solicitar pase en profundidad"], "score_estimado": 6},
     "eficaciaCompetitiva": {"observaciones": ["2 de 3 pases progresivos completados — buena ratio", "1 disparo al arco desde fuera del área, colocado"], "score_estimado": 6}
   },
@@ -337,7 +337,7 @@ Genera un análisis detallado con esta estructura JSON exacta (sin markdown, sin
     {"timestamp": "5:10", "tipo": "negativo", "descripcion": "Pierde balón por exceso de confianza en zona de construcción propia — error de decisión, no técnico"}
   ],
   "patronesJuego": ["Tiende a asociarse por banda derecha buscando combinaciones con el lateral", "Busca el 1v1 en velocidad cuando recibe de cara — prefiere atacar espacio a jugar de espaldas", "Se ofrece como pivote de descarga para la salida de balón"],
-  "resumenGeneral": "Jugador con buen pie y visión de juego para su edad. Destaca en la toma de decisiones bajo presión y en la lectura de espacios entre líneas. Su escaneo visual antes de recibir indica madurez táctica superior a la media. Necesita mejorar la intensidad defensiva en las transiciones y la presencia física en duelos aéreos — esto último puede ser cuestión de maduración biológica.",
+  "resumenGeneral": "Jugador con buen pie y visión de juego para su edad. Destaca en la toma de decisiones bajo presión y en la lectura de espacios entre líneas. Su escaneo visual antes de recibir indica madurez táctica superior a la media. Necesita mejorar la intensidad defensiva en las transiciones.",
   "eventosContados": {
     "pasesCompletados": 12,
     "pasesFallados": 3,
@@ -369,6 +369,7 @@ ${analysisScope === "player"
 - Mínimo 10 entradas en timeline, 3 momentos destacados (salvo estado "no_identificado", que exige listas vacías)
 - Describe lo que VES con vocabulario táctico preciso: usa términos como "half-space", "entre líneas", "pase progresivo", "control orientado", "pressing tras pérdida", "transición defensiva", "línea de pase", "desmarque de ruptura"
 - Las observaciones por dimensión deben ser ESPECÍFICAS del video, no genéricas. Mal: "Buena técnica". Bien: "Control con exterior del pie derecho bajo presión del central, girando hacia el espacio libre"
+- DUELOS: VITAS no cuenta ni valora duelos (no hay un criterio validado de qué es un duelo ni de quién lo gana). En NINGÚN campo cuentes ni valores duelos (ganados/perdidos, aéreos, 1v1 defensivos) ni digas que el jugador gana o pierde duelos: describe la acción concreta observada (p. ej. "recupera con una entrada al pie en 3:10")
 - eventosContados: cuenta CADA evento individualmente mirando el video. Si no puedes confirmar un evento, no lo cuentes. Es mejor sub-contar que inventar
 - pasesProgresivos: pases que superan al menos una línea de presión rival (vertical u oblicuo hacia adelante, NO lateral ni atrás)
 - regatesConVentaja: regates exitosos que generaron espacio, superioridad o oportunidad real (no solo "pasó al rival y perdió luego")
