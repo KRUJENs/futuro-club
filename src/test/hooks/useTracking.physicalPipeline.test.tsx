@@ -305,8 +305,12 @@ async function scansForClip(nativeW: number, nativeH: number, noseOffsetFramePx:
   }
 
   const scanEvents = result.current.state.scanEvents.length;
+  // Escaneos solo atribuibles a una pista ENFOCADA (P1 bloque 6b): se enfoca la única pista.
+  const onlyTrack = result.current.state.currentTracks[0]?.id ?? null;
+  expect(onlyTrack).not.toBeNull();
   let metrics: PhysicalMetrics | null = null;
   act(() => {
+    result.current.setFocusTrackId(onlyTrack);
     metrics = result.current.stopTracking();
   });
   ort.kps = null;

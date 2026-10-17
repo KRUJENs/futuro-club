@@ -3405,20 +3405,6 @@
     "partialDataDescription": "Solo se dispone de datos parciales. Algunos indicadores pueden estar infrarepresentados o tener fiabilidad reducida.",
     "retry": "Reintentar"
   },
-  "scanIQCard": {
-    "subtitle": "Exploración visual pre-recepción · calibrado {{ageBand}}",
-    "realVideo": "Vídeo real",
-    "estimated": "Estimado",
-    "scansLikeAge": "Escanea como uno de ~{{age}} años (+{{delta}})",
-    "percentilePrefix": "Percentil",
-    "percentileSuffix": "de su edad · {{scans}} scans/recepción",
-    "successWithScan": "Éxito con scan",
-    "successWithoutScan": "vs sin scan",
-    "receptionsCount": " · {{count}} recepciones",
-    "researchPrefix": "Investigación (Jordet, Premier League): los jugadores que llegan a profesional escaneaban",
-    "researchEmphasis": "2× más a los 12-14 años",
-    "researchSuffix": ". Es el indicador más temprano y estable de potencial élite."
-  },
   "scanningIntelligenceReport": {
     "title": "Informe de escaneo previo a recepción",
     "player": "Jugador",
@@ -4075,63 +4061,34 @@
     "sampleLabel": "Muestra"
   },
   "scanningAnalyzerDialog": {
-    "toastSuccess": "Scanning analizado · Scan IQ {{scanIQ}}/100",
+    "toastSuccess": "Ejemplo de demo cargado",
     "toastError": "Error analizando el scanning",
-    "title": "Analizar scanning desde video",
+    "title": "Scan IQ · ejemplo de demo",
     "playerLabel": "Jugador",
-    "subtitleSuffix": "cuenta scans en los 10s previos a cada recepción",
-    "intro": "Selecciona un video. El pipeline corre pose estimation sobre el jugador objetivo y cuenta los giros de cabeza antes de cada recepción.",
-    "uploadedVideo": "video subido",
+    "subtitleSuffix": "sin analizar vídeo",
     "demoMatch": "partido demo",
-    "pipelineTitle": "¿Qué hace el pipeline?",
-    "pipelineStep1": "Tracking del jugador objetivo durante todo el partido",
-    "pipelineStep2": "Pose estimation · detecta giros de cabeza >30°",
-    "pipelineStep3": "Identifica cada recepción del balón",
-    "pipelineStep4": "Cuenta scans en los 10 segundos previos a cada recepción",
-    "pipelineStep5": "Correlaciona con la calidad de la decisión posterior",
     "analyzing": "Analizando",
     "analysisComplete": "Análisis completado",
-    "receptionsAnalyzed": "{{count}} recepciones analizadas",
     "scansPerReception": "Scans / recepción",
     "successWithScan": "Éxito con scan",
     "cancel": "Cancelar",
     "analyze": "Analizar",
-    "closeAndViewReport": "Cerrar y ver informe"
+    "closeAndViewReport": "Cerrar y ver informe",
+    "demoIntro": "Modo demo: elige un partido de ejemplo para cargar un Scan IQ de EJEMPLO. No se analiza ningún vídeo."
   },
   "scanningIntelligencePage": {
-    "demoNotice": "El Scan IQ y el ranking de abajo son valores de EJEMPLO (derivados del jugador, no medidos). El Scan IQ real aparece al analizar un vídeo del jugador.",
+    "demoNotice": "El Scan IQ y el informe de abajo son un EJEMPLO fijo (el mismo para todos los jugadores), no una medida.",
     "headerSubtitle": "Escaneo previo a la recepción del balón",
-    "playerAnalyzedSingular": "jugador analizado",
-    "playerAnalyzedPlural": "jugadores analizados",
     "createPlayerFirst": "Crea un jugador primero.",
-    "demoLoaded": "Scan IQ de demo cargado para {{name}} ({{scanIQ}}/100)",
+    "demoLoaded": "Ejemplo de demo cargado para {{name}}",
     "demoButtonTitle": "Ver el Scan IQ con datos de ejemplo (sin subir vídeo)",
     "demoData": "Datos de demo",
-    "uploadVideoTitle": "Sube un video y analiza su scanning",
-    "uploadVideo": "Subir video",
-    "analyzeVideoTitle": "Analiza el scanning del jugador desde un video",
+    "analyzeVideoTitle": "Carga el ejemplo a partir de un partido demo",
     "analyzeVideo": "Analizar video",
-    "statAvgScanIQ": "Scan IQ promedio",
-    "statElitePlayers": "Jugadores élite",
-    "statToImprove": "Por mejorar",
-    "statTopPlayer": "Top jugador",
-    "latestVideoAnalysisLabel": "Último análisis de scanning desde video:",
-    "receptions": "recepciones",
-    "videoScanIQ": "Scan IQ del video",
-    "searchPlayer": "Buscar jugador…",
-    "yearsAbbrev": "a",
-    "tierElite": "Élite",
-    "tierProfessional": "Profesional",
-    "tierRegional": "Regional",
-    "tierBase": "Base",
-    "noPlayerMatches": "Ningún jugador coincide con \"{{query}}\"",
-    "mentalProfilePrompt": "¿Quieres ver el perfil mental completo de {{name}}?",
-    "openMentalProfile": "Abrir perfil mental →",
-    "selectPlayerLeft": "Selecciona un jugador a la izquierda.",
-    "scanIQUpdated": "Scan IQ actualizado a {{scanIQ}}/100 para {{name}}",
     "emptyTitle": "Sin jugadores aún",
-    "emptyDescription": "El análisis de escaneo cuenta cuántas veces mira el entorno cada jugador en los 10s previos a recibir el balón, y correlaciona eso con la calidad de su decisión posterior. Necesitas jugadores en el equipo para verlo.",
-    "createFirstPlayer": "Crear primer jugador"
+    "createFirstPlayer": "Crear primer jugador",
+    "gateUnlock": "Se activará cuando haya un detector de recepciones del balón con la identidad del jugador (dorsal) y una base por edad con fuente, validados con clips anotados a mano.",
+    "demoHint": "Carga el ejemplo con los botones de arriba (datos de demo o un partido demo)."
   },
   "smartMatchPrompt": {
     "example1": "Necesito un central zurdo sub-19 con liderazgo y juego aéreo. Presupuesto 400k.",
@@ -4844,16 +4801,6 @@
     "backToDashboard": "Volver al dashboard",
     "adminPanelDesc": "Panel completo de métricas y analíticas (solo admin)"
   },
-  "dmScoreCard": {
-    "subtitle": "Cómo procesa el juego real — lo que los drills aislados no ven",
-    "confidence": "Confianza {{count}}%",
-    "sourceLabel": "fuente: {{source}}",
-    "sourceReal": "vídeo real",
-    "sourceMock": "estimado",
-    "sourceBpe": "perfil mental",
-    "sourceVideo": "análisis de vídeo",
-    "sourceUnknown": "—"
-  },
   "folderPicker": {
     "removedFromFolder": "Eliminado de la carpeta",
     "addedToFolder": "Añadido a la carpeta",
@@ -5117,7 +5064,8 @@
     "zoneWalk": "Caminar",
     "zoneJog": "Trotar",
     "zoneRun": "Correr",
-    "reAnalyze": "Re-analizar con video más reciente"
+    "reAnalyze": "Re-analizar con video más reciente",
+    "scansNotAttributable": "No atribuible"
   },
   "transferFilters": {
     "freeSearch": "Búsqueda libre",
@@ -6398,5 +6346,11 @@
     "value": "No disponible",
     "hint": "Sin criterio validado de duelo",
     "reason": "VITAS no cuenta duelos: no hay un criterio validado de qué es un duelo ni de quién lo gana (falta la anotación humana). No se infieren por proximidad."
+  },
+  "scanIqGate": {
+    "reason": "Scan IQ no disponible: no hay una base validada para puntuar el escaneo por edad y el análisis de vídeo no detecta las recepciones del balón ni identifica al jugador."
+  },
+  "dmScoreGate": {
+    "reason": "Decision-Making Score no disponible: sus pesos no tienen fuente y sus componentes no están medidos (Scan IQ bloqueado; velocidad de decisión y temple sin validar; lectura táctica no medida por el vídeo)."
   }
 }

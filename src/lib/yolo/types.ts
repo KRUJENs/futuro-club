@@ -125,6 +125,12 @@ export interface PhysicalMetrics {
    */
   identityReliable?: boolean;
   /**
+   * Pista enfocada con la que se calcularon estas métricas; null = sin pista enfocada
+   * (agregado de TODAS las pistas ⇒ nada atribuible a un jugador). Quien las atribuye
+   * exige que coincida con la pista enfocada ACTUAL (P1 bloque 6b, identidad.md).
+   */
+  focusTrackId?: number | null;
+  /**
    * Duelos como MetricResult: SIEMPRE bloqueado (`duelsMetric()` de
    * src/lib/tracking/duels.ts, P1 bloque 6). Sin criterio validado de qué es un duelo
    * ni de quién lo gana no se cuentan ni se muestran «0G/0P». Ya no existen

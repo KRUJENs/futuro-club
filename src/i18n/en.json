@@ -3405,20 +3405,6 @@
     "partialDataDescription": "Only partial data is available. Some indicators may be underrepresented or have reduced reliability.",
     "retry": "Retry"
   },
-  "scanIQCard": {
-    "subtitle": "Pre-reception visual scanning · calibrated {{ageBand}}",
-    "realVideo": "Real video",
-    "estimated": "Estimated",
-    "scansLikeAge": "Scans like a ~{{age}}-year-old (+{{delta}})",
-    "percentilePrefix": "Percentile",
-    "percentileSuffix": "for their age · {{scans}} scans/reception",
-    "successWithScan": "Success with scan",
-    "successWithoutScan": "vs without scan",
-    "receptionsCount": " · {{count}} receptions",
-    "researchPrefix": "Research (Jordet, Premier League): players who reach the professional level scanned",
-    "researchEmphasis": "2× more at ages 12-14",
-    "researchSuffix": ". It is the earliest and most stable indicator of elite potential."
-  },
   "scanningIntelligenceReport": {
     "title": "Pre-reception scanning report",
     "player": "Player",
@@ -4075,63 +4061,34 @@
     "sampleLabel": "Sample"
   },
   "scanningAnalyzerDialog": {
-    "toastSuccess": "Scanning analyzed · Scan IQ {{scanIQ}}/100",
+    "toastSuccess": "Demo example loaded",
     "toastError": "Error analyzing the scanning",
-    "title": "Analyze scanning from video",
+    "title": "Scan IQ · demo example",
     "playerLabel": "Player",
-    "subtitleSuffix": "counts scans in the 10s before each reception",
-    "intro": "Select a video. The pipeline runs pose estimation on the target player and counts head turns before each reception.",
-    "uploadedVideo": "uploaded video",
+    "subtitleSuffix": "no video analyzed",
     "demoMatch": "demo match",
-    "pipelineTitle": "What does the pipeline do?",
-    "pipelineStep1": "Tracking of the target player throughout the match",
-    "pipelineStep2": "Pose estimation · detects head turns >30°",
-    "pipelineStep3": "Identifies every reception of the ball",
-    "pipelineStep4": "Counts scans in the 10 seconds before each reception",
-    "pipelineStep5": "Correlates with the quality of the subsequent decision",
     "analyzing": "Analyzing",
     "analysisComplete": "Analysis complete",
-    "receptionsAnalyzed": "{{count}} receptions analyzed",
     "scansPerReception": "Scans / reception",
     "successWithScan": "Success with scan",
     "cancel": "Cancel",
     "analyze": "Analyze",
-    "closeAndViewReport": "Close and view report"
+    "closeAndViewReport": "Close and view report",
+    "demoIntro": "Demo mode: pick an example match to load an EXAMPLE Scan IQ. No video is analyzed."
   },
   "scanningIntelligencePage": {
-    "demoNotice": "The Scan IQ and ranking below are EXAMPLE values (derived from the player, not measured). Real Scan IQ appears after analyzing a player video.",
+    "demoNotice": "The Scan IQ and the report below are a fixed EXAMPLE (the same for every player), not a measurement.",
     "headerSubtitle": "Scanning before receiving the ball",
-    "playerAnalyzedSingular": "player analyzed",
-    "playerAnalyzedPlural": "players analyzed",
     "createPlayerFirst": "Create a player first.",
-    "demoLoaded": "Demo Scan IQ loaded for {{name}} ({{scanIQ}}/100)",
+    "demoLoaded": "Demo example loaded for {{name}}",
     "demoButtonTitle": "View the Scan IQ with sample data (no video upload)",
     "demoData": "Demo data",
-    "uploadVideoTitle": "Upload a video and analyze its scanning",
-    "uploadVideo": "Upload video",
-    "analyzeVideoTitle": "Analyze the player's scanning from a video",
+    "analyzeVideoTitle": "Load the example from a demo match",
     "analyzeVideo": "Analyze video",
-    "statAvgScanIQ": "Average Scan IQ",
-    "statElitePlayers": "Elite players",
-    "statToImprove": "To improve",
-    "statTopPlayer": "Top player",
-    "latestVideoAnalysisLabel": "Latest scanning analysis from video:",
-    "receptions": "receptions",
-    "videoScanIQ": "Video Scan IQ",
-    "searchPlayer": "Search player…",
-    "yearsAbbrev": "y",
-    "tierElite": "Elite",
-    "tierProfessional": "Professional",
-    "tierRegional": "Regional",
-    "tierBase": "Base",
-    "noPlayerMatches": "No player matches \"{{query}}\"",
-    "mentalProfilePrompt": "Do you want to see {{name}}'s full mental profile?",
-    "openMentalProfile": "Open mental profile →",
-    "selectPlayerLeft": "Select a player on the left.",
-    "scanIQUpdated": "Scan IQ updated to {{scanIQ}}/100 for {{name}}",
     "emptyTitle": "No players yet",
-    "emptyDescription": "The scanning analysis counts how many times each player looks around in the 10s before receiving the ball, and correlates that with the quality of their subsequent decision. You need players on the team to see it.",
-    "createFirstPlayer": "Create first player"
+    "createFirstPlayer": "Create first player",
+    "gateUnlock": "It will be enabled once there is a ball-reception detector with the player's identity (shirt number) and an age-based reference with a source, validated against hand-annotated clips.",
+    "demoHint": "Load the example with the buttons above (demo data or a demo match)."
   },
   "smartMatchPrompt": {
     "example1": "I need a left-footed U-19 center-back with leadership and aerial ability. Budget 400k.",
@@ -4844,16 +4801,6 @@
     "backToDashboard": "Back to dashboard",
     "adminPanelDesc": "Full metrics and analytics panel (admin only)"
   },
-  "dmScoreCard": {
-    "subtitle": "How they process the real game — what isolated drills can't see",
-    "confidence": "Confidence {{count}}%",
-    "sourceLabel": "source: {{source}}",
-    "sourceReal": "real video",
-    "sourceMock": "estimated",
-    "sourceBpe": "mental profile",
-    "sourceVideo": "video analysis",
-    "sourceUnknown": "—"
-  },
   "folderPicker": {
     "removedFromFolder": "Removed from folder",
     "addedToFolder": "Added to folder",
@@ -5117,7 +5064,8 @@
     "zoneWalk": "Walk",
     "zoneJog": "Jog",
     "zoneRun": "Run",
-    "reAnalyze": "Re-analyze with latest video"
+    "reAnalyze": "Re-analyze with latest video",
+    "scansNotAttributable": "Not attributable"
   },
   "transferFilters": {
     "freeSearch": "Free search",
@@ -6398,5 +6346,11 @@
     "value": "Not available",
     "hint": "No validated duel criterion",
     "reason": "VITAS does not count duels: there is no validated criterion for what a duel is or who wins it (human annotation is missing). They are not inferred from proximity."
+  },
+  "scanIqGate": {
+    "reason": "Scan IQ not available: there is no validated basis to score scanning by age, and video analysis does not detect ball receptions or identify the player."
+  },
+  "dmScoreGate": {
+    "reason": "Decision-Making Score not available: its weights have no source and its components are not measured (Scan IQ blocked; decision speed and composure not validated; tactical reading not measured from video)."
   }
 }

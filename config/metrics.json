@@ -469,10 +469,10 @@
       "concept": "cognitivo.dm_score",
       "provenance": "DERIVADA",
       "calc_paths": ["src/lib/dmscore/dmScore.ts"],
-      "ui_paths": [],
-      "allowed_literals": [45, 65, 80, 0.15, 0.25, 0.35, 0.75],
+      "ui_paths": ["src/components/dmscore/DMScoreCard.tsx", "src/pages/PlayerHubPage.tsx"],
+      "allowed_literals": [],
       "gated": true,
-      "notes": "YA gatea a null cuando faltan componentes (:92, <MIN_COMPONENTS). Pesos del compuesto pendiente de validar → confidence reducida. Render vía DMScoreCard (PlayerHubPage)."
+      "notes": "P1 bloque 6b, punto 9. dmScoreMetric() SIEMPRE value null + DM_SCORE_GATE_REASON: pesos 35/35/15/15 sin fuente y componentes no medidos (Scan IQ bloqueado; velocidad de decisión y temple del perfil conductual sin validar; lectura táctica no medida por el vídeo). Antes: compuesto renormalizado con «élite para su edad» y confianza sobre 2 de 4 señales, vía useDMScore (edad 14 por defecto, retirado). La tarjeta pinta el motivo traducido (dmScoreGate.reason)."
     },
     {
       "id": "scan_iq",
@@ -480,10 +480,10 @@
       "concept": "cognitivo.scan_iq",
       "provenance": "DERIVADA",
       "calc_paths": ["src/lib/dmscore/scanIQ.ts"],
-      "ui_paths": [],
-      "allowed_literals": [4, 5, 6, 10, 25, 40, 50, 70, 75, 90, 95, 99, 1.5, -1.5],
+      "ui_paths": ["src/components/dmscore/ScanIQCard.tsx", "src/pages/PlayerHubPage.tsx", "src/pages/ScanningIntelligencePage.tsx"],
+      "allowed_literals": [],
       "gated": true,
-      "notes": "Render vía ScanIQCard (PlayerHubPage). Umbrales pendiente de validar → confidence reducida."
+      "notes": "P1 bloque 6b, punto 9. scanIQMetric() SIEMPRE value null + SCAN_IQ_GATE_REASON: no hay base validada por edad (las bandas de benchmarks.ts eran «interpolaciones razonables» sin fuente; cita a Jordet sin referencia verificada) y el detector de vídeo no detecta recepciones (las repartía cada ~4 s) ni identifica al jugador, con tasas de éxito fijas 0,65/0,45 rotuladas «Vídeo real». Retirados benchmarks.ts, computeScanIQ, useDMScore (edad 14), el modo MediaPipe de scanningVideoDetector y el ranking por hash del id en /scanning. Fuera del demo la UI pinta el motivo traducido (scanIqGate.reason). El ejemplo del demo es otro concepto: scan_iq_ejemplo."
     },
     {
       "id": "idp_progreso",
@@ -849,6 +849,18 @@
       "allowed_literals": [],
       "gated": true,
       "notes": "P1 bloque 6 (revisiones #322 r1-r3). Señal de DIRECCIÓN, no un nivel: sale del timing de la maduración canónica (phvGate → assessment, sin tocar el PHV, inv #4) con la dirección del propio motor (maturity.ts adjustmentFor: tardío ×1,12 ⇒ «posible infravaloración», precoz ×0,92 ⇒ «posible sobrevaloración», en fase ⇒ solo el timing). Confianza = la del offset de Mirwald del gate. Sin señal ⇒ value null + gate_reason: gate cerrado (falta una medida o medidas fuera de rango; la UI lo traduce con PhvGateNotice) o gate abierto sin timing afirmado (Mirwald lejos del PHV o antropometría no plausible; la UI pinta «Timing por determinar»). Antes: «MED BIAS ALERT» por defecto, «LOW BIAS» con un percentil > 70 sin fuente y «LOW» a los precoces (al revés que el motor)."
+    },
+    {
+      "id": "scan_iq_ejemplo",
+      "name": "Scan IQ de EJEMPLO (solo demo)",
+      "concept": "cognitivo.scan_iq_ejemplo",
+      "provenance": "MOCK",
+      "calc_paths": ["src/lib/dmscore/scanIQExample.ts"],
+      "ui_paths": ["src/pages/ScanningIntelligencePage.tsx", "src/components/behavioral/ScanningIntelligenceReport.tsx", "src/components/behavioral/ScanningAnalyzerDialog.tsx"],
+      "allowed_literals": [72, 24, 2.3, 1.6, 0.71, 0.46, 0.62],
+      "gated": false,
+      "banner": true,
+      "notes": "P1 bloque 6b. Ejemplo FIJO del modo demo (IS_DEMO + partido demo), el MISMO para todos los jugadores (antes: hash del id del jugador y del vídeo, también para vídeos reales). Procedencia MOCK: la página lleva DemoDataBanner y la tarjeta/diálogo el ProvenanceBadge MOCK. Fuera del demo no se lee ni se pinta (scanningVideoDetector readAll() = [])."
     }
   ]
 }

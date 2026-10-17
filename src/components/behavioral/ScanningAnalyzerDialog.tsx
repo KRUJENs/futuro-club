@@ -1,8 +1,11 @@
 /**
  * VITAS · ScanningAnalyzerDialog
  *
- * Modal to pick a video + player and run the scanning-detection pipeline.
- * Independent from set pieces / highlights / behavioral analyzers.
+ * Modal del DEMO: elige un partido demo y carga el EJEMPLO fijo de escaneo (MOCK).
+ * P1 bloque 6b: los vídeos reales NO se analizan (sin detector de recepciones ni
+ * identidad del jugador; ver src/lib/dmscore/scanIQ.ts). Antes listaba los vídeos
+ * subidos y describía un «pipeline» (tracking del jugador, recepciones, correlación)
+ * que no existía.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -10,10 +13,11 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Eye, Cpu, CheckCircle2, Loader2, Video as VideoIcon } from "lucide-react";
 import { toast } from "sonner";
-import { VideoService, type VideoRecord } from "@/services/real/videoService";
-import { isLinkOnlyVideo } from "@/hooks/useVideos";
+import { IS_DEMO } from "@/lib/demoMode";
+import { ProvenanceBadge } from "@/components/metrics/MetricValue";
 import {
   runScanningDetection,
+  ScanningGatedError,
   type ScanningDetectionProgress,
   type ScanningAnalysisResult,
 } from "@/services/real/scanningVideoDetector";
@@ -48,16 +52,9 @@ export default function ScanningAnalyzerDialog({
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<ScanningDetectionProgress | null>(null);
   const [result, setResult] = useState<ScanningAnalysisResult | null>(null);
-  const [userVideos, setUserVideos] = useState<VideoRecord[]>([]);
 
   useEffect(() => {
     if (open) {
-      try {
-        // Sin los registros «solo enlace» de la antigua pestaña URL (metadatos inventados).
-        setUserVideos(VideoService.getAll().filter((v) => v.status === "finished" && !isLinkOnlyVideo(v)));
-      } catch {
-        setUserVideos([]);
-      }
       setSelectedVideoId(preselectedVideoId ?? null);
       setProgress(null);
       setResult(null);
@@ -65,21 +62,11 @@ export default function ScanningAnalyzerDialog({
     }
   }, [open, preselectedVideoId]);
 
-  const combinedVideos = useMemo(() => {
-    const real = userVideos.map((v) => ({
-      id: v.id,
-      title: v.title,
-      isReal: true,
-      minutes: Math.round(v.duration / 60),
-    }));
-    const demos = DEMO_VIDEOS.map((v) => ({
-      id: v.id,
-      title: v.title,
-      isReal: false,
-      minutes: v.minutes,
-    }));
-    return [...real, ...demos];
-  }, [userVideos]);
+  // Solo partidos demo y solo en el demo: los vídeos reales no se analizan (P1 bloque 6b).
+  const combinedVideos = useMemo(
+    () => (IS_DEMO ? DEMO_VIDEOS.map((v) => ({ id: v.id, title: v.title, minutes: v.minutes })) : []),
+    [],
+  );
 
   const selectedVideo = combinedVideos.find((v) => v.id === selectedVideoId) ?? null;
 
@@ -98,11 +85,14 @@ export default function ScanningAnalyzerDialog({
         (p) => setProgress(p),
       );
       setResult(r);
-      toast.success(t("scanningAnalyzerDialog.toastSuccess", { scanIQ: r.scanIQ }));
+      toast.success(t("scanningAnalyzerDialog.toastSuccess"));
       onCompleted(r);
     } catch (err) {
-      console.error(err);
-      toast.error(t("scanningAnalyzerDialog.toastError"));
+      if (err instanceof ScanningGatedError) toast.error(t("scanIqGate.reason"));
+      else {
+        console.error(err);
+        toast.error(t("scanningAnalyzerDialog.toastError"));
+      }
     } finally {
       setRunning(false);
     }
@@ -155,7 +145,7 @@ export default function ScanningAnalyzerDialog({
             {!running && !result && (
               <>
                 <p className="text-xs text-muted-foreground">
-                  {t("scanningAnalyzerDialog.intro")}
+                  {IS_DEMO ? t("scanningAnalyzerDialog.demoIntro") : t("scanIqGate.reason")}
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -177,7 +167,7 @@ export default function ScanningAnalyzerDialog({
                           {v.title}
                         </p>
                         <p className="text-[9px] text-muted-foreground">
-                          {v.minutes} min · {v.isReal ? t("scanningAnalyzerDialog.uploadedVideo") : t("scanningAnalyzerDialog.demoMatch")}
+                          {v.minutes} min · {t("scanningAnalyzerDialog.demoMatch")}
                         </p>
                       </div>
                       {selectedVideoId === v.id && (
@@ -187,16 +177,6 @@ export default function ScanningAnalyzerDialog({
                   ))}
                 </div>
 
-                <div className="rounded-lg bg-pink-500/5 border border-pink-500/20 p-3 text-[11px] text-foreground/80 space-y-1">
-                  <p className="font-semibold text-pink-500">{t("scanningAnalyzerDialog.pipelineTitle")}</p>
-                  <ul className="space-y-0.5 ml-2">
-                    <li>• {t("scanningAnalyzerDialog.pipelineStep1")}</li>
-                    <li>• {t("scanningAnalyzerDialog.pipelineStep2")}</li>
-                    <li>• {t("scanningAnalyzerDialog.pipelineStep3")}</li>
-                    <li>• {t("scanningAnalyzerDialog.pipelineStep4")}</li>
-                    <li>• {t("scanningAnalyzerDialog.pipelineStep5")}</li>
-                  </ul>
-                </div>
               </>
             )}
 
@@ -212,7 +192,7 @@ export default function ScanningAnalyzerDialog({
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-display font-bold text-foreground">{progress.message}</span>
+                    <span className="font-display font-bold text-foreground">{t("scanningAnalyzerDialog.analyzing")}</span>
                     <span className="font-mono text-pink-500 font-bold">{progress.pct}%</span>
                   </div>
                   <div className="h-2 bg-secondary/50 rounded-full overflow-hidden">
@@ -245,9 +225,9 @@ export default function ScanningAnalyzerDialog({
                   <h3 className="text-lg font-display font-bold text-foreground">
                     {t("scanningAnalyzerDialog.analysisComplete")}
                   </h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    <strong className="text-pink-500">Scan IQ {result.scanIQ}/100</strong> ·{" "}
-                    {t("scanningAnalyzerDialog.receptionsAnalyzed", { count: result.receptionsAnalyzed })}
+                  <p className="text-sm text-muted-foreground mt-1 inline-flex items-center gap-1.5">
+                    <strong className="text-pink-500">Scan IQ {result.scanIQ}/100</strong>
+                    <ProvenanceBadge provenance="MOCK" />
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 max-w-md mx-auto text-left">
