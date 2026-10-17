@@ -1,14 +1,14 @@
 /**
  * VITAS · Player Tracking Service
  *
- * Persiste el snapshot del análisis YOLO de un jugador (escaneos, duelos,
- * Voronoi, métricas físicas) generado en VitasLab para que sea visible en
+ * Persiste el snapshot del análisis YOLO de un jugador (escaneos, Voronoi,
+ * métricas físicas; sin duelos desde el P1 bloque 6) generado en VitasLab para que sea visible en
  * PlayerIntelligencePage y RoleProfile.
  *
  * Storage: localStorage `vitas_tracking_snapshot_{playerId}` (uno por jugador,
  * el último prevalece).
  */
-import type { PhysicalMetrics, ScanEvent, DuelEvent, FieldPoint } from "@/lib/yolo/types";
+import type { PhysicalMetrics, ScanEvent, FieldPoint } from "@/lib/yolo/types";
 import type { CalibrationConfidence } from "@/lib/yolo/fieldRegistration";
 import type { TacticalEvent } from "@/lib/tracking/eventDetectionEngine";
 import type { BiomechanicsScore } from "@/lib/mediapipe/biomechanicsEngine";
@@ -50,12 +50,12 @@ export interface TrackingSnapshot {
    */
   calibrationConfidence?: CalibrationConfidence;
   scanCount:      number;
-  duelCount:      number;
+  // Sin duelCount/duelEvents (P1 bloque 6): no hay criterio validado de duelo
+  // (src/lib/tracking/duels.ts). Los snapshots antiguos que los traen se ignoran.
   tracksCount:    number;
   focusTrackId:   number | null;
   /** Hasta 500 eventos (Sprint 3 expansion: 35+ types) · evita storage bloat */
   scanEvents:     ScanEvent[];
-  duelEvents:     DuelEvent[];
   /** Posiciones del track enfocado (para heatmap), normalizadas 0-105 x 0-68 */
   focusPositions?: Array<{ fx: number; fy: number; tMs: number }>;
   /** Tactical events detected by EventDetectionEngine (Sprint 2 — VAEP input) */
@@ -82,7 +82,6 @@ export const PlayerTrackingService = {
     const trimmed: TrackingSnapshot = {
       ...snapshot,
       scanEvents: snapshot.scanEvents.slice(-200),
-      duelEvents: snapshot.duelEvents.slice(-200),
       focusPositions: snapshot.focusPositions?.slice(-500),
       tacticalEvents: snapshot.tacticalEvents?.slice(-500),
       ballPositions: snapshot.ballPositions?.slice(-500),
@@ -120,7 +119,6 @@ export const PlayerTrackingService = {
           durationMs: Math.round(snapshot.durationSec * 1000),
           metrics: snapshot.sessionMetrics,
           scanEvents: snapshot.scanEvents,
-          duelEvents: snapshot.duelEvents,
           calibrationPreset: "full_corners",
         }),
       });
@@ -233,146 +231,7 @@ export const PlayerTrackingService = {
     }
     return result.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
   },
-
-  /** Historial de sesiones desde Supabase (últimas N). Fallback a localStorage si falla. */
-  async getHistory(playerId: string, limit = 10): Promise<TrackingSessionSummary[]> {
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch(
-        `/api/tracking/history?playerId=${encodeURIComponent(playerId)}&limit=${limit}`,
-        { headers },
-      );
-      if (!res.ok) throw new Error(`${res.status}`);
-      const json = await res.json();
-      if (json.success && Array.isArray(json.data)) {
-        return json.data as TrackingSessionSummary[];
-      }
-    } catch {
-      // Fallback: build summary from localStorage
-    }
-    const snap = this.get(playerId);
-    if (!snap) return [];
-    return [{
-      id: `local-${playerId}`,
-      date: snap.savedAt,
-      durationSec: snap.durationSec,
-      maxSpeedMs: snap.sessionMetrics.maxSpeedMs,
-      avgSpeedMs: snap.sessionMetrics.avgSpeedMs,
-      sprintCount: snap.sessionMetrics.sprintCount,
-      scanCount: snap.scanCount,
-      duelCount: snap.duelCount,
-      eventCount: snap.tacticalEvents?.length ?? 0,
-      source: "localStorage" as const,
-    }];
-  },
-
-  /**
-   * Multi-session aggregation: rolling averages, trends, percentiles.
-   * Sprint 9: foundation for injury + valuation models.
-   */
-  async getSessionAggregation(
-    playerId: string,
-    days = 28,
-  ): Promise<SessionAggregation> {
-    const history = await this.getHistory(playerId, 50);
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - days);
-    const cutoffStr = cutoff.toISOString();
-
-    const recent = history.filter((s) => s.date >= cutoffStr);
-    if (recent.length === 0) {
-      return {
-        sessionCount: 0,
-        periodDays: days,
-        avgSpeedMs: 0,
-        maxSpeedMs: 0,
-        avgSprintCount: 0,
-        avgDurationSec: 0,
-        totalDistanceEstM: 0,
-        avgScanCount: 0,
-        avgDuelCount: 0,
-        avgEventCount: 0,
-        speedTrend: 0,
-        sprintTrend: 0,
-        consistencyScore: 0,
-        coldStart: true,
-      };
-    }
-
-    const n = recent.length;
-    const sum = (arr: number[]) => arr.reduce((a, b) => a + b, 0);
-    const avg = (arr: number[]) => (arr.length > 0 ? sum(arr) / arr.length : 0);
-
-    const speeds = recent.map((s) => s.avgSpeedMs);
-    const sprints = recent.map((s) => s.sprintCount);
-    const durations = recent.map((s) => s.durationSec);
-
-    // Simple linear trend: (last half avg - first half avg) / first half avg
-    const half = Math.floor(n / 2);
-    const speedTrend = half > 0
-      ? (avg(speeds.slice(half)) - avg(speeds.slice(0, half))) / (avg(speeds.slice(0, half)) || 1)
-      : 0;
-    const sprintTrend = half > 0
-      ? (avg(sprints.slice(half)) - avg(sprints.slice(0, half))) / (avg(sprints.slice(0, half)) || 1)
-      : 0;
-
-    // Consistency: coefficient of variation (lower = more consistent)
-    const speedMean = avg(speeds);
-    const speedStdDev = Math.sqrt(avg(speeds.map((s) => (s - speedMean) ** 2)));
-    const cv = speedMean > 0 ? speedStdDev / speedMean : 1;
-    const consistencyScore = Math.max(0, Math.min(100, Math.round((1 - cv) * 100)));
-
-    return {
-      sessionCount: n,
-      periodDays: days,
-      avgSpeedMs: Math.round(avg(speeds) * 100) / 100,
-      maxSpeedMs: Math.max(...recent.map((s) => s.maxSpeedMs)),
-      avgSprintCount: Math.round(avg(sprints) * 10) / 10,
-      avgDurationSec: Math.round(avg(durations)),
-      totalDistanceEstM: Math.round(sum(recent.map((s) => s.avgSpeedMs * s.durationSec))),
-      avgScanCount: Math.round(avg(recent.map((s) => s.scanCount)) * 10) / 10,
-      avgDuelCount: Math.round(avg(recent.map((s) => s.duelCount)) * 10) / 10,
-      avgEventCount: Math.round(avg(recent.map((s) => s.eventCount)) * 10) / 10,
-      speedTrend: Math.round(speedTrend * 100) / 100,
-      sprintTrend: Math.round(sprintTrend * 100) / 100,
-      consistencyScore,
-      coldStart: n < 4,
-    };
-  },
 };
-
-export interface SessionAggregation {
-  sessionCount: number;
-  periodDays: number;
-  avgSpeedMs: number;
-  maxSpeedMs: number;
-  avgSprintCount: number;
-  avgDurationSec: number;
-  totalDistanceEstM: number;
-  avgScanCount: number;
-  avgDuelCount: number;
-  avgEventCount: number;
-  /** Trend: positive = improving, negative = declining (-1 to +1 range) */
-  speedTrend: number;
-  sprintTrend: number;
-  /** 0-100: how consistent performance is across sessions */
-  consistencyScore: number;
-  /** true if <4 sessions — aggregation unreliable */
-  coldStart: boolean;
-}
-
-export interface TrackingSessionSummary {
-  id: string;
-  date: string;
-  durationSec: number;
-  maxSpeedMs: number;
-  avgSpeedMs: number;
-  sprintCount: number;
-  scanCount: number;
-  duelCount: number;
-  eventCount: number;
-  source: "supabase" | "localStorage";
-}
 
 /** Minimal session data needed for ACWR computation (SessionLoad format) */
 export interface FatigueSessionSummary {

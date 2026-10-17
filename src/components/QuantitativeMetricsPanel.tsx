@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { VideoIntelligenceOutput } from "@/agents/contracts";
 import CalibrationCaveat from "@/components/CalibrationCaveat";
+import { duelsGateText } from "@/lib/metrics/duelsGate";
 
 type MetricasCuantitativas = NonNullable<VideoIntelligenceOutput["metricasCuantitativas"]>;
 
@@ -150,25 +151,17 @@ export default function QuantitativeMetricsPanel({ data }: Props) {
             </p>
           </div>
 
-          {/* Duelos */}
-          <div className="glass rounded-xl p-3">
+          {/* Duelos — SIEMPRE bloqueados (P1 bloque 6): antes «0 %» sin duelos y el
+              conteo del modelo de vídeo sin criterio validado. Hueco con su motivo. */}
+          <div className="glass rounded-xl p-3" data-testid="duels-gated">
             <div className="flex items-center gap-1 mb-1">
               <Swords size={11} className="text-red-400" />
               <span className="text-[8px] font-display uppercase tracking-wider text-muted-foreground">
                 {t("quantitativeMetricsPanel.duels")}
               </span>
             </div>
-            <div className="flex items-baseline gap-1">
-              <span className="font-display font-bold text-lg text-foreground">
-                {eventos.duelosGanados + eventos.duelosPerdidos > 0
-                  ? Math.round((eventos.duelosGanados / (eventos.duelosGanados + eventos.duelosPerdidos)) * 100)
-                  : 0}
-              </span>
-              <span className="text-[9px] text-muted-foreground">%</span>
-            </div>
-            <p className="text-[9px] text-muted-foreground mt-0.5">
-              {t("quantitativeMetricsPanel.duelsWonLost", { won: eventos.duelosGanados, lost: eventos.duelosPerdidos })}
-            </p>
+            <p className="font-display font-semibold text-xs text-foreground">{duelsGateText(t).value}</p>
+            <p className="text-[9px] text-muted-foreground mt-0.5">{duelsGateText(t).hint}</p>
           </div>
 
           {/* Recuperaciones */}

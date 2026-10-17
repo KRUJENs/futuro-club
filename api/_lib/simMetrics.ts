@@ -10,9 +10,9 @@
  * Enfoque HÍBRIDO honesto:
  *   - Si el análisis trae eventos observados (eventosContados de Gemini o
  *     eventSummary del cliente) → se DERIVAN las dims de esos eventos. Se usan
- *     RATIOS reales autonormalizados donde existen (precisión de pase, % de duelos
- *     ganados, % de disparos a puerta). Las dims sin ratio (visión, volumen
- *     defensivo) usan normalizaciones por volumen marcadas "pendiente de validar"
+ *     RATIOS reales autonormalizados donde existen (precisión de pase, % de disparos
+ *     a puerta). Sin duelos (P1 bloque 6: sin criterio validado, src/lib/tracking/duels.ts).
+ *     Las dims sin ratio (visión, volumen defensivo) usan normalizaciones por volumen marcadas "pendiente de validar"
  *     → el caller reduce la confianza.
  *   - Si NO hay eventos → devuelve null: el caller SE ABSTIENE (no genera comparable,
  *     no fabrica un 6-D con constantes). Abstención = resultado válido (invariante #3).
@@ -20,6 +20,8 @@
  * Nota: estas métricas alimentan SOLO al motor de similarity (comparable pro), NO
  * al VSI compuesto — no mueven el VSI global de la app.
  */
+
+import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 
 export interface SimMetrics {
   speed: number;
@@ -73,13 +75,17 @@ export function deriveSimMetrics(
   const obs = videoObservations as
     | { gemini?: { eventosContados?: Record<string, unknown> } | null; eventSummary?: Record<string, unknown> | null }
     | null;
-  const ecRaw = obs?.gemini?.eventosContados ?? null;
-  const es = obs?.eventSummary ?? null;
+  // Sin duelos (P1 bloque 6): ni cuentan como dim ni como «hay eventos» (un análisis
+  // antiguo con solo duelos no fabrica un comparable de 50s).
+  const ecRaw = stripDuelOutcomes(obs?.gemini?.eventosContados ?? null);
+  const es = stripDuelOutcomes(obs?.eventSummary ?? null);
   // Abstención por CONTENIDO, no solo por presencia: un {} o un todo-ceros NO es señal
   // (evita fabricar un comparable "neutro" de 50s desde un objeto vacío — revisión #178).
   const ecHasEvents = ecRaw ? Object.values(ecRaw).some((v) => num(v) > 0) : false;
+  // Sin `totalEvents` (P1 bloque 6): en clientes/filas antiguos contaba también los duelos
+  // (uno por fotograma), así que un total > 0 no prueba que haya un evento usable.
   const esHasEvents = es
-    ? ["totalEvents", "passesAttempted", "passesCompleted", "duelsWon", "duelsLost", "recoveries", "shots"].some(
+    ? ["passesAttempted", "passesCompleted", "recoveries", "shots"].some(
         (k) => num((es as Record<string, unknown>)[k]) > 0,
       )
     : false;
@@ -105,14 +111,11 @@ export function deriveSimMetrics(
     const techParts = [passR?.pct ?? null, dribR?.pct ?? null].filter((v): v is number => v != null);
     technique = techParts.length > 0 ? clamp(techParts.reduce((a, b) => a + b, 0) / techParts.length) : 50;
     if (techParts.length > 0) ratioDerivedDims++;
-    // defending ← % duelos ganados (ratio real) + volumen de acciones defensivas
-    const duelR = ratio(obsNum(ec.duelosGanados), obsNum(ec.duelosPerdidos));
+    // defending ← volumen de acciones defensivas (sin ratio → no cuenta como ratio-derivada).
+    // Antes: % de duelos ganados (60 %) — sin criterio validado de duelo (P1 bloque 6).
     const defRaw = sumObserved(obsNum(ec.recuperaciones), obsNum(ec.robos), obsNum(ec.anticipaciones));
     const defVol = defRaw !== null ? Math.min(100, (defRaw / DEFVOL_FULL) * 100) : null;
-    defending = duelR
-      ? clamp(defVol !== null ? duelR.pct * 0.6 + defVol * 0.4 : duelR.pct)
-      : defVol !== null ? clamp(defVol) : 50;
-    if (duelR) ratioDerivedDims++;
+    defending = defVol !== null ? clamp(defVol) : 50;
     // shooting ← % disparos a puerta (ratio real)
     const shotR = ratio(obsNum(ec.disparosAlArco), obsNum(ec.disparosFuera));
     shooting = shotR ? clamp(shotR.pct) : clamp(technique * 0.7);
@@ -133,12 +136,10 @@ export function deriveSimMetrics(
     const passPct = es!.passCompletionPct;
     technique = typeof passPct === "number" ? clamp(passPct) : 50;
     if (typeof passPct === "number") ratioDerivedDims++;
-    // defending ← % duelos ganados (ratio) + recoveries (volumen)
-    const dW = num(es!.duelsWon), dL = num(es!.duelsLost);
-    const duelWin = dW + dL >= MIN_SAMPLE ? (dW / (dW + dL)) * 100 : null;
+    // defending ← recoveries (volumen). Sin % de duelos (P1 bloque 6): no hay criterio
+    // validado (el motor del cliente decidía «gana el más rápido»).
     const recVol = Math.min(100, (num(es!.recoveries) / REC_FULL) * 100);
-    defending = duelWin != null ? clamp(duelWin * 0.6 + recVol * 0.4) : clamp(recVol);
-    if (dW + dL >= MIN_SAMPLE) ratioDerivedDims++;
+    defending = clamp(recVol);
     // shooting ← xG por disparo (proxy) — pendiente de validar
     const shots = num(es!.shots);
     shooting = shots > 0 ? clamp(Math.min(100, 40 + num(es!.xgContributions) * 60)) : clamp(technique * 0.7);

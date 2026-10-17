@@ -40,7 +40,7 @@ const planSchema = z.object({
   }).passthrough(),
 }).passthrough();
 
-const PROMPT_VERSION = "dev-plan-v1.2.0"; // v1.2 = deficits observados del vídeo + scanning serializado (docx #14 P2)
+const PROMPT_VERSION = "dev-plan-v1.3.0"; // v1.2 = deficits observados del vídeo + scanning serializado (docx #14 P2); v1.3 = sin duelos (P1 bloque 6)
 
 function buildSystemPrompt(locale: ReportLocale, category: PlayerCategory): string {
   return `Eres el motor de generación de Planes de Desarrollo de VITAS.
@@ -58,7 +58,7 @@ ${category === "senior" ? `- Si VSI subscore "physical" <60: fuerza progresiva.`
 - Si scanning.bilateralityPct < 30: AÑADIR drill de pase ciego al lado débil.
 - Estructura el plan en 4 bloques de 3 semanas cada uno.
 - Usa los drills sugeridos del RAG context si encajan; no inventes drills nuevos.
-- EVIDENCIA (docx #14): las DEBILIDADES incluyen deficits OBSERVADOS en el vídeo (p. ej. "precisión de pase (observada)", "duelos (observados)"). El objetivo de cada bloque DEBE atacar un gap concreto de esa lista y, cuando venga de OBSERVACIÓN DIRECTA DEL VÍDEO, citarlo (p. ej. "mejorar precisión de pase — 55% observado"). Si la lista es "ninguna con datos suficientes", NO inventes debilidades: haz un plan de mantenimiento/desarrollo general y dilo explícitamente.
+- EVIDENCIA (docx #14): las DEBILIDADES incluyen deficits OBSERVADOS en el vídeo (p. ej. "precisión de pase (observada)", "escaneo/lectura de juego (observado)"). El objetivo de cada bloque DEBE atacar un gap concreto de esa lista y, cuando venga de OBSERVACIÓN DIRECTA DEL VÍDEO, citarlo (p. ej. "mejorar precisión de pase — 55% observado"). Si la lista es "ninguna con datos suficientes", NO inventes debilidades: haz un plan de mantenimiento/desarrollo general y dilo explícitamente.
 
 POLIVALENCIA · si player.secondaryPositions[] tiene elementos:
 - El plan debe afianzar la polivalencia: incluir drills específicos de cada posición declarada
@@ -161,9 +161,7 @@ export function detectObservedWeaknesses(videoObservations: unknown): string[] {
     const pc = n(ec.pasesCompletados), pf = n(ec.pasesFallados);
     const passTot = pc !== null && pf !== null ? pc + pf : null;
     if (passTot !== null && pc !== null && passTot >= 3 && pc / passTot < 0.6) out.push("precisión de pase (observada en vídeo)");
-    const dg = n(ec.duelosGanados), dp = n(ec.duelosPerdidos);
-    const duelTot = dg !== null && dp !== null ? dg + dp : null;
-    if (duelTot !== null && dg !== null && duelTot >= 3 && dg / duelTot < 0.5) out.push("duelos (observados en vídeo)");
+    // Sin déficit de «duelos» (P1 bloque 6): sin criterio validado de duelo (src/lib/tracking/duels.ts).
     const scans = n(ec.escaneos);
     if (passTot !== null && scans !== null && passTot >= 5 && scans <= 2) out.push("escaneo/lectura de juego (observado en vídeo)");
     // Muestra mínima ≥3 (como los demás): un n=1 (1 pérdida, 0 recuperaciones) NO es
@@ -172,8 +170,6 @@ export function detectObservedWeaknesses(videoObservations: unknown): string[] {
     if (losses !== null && recs !== null && losses + recs >= 3 && losses > recs) out.push("control bajo presión (observado en vídeo)");
   } else if (es) {
     if (typeof es.passCompletionPct === "number" && es.passCompletionPct < 60) out.push("precisión de pase (observada en vídeo)");
-    const dW = n(es.duelsWon), dL = n(es.duelsLost);
-    if (dW !== null && dL !== null && dW + dL >= 3 && dW / (dW + dL) < 0.5) out.push("duelos (observados en vídeo)");
   }
   return out;
 }

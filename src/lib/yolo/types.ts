@@ -117,8 +117,6 @@ export interface PhysicalMetrics {
   maxAccelMs2:      number;
   intensityZones:   IntensityZones;
   scanCount:        number;
-  duelsWon:         number;
-  duelsLost:        number;
   avgVoronoiAreaM2: number;
   /**
    * ¿La IDENTIDAD del track enfocado fue fiable (asociación mayormente IoU fuerte)?
@@ -127,10 +125,10 @@ export interface PhysicalMetrics {
    */
   identityReliable?: boolean;
   /**
-   * Duelos ganados/perdidos como MetricResult (G1). Hoy BLOQUEADO: el ganador del
-   * duelo (winnerId) nunca se calcula en la ruta tracking → won/lost serían siempre
-   * 0, un "0 que significa no-medido". Se representa gated con gate_reason en vez de
-   * mostrar "0G/0P" (mentira). La resolución real del ganador es G3.
+   * Duelos como MetricResult: SIEMPRE bloqueado (`duelsMetric()` de
+   * src/lib/tracking/duels.ts, P1 bloque 6). Sin criterio validado de qué es un duelo
+   * ni de quién lo gana no se cuentan ni se muestran «0G/0P». Ya no existen
+   * `duelsWon/duelsLost` (eran siempre 0: el ganador nunca se resolvía).
    */
   duels?: MetricResult<number>;
   /**
@@ -174,14 +172,6 @@ export interface ScanEvent {
   timestampMs: number;
   direction:   "left" | "right";
   durationMs:  number;
-}
-
-export interface DuelEvent {
-  trackIds:    [number, number];
-  timestampMs: number;
-  fieldPos:    FieldPoint;
-  type:        "aerial" | "ground";
-  winnerId:    number | null;  // null si no determinado
 }
 
 // ─── Voronoi ──────────────────────────────────────────────────────────────────
@@ -276,7 +266,6 @@ export interface TrackingSession {
   durationMs:      number;
   metrics:         PhysicalMetrics;
   scanEvents:      ScanEvent[];
-  duelEvents:      DuelEvent[];
   calibrationPreset: FieldAnchorPreset;
   createdAt:       string;
   /** Ball track data from Sprint 1 — Ball Tracking */

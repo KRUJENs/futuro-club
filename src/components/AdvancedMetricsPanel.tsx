@@ -37,10 +37,12 @@ export function AdvancedMetricsPanel({ metrics, qualityScore, qualityIssues, tra
   const trackingFromSnapshot = trackingSnapshot ? buildTrackingFromSnapshot(trackingSnapshot) : null;
   const tracking = trackingFromSnapshot ?? metrics.tracking;
 
-  // ── Override biomechanics: MediaPipe real > snapshot heurístico > service stub
+  // ── Override biomechanics: MediaPipe real > service stub (con su motivo).
+  // Sin el «DrillScore desde Lab» heurístico (P1 bloque 6): mezclaba 40/30/30 sin fuente
+  // intensidad, escaneos de TODAS las pistas y un ratio de duelos que valía 50 fijo
+  // cuando no había duelos (nunca los había: el ganador no se resolvía).
   const biomechanicsFromMediaPipe = mediaPipeBiomechanics ? buildBiomechanicsFromMediaPipe(mediaPipeBiomechanics) : null;
-  const biomechanicsFromSnapshot = trackingSnapshot ? buildBiomechanicsFromSnapshot(trackingSnapshot) : null;
-  const biomechanics = biomechanicsFromMediaPipe ?? biomechanicsFromSnapshot ?? metrics.biomechanics;
+  const biomechanics = biomechanicsFromMediaPipe ?? metrics.biomechanics;
 
   return (
     <motion.div
@@ -231,35 +233,6 @@ function buildTrackingFromSnapshot(s: TrackingSnapshot): {
     sprintDistanceM:  m.sprintDistanceM > 0 ? m.sprintDistanceM : null,
     status:           "calculated",
     message:          `Calculado desde ${s.tracksCount} tracks · ${s.scanCount} escaneos detectados (VITAS Lab)`,
-  };
-}
-
-function buildBiomechanicsFromSnapshot(s: TrackingSnapshot): {
-  drillScore: number | null;
-  injuryRisk: number | null;
-  asymmetryPct: number | null;
-  status: "calculated" | "stub_no_data";
-  message: string;
-} {
-  const m = s.sessionMetrics;
-  // Heurística DrillScore desde tracking:
-  //   - 40% intensidad (más sprint+correr = mejor preparación)
-  //   - 30% escaneos por minuto (mayor lectura del juego)
-  //   - 30% ratio duelos ganados
-  const intensityTotal = Math.max(1, m.intensityZones.walk + m.intensityZones.jog + m.intensityZones.run + m.intensityZones.sprint);
-  const intensityScore = ((m.intensityZones.run + m.intensityZones.sprint * 1.5) / intensityTotal) * 100;
-  const minutesEstimated = Math.max(1, m.distanceCoveredM / Math.max(0.1, m.avgSpeedMs) / 60);
-  const scansPerMin = s.scanCount / minutesEstimated;
-  const scanScore = Math.min(100, scansPerMin * 12); // 8 escaneos/min ≈ 96
-  const duelsTotal = m.duelsWon + m.duelsLost;
-  const duelScore = duelsTotal > 0 ? (m.duelsWon / duelsTotal) * 100 : 50;
-  const drillScore = Math.round(intensityScore * 0.4 + scanScore * 0.3 + duelScore * 0.3);
-  return {
-    drillScore,
-    injuryRisk:   null,
-    asymmetryPct: null,
-    status:       "calculated",
-    message:      `DrillScore desde Lab · ${s.scanCount} escaneos · ${duelsTotal} duelos · ${m.sprintCount} sprints`,
   };
 }
 

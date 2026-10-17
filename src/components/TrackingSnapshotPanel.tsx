@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import type { TrackingSnapshot } from "@/services/real/playerTrackingService";
 import { metricsTrustworthy } from "@/lib/yolo/fieldRegistration";
 import { EmptyTracking } from "@/components/illustrations/EmptyIllustrations";
+import { duelsGateText } from "@/lib/metrics/duelsGate";
 
 interface Props {
   playerId: string;
@@ -108,7 +109,9 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
       {/* Eventos clave */}
       <div className="grid grid-cols-3 gap-2">
         <StatCard icon={<Eye size={12} className="text-cyan-400" />} label={t("trackingSnapshotPanel.labelScans")} value={`${snapshot.scanCount}`} unit={t("trackingSnapshotPanel.unitHeadTurns")} />
-        <StatCard icon={<Swords size={12} className="text-orange-400" />} label={t("trackingSnapshotPanel.labelDuels")} value={`${m.duelsWon}/${m.duelsWon + m.duelsLost}`} unit={t("trackingSnapshotPanel.unitWon")} />
+        {/* Duelos SIEMPRE bloqueados (P1 bloque 6): antes «0/0 ganados» (el ganador nunca
+            se resolvía). Hueco con su motivo, también para snapshots guardados antes. */}
+        <StatCard icon={<Swords size={12} className="text-orange-400" />} label={t("trackingSnapshotPanel.labelDuels")} value={duelsGateText(t).value} unit={duelsGateText(t).hint} />
         {/* Voronoi gateado: avgVoronoiAreaM2 puede ser 0 por "sin muestras" (o snapshot
             pre-G7) → NO pintar ese 0 como área real (inv #2). Fuente honesta = space. */}
         <StatCard icon={<Hexagon size={12} className="text-fuchsia-400" />} label="VORONOI" value={m.space?.value != null ? (m.space.value as number).toFixed(0) : t("trackingSnapshotPanel.spaceNoData")} unit={m.space?.value != null ? t("trackingSnapshotPanel.unitControl") : ""} />

@@ -28,7 +28,6 @@ function makeData(calibrationReliable: boolean): SessionExportData {
     events: [],
     eventSummary: {} as unknown as SessionExportData["eventSummary"],
     scanEvents: [],
-    duelEvents: [],
     focusPositions: [
       { fx: 10, fy: 20, tMs: 0 },
       { fx: 12, fy: 22, tMs: 125 },
@@ -59,5 +58,22 @@ describe("AnalyticsExporter — provenance de calibración en TODOS los formatos
     expect(exp.toCSV().split("\n")[0]).toContain("calibration_reliable");
     expect(exp.toCSV()).toContain(",true");
     expect(exp.toHTMLReport()).not.toContain("Calibración no fiable");
+  });
+});
+
+describe("AnalyticsExporter — duelos bloqueados (P1 bloque 6)", () => {
+  it("JSON: duels = null + motivo canónico; ninguna clave duelsWon/duelEvents", async () => {
+    const { DUELS_GATE_REASON } = await import("@/lib/tracking/duels");
+    const json = JSON.parse(new AnalyticsExporter(makeData(true)).toJSON());
+    expect(json.duels.value).toBeNull();
+    expect(json.duels.gate_reason).toBe(DUELS_GATE_REASON);
+    expect(JSON.stringify(json)).not.toMatch(/duelsWon|duelsLost|duelEvents|duelCount/);
+  });
+
+  it("HTML: la tarjeta de duelos pinta el motivo, nunca «0G» / «0P»", async () => {
+    const { DUELS_GATE_REASON } = await import("@/lib/tracking/duels");
+    const html = new AnalyticsExporter(makeData(true)).toHTMLReport();
+    expect(html).toContain(DUELS_GATE_REASON);
+    expect(html).not.toMatch(/\b0G\b|\b0P\b/);
   });
 });

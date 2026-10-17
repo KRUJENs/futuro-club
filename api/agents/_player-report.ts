@@ -46,7 +46,7 @@ const playerReportSchema = z.object({
   }).passthrough(),
 }).passthrough();
 
-const PROMPT_VERSION = "player-report-v2.3.0"; // v2.3.0 = advertencia de identidad no verificada por dorsal (Gemini unico_jugador/confianza media); v2.2.1 = procedencia (gemini=IA), gate de identidad en eventSummary, trampa passCompletionPct 0 (revisión #177)
+const PROMPT_VERSION = "player-report-v2.4.0"; // v2.4.0 = sin duelos (P1 bloque 6: sin criterio validado; ejemplo «ganó 7 de 10 duelos» fuera); v2.3.0 = advertencia de identidad no verificada por dorsal (Gemini unico_jugador/confianza media); v2.2.1 = procedencia (gemini=IA), gate de identidad en eventSummary, trampa passCompletionPct 0 (revisión #177)
 
 function buildSystemPrompt(locale: ReportLocale, category: PlayerCategory): string {
   return `Eres el motor del Player Report de VITAS Football Intelligence.
@@ -108,16 +108,17 @@ EVIDENCIA DEL VÍDEO (obligatorio · esto es lo que hace el informe ÚTIL en vez
 - IDENTIDAD EN EL VÍDEO (Gemini): si gemini.identificacion (o biomechanics.identity) indica que el jugador NO se verificó por dorsal y equipación (estado "unico_jugador", o confianza distinta de "alta"), escribe esa advertencia en honesty_note ("Identidad no verificada por dorsal: [motivo]") y añádela a not_evaluated. Nunca digas que se le identificó por la cara o por rasgos físicos.
 - passCompletionPct 0 con passesAttempted 0 significa "no se detectaron pases" (posible fallo de cobertura), NO "falla todos los pases" → no lo cites como debilidad; escribe "sin datos de pase en este vídeo".
 - La sección "OBSERVACIÓN DIRECTA DEL VÍDEO" trae lo contado/observado en ESTE vídeo:
-  · gemini.eventosContados (pases completados/fallados/progresivos, regates con/sin ventaja, duelos ganados/perdidos, recuperaciones, robos, anticipaciones, pérdidas, escaneos, disparos al arco/fuera, centros…), gemini.dimensiones (score_estimado + observaciones por dimensión), gemini.momentosDestacados (timestamp+descripción), gemini.resumenGeneral;
-  · o bien eventSummary (passCompletionPct, passesAttempted/Completed, duelsWon/Lost, recoveries, sprintBursts, shots, xgContributions, vaepApprox) y physicalMetrics.
-- CADA fortaleza y CADA área de mejora DEBE citar un dato observado CONCRETO de esa sección (p. ej. "12/18 pases progresivos", "ganó 7 de 10 duelos", "3 recuperaciones en presión alta", "escaneos: 24"). Prohibido rellenar con rasgos genéricos de la posición.
+  · gemini.eventosContados (pases completados/fallados/progresivos, regates con/sin ventaja, recuperaciones, robos, anticipaciones, pérdidas, escaneos, disparos al arco/fuera, centros…), gemini.dimensiones (score_estimado + observaciones por dimensión), gemini.momentosDestacados (timestamp+descripción), gemini.resumenGeneral;
+  · o bien eventSummary (passCompletionPct, passesAttempted/Completed, recoveries, sprintBursts, shots, xgContributions, vaepApprox) y physicalMetrics.
+- CADA fortaleza y CADA área de mejora DEBE citar un dato observado CONCRETO de esa sección (p. ej. "12/18 pases progresivos", "3 recuperaciones en presión alta", "escaneos: 24"). Prohibido rellenar con rasgos genéricos de la posición.
+- DUELOS: VITAS no cuenta duelos (no hay un criterio validado de qué es un duelo ni de quién lo gana). NUNCA cites duelos ganados/perdidos ni un % de duelos, aunque aparezcan en datos antiguos; si hacen falta, añade "duelos" a not_evaluated.
 - Si "OBSERVACIÓN DIRECTA DEL VÍDEO" es "no_data" o el dato concreto no está, escribe literalmente "No observado en este vídeo" — NUNCA un rasgo plausible inventado.
 - physicalMetrics: usa maxSpeedMs/distanceCoveredM/sprintCount SOLO si están presentes (vienen gated: si calibrationReliable o identityReliable es false esos números NO están y NO se midieron con fiabilidad → no los infieras). scanCount solo si identityReliable.
 - HISTORIAL VSI: si tiene ≥2 puntos, cita la tendencia REAL (subió/bajó de X a Y); si está vacío, di "primer análisis — sin tendencia". No inventes evolución.
 
 SCORING RUBRIC (desglose obligatorio):
 - Técnica (35%): pases, control, regate, tiro — basado en video features observados
-- Físico (20%): velocidad, resistencia, duelos — basado en tracking data
+- Físico (20%): velocidad, resistencia — basado en tracking data
 - ${category === "senior" ? "Proyección (25%): proyección de rendimiento y estado de forma, tendencia de evolución" : "Proyección + PHV (25%): margen de mejora por edad madurativa (PHV Mirwald), tendencia de evolución"}
 - Fit contextual (20%): encaje con posición, estilo de juego, necesidades del equipo
 

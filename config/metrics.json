@@ -182,38 +182,15 @@
       "notes": "G2: cuenta FRAMES sobre umbral, no eventos. Un sprint de 2 s a 8 fps ≈ 16 'sprints'. Umbrales a config con procedencia."
     },
     {
-      "id": "duelos_tracking",
-      "name": "Duelos ganados/perdidos (ruta tracking)",
-      "concept": "eventos.duelos",
-      "provenance": "CONSTANTE",
-      "calc_paths": ["src/hooks/useTracking.ts", "src/lib/yolo/poseAnalyzer.ts"],
-      "ui_paths": ["src/components/TrackingMetricsPanel.tsx"],
-      "allowed_literals": [],
-      "gated": true,
-      "notes": "G3: ROTO — winnerId siempre null (poseAnalyzer.ts:136) → duelsWon/Lost SIEMPRE 0. Es un 0 que significa 'no medido' → CONSTANTE, value null, no '0G/0P'."
-    },
-    {
-      "id": "duelos_eventengine",
-      "name": "Duelos (EventDetectionEngine, heurístico)",
+      "id": "duelos",
+      "name": "Duelos (ganados/perdidos)",
       "concept": "eventos.duelos",
       "provenance": "DERIVADA",
-      "calc_paths": ["src/lib/tracking/eventDetectionEngine.ts"],
-      "ui_paths": [],
-      "allowed_literals": [],
+      "calc_paths": ["src/lib/tracking/duels.ts", "src/lib/metrics/duelsGate.ts"],
+      "ui_paths": ["src/components/TrackingMetricsPanel.tsx", "src/components/TrackingSnapshotPanel.tsx", "src/components/MatchStatsPanel.tsx", "src/components/QuantitativeMetricsPanel.tsx", "src/pages/vitasLab/LabResultsPanel.tsx", "src/pages/AnalysisReportPrint.tsx"],
+      "allowed_literals": [8],
       "gated": true,
-      "notes": "G3: SEGUNDA ruta de duelos con criterio propio ('gana el más rápido tras contacto'). DUP001 esperado: un concepto, tres rutas."
-    },
-    {
-      "id": "duelos_gemini",
-      "name": "Duelos (estimación Gemini)",
-      "concept": "eventos.duelos",
-      "provenance": "ESTIMADA_LLM",
-      "calc_paths": ["api/agents/video-observation.ts"],
-      "ui_paths": ["src/components/MatchStatsPanel.tsx", "src/components/QuantitativeMetricsPanel.tsx"],
-      "allowed_literals": [],
-      "gated": false,
-      "source_ref": "gemini-2.5-flash",
-      "notes": "G3: TERCERA ruta. Estimación del LLM. Etiqueta debe ser 'Estimado por IA', no 'duelos ganados'. DUP001 esperado."
+      "notes": "P1 bloque 6, punto 3. Ruta ÚNICA (inv #7): duelsMetric() en src/lib/tracking/duels.ts, SIEMPRE value null + DUELS_GATE_REASON: no hay criterio validado de qué es un duelo ni de quién lo gana, y fixtures/golden/README.md prohíbe inferirlo por proximidad sin la anotación humana fixtures/golden/duelos_gt.csv (tarea del dueño T1). Retiradas las 3 rutas que daban números distintos: poseAnalyzer (pares de pistas ≤ 1,8 m, contaba compañeros, winnerId nunca resuelto ⇒ «0/0 ganados»), eventDetectionEngine (un evento por fotograma al acercarse, «gana el más rápido») y la estimación de Gemini (el prompt traía el ejemplo «3/1»; el ensayo del 29 sep mostró que inventa eventos). stripDuelOutcomes() sanea duelsWon/duelEvents/duelosGanados/duels_won… al escribir (generate-reports, tracking/_save, video-observation) y al leer (orquestador, prompts de equipo/rival/directo). La UI pinta el motivo (duelsGateText, src/lib/metrics/duelsGate.ts), nunca «0G/0P» ni «0 %». El etiquetado MANUAL en directo (api/live/*) es otro concepto y no pasa por aquí. Datos antiguos guardados → bloque 7. allowed_literals 8 = profundidad máxima de recursión del saneador (MAX_DEPTH), no una cifra de la métrica. duelsGate.ts está en calc_paths solo porque es la traducción ÚNICA del motivo (sin cálculo ni literales)."
     },
     {
       "id": "pases_estimados",

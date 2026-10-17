@@ -40,7 +40,7 @@ export default withHandler(
 
     const { data, error } = await supabase
       .from("tracking_sessions")
-      .select("id, created_at, duration_ms, metrics, scan_events, duel_events")
+      .select("id, created_at, duration_ms, metrics, scan_events")
       .eq("player_id", playerId)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -52,7 +52,7 @@ export default withHandler(
     const sessions = (data ?? []).map((row) => {
       const metrics = (row.metrics ?? {}) as Record<string, unknown>;
       const scans = Array.isArray(row.scan_events) ? row.scan_events : [];
-      const duels = Array.isArray(row.duel_events) ? row.duel_events : [];
+      // Sin duelCount (P1 bloque 6): duel_events antiguos no tienen criterio validado.
 
       return {
         id: row.id,
@@ -62,7 +62,6 @@ export default withHandler(
         avgSpeedMs: Number(metrics.avgSpeedMs ?? 0),
         sprintCount: Number(metrics.sprintCount ?? 0),
         scanCount: scans.length,
-        duelCount: duels.length,
         eventCount: 0, // events not stored in tracking_sessions yet
         source: "supabase" as const,
       };

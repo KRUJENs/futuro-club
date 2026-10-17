@@ -13,6 +13,7 @@ import KnowledgeSearch from "@/components/KnowledgeSearch";
 import type { XgSummary } from "@/lib/xg/xgAccumulator";
 import type { AnalysisReport } from "./types";
 import { analysisVsiInline } from "@/lib/metrics/coachEval";
+import { duelsGateText } from "@/lib/metrics/duelsGate";
 
 type ViewMode = "player" | "team" | "rival";
 
@@ -366,17 +367,11 @@ const LabResultsPanel = ({
                       </div>
                       <p className="text-[8px] text-muted-foreground mt-0.5">{report.metricasCuantitativas.eventos.precisionPases}% {t("vitasLab.accuracy")}</p>
                     </div>
-                    {/* Duelos */}
-                    <div className="glass rounded-lg p-3">
+                    {/* Duelos — SIEMPRE bloqueados (P1 bloque 6): hueco con su motivo. */}
+                    <div className="glass rounded-lg p-3" data-testid="duels-gated">
                       <p className="text-[9px] font-display uppercase tracking-wider text-muted-foreground">{t("vitasLab.duels")}</p>
-                      <div className="flex items-baseline gap-1 mt-1">
-                        <span className="text-lg font-display font-black text-orange-500">
-                          {report.metricasCuantitativas.eventos.duelosGanados}{t("vitasLab.wonAbbr")}
-                        </span>
-                        <span className="text-[9px] text-red-400">
-                          / {report.metricasCuantitativas.eventos.duelosPerdidos}{t("vitasLab.lostAbbr")}
-                        </span>
-                      </div>
+                      <p className="text-xs font-display font-semibold text-foreground mt-1">{duelsGateText(t).value}</p>
+                      <p className="text-[8px] text-muted-foreground mt-0.5">{duelsGateText(t).hint}</p>
                     </div>
                     {/* Recuperaciones */}
                     <div className="glass rounded-lg p-3">

@@ -8,7 +8,6 @@
 import type {
   SetPieceEvent,
   SetPieceAggregateStats,
-  PlayerSetPieceProfile,
   SetPieceRecommendation,
   SetPieceType,
   AttackingPattern,
@@ -358,65 +357,6 @@ export function getAggregateStats(
     avgXG,
     byType,
     topPatterns,
-  };
-}
-
-export function getPlayerProfile(playerId: string): PlayerSetPieceProfile | null {
-  const player = PLAYER_POOL.find((p) => p.id === playerId);
-  if (!player) {
-    // Generate a generic profile for any player id
-    return {
-      playerId,
-      playerName: "Jugador",
-      asTaker: {
-        corners: 4 + Math.floor(Math.random() * 8),
-        freeKicks: 2 + Math.floor(Math.random() * 6),
-        penalties: Math.floor(Math.random() * 3),
-        accuracy: 55 + Math.floor(Math.random() * 35),
-        avgXG: 0.1 + Math.random() * 0.2,
-        preferredFoot: Math.random() > 0.5 ? "right" : "left",
-        preferredZone: Math.random() > 0.5 ? "right" : "left",
-      },
-      asTarget: {
-        headerWins: 3 + Math.floor(Math.random() * 12),
-        goalsFromSetPieces: Math.floor(Math.random() * 4),
-        avgPositionInBox: { x: 88, y: 50 },
-        aerialDuelsWonPct: 45 + Math.floor(Math.random() * 40),
-      },
-      asDefender: {
-        clearances: 5 + Math.floor(Math.random() * 15),
-        aerialDuelsWonPct: 50 + Math.floor(Math.random() * 35),
-        goalsConcededFromSetPieces: Math.floor(Math.random() * 3),
-      },
-      setPieceIQ: 50 + Math.floor(Math.random() * 40),
-    };
-  }
-
-  const rng = rand(parseInt(playerId.replace(/\D/g, "") || "1", 10) || 1);
-  return {
-    playerId,
-    playerName: player.name,
-    asTaker: {
-      corners: 4 + Math.floor(rng() * 12),
-      freeKicks: 2 + Math.floor(rng() * 8),
-      penalties: Math.floor(rng() * 4),
-      accuracy: 55 + Math.floor(rng() * 35),
-      avgXG: 0.08 + rng() * 0.22,
-      preferredFoot: rng() > 0.5 ? "right" : "left",
-      preferredZone: rng() > 0.5 ? "right" : "left",
-    },
-    asTarget: {
-      headerWins: 3 + Math.floor(rng() * 14),
-      goalsFromSetPieces: Math.floor(rng() * 5),
-      avgPositionInBox: { x: 86 + rng() * 6, y: 40 + rng() * 20 },
-      aerialDuelsWonPct: 45 + Math.floor(rng() * 40),
-    },
-    asDefender: {
-      clearances: 5 + Math.floor(rng() * 18),
-      aerialDuelsWonPct: 50 + Math.floor(rng() * 35),
-      goalsConcededFromSetPieces: Math.floor(rng() * 3),
-    },
-    setPieceIQ: 55 + Math.floor(rng() * 40),
   };
 }
 

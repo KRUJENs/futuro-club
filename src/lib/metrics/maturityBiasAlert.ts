@@ -17,7 +17,7 @@
  *     antropometría no plausible para la edad): el motivo es la nota del motor y la UI
  *     pinta «Timing por determinar» (`maturity.timing.unknown`). La nota NO se enseña en
  *     la fila: sugiere la altura de los padres, que el gate no usa.
- * Confianza: la del offset de Mirwald del gate (el timing sale de su APHV).
+ * Confianza: la del APHV de Mirwald del gate (el timing sale de él).
  * Antes: «MED BIAS ALERT» por defecto, «LOW BIAS» con un percentil > 70 (corte sin
  * fuente) y «LOW» a los precoces, al revés que el motor (P1 bloque 6, revisiones #322).
  */
@@ -53,12 +53,16 @@ export function maturityBiasAlert(player: GateInput, at?: string | Date): Maturi
     return { gate, signal: gated<MaturityBiasSignal>(gate.gate_reason, { source_ref: MATURITY_BIAS_SOURCE_REF }) };
   }
   const a = gate.assessment;
+  // «moderate» no se alcanza hoy por el gate (con las 4 medidas Mirwald no es estimado y la
+  // confianza del motor es high o low); se acepta por si el motor cambia (revisión #322 r4).
   const firm = a.confidence === "high" || a.confidence === "moderate";
   if (firm && (a.timing === "late" || a.timing === "early" || a.timing === "on_time")) {
     return {
       gate,
       signal: derived<MaturityBiasSignal>(a.timing, {
-        confidence: gate.offset.confidence,
+        // El timing sale del APHV (edad − offset) ⇒ su confianza; no recoge la incertidumbre
+        // de la banda de ±1 año del timing (no se renderiza hoy).
+        confidence: gate.aphv.confidence,
         source_ref: MATURITY_BIAS_SOURCE_REF,
       }),
     };

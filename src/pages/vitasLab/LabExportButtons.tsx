@@ -58,14 +58,9 @@ const LabExportButtons = ({
               tracks: tracking.state.currentTracks,
               focusTrackId: tracking.state.focusTrackId,
               events: tacticalEvents,
-              eventSummary: eventSummary ?? {
-                totalEvents: 0, byType: {} as Record<string, number>,
-                passCompletionPct: 0, passesAttempted: 0, passesCompleted: 0,
-                duelsWon: 0, duelsLost: 0, recoveries: 0, sprintBursts: 0,
-                pressTriggers: 0, shots: 0, xgContributions: 0, vaepApprox: 0,
-              } as EventSummary,
+              // Sin resumen ⇒ null (antes un resumen de ceros: «0 pases», «0G / 0P»).
+              eventSummary: eventSummary ?? null,
               scanEvents: tracking.state.scanEvents,
-              duelEvents: tracking.state.duelEvents,
               focusPositions: focusTrack?.positions.map(p => ({ fx: p.fx, fy: p.fy, tMs: p.timestampMs })) ?? [],
             };
             const exporter = new AnalyticsExporter(exportData);

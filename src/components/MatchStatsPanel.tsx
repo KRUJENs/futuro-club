@@ -25,15 +25,14 @@ import {
 import type { VideoIntelligenceOutput } from "@/agents/contracts";
 import CalibrationCaveat from "@/components/CalibrationCaveat";
 import { ProvenanceBadge } from "@/components/metrics/MetricValue";
+import { duelsGateText } from "@/lib/metrics/duelsGate";
 import {
   computeMatchStats,
   RATING_LABEL_ES,
   RATING_COLOR,
   KPI_RATING_LABEL_ES,
-  DUEL_RATING_LABEL_ES,
   PHYSICAL_RATING_LABEL_ES,
   type KpiRating,
-  type DuelRating,
   type PhysicalRating,
 } from "@/services/real/matchStatsService";
 
@@ -51,13 +50,6 @@ const KPI_COLOR: Record<KpiRating, string> = {
   bueno:     "#eab308",
   aceptable: "#f97316",
   bajo:      "#ef4444",
-};
-
-const DUEL_COLOR: Record<DuelRating, string> = {
-  dominante:    "#10b981",
-  competitivo:  "#22c55e",
-  igualado:     "#eab308",
-  dominado:     "#ef4444",
 };
 
 const PHYSICAL_COLOR: Record<PhysicalRating, string> = {
@@ -174,21 +166,16 @@ export default function MatchStatsPanel({ data, title }: Props) {
             />
           )}
 
-          {/* Duelos */}
-          {stats.duelos && (
-            <KpiCardComparative
-              icon={<Swords size={14} />}
-              title={t("matchStatsPanel.duels")}
-              ratingLabel={DUEL_RATING_LABEL_ES[stats.duelos.rating]}
-              ratingColor={DUEL_COLOR[stats.duelos.rating]}
-              bigValue={`${stats.duelos.efectividad}%`}
-              bigLabel={t("matchStatsPanel.effectiveness")}
-              left={{ label: t("matchStatsPanel.won"), value: stats.duelos.ganados, color: "#10b981" }}
-              right={{ label: t("matchStatsPanel.lost"), value: stats.duelos.perdidos, color: "#f97316" }}
-              total={stats.duelos.total}
-              percentLeft={stats.duelos.efectividad}
-            />
-          )}
+          {/* Duelos — SIEMPRE bloqueados (P1 bloque 6): el modelo de vídeo los «contaba»
+              sin criterio validado. Hueco visible con su motivo, nunca un %. */}
+          <div className="glass rounded-2xl p-3" data-testid="duels-gated">
+            <div className="flex items-center gap-1.5 mb-1 text-muted-foreground">
+              <Swords size={14} />
+              <span className="text-[8px] font-display uppercase tracking-wider">{t("matchStatsPanel.duels")}</span>
+            </div>
+            <p className="text-sm font-display font-semibold text-foreground">{duelsGateText(t).value}</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{duelsGateText(t).reason}</p>
+          </div>
 
           {/* Recuperaciones + Disparos */}
           <div className="grid grid-cols-2 gap-2">

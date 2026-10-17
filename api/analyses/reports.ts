@@ -12,6 +12,7 @@ import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { ownsRowOrItsPlayer } from "../_lib/ownership";
 import { createClient } from "@supabase/supabase-js";
 import { withoutUndatedVsiSeries } from "../../src/lib/scoring/vsiDelta";
+import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 
 export const config = { runtime: "edge" };
 
@@ -81,7 +82,12 @@ export default withHandler(
     return successResponse({
       // vsi.trend / vsi.history de filas antiguas = serie legacy SIN fechas (57.5
       // fabricado): se retiran al leer, nunca llegan a la UI (src/lib/scoring/vsiDelta.ts).
-      analysis: { ...analysisRes.data, vsi: withoutUndatedVsiSeries(analysisRes.data.vsi) },
+      // Duelos de filas anteriores al bloque 6 → fuera («Datos técnicos» pinta este JSON).
+      analysis: {
+        ...analysisRes.data,
+        biomechanics: stripDuelOutcomes(analysisRes.data.biomechanics),
+        vsi: withoutUndatedVsiSeries(analysisRes.data.vsi),
+      },
       reports: reportsRes.data ?? [],
       reportCount: reportsRes.data?.length ?? 0,
     });

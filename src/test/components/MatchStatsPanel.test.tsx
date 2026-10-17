@@ -3,7 +3,7 @@
  * Verifica renderizado con diferentes combinaciones de datos.
  */
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import MatchStatsPanel from "@/components/MatchStatsPanel";
 import type { VideoIntelligenceOutput } from "@/agents/contracts";
 
@@ -43,8 +43,6 @@ const eventosData: MC = {
     pasesFallados: 10,
     precisionPases: 80,
     recuperaciones: 5,
-    duelosGanados: 6,
-    duelosPerdidos: 4,
     disparosAlArco: 3,
     disparosFuera: 2,
   },
@@ -93,11 +91,14 @@ describe("MatchStatsPanel", () => {
       expect(screen.getByText("80%")).toBeInTheDocument();
     });
 
-    it("muestra KPI Duelos con efectividad", () => {
-      render(<MatchStatsPanel data={eventosData} />);
-      // 6 ganados / 10 = 60% de efectividad
-      expect(screen.getByText("matchStatsPanel.duels")).toBeInTheDocument();
-      expect(screen.getByText("60%")).toBeInTheDocument();
+    it("Duelos: hueco con su motivo, sin cifra, aunque un informe antiguo traiga duelos (P1 bloque 6)", () => {
+      const legacy = { ...eventosData, eventos: { ...eventosData.eventos!, duelosGanados: 6, duelosPerdidos: 4 } } as MC;
+      render(<MatchStatsPanel data={legacy} />);
+      const card = screen.getByTestId("duels-gated");
+      expect(within(card).getByText("matchStatsPanel.duels")).toBeInTheDocument();
+      expect(within(card).getByText("duelsGate.value")).toBeInTheDocument();
+      expect(within(card).getByText("duelsGate.reason")).toBeInTheDocument();
+      expect(card.textContent).not.toMatch(/\d/);
     });
 
     it("muestra recuperaciones", () => {

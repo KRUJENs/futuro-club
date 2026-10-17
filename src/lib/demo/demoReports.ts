@@ -200,8 +200,7 @@ export function buildDemoAnalysisRows(
     pasesFallados: 6 + Math.round((100 - m.technique) * 0.14),
     precisionPases: Math.min(95, 62 + Math.round(m.technique * 0.28)),
     recuperaciones: 3 + Math.round(m.defending * 0.09),
-    duelosGanados: 4 + Math.round((m.defending + m.stamina) * 0.05),
-    duelosPerdidos: 3 + Math.round((100 - m.defending) * 0.05),
+    // Sin duelos de ejemplo (P1 bloque 6): bloqueados también en el demo.
     disparosAlArco: Math.max(0, Math.round(m.shooting * 0.03)),
     disparosFuera: Math.max(1, Math.round((100 - m.shooting) * 0.02)),
   };

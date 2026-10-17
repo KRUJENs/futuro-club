@@ -22,7 +22,6 @@ import { estimatedLLM, gated, type MetricResult } from "@/lib/metrics/MetricResu
 type MetricasCuantitativas = NonNullable<VideoIntelligenceOutput["metricasCuantitativas"]>;
 
 export type KpiRating = "elite" | "excelente" | "bueno" | "aceptable" | "bajo";
-export type DuelRating = "dominante" | "competitivo" | "igualado" | "dominado";
 export type PhysicalRating = "elite" | "alto" | "medio" | "bajo";
 export type OverallLabel = "outstanding" | "excellent" | "good" | "average" | "below";
 
@@ -32,14 +31,6 @@ export interface PassStats {
   total: number;
   precision: number;           // 0–100
   rating: KpiRating;
-}
-
-export interface DuelStats {
-  ganados: number;
-  perdidos: number;
-  total: number;
-  efectividad: number;         // 0–100 (ganados / total)
-  rating: DuelRating;
 }
 
 export interface RecoveryStats {
@@ -90,11 +81,12 @@ export interface MatchStatsSummary {
   // Totales agregados
   totalAcciones: number;
   totalOfensivas: number;      // pases completados + disparos al arco
-  totalDefensivas: number;     // duelos ganados + recuperaciones
+  totalDefensivas: number;     // recuperaciones (sin duelos: P1 bloque 6)
 
   // KPIs principales
   pases?: PassStats;
-  duelos?: DuelStats;
+  // Sin duelos (P1 bloque 6): el modelo de vídeo los «contaba» sin criterio validado
+  // (el prompt traía el ejemplo 3/1). Hueco con su motivo: src/lib/tracking/duels.ts.
   recuperaciones?: RecoveryStats;
   robos?: TackleStats;             // subtipo de recuperación (si viene desglosado)
   anticipaciones?: AnticipationStats; // subtipo de recuperación (si viene desglosado)
@@ -122,8 +114,6 @@ export interface MatchStatsSummary {
   eventMetrics?: {
     pasesCompletados: MetricResult<number>;
     pasesFallados:    MetricResult<number>;
-    duelosGanados:    MetricResult<number>;
-    duelosPerdidos:   MetricResult<number>;
     recuperaciones:   MetricResult<number>;
     robos:            MetricResult<number>;
     anticipaciones:   MetricResult<number>;
@@ -140,8 +130,6 @@ export interface MatchStatsSummary {
 const BENCHMARK = {
   // Precisión de pases (%)
   pasesPrecision: { elite: 88, excelente: 80, bueno: 70, aceptable: 60 },
-  // Efectividad de duelos (%)
-  duelosEfectividad: { dominante: 65, competitivo: 55, igualado: 45 },
   // Recuperaciones por análisis (clip típico de 10-20 min)
   recuperaciones: { elite: 8, excelente: 5, bueno: 3, aceptable: 1 },
   // Robos (tackles ganados) — más exigente que recuperaciones porque requiere duelo físico
@@ -167,14 +155,6 @@ function passRating(precision: number): KpiRating {
   if (precision >= BENCHMARK.pasesPrecision.bueno) return "bueno";
   if (precision >= BENCHMARK.pasesPrecision.aceptable) return "aceptable";
   return "bajo";
-}
-
-function duelRating(efectividad: number, total: number): DuelRating {
-  if (total === 0) return "igualado";
-  if (efectividad >= BENCHMARK.duelosEfectividad.dominante) return "dominante";
-  if (efectividad >= BENCHMARK.duelosEfectividad.competitivo) return "competitivo";
-  if (efectividad >= BENCHMARK.duelosEfectividad.igualado) return "igualado";
-  return "dominado";
 }
 
 function recoveryRating(total: number): KpiRating {
@@ -225,7 +205,6 @@ function physicalRating(maxKmh: number): PhysicalRating {
 // Nunca devuelve NaN/Infinity.
 function composeRating(
   pass?: PassStats,
-  duel?: DuelStats,
   rec?: RecoveryStats,
   shot?: ShotStats,
   phys?: PhysicalStats,
@@ -235,9 +214,6 @@ function composeRating(
   if (pass && pass.total > 0) {
     // 60% → 10.0, 100% → 10.0, <60% → escala lineal
     components.push({ weight: 0.30, score: clamp01(pass.precision / 100) * 10 });
-  }
-  if (duel && duel.total > 0) {
-    components.push({ weight: 0.25, score: clamp01(duel.efectividad / 100) * 10 });
   }
   if (rec && rec.total >= 0) {
     // 8+ recuperaciones = 10
@@ -292,21 +268,6 @@ export function computeMatchStats(
           total,
           precision,
           rating: passRating(precision),
-        };
-      })()
-    : undefined;
-
-  // ── Duelos ─────
-  const duelos: DuelStats | undefined = ev
-    ? (() => {
-        const total = ev.duelosGanados + ev.duelosPerdidos;
-        const efectividad = safePct(ev.duelosGanados, total);
-        return {
-          ganados: ev.duelosGanados,
-          perdidos: ev.duelosPerdidos,
-          total,
-          efectividad,
-          rating: duelRating(efectividad, total),
         };
       })()
     : undefined;
@@ -374,15 +335,14 @@ export function computeMatchStats(
   // ── Totales agregados ─────
   const totalOfensivas =
     (pases?.completados ?? 0) + (disparos?.alArco ?? 0);
-  const totalDefensivas =
-    (duelos?.ganados ?? 0) + (recuperaciones?.total ?? 0);
+  const totalDefensivas = recuperaciones?.total ?? 0;
   const totalAcciones =
-    (pases?.total ?? 0) + (duelos?.total ?? 0) +
+    (pases?.total ?? 0) +
     (recuperaciones?.total ?? 0) + (disparos?.total ?? 0);
 
   // ── Rating compuesto ─────
   const { rating: performanceRating, label: performanceLabel } =
-    composeRating(pases, duelos, recuperaciones, disparos, fisicasOut);
+    composeRating(pases, recuperaciones, disparos, fisicasOut);
 
   // ── Eventos como MetricResult (provenance declarada) ─────
   // El modelo de vídeo ESTIMA los eventos: nunca son una medición. Cada valor
@@ -397,8 +357,6 @@ export function computeMatchStats(
     ? {
         pasesCompletados: estimatedLLM(ev.pasesCompletados, evMeta),
         pasesFallados:    estimatedLLM(ev.pasesFallados, evMeta),
-        duelosGanados:    estimatedLLM(ev.duelosGanados, evMeta),
-        duelosPerdidos:   estimatedLLM(ev.duelosPerdidos, evMeta),
         recuperaciones:   estimatedLLM(ev.recuperaciones, evMeta),
         robos:            evOpt(ev.robos),
         anticipaciones:   evOpt(ev.anticipaciones),
@@ -413,7 +371,6 @@ export function computeMatchStats(
     totalOfensivas,
     totalDefensivas,
     pases,
-    duelos,
     recuperaciones,
     robos,
     anticipaciones,
@@ -454,13 +411,6 @@ export const KPI_RATING_LABEL_ES: Record<KpiRating, string> = {
   bueno: "Bueno",
   aceptable: "Aceptable",
   bajo: "Bajo",
-};
-
-export const DUEL_RATING_LABEL_ES: Record<DuelRating, string> = {
-  dominante: "Dominante",
-  competitivo: "Competitivo",
-  igualado: "Igualado",
-  dominado: "Dominado",
 };
 
 export const PHYSICAL_RATING_LABEL_ES: Record<PhysicalRating, string> = {

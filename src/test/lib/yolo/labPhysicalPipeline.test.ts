@@ -109,7 +109,7 @@ describe("pipeline fÃ­sico del Lab â€” punto conocido â†’ metros den
 
     // AgregaciÃ³n de sesiÃ³n: mismos metros, y SIGUE etiquetada como orientativa
     // (DERIVADA, calibrated:false) â€” el fix no relaja ningÃºn gate de calibraciÃ³n.
-    const m = computeSessionMetrics(tracks, id, [], []);
+    const m = computeSessionMetrics(tracks, id, []);
     expect(m.distance?.value).toBeCloseTo(5, 6);
     expect((m.maxSpeed?.value ?? 0) * 3.6).toBeCloseTo(18, 6);
     expect((m.avgSpeed?.value ?? 0) * 3.6).toBeCloseTo(18, 6);
@@ -129,7 +129,7 @@ describe("pipeline fÃ­sico del Lab â€” punto conocido â†’ metros den
         tracker, [frameDetectionAt(30 + (7 * k) / FPS, 40)], FRAME, NATIVE, H_SENT, T0 + (k * 1000) / FPS,
       ).tracks;
     }
-    const m = computeSessionMetrics(tracks, tracks[0].id, [], []);
+    const m = computeSessionMetrics(tracks, tracks[0].id, []);
     expect(m.sprints?.value).toBe(1);
     expect((m.maxSpeed?.value ?? 0) * 3.6).toBeCloseTo(25.2, 6);
   });

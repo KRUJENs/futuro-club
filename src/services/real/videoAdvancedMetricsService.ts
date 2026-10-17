@@ -178,9 +178,8 @@ function mapTacticalToVideoType(
       return "pass";
     case "carry":
       return "dribble";
-    case "duel_aerial":
-    case "duel_ground":
-      return "tackle";
+    // Sin duel_aerial/duel_ground (P1 bloque 6): el motor ya no los emite, y aquí se
+    // contaban como «tackle» (una entrada ganada que nunca se había resuelto).
     case "recovery":
       return "interception";
     case "sprint_burst":

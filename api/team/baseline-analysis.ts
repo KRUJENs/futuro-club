@@ -32,6 +32,7 @@ import { ownsMatchAnalysis } from "../_lib/ownership";
 import { getJob } from "../_lib/matchJob/repo";
 import { buildMatchObservationSection } from "../_lib/matchJob/baselineSection";
 import { matchObservationSchema } from "../../src/lib/shared/matchJob/contract";
+import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 
 // nodejs + 300 s: hace 5 llamadas a Claude (1 Opus, que siempre piensa) antes de
 // responder; en Edge debía empezar a responder en 25 s → 504 con un partido completo.
@@ -127,7 +128,8 @@ function buildVideoSection(video: Record<string, unknown>): string {
     );
   }
 
-  const eventos = video.eventosContados as Record<string, number> | undefined;
+  // Sin duelos del modelo de vídeo (P1 bloque 6): las observaciones antiguas aún los traen.
+  const eventos = stripDuelOutcomes(video.eventosContados as Record<string, number> | undefined);
   if (eventos && Object.keys(eventos).length > 0) {
     lines.push("Eventos contados:");
     for (const [k, v] of Object.entries(eventos)) {

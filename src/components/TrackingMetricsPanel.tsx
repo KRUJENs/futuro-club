@@ -2,7 +2,8 @@
  * VITAS · TrackingMetricsPanel
  *
  * Panel de métricas físicas en tiempo real.
- * Muestra velocidad, distancia, sprints, escaneos, duelos y zonas de intensidad.
+ * Muestra velocidad, distancia, sprints, escaneos, zonas de intensidad y el hueco de
+ * duelos (bloqueados con su motivo).
  */
 
 import { motion } from "framer-motion";
@@ -13,6 +14,7 @@ import type { CalibrationConfidence } from "@/lib/yolo/fieldRegistration";
 import { metricsTrustworthy } from "@/lib/yolo/fieldRegistration";
 import { isTrackIdentityReliable } from "@/lib/yolo/tracker";
 import CalibrationCaveat from "@/components/CalibrationCaveat";
+import { duelsGateText } from "@/lib/metrics/duelsGate";
 
 interface Props {
   status:       TrackingStatus;
@@ -20,7 +22,6 @@ interface Props {
   focusTrackId: number | null;
   metrics:      PhysicalMetrics | null;
   scanCount:    number;
-  duelCount:    number;
   onFocusTrack: (id: number | null) => void;
   voronoiRegions?: VoronoiRegion[];
   showVoronoi?:    boolean;
@@ -30,7 +31,7 @@ interface Props {
 }
 
 export default function TrackingMetricsPanel({
-  status, tracks, focusTrackId, metrics, scanCount, duelCount, onFocusTrack,
+  status, tracks, focusTrackId, metrics, scanCount, onFocusTrack,
   voronoiRegions = [], showVoronoi = false, onToggleVoronoi,
   calibrationConfidence,
 }: Props) {
@@ -161,25 +162,15 @@ export default function TrackingMetricsPanel({
           sub={t("trackingMetricsPanel.scansSub")}
         />
 
-        {/* Duelos — si el ganador no está resuelto (winnerId null → CONSTANTE), NO
-            mostramos "0": se leería como "0 duelos" cuando en realidad no hay dato.
-            Se pinta el gate_reason como valor, igual que el card de Espacio. */}
+        {/* Duelos — SIEMPRE bloqueados (P1 bloque 6): hueco visible con su motivo.
+            Antes, grabando, pintaba el total de pares a < 1,8 m de TODAS las pistas
+            (compañeros incluidos), no los del jugador. */}
         <MetricCard
           icon={<Swords size={12} className="text-red-400" />}
           label={t("trackingMetricsPanel.metricDuels")}
-          value={
-            metrics?.duels && metrics.duels.value === null
-              ? t("trackingMetricsPanel.duelsUnresolved")
-              : String(duelCount)
-          }
+          value={duelsGateText(t).value}
           unit=""
-          sub={
-            metrics?.duels && metrics.duels.value === null
-              ? ""
-              : metrics
-                ? t("trackingMetricsPanel.duelsSub", { won: metrics.duelsWon, lost: metrics.duelsLost })
-                : ""
-          }
+          sub={duelsGateText(t).hint}
         />
 
         {/* Espacio — Voronoi de sesión bloqueado (solo en vivo); no mostramos "0 m²". */}

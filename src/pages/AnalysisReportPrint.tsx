@@ -17,9 +17,9 @@ import {
   RATING_LABEL_ES,
   RATING_COLOR,
   KPI_RATING_LABEL_ES,
-  DUEL_RATING_LABEL_ES,
 } from "@/services/real/matchStatsService";
 import type { VideoIntelligenceOutput } from "@/agents/contracts";
+import { duelsGateText } from "@/lib/metrics/duelsGate";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -84,8 +84,6 @@ interface AnalysisReport {
       pasesFallados: number;
       precisionPases: number;
       recuperaciones: number;
-      duelosGanados: number;
-      duelosPerdidos: number;
       disparosAlArco: number;
       disparosFuera: number;
     };
@@ -505,19 +503,11 @@ export default function AnalysisReportPrint() {
                     rightColor="#dc2626"
                   />
                 )}
-                {matchStats.duelos && matchStats.duelos.total > 0 && (
-                  <PrintKpiRow
-                    label={t("analysisReportPrint.duels")}
-                    leftValue={matchStats.duelos.ganados}
-                    leftLabel={t("analysisReportPrint.won")}
-                    rightValue={matchStats.duelos.perdidos}
-                    rightLabel={t("analysisReportPrint.lost")}
-                    percent={matchStats.duelos.efectividad}
-                    rating={DUEL_RATING_LABEL_ES[matchStats.duelos.rating]}
-                    leftColor="#10b981"
-                    rightColor="#f97316"
-                  />
-                )}
+                {/* Duelos — SIEMPRE bloqueados (P1 bloque 6): motivo, nunca una cifra. */}
+                <div className="flex items-center justify-between text-[11px]" data-testid="duels-gated">
+                  <span className="text-gray-700 font-medium">{t("analysisReportPrint.duels")}</span>
+                  <span className="text-[10px] text-gray-500">{duelsGateText(t).hint}</span>
+                </div>
                 {matchStats.recuperaciones && (
                   <div className="flex items-center justify-between text-[11px]">
                     <span className="text-gray-700 font-medium">{t("analysisReportPrint.recoveries")}</span>
@@ -607,8 +597,8 @@ export default function AnalysisReportPrint() {
               />
               <MetricCard
                 label={t("analysisReportPrint.duels")}
-                value={`${eventos.duelosGanados}/${eventos.duelosGanados + eventos.duelosPerdidos}`}
-                sub={t("analysisReportPrint.wonSub", { percent: Math.round((eventos.duelosGanados / Math.max(1, eventos.duelosGanados + eventos.duelosPerdidos)) * 100) })}
+                value={duelsGateText(t).value}
+                sub={duelsGateText(t).hint}
               />
               <MetricCard label={t("analysisReportPrint.recoveries")} value={String(eventos.recuperaciones)} />
               <MetricCard
