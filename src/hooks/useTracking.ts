@@ -804,6 +804,7 @@ export function computeSessionMetrics(
     scanCount:        focusScans.length,
     avgVoronoiAreaM2: avgVoronoi ?? 0, // vivo: componente; sesión: media muestreada (G7)
     identityReliable,
+    focusTrackId:     focusId ?? null,
     // Duelos: siempre bloqueados con su motivo (ruta única src/lib/tracking/duels.ts,
     // P1 bloque 6). Ni se detectan ni se cuentan: no hay criterio validado.
     duels:            duelsMetric(),
@@ -824,7 +825,11 @@ export function computeSessionMetrics(
     // lejano en la ruta recall): la biomecánica no fue medible, solo la posición. NO se
     // emite derived(0) — sería el "0 que significa no-medido" (invariante #2). En la ruta
     // pose normal poseFrameCount>0 siempre → se mantiene el valor derivado. (kill-58 recall)
-    scans:            poseNeverMeasured
+    // Sin pista enfocada los escaneos son los de TODAS las pistas: no se atribuyen a nadie
+    // (identidad.md; P1 bloque 6b).
+    scans:            focusId == null
+      ? gated("Sin pista enfocada: los escaneos no se atribuyen a ningún jugador")
+      : poseNeverMeasured
       ? gated("Jugador sin frames cercanos: biomecánica no medible, solo posición")
       : derived(focusScans.length, { units: null, calibrated: false, confidence: ORIENTATIVE_CONFIDENCE }),
     accel:            derived(Math.max(...focusTracks.map(t => t.accelMs2), 0), { units: "m/s²", calibrated: false, confidence: ORIENTATIVE_CONFIDENCE }),

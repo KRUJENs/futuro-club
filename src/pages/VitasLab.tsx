@@ -430,6 +430,11 @@ const VitasLab = () => {
       ? eventEngineRef.current.getPlayerEvents(tracking.state.focusTrackId)
       : eventEngineRef.current.getEvents();
 
+    // Escaneos atribuibles SOLO si las métricas se calcularon con la pista enfocada ACTUAL
+    // (enfocar otra pista tras parar no las recalcula; sin pista = todas). identidad.md.
+    const sm = tracking.state.sessionMetrics;
+    const scansAttributable = tracking.state.focusTrackId != null && sm.focusTrackId === tracking.state.focusTrackId;
+
     PlayerTrackingService.save({
       playerId:       selectedPlayerId,
       videoId:        selectedVideoId ?? null,
@@ -437,16 +442,15 @@ const VitasLab = () => {
       durationSec:    tracking.state.sessionMetrics.distanceCoveredM > 0
                         ? tracking.state.sessionMetrics.distanceCoveredM / Math.max(0.1, tracking.state.sessionMetrics.avgSpeedMs)
                         : 0,
-      sessionMetrics: tracking.state.sessionMetrics,
+      // Sin atribución, ni el conteo bruto de escaneos (de todas las pistas) se guarda.
+      sessionMetrics: scansAttributable ? sm : { ...sm, scanCount: null },
       calibrationConfidence: tracking.state.calibrationConfidence,
       // Escaneos del jugador ENFOCADO (identidad.md): antes se guardaban los de TODAS las
       // pistas bajo su nombre. Sin pista enfocada (o si nunca tuvo pose medible) ⇒ null.
-      scanCount:      tracking.state.focusTrackId != null
-                        ? (tracking.state.sessionMetrics.scans?.value ?? null)
-                        : null,
+      scanCount:      scansAttributable ? (sm.scans?.value ?? null) : null,
       tracksCount:    tracking.state.currentTracks.length,
       focusTrackId:   tracking.state.focusTrackId,
-      scanEvents:     tracking.state.focusTrackId != null
+      scanEvents:     scansAttributable
                         ? tracking.state.scanEvents.filter((s) => s.trackId === tracking.state.focusTrackId)
                         : [],
       focusPositions: focusTrack?.positions.map(p => ({ fx: p.fx, fy: p.fy, tMs: p.timestampMs })),
@@ -730,8 +734,11 @@ const VitasLab = () => {
           // (es del jugador enfocado) → gatea solo por identidad.
           // Solo los del jugador ENFOCADO (antes: los de todas las pistas) y solo si fueron
           // medibles (scans gated ⇒ no se envía).
+          // …y solo si se calcularon con la pista enfocada ACTUAL (no la de cuando se paró).
           const focusScans = tracking.state.sessionMetrics.scans?.value ?? null;
-          if (identityReliable && tracking.state.focusTrackId != null && focusScans !== null) {
+          const scansForFocus = tracking.state.focusTrackId != null
+            && tracking.state.sessionMetrics.focusTrackId === tracking.state.focusTrackId;
+          if (identityReliable && scansForFocus && focusScans !== null) {
             physicalMetrics.scanCount = focusScans;
           }
           // Conteo bruto de tracks: ni calibración ni identidad → siempre.

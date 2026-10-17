@@ -135,6 +135,10 @@ describe("estático: nada derivado del id, sin bandas por edad sin fuente ni «V
     expect(lab).not.toMatch(/scanCount:\s*tracking\.state\.scanEvents\.length/);
     expect(lab).not.toMatch(/physicalMetrics\.scanCount = tracking\.state\.scanEvents\.length/);
     expect(lab).toMatch(/scanEvents\.filter\(\(s\) => s\.trackId === tracking\.state\.focusTrackId\)/);
+    // …y solo si las métricas se calcularon con la pista enfocada ACTUAL (comportamiento
+    // probado en src/test/hooks/computeSessionMetrics.test.ts).
+    expect(lab).toMatch(/sm\.focusTrackId === tracking\.state\.focusTrackId/);
+    expect(lab).toMatch(/sessionMetrics\.focusTrackId === tracking\.state\.focusTrackId/);
   });
 });
 

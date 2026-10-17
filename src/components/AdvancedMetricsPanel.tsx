@@ -15,7 +15,7 @@ import {
   TrendingUp, Activity, MapPin, Zap, AlertCircle, CheckCircle2,
 } from "lucide-react";
 import type { AdvancedPlayerMetrics } from "@/services/real/advancedMetricsService";
-import type { TrackingSnapshot } from "@/services/real/playerTrackingService";
+import { attributableScanCount, type TrackingSnapshot } from "@/services/real/playerTrackingService";
 import type { BiomechanicsScore } from "@/lib/mediapipe/biomechanicsEngine";
 import CalibrationCaveat from "@/components/CalibrationCaveat";
 
@@ -232,9 +232,10 @@ function buildTrackingFromSnapshot(s: TrackingSnapshot): {
     sprintCount:      m.sprintCount,
     sprintDistanceM:  m.sprintDistanceM > 0 ? m.sprintDistanceM : null,
     status:           "calculated",
-    // Escaneos del jugador enfocado; sin pista enfocada no se citan (P1 bloque 6b).
-    message:          s.scanCount != null
-      ? `Calculado desde ${s.tracksCount} tracks · ${s.scanCount} escaneos detectados (VITAS Lab)`
+    // Escaneos del jugador enfocado; sin pista enfocada (o snapshot antiguo con los de
+    // todas las pistas) no se citan (P1 bloque 6b).
+    message:          attributableScanCount(s) != null
+      ? `Calculado desde ${s.tracksCount} tracks · ${attributableScanCount(s)} escaneos detectados (VITAS Lab)`
       : `Calculado desde ${s.tracksCount} tracks (VITAS Lab)`,
   };
 }

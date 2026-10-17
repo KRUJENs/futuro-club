@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import type { TrackingSnapshot } from "@/services/real/playerTrackingService";
+import { attributableScanCount, type TrackingSnapshot } from "@/services/real/playerTrackingService";
 import { metricsTrustworthy } from "@/lib/yolo/fieldRegistration";
 import { EmptyTracking } from "@/components/illustrations/EmptyIllustrations";
 import { duelsGateText } from "@/lib/metrics/duelsGate";
@@ -61,6 +61,8 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
 
   // ── Snapshot loaded ─────────────────────────────────────────────────────
   const m = snapshot.sessionMetrics;
+  // Escaneos solo si son de la pista enfocada (snapshots antiguos: de todas → «No atribuible»).
+  const scans = attributableScanCount(snapshot);
   const maxKmh = (m.maxSpeedMs * 3.6).toFixed(1);
   const avgKmh = (m.avgSpeedMs * 3.6).toFixed(1);
   const date = new Date(snapshot.savedAt).toLocaleString("es-ES", {
@@ -110,7 +112,7 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
       <div className="grid grid-cols-3 gap-2">
         {/* Escaneos del jugador ENFOCADO; null ⇒ motivo (sin pista enfocada o no medibles),
             nunca un 0 ni los de todas las pistas (P1 bloque 6b). */}
-        <StatCard icon={<Eye size={12} className="text-cyan-400" />} label={t("trackingSnapshotPanel.labelScans")} value={snapshot.scanCount != null ? `${snapshot.scanCount}` : t("trackingSnapshotPanel.scansNotAttributable")} unit={snapshot.scanCount != null ? t("trackingSnapshotPanel.unitHeadTurns") : ""} />
+        <StatCard icon={<Eye size={12} className="text-cyan-400" />} label={t("trackingSnapshotPanel.labelScans")} value={scans != null ? `${scans}` : t("trackingSnapshotPanel.scansNotAttributable")} unit={scans != null ? t("trackingSnapshotPanel.unitHeadTurns") : ""} />
         {/* Duelos SIEMPRE bloqueados (P1 bloque 6): antes «0/0 ganados» (el ganador nunca
             se resolvía). Hueco con su motivo, también para snapshots guardados antes. */}
         <StatCard icon={<Swords size={12} className="text-orange-400" />} label={t("trackingSnapshotPanel.labelDuels")} value={duelsGateText(t).value} unit={duelsGateText(t).hint} />

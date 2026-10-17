@@ -76,6 +76,19 @@ export interface TrackingSnapshot {
   rivalReport?: RivalScoutReport;
 }
 
+/**
+ * Escaneos ATRIBUIBLES al jugador de un snapshot (identidad.md: una métrica de pista
+ * anónima o de todas las pistas nunca bajo su nombre). Solo si las métricas de sesión se
+ * calcularon con la MISMA pista enfocada que se guardó (`sessionMetrics.focusTrackId`,
+ * P1 bloque 6b). Los snapshots anteriores no traen esa marca y guardaban los escaneos de
+ * TODAS las pistas ⇒ null («No atribuible»).
+ */
+export function attributableScanCount(s: TrackingSnapshot): number | null {
+  const calcFocus = s.sessionMetrics?.focusTrackId;
+  if (calcFocus == null || calcFocus !== s.focusTrackId) return null;
+  return typeof s.scanCount === "number" ? s.scanCount : null;
+}
+
 export const PlayerTrackingService = {
   /** Guarda snapshot · sobreescribe si ya existía. Recorta arrays grandes.
    *  Persiste en localStorage (inmediato) + Supabase (async, best-effort). */

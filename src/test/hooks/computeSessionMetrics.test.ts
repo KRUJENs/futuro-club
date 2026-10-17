@@ -169,11 +169,12 @@ describe("computeSessionMetrics — scans BLOQUEADO si el enfocado nunca fue med
     expect(m.scans?.provenance).toBe("DERIVADA");
   });
 
-  it("agregado (sin enfoque): si algún track tuvo pose, scans NO se bloquea", () => {
+  it("agregado (sin enfoque): aunque algún track tuviera pose, scans se BLOQUEA (no atribuible, P1 bloque 6b)", () => {
     const far: Track = { ...mkTrack(1, 8, 1), poseFrameCount: 0 };
     const near: Track = { ...mkTrack(2, 8, 1), poseFrameCount: 4 };
     const m = computeSessionMetrics([far, near], null, [mkScan(2, 100)]);
-    expect(m.scans?.value).toBe(1);
+    expect(m.scans?.value).toBeNull();
+    expect(m.scans?.gate_reason).toMatch(/Sin pista enfocada/);
   });
 });
 
@@ -186,5 +187,33 @@ describe("computeSessionMetrics — duelos SIEMPRE bloqueados (P1 bloque 6)", ()
       expect(m.duels?.value).toBeNull();
       expect(m.duels?.gate_reason).toBe(DUELS_GATE_REASON);
     }
+  });
+});
+
+describe("escaneos: solo atribuibles a la pista enfocada con la que se calcularon (P1 bloque 6b)", () => {
+  const withPose = (t: Track): Track => ({ ...t, poseFrameCount: 5 } as Track);
+  const scans = [{ trackId: 1 }, { trackId: 1 }, { trackId: 2 }] as unknown as ScanEvent[];
+
+  it("sin pista enfocada: scans bloqueado (no atribuible) y focusTrackId null", () => {
+    const m = computeSessionMetrics([withPose(mkTrack(1, 8, 1)), withPose(mkTrack(2, 8, 1))], null, scans);
+    expect(m.focusTrackId).toBeNull();
+    expect(m.scans?.value).toBeNull();
+    expect(m.scans?.gate_reason).toMatch(/Sin pista enfocada/);
+  });
+
+  it("con pista enfocada: solo sus escaneos y la pista queda registrada en las métricas", () => {
+    const m = computeSessionMetrics([withPose(mkTrack(1, 8, 1)), withPose(mkTrack(2, 8, 1))], 1, scans);
+    expect(m.focusTrackId).toBe(1);
+    expect(m.scans?.value).toBe(2);
+  });
+
+  it("snapshot: escaneos solo si la pista del cálculo = la pista guardada; los antiguos (sin marca) ⇒ null", async () => {
+    const { attributableScanCount } = await import("@/services/real/playerTrackingService");
+    const snap = (calcFocus: number | null | undefined, focus: number | null, scanCount: number | null) =>
+      ({ focusTrackId: focus, scanCount, sessionMetrics: calcFocus === undefined ? {} : { focusTrackId: calcFocus } }) as never;
+    expect(attributableScanCount(snap(1, 1, 2))).toBe(2);
+    expect(attributableScanCount(snap(undefined, 1, 7))).toBeNull(); // anterior al 6b: eran de TODAS las pistas
+    expect(attributableScanCount(snap(1, 2, 2))).toBeNull(); // calculado con otra pista
+    expect(attributableScanCount(snap(null, null, 5))).toBeNull(); // sin pista enfocada
   });
 });
