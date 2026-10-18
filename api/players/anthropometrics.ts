@@ -23,6 +23,7 @@ import {
   type PhvGate,
 } from "../../src/lib/phv/phvGate";
 import { decimalAgeYears } from "../../src/lib/shared/age";
+import { registeredSex } from "../../src/lib/shared/registeredSex";
 
 export const config = { runtime: "edge" };
 
@@ -130,8 +131,10 @@ interface PlayerIdentity {
   gender: "M" | "F" | null;
 }
 
-function sexOf(v: unknown): "M" | "F" | null {
-  return v === "M" || v === "F" ? v : null;
+// Sexo que entra al PHV: regla única (un «M» sin confirmar = posible valor por defecto
+// antiguo ⇒ null; P1 bloque 7, src/lib/shared/registeredSex.ts).
+function sexOf(blob: Record<string, unknown>): "M" | "F" | null {
+  return registeredSex(blob);
 }
 
 /** Fecha de nacimiento + sexo registrados del jugador (columna o blob `data`). */
@@ -156,7 +159,7 @@ async function loadIdentity(
     birthDate: birth,
     // Sexo del blob (lo introducido por una persona); la columna pudo arrastrar
     // un 'M' asumido antes de 058 (inv #5).
-    gender: sexOf(blob.gender),
+    gender: sexOf(blob),
   };
 }
 
@@ -326,14 +329,18 @@ export default withHandler(
           // El PHV de la nueva última fila solo se propaga si es fiable (fila completa
           // con edad por fecha de nacimiento, 069). Una fila antigua (edad entera) NO
           // re-contamina players.phv_category.
+          // …y solo con sexo registrado (P1 bloque 7): la fila pudo calcularse con un
+          // «M» por defecto antiguo.
+          const identity = await loadIdentity(supabase, String(rowToDelete.player_id));
           const trusted = trustAnthropometricsRow(latest);
+          const propagate = trusted.trusted && identity.gender !== null;
           await supabase.from("players").update({
             height_cm: latest.height_cm,
             weight_kg: latest.weight_kg,
             sitting_height: latest.sitting_height_cm,
             leg_length: latest.leg_length_cm,
-            phv_category: trusted.trusted ? latest.phv_category : null,
-            phv_offset: trusted.trusted ? trusted.offset : null,
+            phv_category: propagate ? latest.phv_category : null,
+            phv_offset: propagate ? trusted.offset : null,
           }).eq("id", rowToDelete.player_id);
         } else {
           // Sin mediciones: las medidas del perfil se conservan, pero el PHV no puede
@@ -403,7 +410,7 @@ export default withHandler(
           legLengthCm: input.legLengthCm,
           chronologicalAge: input.chronologicalAge,
         },
-        { birthDate: input.birthDate ?? identity.birthDate, gender: input.gender ?? identity.gender },
+        { birthDate: input.birthDate ?? identity.birthDate, gender: identity.gender }, // el cuerpo nunca confirma el sexo (P1 bloque 7)
         measuredAt,
       );
       if (invalidAge(m)) {
@@ -510,7 +517,7 @@ export default withHandler(
         legLengthCm: input.legLengthCm,
         chronologicalAge: input.chronologicalAge,
       },
-      { birthDate: input.birthDate ?? player.birthDate, gender: input.gender ?? player.gender },
+      { birthDate: input.birthDate ?? player.birthDate, gender: player.gender }, // el cuerpo nunca confirma el sexo (P1 bloque 7)
       measuredAt,
     );
     if (invalidAge(m)) {

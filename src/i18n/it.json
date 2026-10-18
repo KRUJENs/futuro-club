@@ -3242,7 +3242,8 @@
         "birthDate": "data di nascita del giocatore",
         "sex": "sesso registrato"
       }
-    }
+    },
+    "sexPending": "sesso da confermare (confermalo in «Modifica giocatore»)"
   },
   "playerHeatmap": {
     "noData": "Nessun dato di posizione per generare la mappa di calore",

@@ -50,7 +50,7 @@ vi.mock("@/services/real/supabasePlayerService", () => ({
 
 // Jugador SIN evaluar (sin métricas): el formulario precarga las barras por defecto.
 const unevaluated = {
-  id: "p1", name: "Samu Test", age: 12, position: "Mediocentro", gender: "M", foot: "right",
+  id: "p1", name: "Samu Test", age: 12, position: "Mediocentro", gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z", foot: "right",
   height: 150, weight: 40, competitiveLevel: "Regional", minutesPlayed: 300,
   vsi: null, vsiHistory: [], createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
 };

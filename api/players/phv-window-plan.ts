@@ -25,7 +25,7 @@ import {
   languageDirective,
   type ReportLocale,
 } from "../../src/lib/shared/locale";
-import { trustAnthropometricsRow } from "../../src/lib/phv/phvGate";
+import { trustAnthroForPlayer } from "../../src/lib/shared/sexGatedAnthro";
 
 export const config = { runtime: "edge" };
 
@@ -170,7 +170,7 @@ export default withHandler(
     // ── 1. Cargar player + última antropometría ────────────────
     const { data: pRow, error: pErr } = await supabase
       .from("players")
-      .select("name, age, position, height_cm, weight_kg")
+      .select("name, age, position, height_cm, weight_kg, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
       .eq("id", input.playerId)
       .single();
 
@@ -188,7 +188,8 @@ export default withHandler(
       .select("*")
       .eq("player_id", input.playerId)
       .maybeSingle();
-    const trust = trustAnthropometricsRow(anthroRaw);
+    // + sexo registrado del jugador (P1 bloque 7): un «M» sin confirmar no aporta PHV.
+    const trust = trustAnthroForPlayer(anthroRaw, pRow);
     if (!trust.trusted || trust.category === null || trust.offset === null) {
       return errorResponse({
         code: "no_phv",

@@ -82,7 +82,7 @@ const BASE = {
   weight: 36,
   competitiveLevel: "Regional",
   minutesPlayed: 0,
-  gender: "M" as const,
+  gender: "M" as const, sexConfirmedAt: "2026-01-01T00:00:00.000Z",
   birthDate: "2015-05-10",
 };
 

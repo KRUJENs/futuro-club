@@ -39,6 +39,8 @@ interface Props {
   /** Fecha de nacimiento del JUGADOR (ISO). Sin ella no se calcula el PHV. */
   birthDate?: string;
   gender?: "M" | "F";
+  /** «M» guardado sin confirmar (P1 bloque 7): se pide confirmarlo en «Editar jugador». */
+  sexPending?: boolean;
   /** Tras guardar (enviado al servidor): las medidas introducidas, para el host. */
   onSaved?: (measures: SavedMeasures) => void;
 }
@@ -89,7 +91,7 @@ function labelKey(c: PhvCategory): keyof typeof PHV_LABELS {
 
 const EMPTY_FORM = { height: "", weight: "", sitting: "", leg: "" };
 
-export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gender, onSaved }: Props) {
+export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gender, sexPending, onSaved }: Props) {
   const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -444,7 +446,7 @@ export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gen
             </div>
 
             {identityMissing.length > 0 && (
-              <PhvGateNotice variant="card" code="missing_inputs" missing={identityMissing} />
+              <PhvGateNotice variant="card" code="missing_inputs" missing={identityMissing} sexPending={sexPending} />
             )}
 
             {error && (

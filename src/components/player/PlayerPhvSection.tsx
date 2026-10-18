@@ -131,6 +131,7 @@ export default function PlayerPhvSection({ player, hasPhv, onSaved }: Props) {
         // (regla del owner 28-sep); sin ella el PHV queda bloqueado con motivo.
         birthDate={player.birthDate}
         gender={player.gender}
+        sexPending={player.sexPendingConfirmation === true}
       />
 
       {/* 2 · Datos de maduración (jugador y padres): fecha de nacimiento DEL

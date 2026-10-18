@@ -3242,7 +3242,8 @@
         "birthDate": "Geburtsdatum des Spielers",
         "sex": "erfasstes Geschlecht"
       }
-    }
+    },
+    "sexPending": "Geschlecht noch zu bestätigen (unter „Spieler bearbeiten“)"
   },
   "playerHeatmap": {
     "noData": "Keine Positionsdaten zur Erstellung der Heatmap",

@@ -20,6 +20,9 @@ import { PlayerTrackingService, type TrackingSnapshot } from "./playerTrackingSe
 // Convención antropométrica realista: altura-sentado ≈ 0,52·altura,
 // longitud de pierna ≈ 0,48·altura (medidas, no estimadas → confianza alta).
 
+// Fecha fija (ejemplo MOCK): en el demo el sexo se da por elegido (registeredSex.ts).
+const DEMO_SEX_CONFIRMED_AT = "2026-01-15T00:00:00.000Z";
+
 const DEMO_PLAYERS: CreatePlayerInput[] = [
   {
     isDemo: true,
@@ -28,6 +31,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     position: "Mediapunta",
     secondaryPositions: ["Interior"],
     gender: "M",
+    sexConfirmedAt: DEMO_SEX_CONFIRMED_AT, // demo: sexo elegido (P1 bloque 7)
     foot: "left",
     height: 172, weight: 62, sittingHeight: 89, legLength: 83,
     motherHeightCm: 165, fatherHeightCm: 178,
@@ -55,6 +59,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     position: "Extremo Derecho",
     secondaryPositions: ["Delantero"],
     gender: "M",
+    sexConfirmedAt: DEMO_SEX_CONFIRMED_AT, // demo: sexo elegido (P1 bloque 7)
     foot: "right",
     height: 176, weight: 66, sittingHeight: 91, legLength: 85,
     motherHeightCm: 168, fatherHeightCm: 182,
@@ -70,6 +75,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     age: 13,
     position: "Interior",
     gender: "M",
+    sexConfirmedAt: DEMO_SEX_CONFIRMED_AT, // demo: sexo elegido (P1 bloque 7)
     foot: "left",
     height: 143, weight: 35, sittingHeight: 72, legLength: 68,
     motherHeightCm: 172, fatherHeightCm: 186,
@@ -84,6 +90,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     age: 14,
     position: "Central",
     gender: "M",
+    sexConfirmedAt: DEMO_SEX_CONFIRMED_AT, // demo: sexo elegido (P1 bloque 7)
     foot: "right",
     height: 182, weight: 74, sittingHeight: 95, legLength: 87,
     motherHeightCm: 162, fatherHeightCm: 176,
@@ -111,6 +118,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     age: 17,
     position: "Delantero",
     gender: "M",
+    sexConfirmedAt: DEMO_SEX_CONFIRMED_AT, // demo: sexo elegido (P1 bloque 7)
     foot: "right",
     height: 181, weight: 73, sittingHeight: 94, legLength: 87,
     motherHeightCm: 170, fatherHeightCm: 184,
@@ -124,6 +132,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     age: 12,
     position: "Lateral Derecho",
     gender: "M",
+    sexConfirmedAt: DEMO_SEX_CONFIRMED_AT, // demo: sexo elegido (P1 bloque 7)
     foot: "right",
     height: 146, weight: 39, sittingHeight: 76, legLength: 70,
     motherHeightCm: 166, fatherHeightCm: 179,

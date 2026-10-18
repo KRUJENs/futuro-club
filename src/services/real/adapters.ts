@@ -6,7 +6,8 @@
 
 import type { Player } from "./playerService";
 import type { ScoutInsightOutput } from "@/agents/contracts";
-import { gatedMaturity, sanitizePlayerPhv } from "@/lib/phv/phvGate";
+import { gatedMaturity } from "@/lib/phv/phvGate";
+import { honestPlayerView } from "@/lib/players/honestPlayerView";
 import { vsiTrendArrow } from "@/lib/scoring/vsiDelta";
 
 // Avatares por defecto usando iniciales (sin CDN externo)
@@ -25,7 +26,7 @@ const PLAYER_IMAGES = [
 export function adaptPlayerForUI(rawPlayer: Player) {
   // phvCategory/phvOffset PERSISTIDOS solo sobreviven si el gate único de PHV los
   // recalcula desde entradas introducidas (regla del owner 28-sep); si no, null.
-  const player = sanitizePlayerPhv(rawPlayer);
+  const player = honestPlayerView(rawPlayer);
   // vsi puede ser null ("sin evaluar"): se propaga tal cual, nunca se convierte
   // en 0. La tendencia solo sale de dos evaluaciones reales con fecha (vsiTrendArrow →
   // computeVsiDelta); el vsiHistory legacy solo cuenta para jugadores demo.

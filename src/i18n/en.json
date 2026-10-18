@@ -3243,7 +3243,8 @@
         "birthDate": "player's date of birth",
         "sex": "registered sex"
       }
-    }
+    },
+    "sexPending": "sex to be confirmed (confirm it in “Edit player”)"
   },
   "playerHeatmap": {
     "noData": "No position data to generate heatmap",

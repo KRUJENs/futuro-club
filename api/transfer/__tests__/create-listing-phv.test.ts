@@ -25,7 +25,7 @@ vi.mock("../../_lib/auth", () => ({
 }));
 
 /** Columna legacy (antes de 069): categoría naive de un menor sin medidas. */
-const LEGACY_PLAYER = { user_id: "coach-1", tenant_id: null, phv_category: "early", phv_offset: -1.2 };
+const LEGACY_PLAYER = { user_id: "coach-1", tenant_id: null, gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z", phv_category: "early", phv_offset: -1.2 };
 const COMPLETE_ROW = {
   player_id: "samu", height_cm: 158, weight_kg: 46, sitting_height_cm: 80, leg_length_cm: 78,
   chronological_age: 13.33, maturity_offset: -0.91, phv_category: "ontime", phv_status: "during_phv",

@@ -35,7 +35,8 @@ import { toVsi } from "../_lib/vsiStats";
 import { MODELS, modelParams } from "../_lib/models";
 import { fetchMessages, responseText } from "../_lib/anthropic";
 import { localeSchema, normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
-import { trustAnthropometricsRow, PHV_STATUS_LABEL_ES, type PhvCategory } from "../../src/lib/phv/phvGate";
+import { PHV_STATUS_LABEL_ES, type PhvCategory } from "../../src/lib/phv/phvGate";
+import { trustAnthroForPlayer } from "../../src/lib/shared/sexGatedAnthro";
 import { completeCoachMetrics, coachEvalTier, type CoachEvalTier, type PlayerMetrics } from "../../src/services/real/metricsService";
 import { createClient } from "@supabase/supabase-js";
 
@@ -339,7 +340,7 @@ export default withHandler(
       // (residuo P2) ⇒ no es un dato.
       // Barras del entrenador también del BLOB: las columnas metric_* valen 0 para quien no
       // está evaluado (trigger 069 + DEFAULT 0 de la 024; corregirlas es del bloque 7).
-      .select("id, tenant_id, name, age, position, foot, height_cm, weight_kg, nivel_registrado:data->>competitiveLevel, metrics:data->metrics, vsi")
+      .select("id, tenant_id, name, age, position, foot, height_cm, weight_kg, nivel_registrado:data->>competitiveLevel, metrics:data->metrics, vsi, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
       .eq("id", input.playerId)
       .single();
 
@@ -355,7 +356,7 @@ export default withHandler(
       .select("*")
       .eq("player_id", input.playerId)
       .maybeSingle();
-    const anthroTrust = trustAnthropometricsRow(anthroRaw);
+    const anthroTrust = trustAnthroForPlayer(anthroRaw, playerRow); // + sexo registrado (P1 bloque 7)
 
     // Sin la evaluación del entrenador no se genera nada (invariante #2): hace falta el
     // VSI de ficha GUARDADO (regla única de «evaluado») y las 6 barras completas (van al

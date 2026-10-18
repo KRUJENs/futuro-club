@@ -5,7 +5,7 @@
  */
 
 import { z } from "zod";
-import { sanitizePlayerPhv } from "@/lib/phv/phvGate";
+import { honestPlayerView } from "@/lib/players/honestPlayerView";
 import { StorageService } from "./storageService";
 import { calculateFichaVsi, type PlayerMetrics } from "./metricsService";
 import { appendVsiEvaluation, parseVsiEvaluations } from "@/lib/scoring/vsiDelta";
@@ -73,6 +73,11 @@ export const PlayerSchema = z.object({
   // una jugadora sin sexo registrado. Ausente ⇒ queda sin definir y el motor de
   // maduración (resolveMaturity) BLOQUEA pidiendo el dato, en vez de asumir.
   gender: z.enum(["M", "F"]).optional(),
+  // Fecha en que una persona ELIGIÓ el sexo en un selector (P1 bloque 7): un «M» sin
+  // ella puede ser el valor por defecto antiguo ⇒ «por confirmar» (registeredSex.ts).
+  sexConfirmedAt: z.string().optional(),
+  // Solo en la vista de lectura (honestPlayerView): «M» guardado sin confirmar.
+  sexPendingConfirmation: z.boolean().optional(),
   phvCategory: z.enum(["early", "ontme", "late"]).optional(),
   phvOffset: z.number().optional(),
   // ── Inputs de maduración (para edad decimal exacta y %PAH Khamis-Roche) ──
@@ -130,7 +135,7 @@ export const PlayerService = {
     // puede recalcular desde entradas introducidas (talla, peso, sentado, pierna,
     // fecha de nacimiento, sexo — regla del owner 28-sep); si no, se retiran. Así
     // ningún consumidor lee una categoría naive/estancada como si fuera un hecho.
-    return StorageService.get<Player[]>(STORAGE_KEY, []).map(sanitizePlayerPhv);
+    return StorageService.get<Player[]>(STORAGE_KEY, []).map(honestPlayerView);
   },
 
   /**

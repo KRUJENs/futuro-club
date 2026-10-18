@@ -22,13 +22,13 @@ import listHandler from "../_list";
 import { phvGate } from "../../../src/lib/phv/phvGate";
 
 const SAMU = {
-  name: "Samu", age: 9, position: "DC", height: 135, weight: 30, gender: "M",
+  name: "Samu", age: 9, position: "DC", height: 135, weight: 30, gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z",
   metrics: { speed: 70, technique: 70, vision: 65, stamina: 65, shooting: 60, defending: 55 },
   vsi: 67.4, phvCategory: "early", phvOffset: -1.2,
 };
 const COMPLETE = {
   name: "Completo", age: 14, position: "MC", height: 165, weight: 55, sittingHeight: 85, legLength: 80,
-  birthDate: "2012-03-15", gender: "M",
+  birthDate: "2012-03-15", gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z",
   metrics: { speed: 60, technique: 60, vision: 60, stamina: 60, shooting: 60, defending: 60 },
   vsi: 60, phvCategory: "late", phvOffset: 9,
 };
@@ -143,11 +143,11 @@ describe.each([
 ])("rankings (%s) · filtro de timing = lo que rotula la fila", (_label, useRpc) => {
   const LATE_IN_PHV = {
     name: "Tardío en PHV", age: 15, position: "MC", height: 160, weight: 48, sittingHeight: 80, legLength: 80,
-    birthDate: "2011-09-29", gender: "M", vsi: 70, phvCategory: "early",
+    birthDate: "2011-09-29", gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z", vsi: 70, phvCategory: "early",
   };
   const PRE_PHV_ON_TIME = {
     name: "Pre-PHV en fase", age: 10, position: "MC", height: 150, weight: 42, sittingHeight: 78, legLength: 72,
-    birthDate: "2016-03-29", gender: "M", vsi: 65, phvCategory: "late",
+    birthDate: "2016-03-29", gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z", vsi: 65, phvCategory: "late",
   };
   const rows = [
     { id: "late", data: LATE_IN_PHV },

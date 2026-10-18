@@ -90,7 +90,7 @@ beforeEach(() => {
   sentPrompts.length = 0;
   analysisInserts.length = 0;
   playerRow = {
-    id: "samu", tenant_id: "t1", name: "Samu", age: 9, position: "DC", foot: "right",
+    id: "samu", tenant_id: "t1", name: "Samu", age: 9, position: "DC", foot: "right", gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z",
     height_cm: 135, weight_kg: 30, competitive_level: "Regional",
     // Barras del entrenador del blob (alias metrics:data->metrics del select).
     metrics: METRICS,

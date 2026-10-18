@@ -1034,7 +1034,7 @@ function DMScoreSection() {
 
 function PHVProductSection({ playerId }: { playerId: string }) {
   const { t } = useTranslation();
-  const { product: phv, gate, pah } = usePHVGate(playerId);
+  const { product: phv, gate, pah, sexPending } = usePHVGate(playerId);
   if (!gate) return null;
   // Gate cerrado: se NOMBRA qué falta (regla del owner) en vez de ocultar la
   // sección en silencio. El %talla adulta es otra métrica con su propio gate y se
@@ -1042,7 +1042,7 @@ function PHVProductSection({ playerId }: { playerId: string }) {
   if (!phv) {
     return (
       <div className="space-y-2">
-        <PhvGateNotice variant="card" gate={gate} />
+        <PhvGateNotice variant="card" gate={gate} sexPending={sexPending} />
         {pah?.ok && pah.percent.value !== null && (
           <p className="text-[11px] text-muted-foreground px-1" data-testid="pah-only">
             {t("maturity.percentPAH")}: <span className="font-semibold text-foreground">{pah.percent.value}%</span>

@@ -3243,7 +3243,8 @@
         "birthDate": "geboortedatum van de speler",
         "sex": "geregistreerd geslacht"
       }
-    }
+    },
+    "sexPending": "geslacht nog te bevestigen (via ‘Speler bewerken’)"
   },
   "playerHeatmap": {
     "noData": "Geen positiegegevens om een heatmap te genereren",

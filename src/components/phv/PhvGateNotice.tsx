@@ -23,18 +23,22 @@ interface Props {
   variant?: "inline" | "card";
   /** Sin el prefijo «PHV no disponible» (cuando el contenedor ya lo dice). */
   bare?: boolean;
+  /** «M» guardado sin confirmar (P1 bloque 7): el sexo que falta se rotula «por confirmar». */
+  sexPending?: boolean;
   className?: string;
 }
 
 /** Texto traducido del motivo del gate (reutilizable fuera de JSX, p.ej. `title`). */
 export function usePhvGateText() {
   const { t } = useTranslation();
-  return (opts: { gate?: PhvGate | null; code?: PhvGateCode | null; missing?: readonly PhvInputKey[]; bare?: boolean }) => {
+  return (opts: { gate?: PhvGate | null; code?: PhvGateCode | null; missing?: readonly PhvInputKey[]; bare?: boolean; sexPending?: boolean }) => {
     const code: PhvGateCode | null = opts.gate ? opts.gate.reason : opts.code ?? null;
     const missing = opts.gate ? opts.gate.missing : opts.missing ?? [];
     let reason: string;
     if (code === "missing_inputs" && missing.length > 0) {
-      reason = t("maturity.gate.missing", { list: missing.map((k) => t(phvInputI18nKey(k))).join(", ") });
+      reason = t("maturity.gate.missing", { list: missing
+          .map((k) => (k === "sex" && opts.sexPending ? t("maturity.sexPending") : t(phvInputI18nKey(k))))
+          .join(", ") });
     } else if (code === "out_of_range") {
       reason = t("maturity.gate.outOfRange");
     } else if (code === "legacy_row") {
@@ -48,8 +52,8 @@ export function usePhvGateText() {
   };
 }
 
-export function PhvGateNotice({ gate, code, missing, variant = "inline", bare, className }: Props) {
-  const text = usePhvGateText()({ gate, code, missing, bare });
+export function PhvGateNotice({ gate, code, missing, variant = "inline", bare, sexPending, className }: Props) {
+  const text = usePhvGateText()({ gate, code, missing, bare, sexPending });
   if (variant === "card") {
     return (
       <div

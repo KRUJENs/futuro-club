@@ -13,6 +13,7 @@ import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { errorResponse } from "../_lib/apiResponse";
 import { phvGate, phvLabelEs, type PhvGateInput } from "../../src/lib/phv/phvGate";
+import { withRegisteredSex } from "../../src/lib/shared/registeredSex";
 import { realVsiEvaluations } from "../../src/lib/scoring/vsiDelta";
 import { completeCoachMetrics, fichaVsiFromBlob, type PlayerMetrics } from "../../src/services/real/metricsService";
 
@@ -74,7 +75,7 @@ export default withHandler(
     // rotulaba "early" (= pre-PHV, un ESTADO) como «Tardía» y, sin categoría,
     // «Precoz» — a cualquier menor sin medidas se le imprimía una maduración.
     // (Texto fijo del gate: sin datos de usuario que escapar.)
-    const maturityLabel = phvLabelEs(phvGate(player as PhvGateInput));
+    const maturityLabel = phvLabelEs(phvGate(withRegisteredSex(player) as PhvGateInput)); // P1 bloque 7
 
     // 2. Fetch latest analysis (always, for richer report)
     let analysis: Record<string, unknown> | null = null;

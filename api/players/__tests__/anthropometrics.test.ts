@@ -98,7 +98,7 @@ beforeEach(() => {
   pre069 = false;
   maybeSingleOverride = {};
   tables = {
-    players: { tenant_id: "t1", birth_date: null, data: { birthDate: BIRTH, gender: "M" } },
+    players: { tenant_id: "t1", birth_date: null, data: { birthDate: BIRTH, gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z" } },
   };
 });
 
@@ -135,7 +135,7 @@ describe("anthropometrics POST · edad decimal desde la fecha de nacimiento", ()
   });
 
   it("SIN fecha de nacimiento → PHV bloqueado con motivo; la medida se guarda con la edad entera marcada", async () => {
-    tables.players = { tenant_id: "t1", birth_date: null, data: { gender: "M" } };
+    tables.players = { tenant_id: "t1", birth_date: null, data: { gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z" } };
     const { status, json } = await run(MEASURE);
     expect(status).toBe(200);
     const row = anthroInsert();
@@ -157,6 +157,15 @@ describe("anthropometrics POST · edad decimal desde la fecha de nacimiento", ()
     await run(MEASURE);
     const row = anthroInsert();
     expect(row.maturity_offset).toBeNull();
+    expect(String(row.phv_gate_reason)).toContain("sexo registrado");
+  });
+
+  it("«M» guardado SIN confirmar (posible valor por defecto antiguo) → bloqueado, aunque el cuerpo mande gender M (P1 bloque 7)", async () => {
+    tables.players = { tenant_id: "t1", birth_date: null, data: { birthDate: BIRTH, gender: "M" } };
+    await run({ ...MEASURE, gender: "M" });
+    const row = anthroInsert();
+    expect(row.maturity_offset).toBeNull();
+    expect(row.phv_category).toBeNull();
     expect(String(row.phv_gate_reason)).toContain("sexo registrado");
   });
 

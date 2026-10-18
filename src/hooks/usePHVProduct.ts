@@ -50,6 +50,8 @@ export interface PHVGateState {
   /** %talla adulta (Khamis-Roche): métrica aparte, con su propio gate. */
   pah: PahGate | null;
   product: PHVProduct | null;
+  /** «M» guardado sin confirmar (P1 bloque 7): el gate lo trata como sexo ausente. */
+  sexPending: boolean;
 }
 
 /** Convierte un VSI 0-100 a un percentil aproximado (proxy si no hay percentil real). */
@@ -61,11 +63,12 @@ export function usePHVGate(playerId: string | undefined): PHVGateState {
   const { data: player } = useRawPlayerById(playerId);
 
   return useMemo(() => {
-    if (!player) return { gate: null, pah: null, product: null };
+    if (!player) return { gate: null, pah: null, product: null, sexPending: false };
     const p = player as unknown as Record<string, unknown> & PhvGateInput;
+    const sexPending = p.sexPendingConfirmation === true;
     const gate = phvGate(p);
     const pah = pahGate(p);
-    if (!gate.ok) return { gate, pah, product: null };
+    if (!gate.ok) return { gate, pah, product: null, sexPending };
 
     const assessment = gate.assessment;
     const mirwald = gate.mirwald; // 4 medidas introducidas ⇒ estimated === false
@@ -96,6 +99,7 @@ export function usePHVGate(playerId: string | undefined): PHVGateState {
         adjustedVSI,
         playerName: String(p.name ?? "Jugador"),
       },
+      sexPending,
     };
   }, [player]);
 }
