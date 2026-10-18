@@ -718,7 +718,9 @@ const VitasLab = () => {
         // atribuyen al jugador si su pista tiene identidad fiable; sin ella pudieron
         // acumularse tras un cambio de ID → se abstienen (no se envían al informe).
         const identityReliable = tracking.state.sessionMetrics?.identityReliable ?? false;
+        // …y con la MISMA pista con la que se calculó identityReliable (sessionMetrics).
         const focusSummary = tracking.state.focusTrackId != null && eventSummary
+          && tracking.state.sessionMetrics?.focusTrackId === tracking.state.focusTrackId
           ? eventEngineRef.current.summarize(tracking.state.focusTrackId)
           : null;
         if (tracking.state.sessionMetrics) {

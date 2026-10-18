@@ -239,8 +239,10 @@ export default function PlayerHubPage() {
     if (!player) return null;
     const playerArg = player as Parameters<typeof calculateAdvancedMetrics>[0];
 
-    // Full pipeline: if snapshot has tactical events, use VideoObservationPacket bridge
-    if (snapshot?.tacticalEvents?.length) {
+    // Full pipeline: if snapshot has tactical events, use VideoObservationPacket bridge.
+    // Solo con pista enfocada (P1 bloque 7): los snapshots antiguos SIN ella guardaron los
+    // eventos de TODAS las pistas; con ella guardaban getPlayerEvents(foco).
+    if (snapshot?.tacticalEvents?.length && snapshot.focusTrackId != null) {
       const packet = labSnapshotToObservationPacket(snapshot);
       return VideoAdvancedMetricsService.calculate(playerArg, packet);
     }

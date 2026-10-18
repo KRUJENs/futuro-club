@@ -9,7 +9,11 @@ import { attributableScanCount, snapshotAttributable } from "@/services/real/pla
 const snap = (calcFocus: number | null | undefined, focus: number | null) =>
   ({ focusTrackId: focus, scanCount: 3, sessionMetrics: calcFocus === undefined ? {} : { focusTrackId: calcFocus } }) as never;
 
-const LAB = import.meta.glob(["/src/pages/VitasLab.tsx"], { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+const LAB = import.meta.glob(["/src/pages/VitasLab.tsx", "/src/pages/PlayerHubPage.tsx"], {
+  query: "?raw",
+  import: "default",
+  eager: true,
+}) as Record<string, string>;
 
 describe("snapshotAttributable", () => {
   it("solo si las métricas se calcularon con la pista enfocada guardada", () => {
@@ -25,5 +29,8 @@ describe("snapshotAttributable", () => {
     expect(lab).toMatch(/if \(calibReliable && identityReliable && physicsForFocus\)/);
     expect(lab).toMatch(/eventSummary: \(focusSummary && identityReliable\)/);
     expect(lab).toMatch(/getPlayerEvents\(tracking\.state\.focusTrackId\)\s*:\s*\[\];/);
+    expect(lab).toMatch(/&& tracking\.state\.sessionMetrics\?\.focusTrackId === tracking\.state\.focusTrackId/);
+    // VAEP del Hub: los snapshots antiguos sin pista enfocada guardaron eventos de todas las pistas.
+    expect(LAB["/src/pages/PlayerHubPage.tsx"]).toMatch(/snapshot\?\.tacticalEvents\?\.length && snapshot\.focusTrackId != null/);
   });
 });
