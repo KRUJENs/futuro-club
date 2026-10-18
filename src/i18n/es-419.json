@@ -3321,7 +3321,7 @@
     "evolution": "Evolucion",
     "viewFull": "Ver Completo",
     "baselineError": "Error generando reporte baseline",
-    "reportsGenerated": "✓ {{count}}/6 reportes generados · Eval. entrenador {{vsi}}",
+    "reportsGenerated": "✓ {{count}}/{{total}} reportes generados · Eval. entrenador {{vsi}}",
     "generateError": "Error generando reporte",
     "playerNotFound": "Jugador no encontrado",
     "reportHistory": "Historial de Reportes",

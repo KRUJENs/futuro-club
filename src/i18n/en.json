@@ -3321,7 +3321,7 @@
     "evolution": "Evolution",
     "viewFull": "View Full",
     "baselineError": "Error generating baseline report",
-    "reportsGenerated": "✓ {{count}}/6 reports generated · Coach eval. {{vsi}}",
+    "reportsGenerated": "✓ {{count}}/{{total}} reports generated · Coach eval. {{vsi}}",
     "generateError": "Error generating report",
     "playerNotFound": "Player not found",
     "reportHistory": "Report History",

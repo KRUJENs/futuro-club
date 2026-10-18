@@ -3321,7 +3321,7 @@
     "evolution": "Evolutie",
     "viewFull": "Volledig bekijken",
     "baselineError": "Fout bij genereren van baseline-rapport",
-    "reportsGenerated": "✓ {{count}}/6 rapporten gegenereerd · Trainersbeoord. {{vsi}}",
+    "reportsGenerated": "✓ {{count}}/{{total}} rapporten gegenereerd · Trainersbeoord. {{vsi}}",
     "generateError": "Fout bij genereren van rapport",
     "playerNotFound": "Speler niet gevonden",
     "reportHistory": "Rapporthistorie",

@@ -2,7 +2,7 @@
  * VITAS · Baseline Analysis (sin vídeo)
  * POST /api/players/baseline-analysis
  *
- * Genera los 6 reportes Claude usando ÚNICAMENTE el perfil del jugador
+ * Genera los reportes Claude (5 desde el P1 bloque 7: sin proyección de carrera) usando ÚNICAMENTE el perfil del jugador
  * (evaluación subjetiva del entrenador + PHV + antropometría). Sin biomecánica
  * ni similarity de vídeo.
  *
@@ -419,7 +419,7 @@ export default withHandler(
       return errorResponse({ code: "analysis_create_failed", message: aErr?.message ?? "no analysis", status: 500 });
     }
 
-    // ── 3. Generar 6 reportes Claude en paralelo ───────────────────
+    // ── 3. Generar los reportes Claude en paralelo (uno por prompt) ───────────────────
     // La directiva de idioma va en el mensaje de usuario (compartido por los 6
     // reportes) → los system prompts quedan agnósticos de idioma y conservan el
     // cache ephemeral entre idiomas; el idioma de SALIDA lo fija reportLocale.
@@ -471,7 +471,7 @@ export default withHandler(
     }
 
     // ── 5. Marcar analysis completed ───────────────────────────────
-    const finalStatus = successful.length === 6 ? "completed" : "completed";
+    const finalStatus = "completed";
     // (no usamos completed_partial porque el CHECK constraint no lo permite)
 
     await supabase
@@ -487,7 +487,8 @@ export default withHandler(
       analysisId: analysis.id,
       status: finalStatus,
       reportsGenerated: successful.length,
-      reportsFailed: 6 - successful.length,
+      reportsTotal: Object.keys(PROMPTS).length,
+      reportsFailed: Object.keys(PROMPTS).length - successful.length,
       vsi: vsiData.vsi,
       tier: vsiData.tier,
       tierLabel: vsiData.tierLabel,

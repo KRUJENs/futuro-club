@@ -50,7 +50,6 @@ export function cloneFromMatch(m: SimilarityMatch | ReportBestMatch | null | und
 interface VitasCardProps {
   player:    Player;
   bestMatch: SimilarityMatch | ReportBestMatch | null;
-  projection?: string; // "Primera División", "Segunda División", etc.
   onClose?:  () => void;
 }
 
@@ -122,7 +121,7 @@ function RadarHex({ metrics }: { metrics: Player["metrics"] }) {
   );
 }
 
-export default function VitasCard({ player, bestMatch, projection, onClose }: VitasCardProps) {
+export default function VitasCard({ player, bestMatch, onClose }: VitasCardProps) {
   const { t } = useTranslation();
   const cardRef = useRef<HTMLDivElement>(null);
   const [exporting, setExporting] = useState(false);
@@ -290,12 +289,6 @@ export default function VitasCard({ player, bestMatch, projection, onClose }: Vi
             </div>
 
             {/* Proyección */}
-            {projection && (
-              <div className="rounded-lg px-3 py-2 border border-white/10 bg-white/5">
-                <p className="text-[9px] text-white/40 uppercase tracking-widest mb-0.5">{t("vitasCard.projection")}</p>
-                <p className="text-xs font-bold text-white">{projection}</p>
-              </div>
-            )}
           </div>
 
           {/* Columna derecha */}

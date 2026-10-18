@@ -315,57 +315,7 @@ export function buildDemoAnalysisRows(
           }),
         },
       },
-      {
-        report_type: "projection",
-        content: {
-          optimistic: {
-            description: pickLocale(locale, {
-              es: `Con progresión sostenida, ${first} podría proyectarse por encima de su nivel actual.`,
-              en: `With sustained progression, ${first} could project above their current level.`,
-              it: `Con una progressione costante, ${first} potrebbe proiettarsi al di sopra del suo livello attuale.`,
-              de: `Bei anhaltender Progression könnte sich ${first} über sein aktuelles Niveau hinaus entwickeln.`,
-              fr: `Avec une progression soutenue, ${first} pourrait se projeter au-dessus de son niveau actuel.`,
-              nl: `Bij aanhoudende progressie zou ${first} zich boven zijn huidige niveau kunnen ontwikkelen.`,
-              "es-419": `Con progresión sostenida, ${first} podría proyectarse por encima de su nivel actual.`,
-            }),
-            level: vsi >= 70
-              ? pickLocale(locale, { es: "Semi-pro", en: "Semi-pro", it: "Semi-pro", de: "Semi-pro", fr: "Semi-pro", nl: "Semi-prof", "es-419": "Semi-pro" })
-              : pickLocale(locale, { es: "Amateur alto", en: "High amateur", it: "Amateur di alto livello", de: "Gehobener Amateur", fr: "Haut niveau amateur", nl: "Hoog amateurniveau", "es-419": "Amateur alto" }),
-          },
-          realistic: {
-            description: pickLocale(locale, {
-              es: `Desarrollo consistente dentro de su categoría manteniendo minutos y carga adecuada.`,
-              en: `Consistent development within their age group, keeping suitable playing time and load.`,
-              it: `Sviluppo costante all'interno della sua categoria mantenendo minutaggio e carico adeguati.`,
-              de: `Konsequente Entwicklung innerhalb seiner Altersklasse bei angemessener Spielzeit und Belastung.`,
-              fr: `Développement régulier au sein de sa catégorie en conservant temps de jeu et charge adaptés.`,
-              nl: `Consistente ontwikkeling binnen zijn leeftijdscategorie met passende speelminuten en belasting.`,
-              "es-419": `Desarrollo consistente dentro de su categoría manteniendo minutos y carga adecuada.`,
-            }),
-            level: vsi >= 60
-              ? pickLocale(locale, { es: "Amateur alto", en: "High amateur", it: "Amateur di alto livello", de: "Gehobener Amateur", fr: "Haut niveau amateur", nl: "Hoog amateurniveau", "es-419": "Amateur alto" })
-              : pickLocale(locale, { es: "Amateur", en: "Amateur", it: "Amateur", de: "Amateur", fr: "Amateur", nl: "Amateur", "es-419": "Amateur" }),
-          },
-          key_factors: pickLocale(locale, {
-            es: [strengths[0].title, "Continuidad de minutos", "Acompañamiento de la maduración"],
-            en: [strengths[0].title, "Consistent playing time", "Maturation monitoring"],
-            it: [strengths[0].title, "Continuità di minutaggio", "Accompagnamento della maturazione"],
-            de: [strengths[0].title, "Kontinuierliche Spielzeit", "Begleitung der Reifung"],
-            fr: [strengths[0].title, "Continuité de temps de jeu", "Accompagnement de la maturation"],
-            nl: [strengths[0].title, "Continuïteit van speelminuten", "Begeleiding van de rijping"],
-            "es-419": [strengths[0].title, "Continuidad de minutos", "Acompañamiento de la maduración"],
-          }),
-          risks: pickLocale(locale, {
-            es: ["Sobrecarga en ventana de crecimiento", areas[0].title],
-            en: ["Overload during the growth window", areas[0].title],
-            it: ["Sovraccarico nella finestra di crescita", areas[0].title],
-            de: ["Überlastung im Wachstumsfenster", areas[0].title],
-            fr: ["Surcharge pendant la fenêtre de croissance", areas[0].title],
-            nl: ["Overbelasting tijdens het groeivenster", areas[0].title],
-            "es-419": ["Sobrecarga en ventana de crecimiento", areas[0].title],
-          }),
-        },
-      },
+      // Sin informe de proyección de carrera (P1 bloque 7, D2): ni el demo la inventa.
       {
         report_type: "development-plan",
         content: {

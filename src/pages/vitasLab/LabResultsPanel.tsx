@@ -442,26 +442,7 @@ const LabResultsPanel = ({
               )}
 
               {/* Proyección — solo si hay datos reales (null ⇒ no se fabrica "Semi-pro") */}
-              {report.proyeccionCarrera && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <TrendingUp size={14} className="text-primary" />
-                    <p className="text-[10px] font-display font-semibold uppercase tracking-widest text-muted-foreground">{t("vitasLab.careerProjection")}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="glass rounded-xl p-3 border border-green-500/20">
-                      <p className="text-[9px] font-display uppercase tracking-wider text-green-600 mb-1">{t("vitasLab.optimistic")}</p>
-                      <p className="text-xs font-display font-bold text-foreground">{report.proyeccionCarrera.escenarioOptimista.nivelProyecto}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1 leading-tight">{report.proyeccionCarrera.escenarioOptimista.descripcion}</p>
-                    </div>
-                    <div className="glass rounded-xl p-3 border border-border">
-                      <p className="text-[9px] font-display uppercase tracking-wider text-muted-foreground mb-1">{t("vitasLab.realistic")}</p>
-                      <p className="text-xs font-display font-bold text-foreground">{report.proyeccionCarrera.escenarioRealista.nivelProyecto}</p>
-                      <p className="text-[10px] text-muted-foreground mt-1 leading-tight">{report.proyeccionCarrera.escenarioRealista.descripcion}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {/* Proyección de carrera bloqueada (P1 bloque 7, D2): ni nivel ni riesgos. */}
 
               {/* Plan de Desarrollo — sin objetivos genéricos de relleno («Consolidar
                   fundamentos técnicos»…): solo lo que redactó el agente. */}
@@ -524,21 +505,7 @@ const LabResultsPanel = ({
               </div>
 
               {/* Riesgos — guarda proyeccionCarrera null (bloque separado del de proyección) */}
-              {report.proyeccionCarrera && report.proyeccionCarrera.riesgos?.length > 0 && (
-                <div className="glass rounded-xl p-4 border border-yellow-500/20">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle size={14} className="text-yellow-500" />
-                    <p className="text-[10px] font-display font-semibold uppercase tracking-widest text-muted-foreground">{t("vitasLab.identifiedRisks")}</p>
-                  </div>
-                  <ul className="space-y-1">
-                    {report.proyeccionCarrera.riesgos.map((r, i) => (
-                      <li key={i} className="text-xs text-muted-foreground flex items-start gap-1">
-                        <span className="text-yellow-500 mt-0.5">›</span> {r}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              {/* Proyección de carrera bloqueada (P1 bloque 7, D2): ni nivel ni riesgos. */}
 
               {/* CTA: el análisis no muere en el Lab — continúa en la ficha */}
               {selectedPlayerId && (

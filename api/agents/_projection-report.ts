@@ -21,6 +21,10 @@ import { hashInput, getCached, setCached } from "../_lib/agentCache";
 import { MODELS } from "../_lib/models";
 import { normalizeLocale, languageDirective, type ReportLocale } from "../../src/lib/shared/locale";
 import { resolveCategory, categoryDirective, type PlayerCategory } from "../../src/lib/shared/category";
+import { CAREER_PROJECTION_GATE_REASON } from "../../src/lib/reports/careerProjection";
+
+/** D2 (P1 bloque 7): mientras no haya un modelo validado, el agente no se ejecuta. */
+const CAREER_PROJECTION_BLOCKED = true as boolean;
 
 export const config = { runtime: "edge" };
 
@@ -156,6 +160,13 @@ async function callHaiku(systemPrompt: string, userMessage: string, apiKey: stri
 export default withHandler(
   { schema: projectionSchema, requireAuth: true, allowServiceToken: true, maxRequests: 100 },
   async ({ body }) => {
+    // Proyección de carrera BLOQUEADA (P1 bloque 7, decisión del dueño D2): escenarios,
+    // nivel, techo y la curva de VSI a 3 años con incrementos fijos no tienen un modelo
+    // validado. El endpoint sigue montado (orquestador / llamadas directas) pero no llama
+    // al modelo: devuelve el motivo (src/lib/reports/careerProjection.ts).
+    if (CAREER_PROJECTION_BLOCKED) {
+      return successResponse({ gate_reason: CAREER_PROJECTION_GATE_REASON, blocked: true });
+    }
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return errorResponse({ code: "no_api_key", message: "missing", status: 500 });

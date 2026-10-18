@@ -16,3 +16,15 @@ export const CAREER_PROJECTION_GATE_REASON =
 export function careerProjectionMetric(): MetricResult<string> {
   return gated<string>(CAREER_PROJECTION_GATE_REASON, { source_ref: "src/lib/reports/careerProjection.ts" });
 }
+
+/**
+ * Informes guardados con `report_type: "projection"` (análisis base v1.0, demo y el
+ * agente de proyección del orquestador): su contenido (escenarios, nivel, curva de VSI a
+ * 3 años, factores, riesgos) se sustituye por el motivo ANTES de salir de la API o de
+ * pintarse. No se borra la fila.
+ */
+export function withCareerProjectionBlocked<R extends { report_type: string; content?: unknown }>(reports: readonly R[]): R[] {
+  return reports.map((r) =>
+    r.report_type === "projection" ? { ...r, content: { gate_reason: CAREER_PROJECTION_GATE_REASON } } : r,
+  );
+}
