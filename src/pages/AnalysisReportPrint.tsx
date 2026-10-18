@@ -318,9 +318,6 @@ export default function AnalysisReportPrint() {
             {r.jugadorReferencia?.bestMatch?.nombre && (
               <GlanceCard label={t("analysisReportPrint.glanceComparable")} value={r.jugadorReferencia.bestMatch.nombre} />
             )}
-            {r.proyeccionCarrera?.escenarioRealista?.nivelProyecto && (
-              <GlanceCard label={t("analysisReportPrint.glanceProjection")} value={r.proyeccionCarrera.escenarioRealista.nivelProyecto} />
-            )}
           </section>
         )}
 
@@ -679,40 +676,12 @@ export default function AnalysisReportPrint() {
           </section>
         )}
 
-        {/* ── 8. Proyección de Carrera — solo si hay datos reales (null ⇒ no fabricar "Semi-pro") ── */}
+        {/* ── 8. Proyección de Carrera: BLOQUEADA (P1 bloque 7, D2). Si el informe antiguo
+            la traía, se imprime el motivo en vez del nivel y los escenarios. ── */}
         {r.proyeccionCarrera && (
         <section className="mb-6 no-break">
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t("analysisReportPrint.careerProjection")}</h2>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div className="p-3 bg-green-50 rounded border border-green-100">
-              <div className="text-[9px] text-green-600 uppercase font-bold mb-1">{t("analysisReportPrint.optimisticScenario")}</div>
-              <div className="text-[10px] text-gray-400 mb-1">
-                {t("analysisReportPrint.level")}: <span className="font-semibold text-green-700">{r.proyeccionCarrera.escenarioOptimista.nivelProyecto}</span>
-              </div>
-              <p className="text-[10px] text-gray-600 leading-snug">
-                {r.proyeccionCarrera.escenarioOptimista.descripcion}
-              </p>
-            </div>
-            <div className="p-3 bg-blue-50 rounded border border-blue-100">
-              <div className="text-[9px] text-blue-600 uppercase font-bold mb-1">{t("analysisReportPrint.realisticScenario")}</div>
-              <div className="text-[10px] text-gray-400 mb-1">
-                {t("analysisReportPrint.level")}: <span className="font-semibold text-blue-700">{r.proyeccionCarrera.escenarioRealista.nivelProyecto}</span>
-              </div>
-              <p className="text-[10px] text-gray-600 leading-snug">
-                {r.proyeccionCarrera.escenarioRealista.descripcion}
-              </p>
-            </div>
-          </div>
-          {r.proyeccionCarrera.factoresClave.length > 0 && (
-            <div className="mb-2">
-              <div className="text-[9px] text-gray-400 uppercase font-bold mb-1">{t("analysisReportPrint.keyFactors")}</div>
-              <div className="flex gap-1.5 flex-wrap">
-                {r.proyeccionCarrera.factoresClave.map((f, i) => (
-                  <span key={i} className="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-[9px] rounded">{f}</span>
-                ))}
-              </div>
-            </div>
-          )}
+          <p className="text-[10px] text-gray-600">{t("careerProjection.blocked")}</p>
         </section>
         )}
 
@@ -764,17 +733,7 @@ export default function AnalysisReportPrint() {
           )}
         </section>
 
-        {/* ── 10. Riesgos ────────────────────────────────────────────── */}
-        {r.proyeccionCarrera && r.proyeccionCarrera.riesgos.length > 0 && (
-          <section className="mb-6 no-break">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t("analysisReportPrint.identifiedRisks")}</h2>
-            <ul className="list-disc list-inside text-[10px] text-gray-600 space-y-1">
-              {r.proyeccionCarrera.riesgos.map((riesgo, i) => (
-                <li key={i}>{riesgo}</li>
-              ))}
-            </ul>
-          </section>
-        )}
+        {/* Riesgos de la proyección de carrera: fuera con ella (D2) */}
 
         {/* ── Footer ─────────────────────────────────────────────────── */}
         <div className="pt-4 mt-6 border-t border-gray-200 flex items-center justify-between">

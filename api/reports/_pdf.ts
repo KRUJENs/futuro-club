@@ -14,6 +14,7 @@ import { withHandler } from "../_lib/withHandler";
 import { errorResponse } from "../_lib/apiResponse";
 import { phvGate, phvLabelEs, type PhvGateInput } from "../../src/lib/phv/phvGate";
 import { withRegisteredSex } from "../../src/lib/shared/registeredSex";
+import { CAREER_PROJECTION_GATE_REASON } from "../../src/lib/reports/careerProjection";
 import { realVsiEvaluations } from "../../src/lib/scoring/vsiDelta";
 import { completeCoachMetrics, fichaVsiFromBlob, type PlayerMetrics } from "../../src/services/real/metricsService";
 
@@ -168,21 +169,12 @@ export default withHandler(
       </div>
     ` : "";
 
+    // Proyección de carrera BLOQUEADA (P1 bloque 7, D2): sin nivel ni escenarios; si el
+    // informe antiguo la traía, el motivo (src/lib/reports/careerProjection.ts).
     const projectionSection = proyeccion ? `
       <div class="section">
         <h2>Proyección de Carrera</h2>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div style="background:#f0fdf4;padding:12px;border-radius:8px">
-            <div style="font-size:10px;color:#16a34a;font-weight:700;text-transform:uppercase">Optimista</div>
-            <div style="font-size:12px;font-weight:600;margin-top:4px">${proyeccion.escenarioOptimista?.nivelProyecto ?? ""}</div>
-            <p style="font-size:11px;color:#666;margin-top:4px">${proyeccion.escenarioOptimista?.descripcion ?? ""}</p>
-          </div>
-          <div style="background:#eff6ff;padding:12px;border-radius:8px">
-            <div style="font-size:10px;color:#2563eb;font-weight:700;text-transform:uppercase">Realista</div>
-            <div style="font-size:12px;font-weight:600;margin-top:4px">${proyeccion.escenarioRealista?.nivelProyecto ?? ""}</div>
-            <p style="font-size:11px;color:#666;margin-top:4px">${proyeccion.escenarioRealista?.descripcion ?? ""}</p>
-          </div>
-        </div>
+        <p style="font-size:11px;color:#666">${CAREER_PROJECTION_GATE_REASON}</p>
       </div>
     ` : "";
 

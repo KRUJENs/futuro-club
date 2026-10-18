@@ -46,7 +46,8 @@ const SUPABASE_URL = (process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL)
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!;
 
-const PIPELINE_VERSION = "baseline-v1.0";
+// v1.1 = sin proyección de carrera (P1 bloque 7, D2); v1.0 = análisis base original.
+const PIPELINE_VERSION = "baseline-v1.1";
 
 const bodySchema = z.object({
   playerId: z.string().min(1),
@@ -282,18 +283,9 @@ Output JSON estricto:
 
 3 matches obligatorios, uno por cada lens. Sin markdown.`,
   },
-  projection: {
-    model: MODELS.fast,
-    system: `Eres el motor de Proyección 3 años VITAS · baseline.
-Output JSON:
-{
-  "optimistic": {"description":"string max 160 chars","level":"string · ej. Top semipro"},
-  "realistic":  {"description":"string max 160 chars","level":"string · ej. Amateur alto"},
-  "key_factors": ["string","string","string"],
-  "risks":       ["string","string"]
-}
-Sin markdown.`,
-  },
+  // Sin «projection» (P1 bloque 7, decisión del dueño D2): no hay un modelo validado que
+  // prediga el nivel futuro de un menor («Top semipro», «Amateur alto»); se dejó de
+  // generar con el mismo criterio que las proyecciones del perfil de rol (5c).
   "development-plan": {
     model: MODELS.fast,
     system: `Eres el motor del Plan de Desarrollo VITAS · baseline.

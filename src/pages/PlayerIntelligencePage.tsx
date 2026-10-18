@@ -247,303 +247,14 @@ function ADNFutbolistico({ data }: { data: VideoIntelligenceOutput["adnFutbolist
   );
 }
 
-function ProyeccionCarrera({ data }: { data: VideoIntelligenceOutput["proyeccionCarrera"] }) {
+// Proyección de carrera y competitiva: BLOQUEADAS (P1 bloque 7, decisión del dueño D2).
+// No hay un modelo validado que prediga el nivel futuro de un menor; los informes antiguos
+// que la traen tampoco se pintan (src/lib/reports/careerProjection.ts).
+function CareerProjectionBlocked() {
   const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(false);
-
-  if (!data) return null;
-
   return (
     <div className="glass rounded-2xl p-4">
-      <SectionHeader icon={TrendingUp} title={t("intelligence.careerProjection")} subtitle={t("intelligence.careerProjectionDesc")} />
-
-      {/* Optimista */}
-      {data.escenarioOptimista && (
-        <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-3 mb-3">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Star size={11} className="text-green-400" />
-            <span className="text-[10px] font-display uppercase tracking-wider text-green-400">{t("intelligence.optimisticScenario")}</span>
-            <Badge variant="secondary" className="text-[9px] ml-auto">{data.escenarioOptimista.nivelProyecto ?? "—"}</Badge>
-          </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">{data.escenarioOptimista.descripcion ?? ""}</p>
-          {data.escenarioOptimista.edadPeak && (
-            <p className="text-[10px] text-green-400 mt-1.5">{t("intelligence.peakProjected", { age: data.escenarioOptimista.edadPeak })}</p>
-          )}
-        </div>
-      )}
-
-      {/* Realista */}
-      {data.escenarioRealista && (
-        <div className="rounded-xl border border-blue-500/30 bg-blue-500/5 p-3 mb-3">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Target size={11} className="text-blue-400" />
-            <span className="text-[10px] font-display uppercase tracking-wider text-blue-400">{t("intelligence.realisticScenario")}</span>
-            <Badge variant="secondary" className="text-[9px] ml-auto">{data.escenarioRealista.nivelProyecto ?? "—"}</Badge>
-          </div>
-          <p className="text-xs text-muted-foreground leading-relaxed">{data.escenarioRealista.descripcion ?? ""}</p>
-        </div>
-      )}
-
-      {/* Factores y riesgos */}
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="flex items-center gap-1.5 text-[10px] text-muted-foreground w-full"
-      >
-        {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-        {t("intelligence.keyFactorsAndRisks")}
-      </button>
-
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              <div>
-                <p className="text-[10px] font-display uppercase tracking-wider text-green-400 mb-1">{t("intelligence.positiveFactors")}</p>
-                {(data.factoresClave ?? []).map((f, i) => (
-                  <p key={i} className="text-[11px] text-muted-foreground leading-relaxed">• {f}</p>
-                ))}
-              </div>
-              <div>
-                <p className="text-[10px] font-display uppercase tracking-wider text-red-400 mb-1">{t("intelligence.risks")}</p>
-                {(data.riesgos ?? []).map((r, i) => (
-                  <p key={i} className="text-[11px] text-muted-foreground leading-relaxed">• {r}</p>
-                ))}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// ─── Proyección Competitiva ──────────────────────────────────────────────────
-
-const NIVEL_COLORS: Record<string, string> = {
-  "Segunda Regional":  "#94A3B8",
-  "Primera Regional":  "#8B5CF6",
-  "Preferente":        "#3B82F6",
-  "Autonómica":        "#22C55E",
-  "Nacional":          "#F59E0B",
-  "División de Honor": "#FFD700",
-};
-
-const CATEGORIA_LABELS: Record<string, string> = {
-  prebenjamin: "Prebenjamín",
-  benjamin:    "Benjamín",
-  alevin:      "Alevín",
-  infantil:    "Infantil",
-  cadete:      "Cadete",
-  juvenil:     "Juvenil",
-};
-
-function getNivelColor(nivel: string): string {
-  for (const [key, color] of Object.entries(NIVEL_COLORS)) {
-    if (nivel.toLowerCase().includes(key.toLowerCase())) return color;
-  }
-  return "#3B82F6";
-}
-
-function ProbabilityBar({ value, size = "sm" }: { value: number; size?: "sm" | "md" }) {
-  const pct = Math.round(value * 100);
-  const color = pct >= 70 ? "#22C55E" : pct >= 40 ? "#F59E0B" : "#EF4444";
-  const h = size === "md" ? "h-2" : "h-1.5";
-  return (
-    <div className="flex items-center gap-2">
-      <div className={`flex-1 ${h} rounded-full bg-secondary overflow-hidden`}>
-        <div className={`${h} rounded-full transition-all`} style={{ width: `${pct}%`, backgroundColor: color }} />
-      </div>
-      <span className="text-[9px] font-bold tabular-nums" style={{ color }}>{pct}%</span>
-    </div>
-  );
-}
-
-function ProyeccionCompetitiva({ data }: { data: NonNullable<VideoIntelligenceOutput["proyeccionCompetitiva"]> }) {
-  const { t } = useTranslation();
-  const [expanded, setExpanded] = useState(true);
-
-  return (
-    <div className="glass rounded-2xl p-4">
-      <SectionHeader
-        icon={Trophy}
-        title={t("playerIntelligencePage.competitiveProjection")}
-        subtitle={t("playerIntelligencePage.competitiveProjectionDesc")}
-      />
-
-      {/* Nivel Actual Recomendado */}
-      <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 mb-3">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Shield size={14} className="text-primary" />
-            <span className="text-[10px] font-display uppercase tracking-wider text-muted-foreground">
-              {t("playerIntelligencePage.currentRecommendedLevel")}
-            </span>
-          </div>
-          <Badge
-            className="text-xs font-bold px-3 py-1"
-            style={{
-              backgroundColor: `${getNivelColor(data.nivelActualRecomendado)}20`,
-              color: getNivelColor(data.nivelActualRecomendado),
-              borderColor: getNivelColor(data.nivelActualRecomendado),
-            }}
-          >
-            {data.nivelActualRecomendado}
-          </Badge>
-        </div>
-        <p className="text-[11px] text-muted-foreground leading-relaxed">{data.justificacionNivel}</p>
-      </div>
-
-      {/* Tipo de Jugador Proyectado */}
-      <div className="rounded-xl border border-gold/30 bg-gold/5 p-3 mb-3">
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <Target size={11} className="text-gold" />
-          <span className="text-[10px] font-display uppercase tracking-wider text-gold">
-            {t("playerIntelligencePage.projectedPlayerType")}
-          </span>
-        </div>
-        <p className="text-xs text-foreground font-medium leading-relaxed">{data.tipoJugadorProyectado}</p>
-      </div>
-
-      {/* Roadmap por Categoría */}
-      <button
-        onClick={() => setExpanded(e => !e)}
-        className="flex items-center gap-1.5 text-[10px] text-muted-foreground w-full mb-3"
-      >
-        {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-        {t("playerIntelligencePage.roadmapByCategory", { count: data.roadmapPorCategoria.length })}
-      </button>
-
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="space-y-2 mb-3">
-              {data.roadmapPorCategoria.map((etapa, i) => {
-                const nivelColor = getNivelColor(etapa.nivelRecomendado);
-                return (
-                  <div key={i} className="rounded-xl border border-border p-3 relative">
-                    {/* Timeline dot */}
-                    {i < data.roadmapPorCategoria.length - 1 && (
-                      <div className="absolute left-6 top-full w-px h-2 bg-border" />
-                    )}
-
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold"
-                          style={{ backgroundColor: `${nivelColor}20`, color: nivelColor }}>
-                          {i + 1}
-                        </div>
-                        <div>
-                          <span className="text-xs font-display font-bold text-foreground">
-                            {CATEGORIA_LABELS[etapa.categoria] ?? etapa.categoria}
-                          </span>
-                          <span className="text-[9px] text-muted-foreground ml-1.5">{t("playerIntelligencePage.ageRangeYears", { range: etapa.edadRango })}</span>
-                        </div>
-                      </div>
-                      <Badge
-                        variant="secondary"
-                        className="text-[9px] font-bold"
-                        style={{ color: nivelColor, borderColor: `${nivelColor}50` }}
-                      >
-                        {etapa.nivelRecomendado}
-                      </Badge>
-                    </div>
-
-                    <p className="text-[11px] text-foreground mb-1.5">{etapa.tipoJugadorEnEstaEtapa}</p>
-
-                    {/* Capacidades clave */}
-                    <div className="flex flex-wrap gap-1 mb-1.5">
-                      {etapa.capacidadesClave.map((cap, j) => (
-                        <span key={j} className="text-[9px] px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
-                          {cap}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Enfoque */}
-                    <div className="flex items-start gap-1 mb-1.5">
-                      <MapPin size={9} className="text-primary mt-0.5 shrink-0" />
-                      <span className="text-[10px] text-muted-foreground">{etapa.enfoqueDesarrollo}</span>
-                    </div>
-
-                    {/* Probabilidad */}
-                    <ProbabilityBar value={etapa.probabilidadAlcanzar} />
-                  </div>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Techo Competitivo */}
-      <div className="rounded-xl border border-gold/30 bg-gradient-to-r from-gold/5 to-transparent p-3 mb-3">
-        <div className="flex items-center gap-1.5 mb-2">
-          <TrendingUp size={11} className="text-gold" />
-          <span className="text-[10px] font-display uppercase tracking-wider text-gold">{t("playerIntelligencePage.competitiveCeiling")}</span>
-        </div>
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <span className="text-sm font-display font-bold text-foreground">{data.techoCompetitivo.nivel}</span>
-            <span className="text-[10px] text-muted-foreground ml-2">
-              {t("playerIntelligencePage.approxAgeYears", { age: data.techoCompetitivo.edadEstimada })}
-            </span>
-          </div>
-          <span className="text-xs font-bold" style={{
-            color: data.techoCompetitivo.probabilidad >= 0.5 ? "#22C55E" : "#F59E0B"
-          }}>
-            {t("playerIntelligencePage.probabilityShort", { pct: Math.round(data.techoCompetitivo.probabilidad * 100) })}
-          </span>
-        </div>
-        <ProbabilityBar value={data.techoCompetitivo.probabilidad} size="md" />
-        <div className="mt-2 space-y-0.5">
-          {data.techoCompetitivo.requisitosParaAlcanzarlo.map((req, i) => (
-            <p key={i} className="text-[10px] text-muted-foreground">→ {req}</p>
-          ))}
-        </div>
-      </div>
-
-      {/* Factores Ascenso / Riesgo */}
-      <div className="grid grid-cols-2 gap-3 mb-3">
-        <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-2.5">
-          <div className="flex items-center gap-1 mb-1.5">
-            <ArrowUpRight size={10} className="text-green-400" />
-            <span className="text-[9px] font-display uppercase tracking-wider text-green-400">{t("playerIntelligencePage.ascentFactors")}</span>
-          </div>
-          {data.factoresAscenso.map((f, i) => (
-            <p key={i} className="text-[10px] text-muted-foreground leading-relaxed">• {f}</p>
-          ))}
-        </div>
-        <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-2.5">
-          <div className="flex items-center gap-1 mb-1.5">
-            <ArrowDownRight size={10} className="text-red-400" />
-            <span className="text-[9px] font-display uppercase tracking-wider text-red-400">{t("playerIntelligencePage.riskFactors")}</span>
-          </div>
-          {data.factoresRiesgo.map((f, i) => (
-            <p key={i} className="text-[10px] text-muted-foreground leading-relaxed">• {f}</p>
-          ))}
-        </div>
-      </div>
-
-      {/* Recomendación Final — narrativa scout */}
-      <div className="rounded-xl bg-primary/5 border border-primary/20 p-4">
-        <div className="flex items-center gap-1.5 mb-2">
-          <Brain size={11} className="text-primary" />
-          <span className="text-[10px] font-display uppercase tracking-wider text-primary">{t("playerIntelligencePage.scoutRecommendation")}</span>
-        </div>
-        <p className="text-xs text-foreground leading-relaxed italic">
-          "{data.recomendacionFinal}"
-        </p>
-      </div>
+      <SectionHeader icon={TrendingUp} title={t("intelligence.careerProjection")} subtitle={t("careerProjection.blocked")} />
     </div>
   );
 }
@@ -698,22 +409,7 @@ function AnalysisComparison({ current, previous, currentDate, previousDate }: {
         </div>
       )}
 
-      {/* Proyección comparada */}
-      {current.proyeccionCarrera?.escenarioRealista && previous.proyeccionCarrera?.escenarioRealista && (
-        <div className="border-t border-border pt-3 space-y-1.5">
-          <p className="text-[10px] font-display uppercase tracking-wider text-muted-foreground">{t("playerIntelligencePage.projection")}</p>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-lg bg-secondary/50 p-2">
-              <p className="text-[9px] text-muted-foreground">{t("playerIntelligencePage.previous")}</p>
-              <p className="text-[11px] font-bold text-foreground">{previous.proyeccionCarrera.escenarioRealista.nivelProyecto ?? "—"}</p>
-            </div>
-            <div className="rounded-lg bg-primary/10 border border-primary/30 p-2">
-              <p className="text-[9px] text-primary">{t("playerIntelligencePage.current")}</p>
-              <p className="text-[11px] font-bold text-foreground">{current.proyeccionCarrera.escenarioRealista.nivelProyecto ?? "—"}</p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Sin proyección comparada (D2, P1 bloque 7) */}
 
       {/* Confianza comparada — solo la que tenga confianza medible (null ⇒ no pintar "0%") */}
       {(previous.confianza != null || current.confianza != null) && (
@@ -1045,13 +741,8 @@ export default function PlayerIntelligencePage() {
                   </div>
                 )}
 
-                {/* Proyección */}
-                <ProyeccionCarrera data={latestReport.proyeccionCarrera} />
-
-                {/* Proyección Competitiva — ligas juveniles */}
-                {latestReport.proyeccionCompetitiva && (
-                  <ProyeccionCompetitiva data={latestReport.proyeccionCompetitiva} />
-                )}
+                {/* Proyección de carrera / competitiva: bloqueadas (D2) */}
+                <CareerProjectionBlocked />
 
                 {/* Plan */}
                 <PlanDesarrollo data={latestReport.planDesarrollo} />
@@ -1188,7 +879,6 @@ export default function PlayerIntelligencePage() {
           <VitasCard
             player={player}
             bestMatch={bestMatchData}
-            projection={latestReport?.proyeccionCarrera?.escenarioRealista?.nivelProyecto}
             onClose={() => setShowCard(false)}
           />
         </DialogContent>

@@ -12,7 +12,7 @@ import { useTranslation } from "react-i18next";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, Brain, TrendingUp, Loader2, ChevronDown, ChevronUp,
-  Star, AlertTriangle, Target, Zap, Trophy, Activity,
+  Star, AlertTriangle, Target, Zap, Activity,
   ArrowUpRight, ArrowDownRight, Minus,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -449,27 +449,12 @@ export default function PlayerEvolutionPage() {
       };
     });
 
-  const competitivoTimeline = sorted
-    .filter((a) => (a.report as VideoIntelligenceOutput).proyeccionCompetitiva?.nivelActualRecomendado)
-    .map((a) => {
-      const r = a.report as VideoIntelligenceOutput;
-      return {
-        label: r.proyeccionCompetitiva!.nivelActualRecomendado,
-        date: new Date(a.created_at).toLocaleDateString("es-ES", { day: "2-digit", month: "short" }),
-        color: "#22C55E",
-      };
-    });
-
-  const carreraTimeline = sorted
-    .filter((a) => (a.report as VideoIntelligenceOutput).proyeccionCarrera?.escenarioRealista?.nivelProyecto)
-    .map((a) => {
-      const r = a.report as VideoIntelligenceOutput;
-      return {
-        label: r.proyeccionCarrera!.escenarioRealista!.nivelProyecto!,
-        date: new Date(a.created_at).toLocaleDateString("es-ES", { day: "2-digit", month: "short" }),
-        color: "#F59E0B",
-      };
-    });
+  // Proyección de carrera / competitiva (BLOQUEADAS, P1 bloque 7, D2): solo se mira si
+  // algún informe antiguo la traía, para decir por qué no se muestra.
+  const hadProjection = sorted.some((a) => {
+    const r = a.report as VideoIntelligenceOutput;
+    return !!(r.proyeccionCarrera || r.proyeccionCompetitiva);
+  });
 
   // Deduplicate consecutive identical labels for cleaner timelines
   function dedup(items: { label: string; date: string; color: string }[]) {
@@ -650,17 +635,11 @@ export default function PlayerEvolutionPage() {
                 </TextualEvolutionSection>
               )}
 
-              {dedup(carreraTimeline).length >= 1 && (
+              {/* Proyección de carrera / competitiva de informes antiguos: BLOQUEADAS (P1
+                  bloque 7, D2). Si alguno la traía, se dice por qué no se muestra. */}
+              {hadProjection && (
                 <TextualEvolutionSection title={t("playerEvolutionPage.careerProjection")} icon={TrendingUp}>
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">{t("playerEvolutionPage.projectedLevelRealistic")}</p>
-                  <TimelineBadges items={dedup(carreraTimeline)} />
-                </TextualEvolutionSection>
-              )}
-
-              {dedup(competitivoTimeline).length >= 1 && (
-                <TextualEvolutionSection title={t("playerEvolutionPage.competitiveProjection")} icon={Trophy}>
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">{t("playerEvolutionPage.recommendedLevel")}</p>
-                  <TimelineBadges items={dedup(competitivoTimeline)} />
+                  <p className="text-[11px] text-muted-foreground">{t("careerProjection.blocked")}</p>
                 </TextualEvolutionSection>
               )}
             </div>

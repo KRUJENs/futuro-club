@@ -6354,5 +6354,8 @@
   },
   "dmScoreGate": {
     "reason": "Decision-Making Score no disponible: sus pesos no tienen fuente y sus componentes no están medidos (Scan IQ bloqueado; velocidad de decisión y temple sin validar; lectura táctica no medida por el vídeo)."
+  },
+  "careerProjection": {
+    "blocked": "Proyección de carrera no disponible: no hay un modelo validado que prediga el nivel futuro de un jugador en formación."
   }
 }

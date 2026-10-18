@@ -157,7 +157,7 @@ describe("baseline-analysis · evaluación del entrenador obligatoria", () => {
     };
     const res = await handler(post());
     expect(res.status).toBe(200);
-    expect(sentPrompts).toHaveLength(6);
+    expect(sentPrompts).toHaveLength(5); // sin «projection» (P1 bloque 7, D2)
     for (const p of sentPrompts) {
       expect(p.user).toContain("EVALUACIÓN DEL ENTRENADOR");
       expect(p.user).toContain("Velocidad: 70");
