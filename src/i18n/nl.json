@@ -6357,5 +6357,13 @@
   },
   "careerProjection": {
     "blocked": "Carrièreprognose niet beschikbaar: er is geen gevalideerd model dat het toekomstige niveau van een jeugdspeler voorspelt."
+  },
+  "idpLegacy": {
+    "notice": "Plan gemaakt met de vorige planner: het kan opvuldoelen bevatten of de beoordeling van de trainer als startpunt gekopieerd hebben. Controleer het of maak een nieuw plan."
+  },
+  "legacyReports": {
+    "maturity_unverified": "Rapport gemaakt met niet-geverifieerde rijpingsgegevens: wat het zegt over rijping (vroeg, laat, PHV-venster) telt niet.",
+    "baseline_pre_eval": "Basisanalyse gemaakt voordat de beoordeling van de trainer verplicht was: de VSI kan een eenvoudig gemiddelde of 0 zijn.",
+    "duel_figures": "Rapport gemaakt met duelcijfers die VITAS niet meer accepteert (geen gevalideerd criterium): negeer wat het over duels zegt."
   }
 }

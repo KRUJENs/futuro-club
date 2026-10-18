@@ -6356,5 +6356,13 @@
   },
   "careerProjection": {
     "blocked": "Karriereprognose nicht verfügbar: Es gibt kein validiertes Modell, das das künftige Niveau eines Nachwuchsspielers vorhersagt."
+  },
+  "idpLegacy": {
+    "notice": "Mit dem früheren Planer erstellter Plan: Er kann Füllziele enthalten oder die Trainerbewertung als Ausgangspunkt kopiert haben. Prüfe ihn oder erstelle einen neuen."
+  },
+  "legacyReports": {
+    "maturity_unverified": "Bericht mit nicht verifizierten Reifedaten erstellt: Aussagen zur Reife (früh, spät, PHV-Fenster) zählen nicht.",
+    "baseline_pre_eval": "Basisanalyse erstellt, bevor die Trainerbewertung Pflicht war: ihr VSI kann ein einfacher Durchschnitt oder 0 sein.",
+    "duel_figures": "Bericht mit Zweikampfzahlen erstellt, die VITAS nicht mehr akzeptiert (kein validiertes Kriterium): Aussagen zu Zweikämpfen ignorieren."
   }
 }

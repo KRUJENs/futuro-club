@@ -6356,5 +6356,13 @@
   },
   "careerProjection": {
     "blocked": "Proiezione di carriera non disponibile: non esiste un modello validato che preveda il livello futuro di un giocatore in formazione."
+  },
+  "idpLegacy": {
+    "notice": "Piano generato con il pianificatore precedente: può contenere obiettivi di riempimento o la valutazione dell'allenatore copiata come punto di partenza. Rivedilo o generane uno nuovo."
+  },
+  "legacyReports": {
+    "maturity_unverified": "Report generato con dati di maturazione non verificati: ciò che dice sulla maturazione (precoce, tardivo, finestra PHV) non conta.",
+    "baseline_pre_eval": "Analisi di base generata prima che fosse richiesta la valutazione dell'allenatore: il suo VSI può essere una media semplice o 0.",
+    "duel_figures": "Report generato con cifre di duelli che VITAS non accetta più (nessun criterio validato): ignora ciò che dice sui duelli."
   }
 }

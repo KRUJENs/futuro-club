@@ -426,9 +426,11 @@ const VitasLab = () => {
     setTacticalEvents(eventEngineRef.current.getEvents());
 
     // Collect tactical events for the focused player (VAEP input)
+    // Sin pista enfocada, ningún evento: antes se guardaban los de TODAS las pistas y
+    // con ellos se calculaba el VAEP del jugador en el Hub (P1 bloque 7, identidad.md).
     const focusEvents = tracking.state.focusTrackId
       ? eventEngineRef.current.getPlayerEvents(tracking.state.focusTrackId)
-      : eventEngineRef.current.getEvents();
+      : [];
 
     // Escaneos atribuibles SOLO si las métricas se calcularon con la pista enfocada ACTUAL
     // (enfocar otra pista tras parar no las recalcula; sin pista = todas). identidad.md.
@@ -716,13 +718,22 @@ const VitasLab = () => {
         // atribuyen al jugador si su pista tiene identidad fiable; sin ella pudieron
         // acumularse tras un cambio de ID → se abstienen (no se envían al informe).
         const identityReliable = tracking.state.sessionMetrics?.identityReliable ?? false;
+        // …y con la MISMA pista con la que se calculó identityReliable (sessionMetrics).
+        const focusSummary = tracking.state.focusTrackId != null && eventSummary
+          && tracking.state.sessionMetrics?.focusTrackId === tracking.state.focusTrackId
+          ? eventEngineRef.current.summarize(tracking.state.focusTrackId)
+          : null;
         if (tracking.state.sessionMetrics) {
           const sm = tracking.state.sessionMetrics;
           const calibReliable = metricsTrustworthy(tracking.state.calibrationConfidence);
           physicalMetrics.calibrationReliable = calibReliable;
           physicalMetrics.calibrationConfidence = tracking.state.calibrationConfidence;
           physicalMetrics.identityReliable = identityReliable;
-          if (calibReliable && identityReliable) {
+          // Físicas del JUGADOR solo si se calcularon con su pista enfocada ACTUAL (P1 bloque
+          // 7, identidad.md): sin pista enfocada son el agregado de TODAS las pistas.
+          const physicsForFocus = tracking.state.focusTrackId != null
+            && sm.focusTrackId === tracking.state.focusTrackId;
+          if (calibReliable && identityReliable && physicsForFocus) {
             physicalMetrics.maxSpeedMs = sm.maxSpeedMs;
             physicalMetrics.avgSpeedMs = sm.avgSpeedMs;
             physicalMetrics.distanceCoveredM = sm.distanceCoveredM;
@@ -766,16 +777,18 @@ const VitasLab = () => {
           physicalMetrics: Object.keys(physicalMetrics).length > 0 ? physicalMetrics : null,
           // Gated por identidad (identidad.md): sin identidad fiable de la pista, los
           // eventos por-jugador NO se atribuyen al menor por nombre → se omiten.
-          eventSummary: (eventSummary && identityReliable) ? {
-            totalEvents: eventSummary.totalEvents,
-            passCompletionPct: eventSummary.passCompletionPct,
-            passesAttempted: eventSummary.passesAttempted,
-            passesCompleted: eventSummary.passesCompleted,
-            recoveries: eventSummary.recoveries,
-            sprintBursts: eventSummary.sprintBursts,
-            shots: eventSummary.shots,
-            xgContributions: eventSummary.xgContributions,
-            vaepApprox: eventSummary.vaepApprox,
+          // …y solo de la pista ENFOCADA actual (P1 bloque 7): sin ella, summarize() agrega
+          // los eventos (incluidos los sprints) de TODAS las pistas.
+          eventSummary: (focusSummary && identityReliable) ? {
+            totalEvents: focusSummary.totalEvents,
+            passCompletionPct: focusSummary.passCompletionPct,
+            passesAttempted: focusSummary.passesAttempted,
+            passesCompleted: focusSummary.passesCompleted,
+            recoveries: focusSummary.recoveries,
+            sprintBursts: focusSummary.sprintBursts,
+            shots: focusSummary.shots,
+            xgContributions: focusSummary.xgContributions,
+            vaepApprox: focusSummary.vaepApprox,
             source: "client_event_engine",
           } : null,
           attestation,

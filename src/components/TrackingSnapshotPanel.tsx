@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { attributableScanCount, type TrackingSnapshot } from "@/services/real/playerTrackingService";
+import { attributableScanCount, snapshotAttributable, type TrackingSnapshot } from "@/services/real/playerTrackingService";
 import { metricsTrustworthy } from "@/lib/yolo/fieldRegistration";
 import { EmptyTracking } from "@/components/illustrations/EmptyIllustrations";
 import { duelsGateText } from "@/lib/metrics/duelsGate";
@@ -63,6 +63,9 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
   const m = snapshot.sessionMetrics;
   // Escaneos solo si son de la pista enfocada (snapshots antiguos: de todas → «No atribuible»).
   const scans = attributableScanCount(snapshot);
+  // Físicas del jugador solo si se calcularon con su pista enfocada (P1 bloque 7).
+  const physicsOk = snapshotAttributable(snapshot);
+  const na = t("trackingSnapshotPanel.scansNotAttributable");
   const maxKmh = (m.maxSpeedMs * 3.6).toFixed(1);
   const avgKmh = (m.avgSpeedMs * 3.6).toFixed(1);
   const date = new Date(snapshot.savedAt).toLocaleString("es-ES", {
@@ -102,10 +105,10 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
 
       {/* Top-line stats grid */}
       <div className="grid grid-cols-2 gap-2">
-        <StatCard icon={<Zap size={12} className="text-yellow-400" />} label={t("trackingSnapshotPanel.labelMaxSpeed")} value={maxKmh} unit="km/h" />
-        <StatCard icon={<Activity size={12} className="text-emerald-400" />} label={t("trackingSnapshotPanel.labelAvgSpeed")} value={avgKmh} unit="km/h" />
-        <StatCard icon={<MapIcon size={12} className="text-blue-400" />} label={t("trackingSnapshotPanel.labelDistance")} value={m.distanceCoveredM.toFixed(0)} unit="m" />
-        <StatCard icon={<Activity size={12} className="text-purple-400" />} label={t("trackingSnapshotPanel.labelSprints")} value={`${m.sprintCount}`} unit={`${m.sprintDistanceM.toFixed(0)}m`} />
+        <StatCard icon={<Zap size={12} className="text-yellow-400" />} label={t("trackingSnapshotPanel.labelMaxSpeed")} value={physicsOk ? maxKmh : na} unit={physicsOk ? "km/h" : ""} />
+        <StatCard icon={<Activity size={12} className="text-emerald-400" />} label={t("trackingSnapshotPanel.labelAvgSpeed")} value={physicsOk ? avgKmh : na} unit={physicsOk ? "km/h" : ""} />
+        <StatCard icon={<MapIcon size={12} className="text-blue-400" />} label={t("trackingSnapshotPanel.labelDistance")} value={physicsOk ? m.distanceCoveredM.toFixed(0) : na} unit={physicsOk ? "m" : ""} />
+        <StatCard icon={<Activity size={12} className="text-purple-400" />} label={t("trackingSnapshotPanel.labelSprints")} value={physicsOk ? `${m.sprintCount}` : na} unit={physicsOk ? `${m.sprintDistanceM.toFixed(0)}m` : ""} />
       </div>
 
       {/* Eventos clave */}
@@ -118,7 +121,7 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
         <StatCard icon={<Swords size={12} className="text-orange-400" />} label={t("trackingSnapshotPanel.labelDuels")} value={duelsGateText(t).value} unit={duelsGateText(t).hint} />
         {/* Voronoi gateado: avgVoronoiAreaM2 puede ser 0 por "sin muestras" (o snapshot
             pre-G7) → NO pintar ese 0 como área real (inv #2). Fuente honesta = space. */}
-        <StatCard icon={<Hexagon size={12} className="text-fuchsia-400" />} label="VORONOI" value={m.space?.value != null ? (m.space.value as number).toFixed(0) : t("trackingSnapshotPanel.spaceNoData")} unit={m.space?.value != null ? t("trackingSnapshotPanel.unitControl") : ""} />
+        <StatCard icon={<Hexagon size={12} className="text-fuchsia-400" />} label="VORONOI" value={!physicsOk ? na : m.space?.value != null ? (m.space.value as number).toFixed(0) : t("trackingSnapshotPanel.spaceNoData")} unit={physicsOk && m.space?.value != null ? t("trackingSnapshotPanel.unitControl") : ""} />
       </div>
 
       {/* Distribución de intensidad */}
@@ -126,6 +129,11 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
         <p className="text-[10px] font-display font-semibold uppercase tracking-wider text-muted-foreground">
           {t("trackingSnapshotPanel.intensityDistribution")}
         </p>
+        {/* Zonas de intensidad solo de la pista enfocada (P1 bloque 7): sin ella son las
+            de TODAS las pistas. */}
+        {!physicsOk ? (
+          <p className="text-[10px] text-muted-foreground">{na}</p>
+        ) : (<>
         <div className="flex h-2 rounded-full overflow-hidden bg-secondary">
           <div className="bg-blue-400" style={{ width: `${pct(m.intensityZones.walk)}%` }} />
           <div className="bg-emerald-400" style={{ width: `${pct(m.intensityZones.jog)}%` }} />
@@ -138,6 +146,7 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
           <Legend dot="bg-yellow-400" label={t("trackingSnapshotPanel.zoneRun")}  pct={pct(m.intensityZones.run)} />
           <Legend dot="bg-red-400"    label="Sprint"  pct={pct(m.intensityZones.sprint)} />
         </div>
+        </>)}
       </div>
 
       {/* Footer · re-analizar */}

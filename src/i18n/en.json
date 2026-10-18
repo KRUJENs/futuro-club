@@ -6357,5 +6357,13 @@
   },
   "careerProjection": {
     "blocked": "Career projection not available: there is no validated model that predicts the future level of a developing player."
+  },
+  "idpLegacy": {
+    "notice": "Plan generated with the previous planner: it may contain filler goals or the coach evaluation copied as the starting point. Review it or generate a new one."
+  },
+  "legacyReports": {
+    "maturity_unverified": "Report generated with unverified maturation data: anything it says about maturation (early, late, PHV window) does not count.",
+    "baseline_pre_eval": "Baseline analysis generated before the coach evaluation was required: its VSI may be a simple average or 0.",
+    "duel_figures": "Report generated with duel figures VITAS no longer accepts (no validated criterion): ignore what it says about duels."
   }
 }

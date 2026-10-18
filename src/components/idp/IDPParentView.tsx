@@ -12,6 +12,7 @@ import { Target, TrendingUp, Calendar } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import type { DevelopmentPlan, IDPDimension } from "@/lib/idp/idpTypes";
 import { computeGoalProgress, daysRemainingInMonth } from "@/lib/idp";
+import { isLegacyIdpPlan } from "@/lib/idp/legacyPlan";
 
 interface Props {
   plan: DevelopmentPlan;
@@ -37,6 +38,12 @@ export function IDPParentView({ plan, playerName }: Props) {
 
   return (
     <div className="space-y-5">
+      {/* Plan generado antes del 5d (P1 bloque 7): puede traer metas o bases de relleno. */}
+      {isLegacyIdpPlan(plan) && (
+        <p role="note" className="rounded-lg border border-amber-500/40 bg-amber-50 p-3 text-xs text-amber-900">
+          {t("idpLegacy.notice")}
+        </p>
+      )}
       {/* Header amigable */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}

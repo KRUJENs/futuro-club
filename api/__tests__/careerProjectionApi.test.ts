@@ -30,6 +30,13 @@ describe("proyección de carrera fuera del servidor (D2)", () => {
     expect(code("api/agents/[action].ts")).not.toMatch(/"projection-report":\s+"claude-haiku"/);
   });
 
+  it("7a-3 · historial de tracking: sin «?? 0» y físicas solo con la pista enfocada; JSONL sin duelos", () => {
+    const h = code("api/tracking/_history.ts");
+    expect(h).not.toMatch(/\?\? 0/);
+    expect(h).toMatch(/attributable = typeof focus === "number" && focus === row\.target_track_id/);
+    expect(code("api/data-export/labeled-datasets.ts")).toMatch(/JSON\.stringify\(stripDuelOutcomes\(r\)\)/);
+  });
+
   it("el agente de proyección devuelve el motivo antes de llamar al modelo", () => {
     const p = code("api/agents/_projection-report.ts");
     const gate = p.indexOf("if (CAREER_PROJECTION_BLOCKED)");

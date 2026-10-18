@@ -40,6 +40,7 @@ import { IDPVideoUploadDialog } from "./IDPVideoUploadDialog";
 import type { IDPArchitectInput, IDPGoal } from "@/lib/idp/idpTypes";
 import { idpDimensionsWithData } from "@/lib/idp/idpGoalGenerator";
 import type { IDPDataRichness } from "@/hooks/useIDPArchitectInput";
+import { isLegacyIdpPlan } from "@/lib/idp/legacyPlan";
 
 interface Props {
   playerId: string;
@@ -195,6 +196,12 @@ export function IDPDashboard({
 
   return (
     <div className="space-y-5">
+      {/* Plan generado antes del 5d (P1 bloque 7): puede traer metas o bases de relleno. */}
+      {isLegacyIdpPlan(plan) && (
+        <p role="note" className="rounded-lg border border-amber-500/40 bg-amber-50 p-3 text-xs text-amber-900">
+          {t("idpLegacy.notice")}
+        </p>
+      )}
       {/* Data richness banner — visible cuando faltan fuentes (video/PHV/BPE/salud) */}
       {dataRichness && (
         <IDPDataRichnessBanner playerId={playerId} data={dataRichness} />
