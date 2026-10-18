@@ -394,7 +394,9 @@ const PlayerForm = () => {
         if (saveEvaluation) {
           await PlayerService.updateMetrics(id, data.metrics);
         }
-        const players = PlayerService.getAll();
+        // Crudo: se reescribe todo el almacenamiento (P1 bloque 7: la vista honesta borraría
+        // el sexo guardado de los demás jugadores).
+        const players = PlayerService.getAllRaw();
         const idx = players.findIndex((p) => p.id === id);
         if (idx !== -1) {
           players[idx] = {

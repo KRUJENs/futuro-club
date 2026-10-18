@@ -21,7 +21,8 @@ import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { getAuthHeaders } from "@/lib/apiAuth";
 import { useOfflineMutation } from "@/hooks/useOfflineMutation";
-import { trustAnthropometricsRow, missingPhvInputs, type PhvCategory } from "@/lib/phv/phvGate";
+import { missingPhvInputs, type PhvCategory } from "@/lib/phv/phvGate";
+import { trustAnthroForPlayer } from "@/lib/shared/sexGatedAnthro";
 import { PhvGateNotice } from "@/components/phv/PhvGateNotice";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
@@ -41,6 +42,8 @@ interface Props {
   gender?: "M" | "F";
   /** «M» guardado sin confirmar (P1 bloque 7): se pide confirmarlo en «Editar jugador». */
   sexPending?: boolean;
+  /** Marca de sexo confirmado del jugador: cada fila solo cuenta si cuadra con su sexo (P1 bloque 7). */
+  sexConfirmedAt?: string;
   /** Tras guardar (enviado al servidor): las medidas introducidas, para el host. */
   onSaved?: (measures: SavedMeasures) => void;
 }
@@ -91,7 +94,8 @@ function labelKey(c: PhvCategory): keyof typeof PHV_LABELS {
 
 const EMPTY_FORM = { height: "", weight: "", sitting: "", leg: "" };
 
-export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gender, sexPending, onSaved }: Props) {
+export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gender, sexPending, sexConfirmedAt, onSaved }: Props) {
+  const sexFields = { gender, sexConfirmedAt };
   const { t } = useTranslation();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -314,7 +318,7 @@ export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gen
   }
 
   const latest = history[0];
-  const latestTrust = trustAnthropometricsRow(latest);
+  const latestTrust = trustAnthroForPlayer(latest, sexFields);
 
   // Qué le falta al PERFIL del jugador para que una medida nueva produzca PHV
   // (las 4 medidas las exige el propio formulario). Se avisa ANTES de guardar.
@@ -482,7 +486,7 @@ export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gen
             {history.map((row) => {
               // Solo filas FIABLES (completas + edad por fecha de nacimiento, 069)
               // muestran categoría/offset; el resto nombra el motivo (inv #2).
-              const trust = trustAnthropometricsRow(row);
+              const trust = trustAnthroForPlayer(row, sexFields);
               const phv = trust.trusted && trust.category ? PHV_LABELS[labelKey(trust.category)] : null;
               const date = new Date(row.measured_at);
               return (

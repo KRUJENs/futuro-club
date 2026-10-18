@@ -76,7 +76,8 @@ export const PlayerSchema = z.object({
   // Fecha en que una persona ELIGIÓ el sexo en un selector (P1 bloque 7): un «M» sin
   // ella puede ser el valor por defecto antiguo ⇒ «por confirmar» (registeredSex.ts).
   sexConfirmedAt: z.string().optional(),
-  // Solo en la vista de lectura (honestPlayerView): «M» guardado sin confirmar.
+  // Solo en la vista de lectura (honestPlayerView): «M» guardado sin confirmar. No se
+  // persiste: los que escriben parten de getAllRaw().
   sexPendingConfirmation: z.boolean().optional(),
   phvCategory: z.enum(["early", "ontme", "late"]).optional(),
   phvOffset: z.number().optional(),
@@ -130,6 +131,15 @@ export const PlayerService = {
   /**
    * Obtiene todos los jugadores
    */
+  /**
+   * Jugadores TAL CUAL están guardados, para quien ESCRIBE (P1 bloque 7): la vista
+   * honesta de getAll() quita el «M» sin confirmar y el PHV no recalculable; si se
+   * reescribiera, borraría el dato original y subiría la vista a Supabase.
+   */
+  getAllRaw(): Player[] {
+    return StorageService.get<Player[]>(STORAGE_KEY, []);
+  },
+
   getAll(): Player[] {
     // phvCategory/phvOffset persistidos solo cuentan si el gate ÚNICO de PHV los
     // puede recalcular desde entradas introducidas (talla, peso, sentado, pierna,
@@ -152,7 +162,7 @@ export const PlayerService = {
    * fabrica un número para un jugador sin evaluación real (invariante #2).
    */
   create(input: CreatePlayerInput): Player {
-    const players = PlayerService.getAll();
+    const players = PlayerService.getAllRaw();
     const vsi = input.metrics ? calculateFichaVsi(input.metrics) : null;
     const now = new Date().toISOString();
 
@@ -182,7 +192,7 @@ export const PlayerService = {
   async updateMetrics(id: string, metrics: PlayerMetrics): Promise<Player | null> {
     await acquireWriteLock();
     try {
-      const players = PlayerService.getAll();
+      const players = PlayerService.getAllRaw();
       const idx = players.findIndex((p) => p.id === id);
       if (idx === -1) return null;
 
@@ -245,7 +255,7 @@ export const PlayerService = {
   ): Promise<Player | null> {
     await acquireWriteLock();
     try {
-      const players = PlayerService.getAll();
+      const players = PlayerService.getAllRaw();
       const idx = players.findIndex((p) => p.id === id);
       if (idx === -1) return null;
 
@@ -266,7 +276,7 @@ export const PlayerService = {
    * Elimina un jugador
    */
   delete(id: string): boolean {
-    const players = PlayerService.getAll();
+    const players = PlayerService.getAllRaw();
     const filtered = players.filter((p) => p.id !== id);
     if (filtered.length === players.length) return false;
     StorageService.set(STORAGE_KEY, filtered);
@@ -323,7 +333,7 @@ export const PlayerService = {
       "Lucas Moreno", "Alejandro Ruiz", "Daniel Torres",
       "Pablo García", "Mateo Fernández", "Iker Navarro",
     ]);
-    const all = PlayerService.getAll();
+    const all = PlayerService.getAllRaw();
     const clean = all.filter(
       (p) => !FAKE_IDS.has(p.id) && !FAKE_NAMES.has(p.name)
     );

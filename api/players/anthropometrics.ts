@@ -24,6 +24,7 @@ import {
 } from "../../src/lib/phv/phvGate";
 import { decimalAgeYears } from "../../src/lib/shared/age";
 import { registeredSex } from "../../src/lib/shared/registeredSex";
+import { rowComputedWithSex } from "../../src/lib/shared/sexGatedAnthro";
 
 export const config = { runtime: "edge" };
 
@@ -333,7 +334,8 @@ export default withHandler(
           // «M» por defecto antiguo.
           const identity = await loadIdentity(supabase, String(rowToDelete.player_id));
           const trusted = trustAnthropometricsRow(latest);
-          const propagate = trusted.trusted && identity.gender !== null;
+          const propagate =
+            trusted.trusted && identity.gender !== null && rowComputedWithSex(latest, identity.gender);
           await supabase.from("players").update({
             height_cm: latest.height_cm,
             weight_kg: latest.weight_kg,

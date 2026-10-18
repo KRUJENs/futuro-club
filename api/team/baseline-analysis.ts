@@ -33,6 +33,7 @@ import { getJob } from "../_lib/matchJob/repo";
 import { buildMatchObservationSection } from "../_lib/matchJob/baselineSection";
 import { matchObservationSchema } from "../../src/lib/shared/matchJob/contract";
 import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
+import { phvColumnsForPlayer } from "../../src/lib/shared/sexGatedAnthro";
 
 // nodejs + 300 s: hace 5 llamadas a Claude (1 Opus, que siempre piensa) antes de
 // responder; en Edge debía empezar a responder en 25 s → 504 con un partido completo.
@@ -375,7 +376,7 @@ export default withHandler(
     // ── 1. Cargar players ──────────────────────────────────────────
     let query = supabase
       .from("players")
-      .select("id, name, age, position, vsi, phv_category, metrics:data->metrics, height_cm, weight_kg, tenant_id")
+      .select("id, name, age, position, vsi, phv_category, metrics:data->metrics, height_cm, weight_kg, tenant_id, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
       // nulls last: los NO evaluados (vsi null) no deben colarse antes del top real
       // y truncar a jugadores evaluados con el limit (invariante #2; igual que
       // la RPC get_ranked_players de la migración 059). Postgres ordena DESC con
@@ -392,7 +393,9 @@ export default withHandler(
       query = query.in("id", input.playerIds);
     }
 
-    const { data: players, error: pErr } = await query;
+    const { data: playersRaw, error: pErr } = await query;
+    // PHV de la columna solo con sexo registrado (P1 bloque 7).
+    const players = playersRaw?.map(phvColumnsForPlayer) ?? null;
     if (pErr) {
       return errorResponse({ code: "db_error", message: pErr.message, status: 500 });
     }

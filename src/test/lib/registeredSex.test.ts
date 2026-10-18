@@ -3,7 +3,8 @@
  * 024 y del cliente/API anteriores al 20 ago) no entra al cálculo de maduración: el PHV
  * queda bloqueado pidiendo confirmar el sexo. «F» nunca fue valor por defecto.
  */
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { computeMirwald } from "@/lib/phv/mirwald";
 import {
   registeredSex,
   sexConfirmationFor,
@@ -12,7 +13,14 @@ import {
 } from "@/lib/shared/registeredSex";
 import { honestPlayerView } from "@/lib/players/honestPlayerView";
 import { phvGate } from "@/lib/phv/phvGate";
-import { trustAnthroForPlayer, gateAnthroForPlayer, SEX_PENDING_PHV_REASON } from "@/lib/shared/sexGatedAnthro";
+import {
+  gateAnthroForPlayer,
+  phvColumnsForPlayer,
+  rowComputedWithSex,
+  SEX_MISMATCH_PHV_REASON,
+  SEX_PENDING_PHV_REASON,
+  trustAnthroForPlayer,
+} from "@/lib/shared/sexGatedAnthro";
 
 const CONFIRMED = "2026-10-18T10:00:00.000Z";
 // Entradas completas del PHV (las 6): solo cambia el sexo entre casos.
@@ -74,11 +82,24 @@ describe("honestPlayerView ⇒ gate del PHV (sin tocar el módulo PHV)", () => {
 });
 
 describe("PHV cacheado de una fila de antropometría (servidor)", () => {
+  // Fila REAL calculada como varón: offset = Mirwald masculino sobre sus propias medidas.
+  const maleOffset = Number(
+    computeMirwald({ chronologicalAge: 13.6, height: 150, weight: 40, gender: "M", sittingHeight: 78, legLength: 72 }).offset.toFixed(2),
+  );
   const row = {
     height_cm: 150, weight_kg: 40, sitting_height_cm: 78, leg_length_cm: 72,
-    maturity_offset: -1.2, phv_category: "early", phv_status: "pre_phv", development_window: "x",
+    maturity_offset: maleOffset, phv_category: "early", phv_status: "pre_phv", development_window: "critical",
     age_source: "birth_date", chronological_age: 13.6,
   };
+
+  it("B1 · fila calculada como varón y sexo confirmado «F» ⇒ no fiable (no se arrastra la fórmula masculina)", () => {
+    const t = trustAnthroForPlayer(row, { gender: "F" });
+    expect(t.trusted).toBe(false);
+    expect(t.gate_reason).toBe(SEX_MISMATCH_PHV_REASON);
+    expect(gateAnthroForPlayer(row, { gender: "F", sexConfirmedAt: CONFIRMED })?.phv_category).toBeNull();
+    expect(rowComputedWithSex(row, "M")).toBe(true);
+    expect(rowComputedWithSex(row, "F")).toBe(false);
+  });
 
   it("M sin confirmar ⇒ no fiable con el motivo «por confirmar»; sin sexo ⇒ «Falta: sexo registrado»", () => {
     const t = trustAnthroForPlayer(row, { gender: "M" });
@@ -91,9 +112,38 @@ describe("PHV cacheado de una fila de antropometría (servidor)", () => {
     expect(g?.phv_trusted).toBe(false);
   });
 
-  it("con sexo registrado delega en el gate de siempre (mismo resultado)", async () => {
+  it("con el MISMO sexo con el que se calculó delega en el gate de siempre (mismo resultado, inv #4)", async () => {
     const { trustAnthropometricsRow } = await import("@/lib/phv/phvGate");
-    expect(trustAnthroForPlayer(row, { gender: "F" })).toEqual(trustAnthropometricsRow(row));
-    expect(trustAnthroForPlayer(row, { gender: "M", sexConfirmedAt: CONFIRMED })).toEqual(trustAnthropometricsRow(row));
+    const t = trustAnthroForPlayer(row, { gender: "M", sexConfirmedAt: CONFIRMED });
+    expect(t).toEqual(trustAnthropometricsRow(row));
+    expect(t.trusted).toBe(true);
+  });
+});
+
+describe("columnas players.phv_* (B2)", () => {
+  it("sin sexo registrado ⇒ PHV null; con sexo registrado se conserva; los campos de sexo no viajan", () => {
+    const pending = phvColumnsForPlayer({ name: "A", phv_category: "early", phv_offset: -1.2, gender: "M" });
+    expect(pending).toEqual({ name: "A", phv_category: null, phv_offset: null });
+    const ok = phvColumnsForPlayer({ name: "B", phv_category: "late", phv_offset: 1.1, gender: "F", sexConfirmedAt: null });
+    expect(ok).toEqual({ name: "B", phv_category: "late", phv_offset: 1.1 });
+  });
+});
+
+describe("los que ESCRIBEN no borran el sexo guardado (M1)", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("update de otro jugador conserva el «M» sin confirmar en el almacenamiento y no persiste la marca de la vista", async () => {
+    const { PlayerService } = await import("@/services/real/playerService");
+    const { StorageService } = await import("@/services/real/storageService");
+    StorageService.set("players", [
+      { id: "a", name: "Pendiente", age: 12, position: "MC", gender: "M", vsi: null, vsiHistory: [], createdAt: "x", updatedAt: "x" },
+      { id: "b", name: "Otro", age: 12, position: "MC", gender: "F", vsi: null, vsiHistory: [], createdAt: "x", updatedAt: "x" },
+    ]);
+    expect(PlayerService.getById("a")?.sexPendingConfirmation).toBe(true); // vista de lectura
+    await PlayerService.update("b", { height: 151 });
+    const stored = StorageService.get<Array<Record<string, unknown>>>("players", []);
+    const a = stored.find((p) => p.id === "a")!;
+    expect(a.gender).toBe("M");
+    expect(a).not.toHaveProperty("sexPendingConfirmation");
   });
 });

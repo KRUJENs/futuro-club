@@ -59,6 +59,19 @@ describe("servidor: el sexo que entra al PHV es el registrado", () => {
     }
   });
 
+  it("B2 · toda lectura de las columnas players.phv_* trae el sexo y pasa por phvColumnsForPlayer", () => {
+    const bad: string[] = [];
+    for (const f of files) {
+      if (f === "api/_lib/dropoutAssessment.ts") continue; // fatigue_sessions (resto declarado → 078)
+      const c = code(f);
+      c.split("\n").forEach((line) => {
+        if (/\.select\(["`][^"`]*phv_(category|offset)/.test(line) && !/sexConfirmedAt:data->>sexConfirmedAt/.test(line)) bad.push(`${f}: ${line.trim()}`);
+      });
+      if (/\.select\(["`][^"`]*phv_(category|offset)/.test(c) && !/\.map\(phvColumnsForPlayer\)|phvColumnsForPlayer\(/.test(c)) bad.push(`${f}: sin phvColumnsForPlayer`);
+    }
+    expect(bad).toEqual([]);
+  });
+
   it("antropometría: el cuerpo de la petición nunca confirma el sexo; el sexo sale de registeredSex", () => {
     const a = code("api/players/anthropometrics.ts");
     expect(a).not.toMatch(/input\.gender \?\?/);

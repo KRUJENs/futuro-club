@@ -7,8 +7,8 @@
  * alguien lo eligiera. Por eso:
  *  - «F» cuenta siempre (nunca fue valor por defecto);
  *  - «M» solo cuenta con la marca `sexConfirmedAt` (fecha ISO), que escriben ÚNICAMENTE
- *    los selectores donde una persona elige el sexo (alta, edición, asistente, onboarding
- *    y «Confirmar sexo» de la ficha). Decisión del dueño 18 oct (D1): TODO «M» sin marca
+ *    los selectores donde una persona elige el sexo (alta, «Editar jugador», asistente y
+ *    onboarding). Decisión del dueño 18 oct (D1): TODO «M» sin marca
  *    queda «por confirmar» y su PHV bloqueado hasta confirmarlo.
  * Se marca lo confirmado, no lo antiguo: una copia rancia que se vuelva a subir (cola de
  * sincronización, PWA en caché) sigue contando como pendiente.

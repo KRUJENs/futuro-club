@@ -57,6 +57,7 @@ const unevaluated = {
 const svc = vi.hoisted(() => ({
   getById: vi.fn(),
   getAll: vi.fn(),
+  getAllRaw: vi.fn(),
   updateMetrics: vi.fn(),
   create: vi.fn(),
 }));
@@ -77,6 +78,7 @@ describe("PlayerForm — la evaluación exige confirmar las 6 barras", () => {
     vi.clearAllMocks();
     svc.getById.mockReturnValue({ ...unevaluated });
     svc.getAll.mockReturnValue([{ ...unevaluated }]);
+    svc.getAllRaw.mockReturnValue([{ ...unevaluated }]); // la edición escribe desde el crudo (P1 bloque 7)
     svc.updateMetrics.mockResolvedValue({ ...unevaluated });
   });
 

@@ -27,6 +27,7 @@ import { MODELS } from "../_lib/models";
 import { avgEvaluatedVsi, countElite, formatVsi, ELITE_MIN } from "../_lib/vsiStats";
 import { normalizeLocale, languageDirective, type ReportLocale } from "../../src/lib/shared/locale";
 import { withoutUndatedVsiSeries } from "../../src/lib/scoring/vsiDelta";
+import { phvColumnsForPlayer } from "../../src/lib/shared/sexGatedAnthro";
 
 export const config = { runtime: "edge" };
 
@@ -210,27 +211,29 @@ export async function execTool(
       const limit = Math.min(20, (input.limit as number) ?? 10);
       const { data } = await supabase
         .from("players")
-        .select("id, name, age, position, vsi, phv_category")
+        .select("id, name, age, position, vsi, phv_category, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
         .eq("user_id", ctx.userId)
         // nulls last: los no evaluados (vsi null) no truncan a los evaluados con el limit (invariante #2)
         .order(sortBy === "vsi" ? "vsi" : sortBy === "age" ? "age" : "name", { ascending: sortBy !== "vsi", nullsFirst: false })
         .limit(limit);
 
       if (!data || data.length === 0) return "Sin jugadores registrados.";
-      return JSON.stringify(data, null, 2);
+      return JSON.stringify(data.map(phvColumnsForPlayer), null, 2);
     }
 
     case "get_player": {
       const q = ((input.name_query as string) ?? "").toLowerCase().trim();
-      const { data: matches } = await supabase
+      const { data: matchesRaw } = await supabase
         .from("players")
         // Barras del entrenador del BLOB (null si no está evaluado): las columnas metric_*
         // valen 0 para quien no lo está (trigger 069 + DEFAULT 0 de la 024) y el modelo
         // leía «velocidad 0» de un niño sin evaluar (P1 bloque 5).
-        .select("id, name, age, position, foot, height_cm, weight_kg, vsi, vsi_history, phv_category, phv_offset, evaluacion_entrenador:data->metrics")
+        .select("id, name, age, position, foot, height_cm, weight_kg, vsi, vsi_history, phv_category, phv_offset, evaluacion_entrenador:data->metrics, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
         .eq("user_id", ctx.userId)
         .ilike("name", `%${q}%`)
         .limit(3);
+      // PHV de la columna solo con sexo registrado (P1 bloque 7).
+      const matches = matchesRaw?.map(phvColumnsForPlayer) ?? null;
 
       if (!matches || matches.length === 0) return `No encontré jugador con "${q}".`;
       if (matches.length === 1) {
@@ -303,10 +306,11 @@ export async function execTool(
     }
 
     case "get_team_stats": {
-      const { data: players } = await supabase
+      const { data: playersRaw } = await supabase
         .from("players")
-        .select("vsi, phv_category, age")
+        .select("vsi, phv_category, age, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
         .eq("user_id", ctx.userId);
+      const players = playersRaw?.map(phvColumnsForPlayer) ?? null; // P1 bloque 7
       if (!players || players.length === 0) return "Sin jugadores.";
 
       const n = players.length;
@@ -353,13 +357,15 @@ export async function execTool(
 
     case "get_phv_advice": {
       const q = ((input.name_query as string) ?? "").toLowerCase();
-      const { data: p } = await supabase
+      const { data: pRaw } = await supabase
         .from("players")
-        .select("name, age, phv_category, phv_offset, height_cm, weight_kg")
+        .select("name, age, phv_category, phv_offset, height_cm, weight_kg, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
         .eq("user_id", ctx.userId)
         .ilike("name", `%${q}%`)
         .limit(1)
         .maybeSingle();
+      // Consejo de carga solo con la fase de un sexo registrado (P1 bloque 7).
+      const p = pRaw ? phvColumnsForPlayer(pRaw) : null;
       if (!p) return `No encontré jugador "${q}".`;
       const phase = p.phv_category;
       const advice = phase === "early"
@@ -663,13 +669,14 @@ export default withHandler(
     const lowerText = text.toLowerCase().trim();
 
     if (lowerText === "/jugadores") {
-      const { data } = await supabase
+      const { data: dataRaw } = await supabase
         .from("players")
-        .select("name, age, position, vsi, phv_category")
+        .select("name, age, position, vsi, phv_category, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
         .eq("user_id", mapping.user_id)
         // nulls last: los no evaluados (vsi null) no truncan a los evaluados con el limit (invariante #2)
         .order("vsi", { ascending: false, nullsFirst: false })
         .limit(15);
+      const data = dataRaw?.map(phvColumnsForPlayer) ?? null; // P1 bloque 7
       if (!data || data.length === 0) {
         await sendMessage(chatId, "📋 Aún no tienes jugadores registrados.\n\nAñade el primero desde la app → Equipo → +");
       } else {
@@ -683,10 +690,11 @@ export default withHandler(
     }
 
     if (lowerText === "/equipo") {
-      const { data: players } = await supabase
+      const { data: playersRaw } = await supabase
         .from("players")
-        .select("vsi, phv_category, age")
+        .select("vsi, phv_category, age, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
         .eq("user_id", mapping.user_id);
+      const players = playersRaw?.map(phvColumnsForPlayer) ?? null; // P1 bloque 7
       if (!players || players.length === 0) {
         await sendMessage(chatId, "Aún no tienes jugadores. Añade desde la app → Equipo.");
       } else {
