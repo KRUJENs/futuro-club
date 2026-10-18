@@ -37,6 +37,7 @@ import PlayerReportView from "@/components/analysis/reports/PlayerReportView";
 import ProjectionReportView from "@/components/analysis/reports/ProjectionReportView";
 import DevelopmentPlanReportView from "@/components/analysis/reports/DevelopmentPlanReportView";
 import DnaProfileReportView from "@/components/analysis/reports/DnaProfileReportView";
+import { legacyReportNotices } from "@/lib/reports/legacyNotices";
 
 interface ReportData {
   report_type: string;
@@ -246,8 +247,18 @@ export function AnalysisDashboard({ analysisId, shareToken, onLoaded }: Props) {
   const activeReport = reports.find((r) => r.report_type === activeTab);
   const ActiveIcon = activeReport ? REPORT_META[activeReport.report_type]?.Icon ?? Brain : Brain;
 
+  // Informes ANTIGUOS (P1 bloque 7, punto 12): se avisa, no se borra.
+  const legacyNotices = legacyReportNotices({ analysis, reports });
+
   return (
     <div className="space-y-4">
+      {legacyNotices.length > 0 && (
+        <div role="note" className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 space-y-1">
+          {legacyNotices.map((code) => (
+            <p key={code} className="text-xs text-foreground">{t(`legacyReports.${code}`)}</p>
+          ))}
+        </div>
+      )}
       {/* Header VSI · score + tier + peer percentile */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
