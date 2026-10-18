@@ -14,6 +14,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IS_DEMO } from "@/lib/demoMode";
+import { withCareerProjectionBlocked } from "@/lib/reports/careerProjection";
 
 interface FullReportPayload {
   playerName: string;
@@ -129,7 +130,8 @@ export default function CompleteReportPrint() {
   if (error) return <div className="p-8 text-center text-red-500">{error}</div>;
   if (!data) return <div className="p-8 text-center text-gray-500">{t("completeReport.loading")}</div>;
 
-  const reports = (data.reports ?? []).filter((r) => r && r.content);
+  // Proyección de carrera bloqueada (P1 bloque 7, D2): su contenido llega ya como motivo.
+  const reports = withCareerProjectionBlocked((data.reports ?? []).filter((r) => r && r.content));
 
   return (
     <>

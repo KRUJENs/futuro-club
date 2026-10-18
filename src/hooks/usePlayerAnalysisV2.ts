@@ -38,6 +38,7 @@ import i18n from "@/i18n";
 import { normalizeLocale } from "@/lib/shared/locale";
 import { finalizeSyncGateMessage } from "@/lib/syncVideoAnalysisGate";
 import type { VideoIntelligenceOutput } from "@/agents/contracts";
+import { withCareerProjectionBlocked } from "@/lib/reports/careerProjection";
 import {
   ClipConsentBlockedError,
   clipConsentErrorFromResponse,
@@ -663,7 +664,8 @@ export function bestMatchFromContent(bm: Record<string, unknown>) {
 }
 
 export function mapDbRowToLegacy(row: AnalysisDbRow) {
-  const rpts = row.reports ?? [];
+  // Informes «projection» antiguos: contenido ⇒ motivo (P1 bloque 7, D2).
+  const rpts = withCareerProjectionBlocked(row.reports ?? []);
   const get = (type: string) =>
     (rpts.find((r) => r.report_type === type)?.content ?? {}) as Record<string, unknown>;
 
@@ -676,14 +678,7 @@ export function mapDbRowToLegacy(row: AnalysisDbRow) {
   const pr  = get("player-report");
   const dna = unwrapDnaContent(get("dna-profile")); // content dna-profile viene envuelto {data:{…,dna}}
   const bm  = get("best-match");
-  const pj  = get("projection");
   const dp  = get("development-plan");
-
-  // ¿Datos REALES de proyección? Sin ellos se gatea (null), no se fabrica "Semi-pro" (#40 clase).
-  const hasProjection = !!(
-    (pj.optimistic as unknown) ?? (pj.escenarioOptimista as unknown) ??
-    (pj.realistic as unknown)  ?? (pj.escenarioRealista as unknown)
-  );
   const tierLabel  = normalizeTier((row.vsi?.tierLabel as string) ?? (pr.tier_label as string));
   const strengths  = (pr.strengths as Array<{ title: string }> | undefined) ?? [];
   const areasRaw   = (pr.areas_to_improve as Array<{ title: string }> | undefined) ?? [];
@@ -732,20 +727,10 @@ export function mapDbRowToLegacy(row: AnalysisDbRow) {
       // null si el narrador no produjo un comparable: nunca «Jugador Referencia (60%)».
       bestMatch: bestMatchFromContent(bm),
     },
-    proyeccionCarrera: hasProjection ? {
-      escenarioOptimista: {
-        descripcion:   ((pj.optimistic as Record<string,unknown>)?.description as string) ?? (pj.escenarioOptimista as Record<string,unknown>)?.descripcion as string ?? "",
-        nivelProyecto: ((pj.optimistic as Record<string,unknown>)?.level as string) ?? "",
-        clubTipo:      "",
-      },
-      escenarioRealista: {
-        descripcion:   ((pj.realistic as Record<string,unknown>)?.description as string) ?? (pj.escenarioRealista as Record<string,unknown>)?.descripcion as string ?? "",
-        nivelProyecto: ((pj.realistic as Record<string,unknown>)?.level as string) ?? "",
-        clubTipo:      "",
-      },
-      factoresClave: (pj.key_factors as string[]) ?? [],
-      riesgos:       (pj.risks as string[]) ?? [],
-    } : null,
+    // SIEMPRE null (P1 bloque 7, decisión del dueño D2): la proyección de carrera
+    // («Top semipro», escenarios, factores, riesgos) no tiene un modelo validado; las
+    // filas antiguas que la traen tampoco se pintan (src/lib/reports/careerProjection.ts).
+    proyeccionCarrera: null,
     planDesarrollo: {
       objetivo6meses:  (dp.goal_6months as string) ?? (dp.objetivo6meses as string) ?? "",
       objetivo18meses: (dp.goal_18months as string) ?? (dp.objetivo18meses as string) ?? "",

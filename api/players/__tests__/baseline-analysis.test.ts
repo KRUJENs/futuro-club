@@ -137,7 +137,7 @@ describe("handler · la categoría persistida NO llega a los 6 prompts", () => {
     // …y no la media simple de las barras (64) ni un recálculo desde ellas (FICHA):
     // precondición del fixture para que la aserción anterior distinga las tres reglas.
     expect([64, FICHA]).not.toContain(67.4);
-    expect(sentPrompts.length).toBe(6);
+    expect(sentPrompts.length).toBe(5); // sin «projection» (P1 bloque 7, D2)
     for (const p of sentPrompts) {
       expect(p).toContain("NO DISPONIBLE");
       expect(p).not.toContain("Categoría: early");
@@ -174,7 +174,7 @@ describe("handler · nivel competitivo sin inventar (P1 bloque 2)", () => {
   it("sin nivel en el blob: la columna 'Regional' del trigger NO llega a los prompts", async () => {
     // playerRow trae competitive_level 'Regional' (columna) y ningún nivel_registrado.
     await run();
-    expect(sentPrompts.length).toBe(6);
+    expect(sentPrompts.length).toBe(5); // sin «projection» (P1 bloque 7, D2)
     for (const p of sentPrompts) {
       expect(p).toContain("Nivel competitivo: no registrado");
       expect(p).not.toContain("Nivel competitivo: Regional");

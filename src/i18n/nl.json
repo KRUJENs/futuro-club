@@ -3321,7 +3321,7 @@
     "evolution": "Evolutie",
     "viewFull": "Volledig bekijken",
     "baselineError": "Fout bij genereren van baseline-rapport",
-    "reportsGenerated": "✓ {{count}}/6 rapporten gegenereerd · Trainersbeoord. {{vsi}}",
+    "reportsGenerated": "✓ {{count}}/{{total}} rapporten gegenereerd · Trainersbeoord. {{vsi}}",
     "generateError": "Fout bij genereren van rapport",
     "playerNotFound": "Speler niet gevonden",
     "reportHistory": "Rapporthistorie",
@@ -6354,5 +6354,8 @@
   },
   "dmScoreGate": {
     "reason": "Decision-Making Score niet beschikbaar: de gewichten hebben geen bron en de onderdelen worden niet gemeten (Scan IQ geblokkeerd; beslissnelheid en kalmte niet gevalideerd; tactisch lezen niet gemeten uit de video)."
+  },
+  "careerProjection": {
+    "blocked": "Carrièreprognose niet beschikbaar: er is geen gevalideerd model dat het toekomstige niveau van een jeugdspeler voorspelt."
   }
 }

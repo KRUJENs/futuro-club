@@ -3320,7 +3320,7 @@
     "evolution": "Verlauf",
     "viewFull": "Vollständig ansehen",
     "baselineError": "Fehler beim Erstellen des Baseline-Berichts",
-    "reportsGenerated": "✓ {{count}}/6 Berichte erstellt · Trainerbew. {{vsi}}",
+    "reportsGenerated": "✓ {{count}}/{{total}} Berichte erstellt · Trainerbew. {{vsi}}",
     "generateError": "Fehler beim Erstellen des Berichts",
     "playerNotFound": "Spieler nicht gefunden",
     "reportHistory": "Berichtsverlauf",
@@ -6353,5 +6353,8 @@
   },
   "dmScoreGate": {
     "reason": "Decision-Making Score nicht verfügbar: Seine Gewichte haben keine Quelle und seine Komponenten werden nicht gemessen (Scan IQ gesperrt; Entscheidungsgeschwindigkeit und Nervenstärke nicht validiert; taktisches Lesen nicht aus dem Video gemessen)."
+  },
+  "careerProjection": {
+    "blocked": "Karriereprognose nicht verfügbar: Es gibt kein validiertes Modell, das das künftige Niveau eines Nachwuchsspielers vorhersagt."
   }
 }

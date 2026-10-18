@@ -3320,7 +3320,7 @@
     "evolution": "Évolution",
     "viewFull": "Voir complet",
     "baselineError": "Erreur lors de la génération du rapport baseline",
-    "reportsGenerated": "✓ {{count}}/6 rapports générés · Éval. entraîneur {{vsi}}",
+    "reportsGenerated": "✓ {{count}}/{{total}} rapports générés · Éval. entraîneur {{vsi}}",
     "generateError": "Erreur lors de la génération du rapport",
     "playerNotFound": "Joueur introuvable",
     "reportHistory": "Historique des rapports",
@@ -6353,5 +6353,8 @@
   },
   "dmScoreGate": {
     "reason": "Decision-Making Score indisponible : ses pondérations n'ont pas de source et ses composantes ne sont pas mesurées (Scan IQ bloqué ; vitesse de décision et sang-froid non validés ; lecture tactique non mesurée par la vidéo)."
+  },
+  "careerProjection": {
+    "blocked": "Projection de carrière indisponible : aucun modèle validé ne prédit le niveau futur d'un joueur en formation."
   }
 }

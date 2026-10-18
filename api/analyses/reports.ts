@@ -13,6 +13,7 @@ import { ownsRowOrItsPlayer } from "../_lib/ownership";
 import { createClient } from "@supabase/supabase-js";
 import { withoutUndatedVsiSeries } from "../../src/lib/scoring/vsiDelta";
 import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
+import { withCareerProjectionBlocked } from "../../src/lib/reports/careerProjection";
 
 export const config = { runtime: "edge" };
 
@@ -88,7 +89,8 @@ export default withHandler(
         biomechanics: stripDuelOutcomes(analysisRes.data.biomechanics),
         vsi: withoutUndatedVsiSeries(analysisRes.data.vsi),
       },
-      reports: reportsRes.data ?? [],
+      // Proyección de carrera bloqueada (P1 bloque 7, D2): contenido ⇒ motivo.
+      reports: withCareerProjectionBlocked(reportsRes.data ?? []),
       reportCount: reportsRes.data?.length ?? 0,
     });
   }

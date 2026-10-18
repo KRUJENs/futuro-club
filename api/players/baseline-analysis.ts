@@ -2,7 +2,7 @@
  * VITAS · Baseline Analysis (sin vídeo)
  * POST /api/players/baseline-analysis
  *
- * Genera los 6 reportes Claude usando ÚNICAMENTE el perfil del jugador
+ * Genera los reportes Claude (5 desde el P1 bloque 7: sin proyección de carrera) usando ÚNICAMENTE el perfil del jugador
  * (evaluación subjetiva del entrenador + PHV + antropometría). Sin biomecánica
  * ni similarity de vídeo.
  *
@@ -46,7 +46,8 @@ const SUPABASE_URL = (process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL)
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!;
 
-const PIPELINE_VERSION = "baseline-v1.0";
+// v1.1 = sin proyección de carrera (P1 bloque 7, D2); v1.0 = análisis base original.
+const PIPELINE_VERSION = "baseline-v1.1";
 
 const bodySchema = z.object({
   playerId: z.string().min(1),
@@ -282,18 +283,9 @@ Output JSON estricto:
 
 3 matches obligatorios, uno por cada lens. Sin markdown.`,
   },
-  projection: {
-    model: MODELS.fast,
-    system: `Eres el motor de Proyección 3 años VITAS · baseline.
-Output JSON:
-{
-  "optimistic": {"description":"string max 160 chars","level":"string · ej. Top semipro"},
-  "realistic":  {"description":"string max 160 chars","level":"string · ej. Amateur alto"},
-  "key_factors": ["string","string","string"],
-  "risks":       ["string","string"]
-}
-Sin markdown.`,
-  },
+  // Sin «projection» (P1 bloque 7, decisión del dueño D2): no hay un modelo validado que
+  // prediga el nivel futuro de un menor («Top semipro», «Amateur alto»); se dejó de
+  // generar con el mismo criterio que las proyecciones del perfil de rol (5c).
   "development-plan": {
     model: MODELS.fast,
     system: `Eres el motor del Plan de Desarrollo VITAS · baseline.
@@ -427,7 +419,7 @@ export default withHandler(
       return errorResponse({ code: "analysis_create_failed", message: aErr?.message ?? "no analysis", status: 500 });
     }
 
-    // ── 3. Generar 6 reportes Claude en paralelo ───────────────────
+    // ── 3. Generar los reportes Claude en paralelo (uno por prompt) ───────────────────
     // La directiva de idioma va en el mensaje de usuario (compartido por los 6
     // reportes) → los system prompts quedan agnósticos de idioma y conservan el
     // cache ephemeral entre idiomas; el idioma de SALIDA lo fija reportLocale.
@@ -479,7 +471,7 @@ export default withHandler(
     }
 
     // ── 5. Marcar analysis completed ───────────────────────────────
-    const finalStatus = successful.length === 6 ? "completed" : "completed";
+    const finalStatus = "completed";
     // (no usamos completed_partial porque el CHECK constraint no lo permite)
 
     await supabase
@@ -495,7 +487,8 @@ export default withHandler(
       analysisId: analysis.id,
       status: finalStatus,
       reportsGenerated: successful.length,
-      reportsFailed: 6 - successful.length,
+      reportsTotal: Object.keys(PROMPTS).length,
+      reportsFailed: Object.keys(PROMPTS).length - successful.length,
       vsi: vsiData.vsi,
       tier: vsiData.tier,
       tierLabel: vsiData.tierLabel,

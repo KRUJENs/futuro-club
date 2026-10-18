@@ -228,7 +228,7 @@ export default function PlayerReportsPage() {
       if (!res.ok || !data.success) {
         throw new Error(data?.error?.message ?? t("playerReportsPage.baselineError"));
       }
-      toast.success(t("playerReportsPage.reportsGenerated", { count: data.data.reportsGenerated, vsi: data.data.vsi }));
+      toast.success(t("playerReportsPage.reportsGenerated", { count: data.data.reportsGenerated, total: data.data.reportsTotal ?? data.data.reportsGenerated, vsi: data.data.vsi }));
       await queryClient.invalidateQueries({ queryKey: ["analyses-v2", id] });
       navigate(`/player/${id}/analysis/${data.data.analysisId}`);
     } catch (err) {

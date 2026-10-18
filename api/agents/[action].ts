@@ -95,7 +95,6 @@ const BILLABLE_ACTIONS: Record<string, SpendEstimateKey> = {
   "rival-scout-report":     "claude-opus",   // MODELS.reasoning
   "dna-profile":            "claude-haiku",
   "best-match-narrator":    "claude-haiku",
-  "projection-report":      "claude-haiku",
   "development-plan":       "claude-haiku",
   "fatigue-report":         "claude-haiku",
   "injury-risk-report":     "claude-haiku",

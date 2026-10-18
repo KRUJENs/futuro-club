@@ -73,7 +73,7 @@ const PLAYER_REPORT_AGENTS = [
   { name: "lab-biomechanics", endpoint: "/api/agents/lab-biomechanics-report", model: "sonnet" },
   { name: "dna-profile", endpoint: "/api/agents/dna-profile", model: "haiku" },
   { name: "best-match", endpoint: "/api/agents/best-match-narrator", model: "haiku" },
-  { name: "projection", endpoint: "/api/agents/projection-report", model: "haiku" },
+  // Sin «projection» (P1 bloque 7, D2): proyección de carrera bloqueada; ni se lanza ni se guarda.
   { name: "development-plan", endpoint: "/api/agents/development-plan", model: "haiku" },
   { name: "fatigue-report", endpoint: "/api/agents/fatigue-report", model: "haiku" },
   { name: "injury-risk-report", endpoint: "/api/agents/injury-risk-report", model: "haiku" },
@@ -139,7 +139,6 @@ interface EmailCopy {
   /** Nombre localizado del informe de ADN (la UI lo traduce: Football DNA, etc.). */
   itemDnaName: string;
   itemBest: string;
-  itemProjection: string;
   itemPlan: string;
   cta: string;
   subject: (name: string, vsi: number | null) => string;
@@ -159,7 +158,6 @@ const EMAIL_ES: EmailCopy = {
   itemDna: "perfil de juego",
   itemDnaName: "ADN Futbolístico",
   itemBest: "comparable profesional",
-  itemProjection: "Proyección 3 años · curva PHV",
   itemPlan: "Plan de desarrollo · 12 semanas",
   cta: "Ver reportes →",
   subject: (n, v) => `VITAS · Análisis de ${n} listo${v != null ? ` · VSI ${v}` : ""}`,
@@ -182,7 +180,6 @@ const EMAIL_COPY: Partial<Record<ReportLocale, EmailCopy>> = {
     itemDna: "playing profile",
     itemDnaName: "Football DNA",
     itemBest: "professional comparable",
-    itemProjection: "3-year projection · PHV curve",
     itemPlan: "Development plan · 12 weeks",
     cta: "View reports →",
     subject: (n, v) => `VITAS · ${n}'s analysis is ready${v != null ? ` · VSI ${v}` : ""}`,
@@ -201,7 +198,6 @@ const EMAIL_COPY: Partial<Record<ReportLocale, EmailCopy>> = {
     itemDna: "profilo di gioco",
     itemDnaName: "DNA calcistico",
     itemBest: "comparabile professionale",
-    itemProjection: "Proiezione a 3 anni · curva PHV",
     itemPlan: "Piano di sviluppo · 12 settimane",
     cta: "Vedi i report →",
     subject: (n, v) => `VITAS · Analisi di ${n} pronta${v != null ? ` · VSI ${v}` : ""}`,
@@ -220,7 +216,6 @@ const EMAIL_COPY: Partial<Record<ReportLocale, EmailCopy>> = {
     itemDna: "Spielprofil",
     itemDnaName: "Fußball-DNA",
     itemBest: "professioneller Vergleich",
-    itemProjection: "3-Jahres-Prognose · PHV-Kurve",
     itemPlan: "Entwicklungsplan · 12 Wochen",
     cta: "Berichte ansehen →",
     subject: (n, v) => `VITAS · Analyse von ${n} fertig${v != null ? ` · VSI ${v}` : ""}`,
@@ -239,7 +234,6 @@ const EMAIL_COPY: Partial<Record<ReportLocale, EmailCopy>> = {
     itemDna: "profil de jeu",
     itemDnaName: "ADN footballistique",
     itemBest: "comparable professionnel",
-    itemProjection: "Projection à 3 ans · courbe PHV",
     itemPlan: "Plan de développement · 12 semaines",
     cta: "Voir les rapports →",
     subject: (n, v) => `VITAS · Analyse de ${n} prête${v != null ? ` · VSI ${v}` : ""}`,
@@ -258,7 +252,6 @@ const EMAIL_COPY: Partial<Record<ReportLocale, EmailCopy>> = {
     itemDna: "speelprofiel",
     itemDnaName: "Voetbal-DNA",
     itemBest: "professionele vergelijking",
-    itemProjection: "3-jaarsprojectie · PHV-curve",
     itemPlan: "Ontwikkelplan · 12 weken",
     cta: "Rapporten bekijken →",
     subject: (n, v) => `VITAS · Analyse van ${n} klaar${v != null ? ` · VSI ${v}` : ""}`,
@@ -306,7 +299,6 @@ async function sendCompletionEmail(
       <li>🦴 <strong>LAB Biomechanics</strong> · ${c.itemLab}</li>
       <li>🧬 <strong>${c.itemDnaName}</strong> · ${c.itemDna}</li>
       <li>🎯 <strong>Best-Match</strong> · ${c.itemBest}</li>
-      ${vsi != null ? `<li>📈 <strong>${c.itemProjection}</strong></li>` : ""}
       <li>📋 <strong>${c.itemPlan}</strong></li>
     </ul>
     <p style="text-align:center;margin:32px 0;">
@@ -490,13 +482,8 @@ export default withHandler(
       subscores: vsiSubscores, // los 5 MetricResult (criterio G4-1)
     };
 
-    // G4: sin un VSI de vídeo compuesto (bloqueado por <4/5 dimensiones reales) NO se
-    // puede proyectar su curva → se OMITE el reporte de proyección, en vez de dejarlo
-    // fallar con 400 en cada análisis y marcar todo run como completed_partial. Mismo
-    // patrón de omisión honesta que valuation-report arriba.
-    if (vsiWithProvenance.blocked) {
-      activeAgents = activeAgents.filter((a) => a.name !== "projection");
-    }
+    // La proyección de carrera ya no se lanza en ningún caso (P1 bloque 7, D2): está
+    // fuera de PLAYER_REPORT_AGENTS; antes solo se omitía con el VSI compuesto bloqueado.
 
     // docx #14 · Observaciones DIRECTAS del vídeo (extraídas UNA vez: las usan la
     // derivación del comparable Y el sharedContext de los agentes). Gated en ORIGEN
