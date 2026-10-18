@@ -76,19 +76,28 @@ function rowBlockReason(
   return rowComputedWithSex(row, registeredSex(player) as RegisteredSex) ? null : SEX_MISMATCH_PHV_REASON;
 }
 
+/**
+ * Resultado con un código propio para «calculada con otro sexo»: la UI lo rotula con su
+ * solución («vuelve a guardar la medición»), no como «falta el sexo» (que ya está).
+ */
+export type SexAwareAnthroTrust = Omit<TrustedAnthroPhv, "code"> & {
+  code: TrustedAnthroPhv["code"] | "sex_mismatch";
+};
+
 /** `trustAnthropometricsRow` + sexo registrado del jugador (blob `data`). */
 export function trustAnthroForPlayer(
   row: AnthropometricsRowLike | null | undefined,
   player: SexFields | null | undefined,
-): TrustedAnthroPhv {
+): SexAwareAnthroTrust {
   const base = trustAnthropometricsRow(row);
   const reason = rowBlockReason(row, player, base.trusted);
   if (reason === null) return base;
+  const mismatch = reason === SEX_MISMATCH_PHV_REASON;
   return {
     trusted: false,
     gate_reason: reason,
-    code: "missing_inputs",
-    missing: ["sex"],
+    code: mismatch ? "sex_mismatch" : "missing_inputs",
+    missing: mismatch ? [] : ["sex"],
     offset: null,
     category: null,
     chronologicalAge: null,

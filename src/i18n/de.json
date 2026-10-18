@@ -3243,7 +3243,8 @@
         "sex": "erfasstes Geschlecht"
       }
     },
-    "sexPending": "Geschlecht noch zu bestätigen (unter „Spieler bearbeiten“)"
+    "sexPending": "Geschlecht noch zu bestätigen (unter „Spieler bearbeiten“)",
+    "sexMismatch": "Messung mit einem anderen Geschlecht berechnet: erneut speichern, um den PHV neu zu berechnen"
   },
   "playerHeatmap": {
     "noData": "Keine Positionsdaten zur Erstellung der Heatmap",

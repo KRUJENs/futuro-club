@@ -3244,7 +3244,8 @@
         "sex": "registered sex"
       }
     },
-    "sexPending": "sex to be confirmed (confirm it in “Edit player”)"
+    "sexPending": "sex to be confirmed (confirm it in “Edit player”)",
+    "sexMismatch": "Measurement calculated with a different sex: save it again to recalculate PHV"
   },
   "playerHeatmap": {
     "noData": "No position data to generate heatmap",

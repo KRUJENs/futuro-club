@@ -3244,7 +3244,8 @@
         "sex": "geregistreerd geslacht"
       }
     },
-    "sexPending": "geslacht nog te bevestigen (via ‘Speler bewerken’)"
+    "sexPending": "geslacht nog te bevestigen (via ‘Speler bewerken’)",
+    "sexMismatch": "Meting berekend met een ander geslacht: sla haar opnieuw op om de PHV te herberekenen"
   },
   "playerHeatmap": {
     "noData": "Geen positiegegevens om een heatmap te genereren",

@@ -3243,7 +3243,8 @@
         "sex": "sexe enregistré"
       }
     },
-    "sexPending": "sexe à confirmer (confirmez-le dans « Modifier le joueur »)"
+    "sexPending": "sexe à confirmer (confirmez-le dans « Modifier le joueur »)",
+    "sexMismatch": "Mesure calculée avec un autre sexe : enregistrez-la à nouveau pour recalculer le PHV"
   },
   "playerHeatmap": {
     "noData": "Aucune donnée de position pour générer la carte de chaleur",

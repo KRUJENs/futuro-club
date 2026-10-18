@@ -96,6 +96,9 @@ describe("PHV cacheado de una fila de antropometría (servidor)", () => {
     const t = trustAnthroForPlayer(row, { gender: "F" });
     expect(t.trusted).toBe(false);
     expect(t.gate_reason).toBe(SEX_MISMATCH_PHV_REASON);
+    // Código propio: la UI dice «vuelve a guardarla», no «falta el sexo» (que ya está).
+    expect(t.code).toBe("sex_mismatch");
+    expect(t.missing).toEqual([]);
     expect(gateAnthroForPlayer(row, { gender: "F", sexConfirmedAt: CONFIRMED })?.phv_category).toBeNull();
     expect(rowComputedWithSex(row, "M")).toBe(true);
     expect(rowComputedWithSex(row, "F")).toBe(false);
@@ -118,6 +121,18 @@ describe("PHV cacheado de una fila de antropometría (servidor)", () => {
     expect(t).toEqual(trustAnthropometricsRow(row));
     expect(t.trusted).toBe(true);
   });
+
+  it("rama «F»: fila calculada como mujer (redondeo del guardado) con «F» registrado ⇒ fiable e idéntica", async () => {
+    const { trustAnthropometricsRow } = await import("@/lib/phv/phvGate");
+    const femaleOffset = Number(
+      computeMirwald({ chronologicalAge: 13.6, height: 150, weight: 40, gender: "F", sittingHeight: 78, legLength: 72 }).offset.toFixed(2),
+    );
+    const fRow = { ...row, maturity_offset: femaleOffset };
+    const t = trustAnthroForPlayer(fRow, { gender: "F" });
+    expect(t.trusted).toBe(true);
+    expect(t).toEqual(trustAnthropometricsRow(fRow));
+    expect(rowComputedWithSex(fRow, "M")).toBe(false);
+  });
 });
 
 describe("columnas players.phv_* (B2)", () => {
@@ -131,6 +146,18 @@ describe("columnas players.phv_* (B2)", () => {
 
 describe("los que ESCRIBEN no borran el sexo guardado (M1)", () => {
   beforeEach(() => localStorage.clear());
+
+  it("estático: quien reescribe la lista de jugadores parte del crudo (getAllRaw), nunca de getAll()", () => {
+    const SRC = import.meta.glob(
+      ["/src/components/PositionDiscoveryBanner.tsx", "/src/pages/PlayerForm.tsx", "/src/services/real/supabasePlayerService.ts"],
+      { query: "?raw", import: "default", eager: true },
+    ) as Record<string, string>;
+    for (const f of ["/src/components/PositionDiscoveryBanner.tsx", "/src/pages/PlayerForm.tsx"]) {
+      expect(SRC[f]).toMatch(/PlayerService\.getAllRaw\(\)/);
+      expect(SRC[f]).not.toMatch(/PlayerService\.getAll\(\)/);
+    }
+    expect(SRC["/src/services/real/supabasePlayerService.ts"]).toMatch(/const players = PlayerService\.getAllRaw\(\)/);
+  });
 
   it("update de otro jugador conserva el «M» sin confirmar en el almacenamiento y no persiste la marca de la vista", async () => {
     const { PlayerService } = await import("@/services/real/playerService");

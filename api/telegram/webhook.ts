@@ -27,7 +27,7 @@ import { MODELS } from "../_lib/models";
 import { avgEvaluatedVsi, countElite, formatVsi, ELITE_MIN } from "../_lib/vsiStats";
 import { normalizeLocale, languageDirective, type ReportLocale } from "../../src/lib/shared/locale";
 import { withoutUndatedVsiSeries } from "../../src/lib/scoring/vsiDelta";
-import { phvColumnsForPlayer } from "../../src/lib/shared/sexGatedAnthro";
+import { phvColumnsForPlayer, trustAnthroForPlayer } from "../../src/lib/shared/sexGatedAnthro";
 
 export const config = { runtime: "edge" };
 
@@ -359,22 +359,30 @@ export async function execTool(
       const q = ((input.name_query as string) ?? "").toLowerCase();
       const { data: pRaw } = await supabase
         .from("players")
-        .select("name, age, phv_category, phv_offset, height_cm, weight_kg, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
+        .select("id, name, age, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
         .eq("user_id", ctx.userId)
         .ilike("name", `%${q}%`)
         .limit(1)
         .maybeSingle();
-      // Consejo de carga solo con la fase de un sexo registrado (P1 bloque 7).
-      const p = pRaw ? phvColumnsForPlayer(pRaw) : null;
-      if (!p) return `No encontré jugador "${q}".`;
-      const phase = p.phv_category;
+      if (!pRaw) return `No encontré jugador "${q}".`;
+      // Consejo de CARGA para un menor: fase SOLO desde la última medición fiable y
+      // calculada con su sexo registrado (P1 bloque 7; misma regla que el plan de
+      // ventana PHV), nunca desde la columna players.phv_category.
+      const { data: latest } = await supabase
+        .from("player_latest_anthropometrics")
+        .select("*")
+        .eq("player_id", pRaw.id)
+        .maybeSingle();
+      const trust = trustAnthroForPlayer(latest, pRaw);
+      const p = { name: pRaw.name, age: pRaw.age };
+      const phase = trust.trusted ? trust.category : null;
       const advice = phase === "early"
         ? "PRE-PHV (pre-estirón). Ventana neuromotora abierta. Carga: bajo volumen + alta variabilidad técnica. EVITAR gym pesado. Foco: coordinación y técnica."
         : phase === "late"
         ? "POST-PHV (post-estirón). Ventana de fuerza. Incorporar gym progresivo + HIIT con balón. Buen momento para potencia."
-        : phase === "ontime" || phase === "ontme"
+        : phase === "ontme"
         ? "EN PHV (estirón). Período sensible. BAJAR intensidad cognitiva, gestionar cargas para evitar Osgood-Schlatter. Mantener técnica básica."
-        : "Sin PHV calculado. Registra antropometría primero.";
+        : `Sin fase PHV fiable: ${trust.gate_reason ?? "sin medición antropométrica"}. Sin ella no se da consejo de carga.`;
       return JSON.stringify({ name: p.name, age: p.age, phv: phase, advice }, null, 2);
     }
 

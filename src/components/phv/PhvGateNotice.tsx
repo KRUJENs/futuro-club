@@ -14,10 +14,13 @@ import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { phvInputI18nKey, type PhvGate, type PhvGateCode, type PhvInputKey } from "@/lib/phv/phvGate";
 
+/** + «medición calculada con otro sexo» (P1 bloque 7, src/lib/shared/sexGatedAnthro.ts). */
+type NoticeCode = PhvGateCode | "sex_mismatch";
+
 interface Props {
   /** Resultado del gate (o, para filas persistidas, code + missing). */
   gate?: PhvGate | null;
-  code?: PhvGateCode | null;
+  code?: NoticeCode | null;
   missing?: readonly PhvInputKey[];
   /** inline = texto compacto (listas, chips); card = bloque con icono. */
   variant?: "inline" | "card";
@@ -31,14 +34,16 @@ interface Props {
 /** Texto traducido del motivo del gate (reutilizable fuera de JSX, p.ej. `title`). */
 export function usePhvGateText() {
   const { t } = useTranslation();
-  return (opts: { gate?: PhvGate | null; code?: PhvGateCode | null; missing?: readonly PhvInputKey[]; bare?: boolean; sexPending?: boolean }) => {
-    const code: PhvGateCode | null = opts.gate ? opts.gate.reason : opts.code ?? null;
+  return (opts: { gate?: PhvGate | null; code?: NoticeCode | null; missing?: readonly PhvInputKey[]; bare?: boolean; sexPending?: boolean }) => {
+    const code: NoticeCode | null = opts.gate ? opts.gate.reason : opts.code ?? null;
     const missing = opts.gate ? opts.gate.missing : opts.missing ?? [];
     let reason: string;
     if (code === "missing_inputs" && missing.length > 0) {
       reason = t("maturity.gate.missing", { list: missing
           .map((k) => (k === "sex" && opts.sexPending ? t("maturity.sexPending") : t(phvInputI18nKey(k))))
           .join(", ") });
+    } else if (code === "sex_mismatch") {
+      reason = t("maturity.sexMismatch");
     } else if (code === "out_of_range") {
       reason = t("maturity.gate.outOfRange");
     } else if (code === "legacy_row") {

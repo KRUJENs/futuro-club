@@ -48,16 +48,17 @@ export default function PositionDiscoveryBanner({ player, alternatives, onAdded 
 
   const handleAdd = (alt: PositionAlternative) => {
     const humanName = CODE_TO_NAME[alt.code] ?? alt.code;
-    const updated = {
-      ...player,
-      secondaryPositions: [...(player.secondaryPositions ?? []), humanName],
-      updatedAt: new Date().toISOString(),
-    };
-    // Persist
-    const all = PlayerService.getAll();
+    // Persist desde el almacenamiento CRUDO (P1 bloque 7): la vista honesta quita el «M»
+    // sin confirmar y el PHV no recalculable; reescribirla borraría esos datos de todos.
+    const all = PlayerService.getAllRaw();
     const idx = all.findIndex((p) => p.id === player.id);
     if (idx !== -1) {
-      all[idx] = updated;
+      const raw = all[idx];
+      all[idx] = {
+        ...raw,
+        secondaryPositions: [...(raw.secondaryPositions ?? []), humanName],
+        updatedAt: new Date().toISOString(),
+      };
       try {
         localStorage.setItem("vitas_players", JSON.stringify(all));
       } catch (e) {
