@@ -23,6 +23,13 @@ describe("proyección de carrera fuera del servidor (D2)", () => {
     expect(code("api/analyses/share.ts")).toMatch(/reports: withCareerProjectionBlocked\(reports/);
   });
 
+  it("el orquestador ya no lanza la proyección ni la anuncia en el correo a la familia; no se cobra", () => {
+    const o = code("api/agents/_pipeline-orchestrator.ts");
+    expect(o).not.toMatch(/name: "projection"/);
+    expect(o).not.toMatch(/itemProjection/);
+    expect(code("api/agents/[action].ts")).not.toMatch(/"projection-report":\s+"claude-haiku"/);
+  });
+
   it("el agente de proyección devuelve el motivo antes de llamar al modelo", () => {
     const p = code("api/agents/_projection-report.ts");
     const gate = p.indexOf("if (CAREER_PROJECTION_BLOCKED)");

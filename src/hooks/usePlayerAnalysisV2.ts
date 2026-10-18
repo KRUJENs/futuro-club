@@ -38,6 +38,7 @@ import i18n from "@/i18n";
 import { normalizeLocale } from "@/lib/shared/locale";
 import { finalizeSyncGateMessage } from "@/lib/syncVideoAnalysisGate";
 import type { VideoIntelligenceOutput } from "@/agents/contracts";
+import { withCareerProjectionBlocked } from "@/lib/reports/careerProjection";
 import {
   ClipConsentBlockedError,
   clipConsentErrorFromResponse,
@@ -663,7 +664,8 @@ export function bestMatchFromContent(bm: Record<string, unknown>) {
 }
 
 export function mapDbRowToLegacy(row: AnalysisDbRow) {
-  const rpts = row.reports ?? [];
+  // Informes «projection» antiguos: contenido ⇒ motivo (P1 bloque 7, D2).
+  const rpts = withCareerProjectionBlocked(row.reports ?? []);
   const get = (type: string) =>
     (rpts.find((r) => r.report_type === type)?.content ?? {}) as Record<string, unknown>;
 
