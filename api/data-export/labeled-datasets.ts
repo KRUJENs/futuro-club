@@ -9,6 +9,7 @@
  */
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
+import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 
 export const config = { runtime: "edge" };
 
@@ -41,7 +42,8 @@ export default withHandler(
       const res = await fetch(`${base}?select=*&order=created_at.asc&limit=${limit}`, { headers });
       if (!res.ok) return errorResponse(`Supabase ${res.status}`, 502);
       const rows = (await res.json()) as DatasetRow[];
-      const jsonl = rows.map((r) => JSON.stringify(r)).join("\n");
+      // Sin cifras de duelos de filas antiguas (P1 bloque 6/7: sin criterio validado).
+      const jsonl = rows.map((r) => JSON.stringify(stripDuelOutcomes(r))).join("\n");
       return new Response(jsonl, {
         status: 200,
         headers: {

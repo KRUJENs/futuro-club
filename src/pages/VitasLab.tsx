@@ -722,7 +722,11 @@ const VitasLab = () => {
           physicalMetrics.calibrationReliable = calibReliable;
           physicalMetrics.calibrationConfidence = tracking.state.calibrationConfidence;
           physicalMetrics.identityReliable = identityReliable;
-          if (calibReliable && identityReliable) {
+          // Físicas del JUGADOR solo si se calcularon con su pista enfocada ACTUAL (P1 bloque
+          // 7, identidad.md): sin pista enfocada son el agregado de TODAS las pistas.
+          const physicsForFocus = tracking.state.focusTrackId != null
+            && sm.focusTrackId === tracking.state.focusTrackId;
+          if (calibReliable && identityReliable && physicsForFocus) {
             physicalMetrics.maxSpeedMs = sm.maxSpeedMs;
             physicalMetrics.avgSpeedMs = sm.avgSpeedMs;
             physicalMetrics.distanceCoveredM = sm.distanceCoveredM;

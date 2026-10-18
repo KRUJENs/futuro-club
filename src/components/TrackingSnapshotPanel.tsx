@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { attributableScanCount, type TrackingSnapshot } from "@/services/real/playerTrackingService";
+import { attributableScanCount, snapshotAttributable, type TrackingSnapshot } from "@/services/real/playerTrackingService";
 import { metricsTrustworthy } from "@/lib/yolo/fieldRegistration";
 import { EmptyTracking } from "@/components/illustrations/EmptyIllustrations";
 import { duelsGateText } from "@/lib/metrics/duelsGate";
@@ -63,6 +63,9 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
   const m = snapshot.sessionMetrics;
   // Escaneos solo si son de la pista enfocada (snapshots antiguos: de todas → «No atribuible»).
   const scans = attributableScanCount(snapshot);
+  // Físicas del jugador solo si se calcularon con su pista enfocada (P1 bloque 7).
+  const physicsOk = snapshotAttributable(snapshot);
+  const na = t("trackingSnapshotPanel.scansNotAttributable");
   const maxKmh = (m.maxSpeedMs * 3.6).toFixed(1);
   const avgKmh = (m.avgSpeedMs * 3.6).toFixed(1);
   const date = new Date(snapshot.savedAt).toLocaleString("es-ES", {
@@ -102,10 +105,10 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
 
       {/* Top-line stats grid */}
       <div className="grid grid-cols-2 gap-2">
-        <StatCard icon={<Zap size={12} className="text-yellow-400" />} label={t("trackingSnapshotPanel.labelMaxSpeed")} value={maxKmh} unit="km/h" />
-        <StatCard icon={<Activity size={12} className="text-emerald-400" />} label={t("trackingSnapshotPanel.labelAvgSpeed")} value={avgKmh} unit="km/h" />
-        <StatCard icon={<MapIcon size={12} className="text-blue-400" />} label={t("trackingSnapshotPanel.labelDistance")} value={m.distanceCoveredM.toFixed(0)} unit="m" />
-        <StatCard icon={<Activity size={12} className="text-purple-400" />} label={t("trackingSnapshotPanel.labelSprints")} value={`${m.sprintCount}`} unit={`${m.sprintDistanceM.toFixed(0)}m`} />
+        <StatCard icon={<Zap size={12} className="text-yellow-400" />} label={t("trackingSnapshotPanel.labelMaxSpeed")} value={physicsOk ? maxKmh : na} unit={physicsOk ? "km/h" : ""} />
+        <StatCard icon={<Activity size={12} className="text-emerald-400" />} label={t("trackingSnapshotPanel.labelAvgSpeed")} value={physicsOk ? avgKmh : na} unit={physicsOk ? "km/h" : ""} />
+        <StatCard icon={<MapIcon size={12} className="text-blue-400" />} label={t("trackingSnapshotPanel.labelDistance")} value={physicsOk ? m.distanceCoveredM.toFixed(0) : na} unit={physicsOk ? "m" : ""} />
+        <StatCard icon={<Activity size={12} className="text-purple-400" />} label={t("trackingSnapshotPanel.labelSprints")} value={physicsOk ? `${m.sprintCount}` : na} unit={physicsOk ? `${m.sprintDistanceM.toFixed(0)}m` : ""} />
       </div>
 
       {/* Eventos clave */}

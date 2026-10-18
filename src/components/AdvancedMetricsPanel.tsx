@@ -15,7 +15,7 @@ import {
   TrendingUp, Activity, MapPin, Zap, AlertCircle, CheckCircle2,
 } from "lucide-react";
 import type { AdvancedPlayerMetrics } from "@/services/real/advancedMetricsService";
-import { attributableScanCount, type TrackingSnapshot } from "@/services/real/playerTrackingService";
+import { attributableScanCount, snapshotAttributable, type TrackingSnapshot } from "@/services/real/playerTrackingService";
 import type { BiomechanicsScore } from "@/lib/mediapipe/biomechanicsEngine";
 import CalibrationCaveat from "@/components/CalibrationCaveat";
 
@@ -220,6 +220,15 @@ function buildTrackingFromSnapshot(s: TrackingSnapshot): {
   message: string;
 } {
   const m = s.sessionMetrics;
+  // Sin pista enfocada (o snapshot antiguo) las físicas son de TODAS las pistas: no se
+  // atribuyen al jugador (P1 bloque 7, identidad.md).
+  if (!snapshotAttributable(s)) {
+    return {
+      maxSpeedMs: null, avgSpeedMs: null, totalDistanceM: null, fieldCoveragePct: null,
+      sprintCount: null, sprintDistanceM: null, status: "stub_no_data",
+      message: "Sesión sin pista enfocada: sus métricas no se atribuyen al jugador (VITAS Lab)",
+    };
+  }
   // Cobertura: (área voronoi promedio / área de campo total 105×68=7140) * 100
   const fieldCoverage = m.avgVoronoiAreaM2 > 0
     ? Math.min(100, Math.round((m.avgVoronoiAreaM2 / 7140) * 100 * 10))

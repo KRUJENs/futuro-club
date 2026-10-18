@@ -40,7 +40,7 @@ export default withHandler(
 
     const { data, error } = await supabase
       .from("tracking_sessions")
-      .select("id, created_at, duration_ms, metrics, scan_events")
+      .select("id, created_at, duration_ms, metrics, scan_events, target_track_id")
       .eq("player_id", playerId)
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -53,16 +53,25 @@ export default withHandler(
       const metrics = (row.metrics ?? {}) as Record<string, unknown>;
       const scans = Array.isArray(row.scan_events) ? row.scan_events : [];
       // Sin duelCount (P1 bloque 6): duel_events antiguos no tienen criterio validado.
+      // Físicas y escaneos SOLO si la sesión se calculó con la pista enfocada guardada
+      // (metrics.focusTrackId, P1 bloque 6b/7): sin ella son el agregado de TODAS las
+      // pistas, no del jugador (identidad.md). Ausente ⇒ null + motivo, nunca 0 (inv #2).
+      const focus = metrics.focusTrackId;
+      const attributable = typeof focus === "number" && focus === row.target_track_id;
+      const num = (v: unknown): number | null =>
+        attributable && typeof v === "number" && Number.isFinite(v) ? v : null;
 
       return {
         id: row.id,
         date: row.created_at,
-        durationSec: Math.round((row.duration_ms ?? 0) / 1000),
-        maxSpeedMs: Number(metrics.maxSpeedMs ?? 0),
-        avgSpeedMs: Number(metrics.avgSpeedMs ?? 0),
-        sprintCount: Number(metrics.sprintCount ?? 0),
-        scanCount: scans.length,
-        eventCount: 0, // events not stored in tracking_sessions yet
+        durationSec: typeof row.duration_ms === "number" ? Math.round(row.duration_ms / 1000) : null,
+        maxSpeedMs: num(metrics.maxSpeedMs),
+        avgSpeedMs: num(metrics.avgSpeedMs),
+        sprintCount: num(metrics.sprintCount),
+        scanCount: attributable ? scans.length : null,
+        gate_reason: attributable
+          ? null
+          : "Sesión sin pista enfocada registrada: sus métricas no se atribuyen al jugador.",
         source: "supabase" as const,
       };
     });

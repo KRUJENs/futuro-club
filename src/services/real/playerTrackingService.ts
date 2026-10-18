@@ -84,9 +84,18 @@ export interface TrackingSnapshot {
  * TODAS las pistas ⇒ null («No atribuible»).
  */
 export function attributableScanCount(s: TrackingSnapshot): number | null {
-  const calcFocus = s.sessionMetrics?.focusTrackId;
-  if (calcFocus == null || calcFocus !== s.focusTrackId) return null;
+  if (!snapshotAttributable(s)) return null;
   return typeof s.scanCount === "number" ? s.scanCount : null;
+}
+
+/**
+ * ¿Las métricas de sesión del snapshot son del JUGADOR? Solo si se calcularon con la pista
+ * enfocada que se guardó (P1 bloque 7): sin ella, velocidad, distancia, sprints y escaneos
+ * son el agregado de TODAS las pistas ⇒ «No atribuible». Snapshots anteriores: sin marca.
+ */
+export function snapshotAttributable(s: TrackingSnapshot): boolean {
+  const calcFocus = s.sessionMetrics?.focusTrackId;
+  return calcFocus != null && calcFocus === s.focusTrackId;
 }
 
 export const PlayerTrackingService = {
