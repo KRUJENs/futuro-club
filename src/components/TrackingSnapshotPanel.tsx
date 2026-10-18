@@ -121,7 +121,7 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
         <StatCard icon={<Swords size={12} className="text-orange-400" />} label={t("trackingSnapshotPanel.labelDuels")} value={duelsGateText(t).value} unit={duelsGateText(t).hint} />
         {/* Voronoi gateado: avgVoronoiAreaM2 puede ser 0 por "sin muestras" (o snapshot
             pre-G7) → NO pintar ese 0 como área real (inv #2). Fuente honesta = space. */}
-        <StatCard icon={<Hexagon size={12} className="text-fuchsia-400" />} label="VORONOI" value={m.space?.value != null ? (m.space.value as number).toFixed(0) : t("trackingSnapshotPanel.spaceNoData")} unit={m.space?.value != null ? t("trackingSnapshotPanel.unitControl") : ""} />
+        <StatCard icon={<Hexagon size={12} className="text-fuchsia-400" />} label="VORONOI" value={!physicsOk ? na : m.space?.value != null ? (m.space.value as number).toFixed(0) : t("trackingSnapshotPanel.spaceNoData")} unit={physicsOk && m.space?.value != null ? t("trackingSnapshotPanel.unitControl") : ""} />
       </div>
 
       {/* Distribución de intensidad */}
@@ -129,6 +129,11 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
         <p className="text-[10px] font-display font-semibold uppercase tracking-wider text-muted-foreground">
           {t("trackingSnapshotPanel.intensityDistribution")}
         </p>
+        {/* Zonas de intensidad solo de la pista enfocada (P1 bloque 7): sin ella son las
+            de TODAS las pistas. */}
+        {!physicsOk ? (
+          <p className="text-[10px] text-muted-foreground">{na}</p>
+        ) : (<>
         <div className="flex h-2 rounded-full overflow-hidden bg-secondary">
           <div className="bg-blue-400" style={{ width: `${pct(m.intensityZones.walk)}%` }} />
           <div className="bg-emerald-400" style={{ width: `${pct(m.intensityZones.jog)}%` }} />
@@ -141,6 +146,7 @@ export default function TrackingSnapshotPanel({ playerId, snapshot, compact = fa
           <Legend dot="bg-yellow-400" label={t("trackingSnapshotPanel.zoneRun")}  pct={pct(m.intensityZones.run)} />
           <Legend dot="bg-red-400"    label="Sprint"  pct={pct(m.intensityZones.sprint)} />
         </div>
+        </>)}
       </div>
 
       {/* Footer · re-analizar */}

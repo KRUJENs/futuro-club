@@ -175,6 +175,7 @@ function buildDemoSnapshot(player: Player): TrackingSnapshot {
     durationSec: 75 * 60,
     calibrationConfidence: "none",
     sessionMetrics: {
+      focusTrackId: 1, // ejemplo calculado con su pista enfocada (snapshotAttributable, P1 bloque 7)
       maxSpeedMs: +(5.5 + m.speed * 0.035).toFixed(2),
       avgSpeedMs: +(1.6 + m.stamina * 0.012).toFixed(2),
       distanceCoveredM: distance,

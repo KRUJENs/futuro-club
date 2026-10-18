@@ -34,6 +34,16 @@ describe("legacyReportNotices", () => {
     expect(legacyReportNotices(r("player-report", "demo"))).toEqual([]);
     expect(legacyReportNotices(r("best-match", "v0.1.0"))).toEqual([]);
   });
+
+  it("lab-biomechanics (sin subida de versión en el 6a): por fecha de generación", () => {
+    const lab = (generated_at: string | null) => ({
+      analysis: A({}),
+      reports: [{ report_type: "lab-biomechanics", prompt_version: "lab-biomech-v1.1.0", generated_at }],
+    });
+    expect(legacyReportNotices(lab("2026-10-10T00:00:00Z"))).toEqual(["duel_figures"]);
+    expect(legacyReportNotices(lab(null))).toEqual(["duel_figures"]);
+    expect(legacyReportNotices(lab("2026-10-19T00:00:00Z"))).toEqual([]);
+  });
 });
 
 describe("isLegacyIdpPlan", () => {

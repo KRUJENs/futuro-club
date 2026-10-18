@@ -198,7 +198,7 @@ export function IDPDashboard({
     <div className="space-y-5">
       {/* Plan generado antes del 5d (P1 bloque 7): puede traer metas o bases de relleno. */}
       {isLegacyIdpPlan(plan) && (
-        <p role="note" className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+        <p role="note" className="rounded-lg border border-amber-500/40 bg-amber-50 p-3 text-xs text-amber-900">
           {t("idpLegacy.notice")}
         </p>
       )}

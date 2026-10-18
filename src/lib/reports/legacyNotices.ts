@@ -24,6 +24,13 @@ export const LEGACY_REPORT_CUTOFFS = {
     "development-plan": [1, 3, 0],
     "dna-profile": [1, 3, 0],
   } as Record<string, readonly [number, number, number]>,
+  /**
+   * Informes cuyo prompt recibía la biomecánica completa (con duelos de Gemini) y NO
+   * subieron de versión con el 6a (#323, fusionado 2026-10-17 23:00 UTC; corte con margen):
+   * se decide por fecha de generación.
+   */
+  duelsByDateBefore: "2026-10-18T12:00:00Z",
+  duelsByDateTypes: ["lab-biomechanics"] as readonly string[],
 };
 
 function before(iso: string | null | undefined, cutoff: string): boolean {
@@ -56,10 +63,14 @@ export function legacyReportNotices(input: LegacyNoticeInput): LegacyNoticeCode[
     out.add("baseline_pre_eval");
   }
   for (const r of input.reports) {
-    const min = LEGACY_REPORT_CUTOFFS.duelFreeVersion[r.report_type];
-    if (!min) continue;
     const pv = r.prompt_version ?? "";
     if (pv.startsWith("baseline-") || pv === "demo") continue; // base/demo nunca pidieron duelos
+    if (LEGACY_REPORT_CUTOFFS.duelsByDateTypes.includes(r.report_type)) {
+      if (before(r.generated_at, LEGACY_REPORT_CUTOFFS.duelsByDateBefore)) out.add("duel_figures");
+      continue;
+    }
+    const min = LEGACY_REPORT_CUTOFFS.duelFreeVersion[r.report_type];
+    if (!min) continue;
     const v = versionOf(pv);
     if (!v || versionBefore(v, min)) out.add("duel_figures");
   }

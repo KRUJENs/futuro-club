@@ -20,7 +20,10 @@ describe("snapshotAttributable", () => {
     expect(attributableScanCount(snap(4, 7))).toBeNull();
   });
 
-  it("el Lab solo manda las físicas al informe con la pista enfocada ACTUAL", () => {
-    expect(LAB["/src/pages/VitasLab.tsx"]).toMatch(/if \(calibReliable && identityReliable && physicsForFocus\)/);
+  it("el Lab solo manda físicas y eventos al informe con la pista enfocada ACTUAL; sin ella no guarda eventos", () => {
+    const lab = LAB["/src/pages/VitasLab.tsx"];
+    expect(lab).toMatch(/if \(calibReliable && identityReliable && physicsForFocus\)/);
+    expect(lab).toMatch(/eventSummary: \(focusSummary && identityReliable\)/);
+    expect(lab).toMatch(/getPlayerEvents\(tracking\.state\.focusTrackId\)\s*:\s*\[\];/);
   });
 });
