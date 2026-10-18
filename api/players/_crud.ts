@@ -78,6 +78,10 @@ const CreatePlayerSchema = z.object({
   // No se rellena con defaults (sería inventar una evaluación; invariante #2).
   metrics: MetricsSchema.optional(),
   gender: z.enum(["M", "F"]).optional(), // sin default "M": sexo ausente ⇒ null (invariante #5)
+  // Fecha en que una persona eligió el sexo en el selector (P1 bloque 7). La pone el
+  // CLIENTE; el servidor nunca la inventa (un cliente viejo o una cola rancia que suba
+  // «M» sin ella deja el sexo «por confirmar»: src/lib/shared/registeredSex.ts).
+  sexConfirmedAt: z.string().datetime().optional(),
   phvCategory: z.enum(["early", "ontme", "late"]).optional(),
   phvOffset: z.number().optional(),
   // Antes no estaba en el schema ⇒ zod la descartaba en silencio al crear.
@@ -222,6 +226,8 @@ export default withHandler(
 
       const playerData = {
         ...input,
+        // La marca solo vale junto a un sexo elegido.
+        sexConfirmedAt: input.gender ? input.sexConfirmedAt : undefined,
         id: playerId,
         vsi,
         vsiHistory: vsi !== null ? [vsi] : [],

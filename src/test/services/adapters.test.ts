@@ -28,7 +28,7 @@ vi.mock("@/lib/phv/phvGate", async (importOriginal) => {
 });
 
 // Entradas COMPLETAS introducidas (regla del owner 28-sep): el gate recalcula.
-const COMPLETE_PHV = { height: 165, weight: 55, sittingHeight: 85, legLength: 80, birthDate: "2012-03-15", gender: "M" as const };
+const COMPLETE_PHV = { height: 165, weight: 55, sittingHeight: 85, legLength: 80, birthDate: "2012-03-15", gender: "M" as const, sexConfirmedAt: "2026-01-01T00:00:00.000Z" };
 
 const makePlayer = (overrides: Partial<Player> = {}): Player => ({
   id: "p1",
@@ -39,7 +39,7 @@ const makePlayer = (overrides: Partial<Player> = {}): Player => ({
   height: 165,
   weight: 55,
   competitiveLevel: "Regional",
-  gender: "M",
+  gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z",
   vsi: 72,
   minutesPlayed: 450,
   metrics: { speed: 75, technique: 80, vision: 65, stamina: 70, shooting: 85, defending: 40 },

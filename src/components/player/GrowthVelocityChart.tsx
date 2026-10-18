@@ -18,7 +18,7 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
 import { TrendingUp, AlertCircle, Loader2, Sparkles } from "lucide-react";
-import { trustAnthropometricsRow } from "@/lib/phv/phvGate";
+import { trustAnthroForPlayer } from "@/lib/shared/sexGatedAnthro";
 import { getAuthHeaders } from "@/lib/apiAuth";
 import { PhvGateNotice, usePhvGateText } from "@/components/phv/PhvGateNotice";
 
@@ -46,9 +46,13 @@ interface ChartPoint {
 
 interface Props {
   playerId: string;
+  /** Sexo registrado del jugador (vista honesta): la fila solo cuenta si cuadra con él (P1 bloque 7). */
+  sex?: { gender?: unknown; sexConfirmedAt?: unknown };
 }
 
-export default function GrowthVelocityChart({ playerId }: Props) {
+export default function GrowthVelocityChart({ playerId, sex }: Props) {
+  const sexGender = sex?.gender;
+  const sexConfirmed = sex?.sexConfirmedAt;
   const { t } = useTranslation();
   const [history, setHistory] = useState<AnthroRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +108,7 @@ export default function GrowthVelocityChart({ playerId }: Props) {
     // es fiable (gate único: 4 medidas + edad decimal por fecha de nacimiento, 069).
     // Una fila antigua (edad entera) o incompleta NO produce APHV ni categoría.
     const latest = history[history.length - 1];
-    const trust = trustAnthropometricsRow(latest);
+    const trust = trustAnthroForPlayer(latest, { gender: sexGender, sexConfirmedAt: sexConfirmed });
     if (!trust.trusted || trust.offset === null || trust.chronologicalAge === null) {
       return { points: pts, aphv: null, currentOffset: null, latestCategory: null, latestTrust: trust };
     }
@@ -117,7 +121,7 @@ export default function GrowthVelocityChart({ playerId }: Props) {
       latestCategory: trust.category,
       latestTrust: trust,
     };
-  }, [history]);
+  }, [history, sexGender, sexConfirmed]);
   const gateText = usePhvGateText()({ code: latestTrust?.code ?? "no_row", missing: latestTrust?.missing, bare: true });
 
   if (loading) {

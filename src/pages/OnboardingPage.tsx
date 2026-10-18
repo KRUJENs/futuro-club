@@ -33,6 +33,7 @@ import { OrganizationService } from "@/services/real/organizationService";
 import { DemoDataService } from "@/services/real/demoDataService";
 import { decimalAgeYears } from "@/lib/shared/age";
 import { completedYearsAt } from "@/lib/shared/videoConsent";
+import { sexConfirmationFor } from "@/lib/shared/registeredSex";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
@@ -144,6 +145,7 @@ const OnboardingPage = () => {
           birthDate: playerBirthDate,
           position: playerPosition,
           gender: playerGender || undefined, // sexo real elegido en el paso 4; nunca "M" por defecto
+          sexConfirmedAt: sexConfirmationFor(playerGender || null), // elegido ⇒ confirmado (P1 bloque 7)
           // Sin pie, talla, peso ni nivel: en el alta rápida nadie los ha medido ni elegido.
           minutesPlayed: 0,
           // Sin métricas: el alta rápida NO evalúa. El jugador nace "sin evaluar"

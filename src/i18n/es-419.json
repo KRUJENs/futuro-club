@@ -3243,7 +3243,9 @@
         "birthDate": "fecha de nacimiento del jugador",
         "sex": "sexo registrado"
       }
-    }
+    },
+    "sexPending": "sexo por confirmar (confírmalo en «Editar jugador»)",
+    "sexMismatch": "Medición calculada con otro sexo: vuelve a guardarla para recalcular el PHV"
   },
   "playerHeatmap": {
     "noData": "Sin datos de posición para generar mapa de calor",

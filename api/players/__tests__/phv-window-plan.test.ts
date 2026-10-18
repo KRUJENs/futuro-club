@@ -36,7 +36,7 @@ vi.mock("../../_lib/anthropic", () => ({
 
 type Row = Record<string, unknown> | null;
 /** La columna legacy SIEMPRE trae una categoría: el endpoint no debe usarla. */
-const PLAYER = { name: "Samu", age: 13, position: "DC", height_cm: 158, weight_kg: 46, phv_category: "early", phv_offset: -1.2 };
+const PLAYER = { name: "Samu", age: 13, gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z", position: "DC", height_cm: 158, weight_kg: 46, phv_category: "early", phv_offset: -1.2 };
 let anthroRow: Row = null;
 
 vi.mock("@supabase/supabase-js", () => ({

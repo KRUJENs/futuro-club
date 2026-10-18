@@ -13,6 +13,7 @@ import { MODELS } from "../_lib/models";
 import { isOverBudget, recordSpendUsd, budgetExceededResponse } from "../_lib/budgetGuard";
 import type { MaturityAssessment, MaturityTiming } from "../../src/lib/phv/maturity";
 import { gatedMaturity } from "../../src/lib/phv/phvGate";
+import { withRegisteredSex } from "../../src/lib/shared/registeredSex";
 import { normalizeLocale, languageDirective, localeSchema } from "../../src/lib/shared/locale";
 import { computeVsiDelta, type VsiDelta } from "../../src/lib/scoring/vsiDelta";
 
@@ -85,7 +86,7 @@ interface PlayerRow {
  * maduración al LLM (invariante #2: nunca el valor naive persistido).
  */
 function canonicalMaturity(player: PlayerRow): MaturityAssessment {
-  return gatedMaturity(player.data ?? {});
+  return gatedMaturity(withRegisteredSex(player.data ?? {})); // «M» sin confirmar ⇒ sin sexo (P1 bloque 7)
 }
 
 /**

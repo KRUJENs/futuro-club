@@ -117,7 +117,7 @@ export const SupabasePlayerService = {
         const pendingDeletes = new Set(
           pendingOps.filter((op) => op.action === "delete").map((op) => op.entityId),
         );
-        const localById = new Map(PlayerService.getAll().map((p) => [p.id, p] as const));
+        const localById = new Map(PlayerService.getAllRaw().map((p) => [p.id, p] as const)); // crudo: se reescribe (P1 bloque 7)
         // La op guarda el jugador completo: si la caché se vació al cerrar sesión,
         // la copia encolada (de esta misma cuenta) es la edición más reciente.
         const queuedById = new Map(
@@ -154,7 +154,7 @@ export const SupabasePlayerService = {
   async pushAll(userId: string): Promise<void> {
     if (!SUPABASE_CONFIGURED) return;
 
-    const players = PlayerService.getAll();
+    const players = PlayerService.getAllRaw(); // crudo: se sube a la nube (P1 bloque 7)
     if (players.length === 0) return;
 
     try {

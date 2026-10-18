@@ -26,6 +26,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { usePlan } from "@/hooks/usePlan";
 import { useAuth } from "@/context/AuthContext";
 import { toIsoBirthDate } from "@/lib/shared/birthDate";
+import { registeredSex, sexConfirmationFor } from "@/lib/shared/registeredSex";
 import { useTranslation } from "react-i18next";
 
 // ─── Schema del formulario ────────────────────────────────────────────────────
@@ -301,7 +302,8 @@ const PlayerForm = () => {
       secondaryPositions: player.secondaryPositions ?? [],
       // Sin fallback "M": si el jugador legacy no tiene sexo registrado, el campo
       // queda vacío y se exige elegirlo (no se asume masculino).
-      gender: (player as typeof player & { gender?: "M" | "F" }).gender,
+      // «M» sin confirmar (posible valor por defecto antiguo) ⇒ vacío: hay que elegirlo.
+      gender: registeredSex(player) ?? undefined,
       foot: player.foot,
       height: player.height,
       weight: player.weight,
@@ -392,7 +394,9 @@ const PlayerForm = () => {
         if (saveEvaluation) {
           await PlayerService.updateMetrics(id, data.metrics);
         }
-        const players = PlayerService.getAll();
+        // Crudo: se reescribe todo el almacenamiento (P1 bloque 7: la vista honesta borraría
+        // el sexo guardado de los demás jugadores).
+        const players = PlayerService.getAllRaw();
         const idx = players.findIndex((p) => p.id === id);
         if (idx !== -1) {
           players[idx] = {
@@ -402,6 +406,9 @@ const PlayerForm = () => {
             position: data.position,
             secondaryPositions: data.secondaryPositions ?? [],
             gender: data.gender,
+            // Elegido en el selector ⇒ confirmado (P1 bloque 7; registeredSex.ts).
+            sexConfirmedAt: sexConfirmationFor(data.gender, players[idx]),
+            sexPendingConfirmation: undefined,
             foot: data.foot,
             height: data.height,
             weight: data.weight,
@@ -437,6 +444,7 @@ const PlayerForm = () => {
           position: data.position,
           secondaryPositions: data.secondaryPositions ?? [],
           gender: data.gender,
+          sexConfirmedAt: sexConfirmationFor(data.gender),
           foot: data.foot,
           height: data.height,
           weight: data.weight,

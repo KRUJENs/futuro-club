@@ -42,6 +42,9 @@ const p = (name, age, position, foot, gender, height, weight, level) => {
   const sittingHeight = Math.round(height * 0.52);
   return {
     name, age, position, foot, gender,
+    // Demo (sintético): sexo dado por elegido; sin esta marca un «M» queda «por
+    // confirmar» y sin PHV (P1 bloque 7, src/lib/shared/registeredSex.ts).
+    sexConfirmedAt: "2026-01-15T00:00:00.000Z",
     height, weight,
     sittingHeight,
     legLength: height - sittingHeight,

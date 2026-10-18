@@ -32,6 +32,7 @@ import {
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import { useAllPlayers, useCreatePlayer } from "@/hooks/usePlayers";
+import { sexConfirmationFor } from "@/lib/shared/registeredSex";
 
 const DONE_KEY = "vitas_first_run_done_v1";
 const TOUR_KEY = "vitas_onboarding_seen_v1";
@@ -121,6 +122,7 @@ export default function FirstRunWizard() {
         height: heightCm,
         weight: weightKg,
         gender: form.gender || undefined, // sexo real elegido en el paso 1; nunca "M" por defecto
+        sexConfirmedAt: sexConfirmationFor(form.gender || null), // elegido ⇒ confirmado (P1 bloque 7)
         // Sin nivel competitivo: este asistente no lo pregunta (antes «Regional» fijo).
         minutesPlayed: 0,
         // Sin métricas: este wizard NO evalúa. El jugador nace "sin evaluar"

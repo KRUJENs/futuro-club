@@ -46,6 +46,7 @@ import {
 import type { MetricResult } from "../../src/lib/metrics/MetricResult";
 import { PERCENTILE_MIN_PEERS, PERCENTILE_POOL_SCOPE } from "../../config/percentiles";
 import { toVsi } from "../_lib/vsiStats";
+import { phvColumnsForPlayer } from "../../src/lib/shared/sexGatedAnthro";
 
 export const config = { runtime: "edge" };
 
@@ -118,11 +119,13 @@ export default withHandler(
     });
 
     // ── 1. Cargar jugador ─────────────────────────────────────
-    const { data: player, error: pErr } = await supabase
+    const { data: playerRaw, error: pErr } = await supabase
       .from("players")
-      .select("id, user_id, age, position, phv_category, vsi, metrics:data->metrics, is_demo:data->>isDemo")
+      .select("id, user_id, age, position, phv_category, vsi, metrics:data->metrics, is_demo:data->>isDemo, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
       .eq("id", params.data.playerId)
       .single();
+    // PHV de la columna solo con sexo registrado (P1 bloque 7).
+    const player = playerRaw ? phvColumnsForPlayer(playerRaw) : playerRaw;
 
     if (pErr || !player) {
       return errorResponse({ code: "player_not_found", message: pErr?.message ?? "no encontrado", status: 404 });
@@ -144,7 +147,7 @@ export default withHandler(
     // ── 2. Pares: SOLO jugadores del mismo dueño ──────────────
     let q = supabase
       .from("players")
-      .select("vsi, metrics:data->metrics, is_demo:data->>isDemo")
+      .select("vsi, metrics:data->metrics, is_demo:data->>isDemo, phv_category, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
       .eq("user_id", player.user_id)
       .neq("id", player.id) // el propio nunca es par de sí mismo
       .gte("age", player.age - 1)
@@ -162,7 +165,12 @@ export default withHandler(
 
     // Reales y de ejemplo no se mezclan (misma regla que percentilesAmong).
     const targetIsDemo = player.is_demo === "true";
-    const peers = ((rows ?? []) as PoolRow[]).filter((r) => (r.is_demo === "true") === targetIsDemo);
+    // Con estrato PHV, un par solo cuenta si SU categoría viene de un sexo registrado
+    // (P1 bloque 7): la columna de un «M» sin confirmar no lo mete en el estrato.
+    const withPhv = params.data.withPhv === "true" && !!player.phv_category;
+    const peers = ((rows ?? []) as Array<PoolRow & { phv_category?: unknown; gender?: unknown; sexConfirmedAt?: unknown }>)
+      .filter((r) => (r.is_demo === "true") === targetIsDemo)
+      .filter((r) => !withPhv || phvColumnsForPlayer(r).phv_category === player.phv_category);
 
     const stratum = {
       position: player.position,

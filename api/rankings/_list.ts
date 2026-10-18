@@ -25,6 +25,7 @@ import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { fichaVsiFromBlob } from "../../src/services/real/metricsService";
 import { phvGate, matchesTimingFilter, type MaturityTiming, type PhvGateInput } from "../../src/lib/phv/phvGate";
+import { registeredSex, withRegisteredSex } from "../../src/lib/shared/registeredSex";
 import { vsiTrendArrow } from "../../src/lib/scoring/vsiDelta";
 import { percentilesAmong, percentileGateInfo, type PercentileGateInfo } from "../../src/lib/metrics/percentile";
 
@@ -44,7 +45,7 @@ function gatedPhvFields(d: Record<string, unknown>): {
   phvTiming: MaturityTiming | null;
   phvGateReason: string | null;
 } {
-  const g = phvGate(d as PhvGateInput);
+  const g = phvGate(withRegisteredSex(d) as PhvGateInput); // «M» sin confirmar ⇒ sin sexo (P1 bloque 7)
   return g.ok
     ? { phvCategory: mapPhv(g.category), phvOffset: g.offset.value, phvTiming: g.assessment.timing, phvGateReason: null }
     : { phvCategory: null, phvOffset: null, phvTiming: null, phvGateReason: g.gate_reason };
@@ -215,7 +216,7 @@ export default withHandler(
           weight: typeof d.weight === "number" ? d.weight : null,
           // Sin fallback "M": sexo ausente ⇒ null → playerMaturity reenvía sex:undefined
           // y resolveMaturity abstiene ("Sexo no registrado") (invariante #5).
-          gender: d.gender === "M" || d.gender === "F" ? d.gender : null,
+          gender: registeredSex(d), // «M» sin confirmar ⇒ null (P1 bloque 7)
           birthDate: (d.birthDate as string) ?? null,
           sittingHeight: (d.sittingHeight as number) ?? null,
           legLength: (d.legLength as number) ?? null,

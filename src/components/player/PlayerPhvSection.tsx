@@ -131,6 +131,8 @@ export default function PlayerPhvSection({ player, hasPhv, onSaved }: Props) {
         // (regla del owner 28-sep); sin ella el PHV queda bloqueado con motivo.
         birthDate={player.birthDate}
         gender={player.gender}
+        sexPending={player.sexPendingConfirmation === true}
+        sexConfirmedAt={player.sexConfirmedAt}
       />
 
       {/* 2 · Datos de maduración (jugador y padres): fecha de nacimiento DEL
@@ -205,7 +207,7 @@ export default function PlayerPhvSection({ player, hasPhv, onSaved }: Props) {
 
       {/* 3 · Curva de velocidad de crecimiento + plan de ventana PHV */}
       <div className="mt-4 pt-4 border-t border-border/40">
-        <GrowthVelocityChart playerId={player.id} />
+        <GrowthVelocityChart playerId={player.id} sex={{ gender: player.gender, sexConfirmedAt: player.sexConfirmedAt }} />
       </div>
       <div className="mt-4 pt-4 border-t border-border/40">
         <PhvWindowPlan playerId={player.id} hasPhv={hasPhv} />

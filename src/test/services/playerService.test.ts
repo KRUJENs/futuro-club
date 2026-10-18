@@ -18,7 +18,7 @@ const samplePlayer: CreatePlayerInput = {
   competitiveLevel: "Regional",
   minutesPlayed: 840,
   metrics: { speed: 80, technique: 74, vision: 71, stamina: 76, shooting: 78, defending: 45 },
-  gender: "M",
+  gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z",
 };
 
 beforeEach(() => {
@@ -156,7 +156,7 @@ describe("PlayerService", () => {
       const player = PlayerService.create({
         ...samplePlayer,
         height: 165, weight: 55, sittingHeight: 85, legLength: 80,
-        birthDate: "2012-03-15", gender: "M",
+        birthDate: "2012-03-15", gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z",
         phvCategory: "late", phvOffset: 9,
       });
       const read = PlayerService.getById(player.id)!;

@@ -49,7 +49,7 @@ async function maturityCell(): Promise<string> {
 }
 
 const BASE = {
-  name: "Samu", age: 9, position: "DC", foot: "right", vsi: 67.4, height: 135, weight: 30, gender: "M",
+  name: "Samu", age: 9, position: "DC", foot: "right", vsi: 67.4, height: 135, weight: 30, gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z",
   metrics: { speed: 70, technique: 70, vision: 65, stamina: 65, shooting: 60, defending: 55 },
 };
 
@@ -77,7 +77,7 @@ describe("PDF · Maduración", () => {
   });
 
   it("entradas completas ⇒ fase por ESTADO del gate (no un timing vs pares)", async () => {
-    const complete = { height: 165, weight: 55, sittingHeight: 85, legLength: 80, birthDate: "2012-03-15", gender: "M" };
+    const complete = { height: 165, weight: 55, sittingHeight: 85, legLength: 80, birthDate: "2012-03-15", gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z" };
     blob = { ...BASE, ...complete, phvCategory: "late" };
     const g = phvGate(complete);
     if (!g.ok) throw new Error("gate cerrado");

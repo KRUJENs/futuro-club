@@ -10,7 +10,8 @@ import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { DEFAULTS } from "../../src/lib/transfer/transferConfig";
-import { trustAnthropometricsRow, type AnthropometricsRowLike } from "../../src/lib/phv/phvGate";
+import { type AnthropometricsRowLike } from "../../src/lib/phv/phvGate";
+import { trustAnthroForPlayer } from "../../src/lib/shared/sexGatedAnthro";
 
 export const config = { runtime: "edge" };
 
@@ -54,7 +55,14 @@ async function trustedListingPhv(playerId: string): Promise<Record<string, unkno
     );
     if (!res.ok) return {};
     const rows = (await res.json().catch(() => [])) as AnthropometricsRowLike[];
-    const t = trustAnthropometricsRow(Array.isArray(rows) ? rows[0] : null);
+    // Sexo registrado del jugador (P1 bloque 7): sin él, la fila no aporta PHV.
+    const sexRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/players?id=eq.${encodeURIComponent(playerId)}&select=gender:data->>gender,sexConfirmedAt:data->>sexConfirmedAt`,
+      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } },
+    );
+    if (!sexRes.ok) return {};
+    const sexRows = (await sexRes.json().catch(() => [])) as Array<{ gender?: unknown; sexConfirmedAt?: unknown }>;
+    const t = trustAnthroForPlayer(Array.isArray(rows) ? rows[0] : null, Array.isArray(sexRows) ? sexRows[0] : null);
     if (!t.trusted || t.category === null || t.offset === null) return {};
     return {
       phvCategory: t.category === "ontme" ? "on-time" : t.category,

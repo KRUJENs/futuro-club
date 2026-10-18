@@ -25,7 +25,9 @@ import { findActiveParentalConsent } from "../_lib/parentalConsent";
 import { deriveSimMetrics } from "../_lib/simMetrics";
 import { normalizeLocale, localeSchema, pickLocale, type ReportLocale } from "../../src/lib/shared/locale";
 import { resolveCategory } from "../../src/lib/shared/category";
-import { gateAnthropometricsRow, gatedMaturity, type PhvGateInput } from "../../src/lib/phv/phvGate";
+import { gatedMaturity, type PhvGateInput } from "../../src/lib/phv/phvGate";
+import { withRegisteredSex } from "../../src/lib/shared/registeredSex";
+import { gateAnthroForPlayer } from "../../src/lib/shared/sexGatedAnthro";
 import { maturationKnown } from "../../src/lib/fatigue/phvFatigueAdjuster";
 import { fatigueRowForAgents } from "../../src/lib/fatigue/fatigueRowGate";
 import { injuryRiskValue, type InjuryRiskReport } from "../../src/lib/injury/injuryRiskTypes";
@@ -423,7 +425,7 @@ export default withHandler(
     // Timing de maduración vs pares con la PUERTA ÚNICA sobre el blob del jugador (como el
     // PDF de servidor): sin todas las entradas ⇒ null. Solo lo usa la valoración (5d).
     const maturityTimingRaw = player?.data
-      ? gatedMaturity((player as { data: PhvGateInput }).data).timing
+      ? gatedMaturity(withRegisteredSex((player as { data: PhvGateInput }).data)).timing
       : "unknown";
     const maturityTiming = maturityTimingRaw === "unknown" ? null : maturityTimingRaw;
 
@@ -436,7 +438,8 @@ export default withHandler(
       .select("*")
       .eq("player_id", analysis.player_id)
       .maybeSingle();
-    const anthro = gateAnthropometricsRow(anthroRaw);
+    // + sexo registrado del jugador (P1 bloque 7): un «M» sin confirmar no aporta PHV.
+    const anthro = gateAnthroForPlayer(anthroRaw, (player as { data?: Record<string, unknown> } | null)?.data);
 
     // ── 2. Calcular VSI (servicio determinista) ─────────────────────
     // Solo `physical` (biomecánica: frecuencia de zancada + asimetría) y
