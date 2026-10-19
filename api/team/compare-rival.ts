@@ -34,6 +34,7 @@ import { createClient } from "@supabase/supabase-js";
 import { localeSchema, normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
 import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 import { phvColumnsForPlayer } from "../../src/lib/shared/sexGatedAnthro";
+import { pendingVsiReviewIds, withPendingVsiExcluded } from "../_lib/vsiPendingReview";
 
 export const config = { runtime: "edge" };
 
@@ -270,7 +271,7 @@ export default withHandler(
     // diseñar el matchup (un LB que también es DM da más flexibilidad táctica)
     const { data: playersRaw, error } = await supabase
       .from("players")
-      .select("name, age, position, secondary_positions, vsi, phv_category, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
+      .select("id, name, age, position, secondary_positions, vsi, phv_category, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
       // Ownership a nivel de fila: "nuestro equipo" son SOLO los jugadores del usuario
       // (players.user_id, 076), no el top-40 GLOBAL (que filtraba nombres de menores
       // ajenos al plan y al ourTeamSize) ni los de otras cuentas del mismo tenant.
@@ -279,8 +280,16 @@ export default withHandler(
       // con el limit (invariante #2; Postgres ordena DESC con NULLS FIRST).
       .order("vsi", { ascending: false, nullsFirst: false })
       .limit(40);
+    // Revisión VSI pendiente (57,5 de la 070, D3): sin evaluar ⇒ fuera de la media
+    // (api/_lib/vsiPendingReview.ts, lector único).
+    let pending: Set<string>;
+    try {
+      pending = await pendingVsiReviewIds(supabase);
+    } catch (e) {
+      return errorResponse({ code: "db_error", message: (e as Error).message, status: 500 });
+    }
     // PHV de la columna solo con sexo registrado (P1 bloque 7).
-    const players = playersRaw?.map(phvColumnsForPlayer) ?? null;
+    const players = playersRaw ? withPendingVsiExcluded(playersRaw, pending).map(phvColumnsForPlayer) : null;
 
     if (error || !players || players.length === 0) {
       return errorResponse({

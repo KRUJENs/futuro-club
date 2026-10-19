@@ -26,6 +26,8 @@ let playersUrls: string[] = [];
 /** Estado HTTP de la RPC. En el test de la caché se fuerza 500: así el código viejo
  *  caería a su ruta en memoria (la que cacheaba 5 min) y el test lo detectaría. */
 let rpcStatus = 200;
+/** Filas `pending` de vsi_history_reviews (070, D3). */
+let pendingRows: Array<{ player_id: string }> = [];
 
 function player(id: string, vsi: number | null, extra: Record<string, unknown> = {}): Row {
   return { id, data: { name: id, age: 14, position: "MC", vsi, ...extra }, updated_at: "2026-10-01" };
@@ -36,6 +38,7 @@ beforeEach(() => {
   process.env.SUPABASE_SERVICE_ROLE_KEY = "svc";
   playersUrls = [];
   rpcStatus = 200;
+  pendingRows = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (url) => {
     const u = typeof url === "string" ? url : url.toString();
     if (u.includes("/rpc/get_ranked_players")) {
@@ -46,6 +49,7 @@ beforeEach(() => {
         total: rows.length,
       }));
     }
+    if (u.includes("/rest/v1/vsi_history_reviews")) return new Response(JSON.stringify(pendingRows));
     if (u.includes("/rest/v1/players")) {
       playersUrls.push(u);
       return new Response(JSON.stringify(rows));
@@ -110,6 +114,38 @@ describe("rankings · percentil entre pares (implementación única)", () => {
     expect(players.find((p) => p.id === "p0")!.percentileInAgeGroup).toBe(0);
     expect(players.find((p) => p.id === "p5")!.percentileInAgeGroup).toBe(50);
     expect(players.find((p) => p.id === "p5")!.percentileInAgeGroupGate).toBeNull();
+  });
+
+  it("D3: revisión VSI pendiente (57,5) ⇒ ni par ni percentil propio; control positivo con 11 evaluados", async () => {
+    rows = Array.from({ length: 11 }, (_, i) => player(`p${i}`, 50 + i));
+    pendingRows = [{ player_id: "p0" }];
+    const players = await list();
+    expect(players.find((p) => p.id === "p5")!.percentileInAgeGroup).toBeNull();
+    expect(players.find((p) => p.id === "p5")!.percentileInAgeGroupGate).toEqual({ code: "insufficient_peers", peers: 9, min: 10 });
+    expect((players.find((p) => p.id === "p0")!.percentileGate as { code: string }).code).toBe("pending_review");
+
+    // Medias del grupo sin el pendiente (p0 = 50): mínimo 51, no 50.
+    const res = await listHandler(new Request("https://x.test/api/rankings/list?limit=200", { headers: { Authorization: "Bearer user-jwt" } }));
+    const stats = ((await res.json()) as { data: { ageGroupStats: Record<string, { minVsi: number | null; count: number }> } }).data.ageGroupStats;
+    const g = Object.values(stats)[0];
+    expect(g.minVsi).toBe(51);
+    expect(g.count).toBe(11);
+  });
+
+  it("si no se puede leer la tabla de revisiones ⇒ percentiles y medias BLOQUEADOS (200, sin caer al cálculo local)", async () => {
+    rows = Array.from({ length: 11 }, (_, i) => player(`p${i}`, 50 + i));
+    vi.mocked(globalThis.fetch).mockImplementation(async (url) =>
+      String(url).includes("vsi_history_reviews") ? new Response("{}", { status: 500 }) : new Response(JSON.stringify(rows)),
+    );
+    const res = await listHandler(
+      new Request("https://x.test/api/rankings/list?limit=200", { headers: { Authorization: "Bearer user-jwt" } }),
+    );
+    expect(res.status).toBe(200);
+    const players = ((await res.json()) as { data: { players: Array<Record<string, unknown>> } }).data.players;
+    for (const p of players) {
+      expect(p.percentile).toBeNull();
+      expect((p.percentileInAgeGroupGate as { code: string }).code).toBe("reviews_unavailable");
+    }
   });
 
   it("los jugadores de ejemplo no cuentan como pares de los reales", async () => {

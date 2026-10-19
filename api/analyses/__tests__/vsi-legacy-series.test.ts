@@ -47,8 +47,10 @@ const STORED_BIOMECHANICS = {
   gate_reasons: { duels_won: "estimado por el modelo de vídeo", sprint_count: "ok" },
   gemini_observation: { eventosContados: { duelosGanados: 3, duelosPerdidos: 1, pasesCompletados: 12 } },
 };
+// PHV guardado ANTES del #301 (sin gate): «Datos técnicos» lo pintaba crudo (P1 bloque 7b).
+const STORED_PHV = { category: "early", offset: -1.4, biologicalAge: 11.2 };
 const ANALYSIS_ROW = {
-  id: ANALYSIS_ID, status: "completed", vsi: STORED_VSI, phv: null, similarity: null,
+  id: ANALYSIS_ID, status: "completed", vsi: STORED_VSI, phv: STORED_PHV, similarity: null,
   biomechanics: STORED_BIOMECHANICS, completed_at: "2026-08-20T10:00:00Z", player_id: "p-samu",
   video_id: "baseline-p-samu-1", user_id: "user-coach-1", created_at: "2026-08-20T09:59:00Z",
 };
@@ -62,7 +64,7 @@ vi.mock("@supabase/supabase-js", () => ({
         select: chain, eq: chain, order: chain, limit: chain,
         single: async () =>
           table === "analyses" ? { data: structuredClone(ANALYSIS_ROW), error: null }
-          : table === "players" ? { data: { name: "Samu", position: "MC", age: 9 }, error: null }
+          : table === "players" ? { data: { name: "Samu", position: "MC", age: 9, data: { gender: "F", birthDate: "2017-03-01" } }, error: null }
           : { data: null, error: null },
         then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
           Promise.resolve({ data: [], error: null }).then(res, rej),
@@ -114,6 +116,8 @@ describe("analyses — la serie VSI legacy sin fechas no sale de la API", () => 
     const body = await res.json();
     expectLegacySeriesRemoved(body.data.analysis.vsi);
     expectDuelsRemoved(body.data.analysis.biomechanics);
+    expect(body.data.analysis.phv).toBeNull();
+    expect(body.data.analysis.phv_withheld).toBe(true);
     expect(body.data.analysis.id).toBe(ANALYSIS_ID);
   });
 
@@ -130,6 +134,10 @@ describe("analyses — la serie VSI legacy sin fechas no sale de la API", () => 
     const body = await res.json();
     expectLegacySeriesRemoved(body.data.analysis.vsi);
     expectDuelsRemoved(body.data.analysis.biomechanics);
+    expect(body.data.analysis.phv).toBeNull();
+    expect(body.data.analysis.phv_withheld).toBe(true);
+    // El blob del jugador (sexo, nacimiento) nunca sale en el enlace público.
+    expect(body.data.player).toEqual({ name: "Samu", position: "MC", age: 9 });
     expect(body.data.shared).toBe(true);
   });
 });

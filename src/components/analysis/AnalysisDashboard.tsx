@@ -70,6 +70,8 @@ interface AnalysisData {
     history?: number[];
   } | null;
   phv: Record<string, unknown> | null;
+  /** PHV guardado retirado al leer (pre-#301 o sin sexo registrado; legacyNotices). */
+  phv_withheld?: boolean;
   similarity: Record<string, unknown> | null;
   biomechanics: Record<string, unknown> | null;
   completed_at: string | null;
@@ -425,7 +427,7 @@ export function AnalysisDashboard({ analysisId, shareToken, onLoaded }: Props) {
           <div>
             <div className="text-foreground font-bold mb-1">PHV</div>
             <pre className="whitespace-pre-wrap break-all text-muted-foreground">
-              {JSON.stringify(analysis.phv, null, 2)}
+              {analysis.phv_withheld ? t("analysisDashboard.phvWithheld") : JSON.stringify(analysis.phv, null, 2)}
             </pre>
           </div>
         </div>

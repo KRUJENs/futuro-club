@@ -2340,6 +2340,7 @@
     "partiallyEstimated": "Parzialmente stimato · {{measured}}/5 dimensioni misurate",
     "vsiBlocked": "VSI non disponibile · solo {{measured}}/5 dimensioni misurate",
     "technicalData": "Dati tecnici (avanzato)",
+    "phvWithheld": "PHV ritirato: questa analisi è stata generata senza maturazione verificata (precedente al controllo PHV, o il sesso non era confermato al momento della generazione).",
     "biomechanics": "Biomeccanica",
     "reportTitle": {
       "player-report": "Player Report",
@@ -6309,7 +6310,9 @@
     "gate": {
       "not_evaluated": "Nessuna valutazione dell'allenatore: nessun percentile",
       "insufficient_peers": "Nessun percentile: non ci sono abbastanza giocatori valutati comparabili ({{count}} su {{min}})",
-      "insufficient_short": "Nessun percentile ({{count}}/{{min}} pari)"
+      "insufficient_short": "Nessun percentile ({{count}}/{{min}} pari)",
+      "pending_review": "Valutazione con valori predefiniti in attesa di revisione: non conta come valutata",
+      "reviews_unavailable": "Impossibile verificare quali valutazioni sono in attesa di revisione: percentile bloccato"
     }
   },
   "coachEval": {

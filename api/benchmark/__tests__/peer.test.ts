@@ -24,16 +24,26 @@ vi.mock("../../_lib/auth", () => ({
 }));
 vi.mock("../../_lib/ownership", () => ({ ownsPlayer: vi.fn().mockResolvedValue(true) }));
 
-type Pool = Array<{ vsi: number | null; metrics: Record<string, number> | null; is_demo: string | null }>;
+type Pool = Array<{ id?: string; vsi: number | null; metrics: Record<string, number> | null; is_demo: string | null }>;
 let target: Record<string, unknown> = {};
 let pool: Pool = [];
 const filters: Array<[string, string, unknown]> = [];
 const selects: string[] = [];
+// Filas `pending` de vsi_history_reviews (070, D3).
+let pendingRows: Array<{ player_id: string }> = [];
+let pendingError: { code: string; message: string } | null = null;
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
-    from: () => {
+    from: (table: string) => {
       const b: Record<string, unknown> = {};
+      if (table === "vsi_history_reviews") {
+        Object.assign(b, {
+          select: () => b,
+          eq: () => Promise.resolve(pendingError ? { data: null, error: pendingError } : { data: pendingRows, error: null }),
+        });
+        return b;
+      }
       const rec = (op: string) => (col: string, val: unknown) => { filters.push([op, col, val]); return b; };
       Object.assign(b, {
         select: (cols: string) => { selects.push(cols); return b; },
@@ -52,6 +62,7 @@ const BARS = { speed: 70, technique: 70, vision: 65, stamina: 65, shooting: 60, 
 
 function evaluatedPeers(n: number, base = 50): Pool {
   return Array.from({ length: n }, (_, i) => ({
+    id: `peer-${i}`,
     vsi: base + i,
     metrics: { speed: base + i, technique: base + i, vision: base + i, stamina: base + i, shooting: base + i, defending: base + i },
     is_demo: null,
@@ -81,6 +92,8 @@ async function get(): Promise<{ status: number; data: PeerJson }> {
 beforeEach(() => {
   filters.length = 0;
   selects.length = 0;
+  pendingRows = [];
+  pendingError = null;
   target = { id: "leo", user_id: "owner-1", age: 11, position: "RW", phv_category: null, vsi: 61.4, metrics: BARS, is_demo: null };
   pool = evaluatedPeers(10);
 });
@@ -155,5 +168,31 @@ describe("/api/benchmark/peer · solo jugadores propios, mínimo 10 pares, sin P
     target = { ...target, user_id: null };
     const { status } = await get();
     expect(status).toBe(409);
+  });
+
+  it("D3: un par con revisión VSI pendiente (57,5) no cuenta; control positivo con la revisión hecha", async () => {
+    pool = evaluatedPeers(10);
+    expect((await get()).data.vsi.percentile.value).not.toBeNull(); // 10 pares ⇒ hay percentil
+    pendingRows = [{ player_id: "peer-3" }];
+    const { data } = await get();
+    expect(data.vsi.percentile.value).toBeNull();
+    expect(data.vsi.gate).toEqual({ code: "insufficient_peers", peers: 9, min: 10 });
+  });
+
+  it("D3: el propio jugador con revisión pendiente no está evaluado (ni VSI ni barras)", async () => {
+    pendingRows = [{ player_id: "leo" }];
+    const { data } = await get();
+    expect(data.vsi.percentile.value).toBeNull();
+    expect(data.vsi.gate?.code).toBe("pending_review");
+    expect(data.byMetric.speed.gate?.code).toBe("pending_review");
+    expect(data.byMetric.speed.distribution).toBeNull();
+  });
+
+  it("D3: si no se puede leer quién está pendiente ⇒ bloqueado con motivo, nunca «nadie pendiente»", async () => {
+    pendingError = { code: "57014", message: "timeout" };
+    const { status, data } = await get();
+    expect(status).toBe(200);
+    expect(data.vsi.percentile.value).toBeNull();
+    expect(data.vsi.gate?.code).toBe("reviews_unavailable");
   });
 });

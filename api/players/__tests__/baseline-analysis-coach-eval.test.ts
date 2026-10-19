@@ -44,6 +44,8 @@ let playerRow: Record<string, unknown> = {};
 const selects: Array<{ table: string; cols: string }> = [];
 const inserts: Array<{ table: string; values: unknown }> = [];
 const poolQueries: string[] = [];
+/** Filas `pending` de vsi_history_reviews (070, D3). */
+let pendingRows: Array<{ player_id: string }> = [];
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
@@ -65,7 +67,7 @@ vi.mock("@supabase/supabase-js", () => ({
           : { data: null, error: null },
         maybeSingle: async () => ({ data: null, error: null }),
         then: (res: (v: unknown) => unknown, rej?: (e: unknown) => unknown) =>
-          Promise.resolve({ data: [], count: 0, error: null }).then(res, rej),
+          Promise.resolve({ data: table === "vsi_history_reviews" ? pendingRows : [], count: 0, error: null }).then(res, rej),
       });
       return b;
     },
@@ -97,6 +99,7 @@ beforeEach(() => {
   selects.length = 0;
   inserts.length = 0;
   poolQueries.length = 0;
+  pendingRows = [];
 });
 
 describe("baseline-analysis · evaluación del entrenador obligatoria", () => {
@@ -124,6 +127,20 @@ describe("baseline-analysis · evaluación del entrenador obligatoria", () => {
     const res = await handler(post());
     expect(res.status).toBe(422);
     expect(sentPrompts).toHaveLength(0);
+  });
+
+  it("D3: evaluación con revisión VSI pendiente (57,5) ⇒ 422, sin modelo ni análisis; revisada ⇒ 200", async () => {
+    const bars = { speed: 70, technique: 70, vision: 65, stamina: 65, shooting: 60, defending: 55 };
+    playerRow = { ...BASE, vsi: 57.5, metrics: bars };
+    pendingRows = [{ player_id: String(BASE.id) }];
+    const res = await handler(post());
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as { errorDetail: { code: string } };
+    expect(body.errorDetail.code).toBe("coach_evaluation_pending_review");
+    expect(sentPrompts).toHaveLength(0);
+    expect(inserts.filter((i) => i.table === "analyses")).toHaveLength(0);
+    pendingRows = []; // control positivo: revisada (sin fila pendiente) ⇒ se genera
+    expect((await handler(post())).status).toBe(200);
   });
 
   it("VSI guardado como texto numérico (numeric de PostgREST) ⇒ se acepta con su valor", async () => {

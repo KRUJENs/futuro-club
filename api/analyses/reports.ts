@@ -14,6 +14,7 @@ import { createClient } from "@supabase/supabase-js";
 import { withoutUndatedVsiSeries } from "../../src/lib/scoring/vsiDelta";
 import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 import { withCareerProjectionBlocked } from "../../src/lib/reports/careerProjection";
+import { withLegacyPhvWithheld } from "../../src/lib/reports/legacyNotices";
 
 export const config = { runtime: "edge" };
 
@@ -42,7 +43,7 @@ export default withHandler(
     const [analysisRes, reportsRes] = await Promise.all([
       supabase
         .from("analyses")
-        .select("id, status, vsi, phv, similarity, biomechanics, completed_at, total_latency_ms, player_id, video_id, user_id")
+        .select("id, status, vsi, phv, similarity, biomechanics, completed_at, created_at, total_latency_ms, player_id, video_id, user_id")
         .eq("id", params.data.analysisId)
         .single(),
       supabase
@@ -80,12 +81,17 @@ export default withHandler(
       }
     }
 
+    // PHV guardado sin maduración verificada (pre-#301 o sin sexo registrado) → fuera.
+    const { data: playerRow } = a.player_id
+      ? await supabase.from("players").select("data").eq("id", a.player_id).single()
+      : { data: null };
+
     return successResponse({
       // vsi.trend / vsi.history de filas antiguas = serie legacy SIN fechas (57.5
       // fabricado): se retiran al leer, nunca llegan a la UI (src/lib/scoring/vsiDelta.ts).
       // Duelos de filas anteriores al bloque 6 → fuera («Datos técnicos» pinta este JSON).
       analysis: {
-        ...analysisRes.data,
+        ...withLegacyPhvWithheld(analysisRes.data, playerRow?.data ?? null),
         biomechanics: stripDuelOutcomes(analysisRes.data.biomechanics),
         vsi: withoutUndatedVsiSeries(analysisRes.data.vsi),
       },

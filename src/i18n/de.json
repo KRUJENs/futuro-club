@@ -2340,6 +2340,7 @@
     "partiallyEstimated": "Teilweise geschätzt · {{measured}}/5 Dimensionen gemessen",
     "vsiBlocked": "VSI nicht verfügbar · nur {{measured}}/5 Dimensionen gemessen",
     "technicalData": "Technische Daten (erweitert)",
+    "phvWithheld": "PHV zurückgehalten: Diese Analyse wurde ohne geprüfte Reifung erstellt (vor der PHV-Prüfung, oder das Geschlecht war bei der Erstellung nicht bestätigt).",
     "biomechanics": "Biomechanik",
     "reportTitle": {
       "player-report": "Player Report",
@@ -6309,7 +6310,9 @@
     "gate": {
       "not_evaluated": "Keine Trainerbewertung: kein Perzentil",
       "insufficient_peers": "Kein Perzentil: zu wenige vergleichbare bewertete Spieler ({{count}} von {{min}})",
-      "insufficient_short": "Kein Perzentil ({{count}}/{{min}} Vergleichsspieler)"
+      "insufficient_short": "Kein Perzentil ({{count}}/{{min}} Vergleichsspieler)",
+      "pending_review": "Bewertung mit Standardwerten, Prüfung ausstehend: zählt nicht als bewertet",
+      "reviews_unavailable": "Es konnte nicht geprüft werden, welche Bewertungen noch geprüft werden müssen: Perzentil gesperrt"
     }
   },
   "coachEval": {

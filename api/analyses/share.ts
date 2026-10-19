@@ -18,6 +18,7 @@ import { createClient } from "@supabase/supabase-js";
 import { withoutUndatedVsiSeries } from "../../src/lib/scoring/vsiDelta";
 import { stripDuelOutcomes } from "../../src/lib/tracking/duels";
 import { withCareerProjectionBlocked } from "../../src/lib/reports/careerProjection";
+import { withLegacyPhvWithheld } from "../../src/lib/reports/legacyNotices";
 
 export const config = { runtime: "edge" };
 
@@ -126,7 +127,7 @@ export default withHandler(
 
     const { data: player } = await supabase
       .from("players")
-      .select("name, position, age")
+      .select("name, position, age, data")
       .eq("id", analysis.player_id)
       .single();
 
@@ -141,12 +142,14 @@ export default withHandler(
       // SIN fechas (57.5 fabricado) → se retiran al leer (src/lib/scoring/vsiDelta.ts).
       // Duelos de filas anteriores al bloque 6 (Gemini: duels_won, eventosContados…) →
       // fuera también: «Datos técnicos» pinta este JSON en el enlace de la familia.
+      // PHV guardado sin maduración verificada (pre-#301 o sin sexo registrado) → fuera.
       analysis: {
-        ...analysis,
+        ...withLegacyPhvWithheld(analysis, player?.data ?? null),
         biomechanics: stripDuelOutcomes(analysis.biomechanics),
         vsi: withoutUndatedVsiSeries(analysis.vsi),
       },
-      player: player ?? null,
+      // El blob `data` solo sirve para el sexo registrado: nunca sale en el enlace público.
+      player: player ? { name: player.name, position: player.position, age: player.age } : null,
       // Proyección de carrera bloqueada (P1 bloque 7, D2): contenido ⇒ motivo.
       reports: withCareerProjectionBlocked(reports ?? []),
       shared: true,
