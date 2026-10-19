@@ -10,8 +10,9 @@
 --   (a) un jugador NO evaluado queda con 0 en las seis columnas (no medido ≠ 0);
 --   (b) en un UPDATE que no manda la columna, NEW.<col> = valor viejo ⇒ la columna se
 --       queda rancia aunque cambie el blob (la causa del desfase columna/blob).
--- Desde el P1 bloque 5a ningún lector usa estas columnas (leen el blob), pero siguen
--- mintiendo para cualquier lector futuro. Arreglo: la columna es SIEMPRE la proyección
+-- Desde el P1 bloque 5a las barras se leen del blob; la columna `vsi` aún la leen
+-- peer.ts, el análisis base y los informes de equipo (null ya se maneja desde la 059):
+-- que sea copia exacta del blob es lo correcto para todos. Arreglo: la columna es SIEMPRE la proyección
 -- del blob (null si falta o no es un número) y sin DEFAULT 0.
 --
 -- Conteos en producción (paso39, T2-B, 19 oct): 0 jugadores con columna ≠ blob, así que
@@ -24,18 +25,23 @@
 -- 'Regional' y minutes_played 0 por defecto; la RPC get_ranked_players sin uso.
 -- =====================================================================
 BEGIN;
+-- El DROP DEFAULT toma un bloqueo exclusivo breve sobre players: no esperar detrás de
+-- una transacción larga bloqueando a todos.
+SET LOCAL lock_timeout = '5s';
 
 -- Guarda: el cuerpo actual debe ser el de producción leído en T2-A (si alguien lo
--- cambió después, no se pisa a ciegas).
+-- cambió después, no se pisa a ciegas) y la función sigue siendo SECURITY INVOKER sin
+-- SET de configuración (CREATE OR REPLACE los restablecería).
 DO $guarda$
 DECLARE
   cuerpo text;
 BEGIN
   SELECT p.prosrc INTO cuerpo
     FROM pg_proc p
-   WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'sync_player_columns_from_jsonb';
+   WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'sync_player_columns_from_jsonb'
+     AND NOT p.prosecdef AND p.proconfig IS NULL;
   IF cuerpo IS NULL THEN
-    RAISE EXCEPTION '078: no existe public.sync_player_columns_from_jsonb()';
+    RAISE EXCEPTION '078: no existe public.sync_player_columns_from_jsonb() como SECURITY INVOKER sin SET (no es el esperado)';
   END IF;
   IF cuerpo !~ 'NEW\.metric_speed\s*:=\s*COALESCE\(NEW\.metric_speed,\s*\(NEW\.data->''metrics''->>''speed''\)::numeric,\s*0\)'
      OR cuerpo !~ 'NEW\.vsi\s*:=\s*COALESCE\(NEW\.vsi,\s*\(NEW\.data->>''vsi''\)::numeric\)'
@@ -101,5 +107,8 @@ ALTER TABLE public.players
   ALTER COLUMN metric_stamina   DROP DEFAULT,
   ALTER COLUMN metric_shooting  DROP DEFAULT,
   ALTER COLUMN metric_defending DROP DEFAULT;
+
+COMMENT ON FUNCTION public.sync_player_columns_from_jsonb() IS
+  'Copia el blob players.data a las columnas. phv_category/phv_offset: solo service_role (069). metric_* y vsi: proyección exacta del blob, null si faltan o no son número (078, invariante #2). Sexo sin fallback M (058).';
 
 COMMIT;
