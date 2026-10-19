@@ -706,13 +706,22 @@ export default withHandler(
     if (lowerText === "/jugadores") {
       const { data: dataRaw } = await supabase
         .from("players")
-        .select("name, age, position, vsi, phv_category, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
+        .select("id, name, age, position, vsi, phv_category, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
         .eq("user_id", mapping.user_id)
         // nulls last: los no evaluados (vsi null) no truncan a los evaluados con el limit (invariante #2)
         .order("vsi", { ascending: false, nullsFirst: false })
         .limit(15);
-      const data = dataRaw?.map(phvColumnsForPlayer) ?? null; // P1 bloque 7
-      if (!data || data.length === 0) {
+      // Revisión VSI pendiente (070, D3): misma regla que list_players (lector único).
+      let pending: Set<string> | null;
+      try {
+        pending = await pendingVsiReviewIds(supabase);
+      } catch {
+        pending = null;
+      }
+      const data = dataRaw && pending ? withPendingVsiExcluded<TeamStatsRow>(dataRaw, pending).map(phvColumnsForPlayer) : null; // P1 bloque 7
+      if (pending === null) {
+        await sendMessage(chatId, PENDING_REVIEWS_UNAVAILABLE);
+      } else if (!data || data.length === 0) {
         await sendMessage(chatId, "📋 Aún no tienes jugadores registrados.\n\nAñade el primero desde la app → Equipo → +");
       } else {
         const phvIcon = (cat?: string) => cat === "early" ? "🟢" : cat === "ontime" || cat === "ontme" ? "🟡" : cat === "late" ? "🔵" : "⚪";

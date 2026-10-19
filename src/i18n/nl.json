@@ -2341,7 +2341,7 @@
     "partiallyEstimated": "Gedeeltelijk geschat · {{measured}}/5 dimensies gemeten",
     "vsiBlocked": "VSI niet beschikbaar · slechts {{measured}}/5 dimensies gemeten",
     "technicalData": "Technische gegevens (geavanceerd)",
-    "phvWithheld": "PHV ingetrokken: deze analyse is gemaakt zonder geverifieerde rijping (vóór de PHV-controle of zonder geregistreerd geslacht).",
+    "phvWithheld": "PHV ingetrokken: deze analyse is gemaakt zonder geverifieerde rijping (vóór de PHV-controle, of het geslacht was bij het maken niet bevestigd).",
     "biomechanics": "Biomechanica",
     "reportTitle": {
       "player-report": "Player Report",

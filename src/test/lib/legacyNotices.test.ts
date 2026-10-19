@@ -85,6 +85,10 @@ describe("withLegacyPhvWithheld (7b: PHV crudo en «Datos técnicos» y enlace d
       expect(legacyReportNotices({ analysis: out, reports: [] })).toEqual(["maturity_unverified"]);
     }
   });
+  it("sexo confirmado DURANTE el procesamiento (después de created_at) ⇒ fuera", () => {
+    const a = A({ phv, created_at: "2026-10-18T00:00:00Z", completed_at: "2026-10-18T00:10:00Z" });
+    expect(withLegacyPhvWithheld(a, { gender: "F", sexConfirmedAt: "2026-10-18T00:05:00Z" }).phv).toBeNull();
+  });
   it("control positivo: posterior al corte y sexo registrado ⇒ intacto, sin aviso", () => {
     for (const p of [F, M_OK]) {
       const a = A({ phv });

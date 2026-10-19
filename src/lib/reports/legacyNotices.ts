@@ -95,6 +95,8 @@ export function withLegacyPhvWithheld<T extends { phv?: unknown; completed_at?: 
 ): T & { phv_withheld?: true } {
   if (analysis.phv === null || analysis.phv === undefined) return analysis;
   const at = analysis.completed_at ?? analysis.created_at ?? null;
-  if (!before(at, LEGACY_REPORT_CUTOFFS.maturityUnverifiedBefore) && sexRegisteredAt(player, at)) return analysis;
+  // El PHV se calcula durante el procesamiento: el sexo debe constar desde el inicio.
+  const startedAt = analysis.created_at ?? analysis.completed_at ?? null;
+  if (!before(at, LEGACY_REPORT_CUTOFFS.maturityUnverifiedBefore) && sexRegisteredAt(player, startedAt)) return analysis;
   return { ...analysis, phv: null, phv_withheld: true };
 }
