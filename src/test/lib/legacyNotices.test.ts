@@ -3,7 +3,7 @@
  * restos del 5d). Fechas frontera y versiones exactas.
  */
 import { describe, expect, it } from "vitest";
-import { legacyReportNotices } from "@/lib/reports/legacyNotices";
+import { legacyReportNotices, withLegacyPhvWithheld } from "@/lib/reports/legacyNotices";
 import { isLegacyIdpPlan } from "@/lib/idp/legacyPlan";
 
 const A = (o: Record<string, unknown>) => ({ phv: null, video_id: "v1", completed_at: "2026-10-18T00:00:00Z", ...o });
@@ -57,5 +57,35 @@ describe("isLegacyIdpPlan", () => {
     expect(isLegacyIdpPlan({ generatedBy: "agent", agentVersion: "deterministic-v1", createdAt: "2026-10-14T00:00:00Z" })).toBe(true);
     expect(isLegacyIdpPlan({ generatedBy: "agent", agentVersion: "deterministic-v1", createdAt: "2026-10-16T00:00:00Z" })).toBe(false);
     expect(isLegacyIdpPlan({ generatedBy: "agent", agentVersion: null, createdAt: null })).toBe(true);
+  });
+});
+
+describe("withLegacyPhvWithheld (7b: PHV crudo en «Datos técnicos» y enlace de la familia)", () => {
+  const F = { gender: "F" };
+  const M_OK = { gender: "M", sexConfirmedAt: "2026-10-19T08:00:00Z" };
+  const phv = { category: "early", offset: -1.2 };
+  it("anterior al #301 ⇒ PHV fuera aunque el sexo esté registrado; el aviso sigue", () => {
+    const out = withLegacyPhvWithheld(A({ phv, completed_at: "2026-09-01T00:00:00Z" }), F);
+    expect(out.phv).toBeNull();
+    expect(out.phv_withheld).toBe(true);
+    expect(legacyReportNotices({ analysis: out, reports: [] })).toEqual(["maturity_unverified"]);
+  });
+  it("posterior al corte pero sin sexo registrado («M» sin confirmar o ausente) ⇒ fuera y con aviso", () => {
+    for (const p of [{ gender: "M" }, {}, null]) {
+      const out = withLegacyPhvWithheld(A({ phv }), p);
+      expect(out.phv).toBeNull();
+      expect(legacyReportNotices({ analysis: out, reports: [] })).toEqual(["maturity_unverified"]);
+    }
+  });
+  it("control positivo: posterior al corte y sexo registrado ⇒ intacto, sin aviso", () => {
+    for (const p of [F, M_OK]) {
+      const a = A({ phv });
+      expect(withLegacyPhvWithheld(a, p)).toBe(a);
+    }
+    expect(legacyReportNotices({ analysis: A({ phv }), reports: [] })).toEqual([]);
+  });
+  it("sin PHV guardado ⇒ nada que retirar ni avisar", () => {
+    const a = A({ phv: null, completed_at: "2026-09-01T00:00:00Z" });
+    expect(withLegacyPhvWithheld(a, null)).toBe(a);
   });
 });

@@ -32,6 +32,7 @@ import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { ownsPlayer } from "../_lib/ownership";
 import { toVsi } from "../_lib/vsiStats";
+import { pendingVsiReviewIds } from "../_lib/vsiPendingReview";
 import { MODELS, modelParams } from "../_lib/models";
 import { fetchMessages, responseText } from "../_lib/anthropic";
 import { localeSchema, normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
@@ -359,6 +360,21 @@ export default withHandler(
       return errorResponse({
         code: "coach_evaluation_missing",
         message: "Falta la evaluación del entrenador: sin ella no se generan informes.",
+        status: 422,
+      });
+    }
+    // Revisión VSI pendiente (57,5 de la 070, D3): esa evaluación no cuenta como hecha
+    // hasta que una persona la revise (api/_lib/vsiPendingReview.ts, lector único).
+    let pending: Set<string>;
+    try {
+      pending = await pendingVsiReviewIds(supabase);
+    } catch (e) {
+      return errorResponse({ code: "db_error", message: (e as Error).message, status: 500 });
+    }
+    if (pending.has(playerRow.id)) {
+      return errorResponse({
+        code: "coach_evaluation_pending_review",
+        message: "La evaluación tiene valores por defecto pendientes de revisión: no cuenta como hecha y no se generan informes.",
         status: 422,
       });
     }

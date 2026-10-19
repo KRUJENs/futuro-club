@@ -2341,6 +2341,7 @@
     "partiallyEstimated": "Partially estimated · {{measured}}/5 dimensions measured",
     "vsiBlocked": "VSI unavailable · only {{measured}}/5 dimensions measured",
     "technicalData": "Technical data (advanced)",
+    "phvWithheld": "PHV withheld: this analysis was generated without verified maturation (before the PHV check or without a registered sex).",
     "biomechanics": "Biomechanics",
     "reportTitle": {
       "player-report": "Player Report",

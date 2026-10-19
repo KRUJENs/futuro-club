@@ -47,6 +47,7 @@ import type { MetricResult } from "../../src/lib/metrics/MetricResult";
 import { PERCENTILE_MIN_PEERS, PERCENTILE_POOL_SCOPE } from "../../config/percentiles";
 import { toVsi } from "../_lib/vsiStats";
 import { phvColumnsForPlayer } from "../../src/lib/shared/sexGatedAnthro";
+import { pendingVsiReviewIds } from "../_lib/vsiPendingReview";
 
 export const config = { runtime: "edge" };
 
@@ -147,7 +148,7 @@ export default withHandler(
     // ── 2. Pares: SOLO jugadores del mismo dueño ──────────────
     let q = supabase
       .from("players")
-      .select("vsi, metrics:data->metrics, is_demo:data->>isDemo, phv_category, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
+      .select("id, vsi, metrics:data->metrics, is_demo:data->>isDemo, phv_category, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
       .eq("user_id", player.user_id)
       .neq("id", player.id) // el propio nunca es par de sí mismo
       .gte("age", player.age - 1)
@@ -163,12 +164,23 @@ export default withHandler(
       return errorResponse({ code: "db_error", message: qErr.message, status: 500 });
     }
 
+    // Revisión VSI pendiente (57,5 de la 070, D3): no cuenta como evaluado, ni como par
+    // ni el propio jugador (api/_lib/vsiPendingReview.ts, lector único).
+    let pending: Set<string>;
+    try {
+      pending = await pendingVsiReviewIds(supabase);
+    } catch (e) {
+      return errorResponse({ code: "db_error", message: (e as Error).message, status: 500 });
+    }
+    const targetPending = pending.has(player.id);
+
     // Reales y de ejemplo no se mezclan (misma regla que percentilesAmong).
     const targetIsDemo = player.is_demo === "true";
     // Con estrato PHV, un par solo cuenta si SU categoría viene de un sexo registrado
     // (P1 bloque 7): la columna de un «M» sin confirmar no lo mete en el estrato.
     const withPhv = params.data.withPhv === "true" && !!player.phv_category;
-    const peers = ((rows ?? []) as Array<PoolRow & { phv_category?: unknown; gender?: unknown; sexConfirmedAt?: unknown }>)
+    const peers = ((rows ?? []) as Array<PoolRow & { id?: string; phv_category?: unknown; gender?: unknown; sexConfirmedAt?: unknown }>)
+      .filter((r) => !pending.has(r.id ?? ""))
       .filter((r) => (r.is_demo === "true") === targetIsDemo)
       .filter((r) => !withPhv || phvColumnsForPlayer(r).phv_category === player.phv_category);
 
@@ -179,7 +191,7 @@ export default withHandler(
       phvCategory: params.data.withPhv === "true" ? player.phv_category : null,
     };
 
-    const playerMetrics = player.metrics as Record<string, unknown> | null;
+    const playerMetrics = targetPending ? null : (player.metrics as Record<string, unknown> | null);
     const byMetric = Object.fromEntries(
       METRIC_KEYS.map((k) => [k, compare(metricOf(playerMetrics, k), peers.map((r) => metricOf(r.metrics, k)))]),
     ) as Record<MetricKey, PeerMetric>;
@@ -188,7 +200,7 @@ export default withHandler(
       stratum,
       scope: PERCENTILE_POOL_SCOPE,
       minPeers: PERCENTILE_MIN_PEERS,
-      vsi: compare(finite(player.vsi), peers.map((r) => finite(r.vsi))),
+      vsi: compare(targetPending ? null : finite(player.vsi), peers.map((r) => finite(r.vsi))),
       byMetric,
     });
   },

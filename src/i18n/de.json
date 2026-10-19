@@ -2340,6 +2340,7 @@
     "partiallyEstimated": "Teilweise geschätzt · {{measured}}/5 Dimensionen gemessen",
     "vsiBlocked": "VSI nicht verfügbar · nur {{measured}}/5 Dimensionen gemessen",
     "technicalData": "Technische Daten (erweitert)",
+    "phvWithheld": "PHV zurückgehalten: Diese Analyse wurde ohne geprüfte Reifung erstellt (vor der PHV-Prüfung oder ohne erfasstes Geschlecht).",
     "biomechanics": "Biomechanik",
     "reportTitle": {
       "player-report": "Player Report",

@@ -83,6 +83,7 @@ describe("/api/rankings/list — trending (ruta en memoria)", () => {
           return new Response(JSON.stringify({ code: "PGRST202" }), { status: 404 });
         }
         if (url.includes("/rest/v1/players")) return new Response(JSON.stringify(ROWS));
+        if (url.includes("/rest/v1/vsi_history_reviews")) return new Response("[]");
         return new Response("not found", { status: 404 });
       }),
     );

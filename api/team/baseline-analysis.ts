@@ -26,6 +26,7 @@ import { fetchMessages, responseText } from "../_lib/anthropic";
 import { isOverBudget, recordSpendUsd, budgetExceededResponse } from "../_lib/budgetGuard";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { avgEvaluatedVsi, byVsiDescNullsLast, formatVsi } from "../_lib/vsiStats";
+import { pendingVsiReviewIds } from "../_lib/vsiPendingReview";
 import { localeSchema, normalizeLocale, languageDirective } from "../../src/lib/shared/locale";
 import { createClient } from "@supabase/supabase-js";
 import { ownsMatchAnalysis } from "../_lib/ownership";
@@ -394,11 +395,20 @@ export default withHandler(
     }
 
     const { data: playersRaw, error: pErr } = await query;
-    // PHV de la columna solo con sexo registrado (P1 bloque 7).
-    const players = playersRaw?.map(phvColumnsForPlayer) ?? null;
     if (pErr) {
       return errorResponse({ code: "db_error", message: pErr.message, status: 500 });
     }
+    // Revisión VSI pendiente (57,5 de la 070, D3): sin evaluar ⇒ fuera de la media
+    // (api/_lib/vsiPendingReview.ts, lector único).
+    let pending: Set<string>;
+    try {
+      pending = await pendingVsiReviewIds(supabase);
+    } catch (e) {
+      return errorResponse({ code: "db_error", message: (e as Error).message, status: 500 });
+    }
+    // PHV de la columna solo con sexo registrado (P1 bloque 7).
+    const players =
+      playersRaw?.map((p) => phvColumnsForPlayer(pending.has(p.id) ? { ...p, vsi: null } : p)) ?? null;
     if (!players || players.length === 0) {
       return errorResponse({ code: "no_players", message: "Sin jugadores en plantilla", status: 404 });
     }

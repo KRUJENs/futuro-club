@@ -26,6 +26,7 @@ import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { fichaVsiFromBlob } from "../../src/services/real/metricsService";
 import { phvGate, matchesTimingFilter, type MaturityTiming, type PhvGateInput } from "../../src/lib/phv/phvGate";
 import { registeredSex, withRegisteredSex } from "../../src/lib/shared/registeredSex";
+import { pendingVsiReviewIdsRest } from "../_lib/vsiPendingReview";
 import { vsiTrendArrow } from "../../src/lib/scoring/vsiDelta";
 import { percentilesAmong, percentileGateInfo, type PercentileGateInfo } from "../../src/lib/metrics/percentile";
 
@@ -229,7 +230,20 @@ export default withHandler(
       // implementación única (src/lib/metrics/percentile.ts): sin evaluar ⇒ null +
       // motivo; menos de 10 pares evaluados ⇒ null + motivo; un jugador de ejemplo
       // y uno real no se mezclan. Antes: «≤1 valor ⇒ P100» aquí y P0 en la RPC.
-      const members = allPlayers.map((p) => ({ id: p.id, value: p.vsi, isDemo: p.isDemo, group: p.ageGroup }));
+      // Revisión VSI pendiente (57,5 de la 070, D3): no cuenta como evaluado, ni como par
+      // ni para su propio percentil (api/_lib/vsiPendingReview.ts, lector único).
+      let pending: Set<string>;
+      try {
+        pending = await pendingVsiReviewIdsRest(supabaseUrl, headers);
+      } catch (e) {
+        return errorResponse(`Failed to fetch VSI reviews: ${(e as Error).message.slice(0, 200)}`, 500);
+      }
+      const members = allPlayers.map((p) => ({
+        id: p.id,
+        value: pending.has(p.id) ? null : p.vsi,
+        isDemo: p.isDemo,
+        group: p.ageGroup,
+      }));
       const global = percentilesAmong(members);
       const inGroup = percentilesAmong(members, { byGroup: true });
       for (const p of allPlayers) {
