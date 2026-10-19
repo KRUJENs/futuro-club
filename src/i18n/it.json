@@ -6310,7 +6310,9 @@
     "gate": {
       "not_evaluated": "Nessuna valutazione dell'allenatore: nessun percentile",
       "insufficient_peers": "Nessun percentile: non ci sono abbastanza giocatori valutati comparabili ({{count}} su {{min}})",
-      "insufficient_short": "Nessun percentile ({{count}}/{{min}} pari)"
+      "insufficient_short": "Nessun percentile ({{count}}/{{min}} pari)",
+      "pending_review": "Valutazione con valori predefiniti in attesa di revisione: non conta come valutata",
+      "reviews_unavailable": "Impossibile verificare quali valutazioni sono in attesa di revisione: percentile bloccato"
     }
   },
   "coachEval": {

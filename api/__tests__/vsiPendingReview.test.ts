@@ -3,7 +3,7 @@
  * Error de lectura ⇒ lanza (nunca «nadie pendiente»); tabla inexistente ⇒ nadie marcado.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { pendingVsiReviewIds, pendingVsiReviewIdsRest } from "../_lib/vsiPendingReview";
+import { pendingVsiReviewIds, pendingVsiReviewIdsRest, withPendingVsiExcluded } from "../_lib/vsiPendingReview";
 
 function client(result: { data: unknown; error: unknown }) {
   const filters: Array<[string, unknown]> = [];
@@ -46,5 +46,15 @@ describe("pendingVsiReviewIdsRest", () => {
     expect((await pendingVsiReviewIdsRest("https://x.supabase.co", {})).size).toBe(0);
     vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response("boom", { status: 500 }));
     await expect(pendingVsiReviewIdsRest("https://x.supabase.co", {})).rejects.toThrow(/HTTP 500/);
+  });
+});
+
+describe("withPendingVsiExcluded", () => {
+  it("pendiente ⇒ vsi y barras a null (fuera de medias y élite); el resto intacto; sin mutar", () => {
+    const rows = [{ id: "a", vsi: 57.5, metrics: { speed: 60 } }, { id: "b", vsi: 70, metrics: { speed: 70 } }];
+    const out = withPendingVsiExcluded(rows, new Set(["a"]));
+    expect(out[0]).toEqual({ id: "a", vsi: null, metrics: null });
+    expect(out[1]).toBe(rows[1]);
+    expect(rows[0].vsi).toBe(57.5);
   });
 });

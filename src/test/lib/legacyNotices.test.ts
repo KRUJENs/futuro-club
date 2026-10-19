@@ -61,8 +61,9 @@ describe("isLegacyIdpPlan", () => {
 });
 
 describe("withLegacyPhvWithheld (7b: PHV crudo en «Datos técnicos» y enlace de la familia)", () => {
-  const F = { gender: "F" };
-  const M_OK = { gender: "M", sexConfirmedAt: "2026-10-19T08:00:00Z" };
+  // A() = análisis del 18 oct: el sexo debe constar confirmado ANTES de esa fecha.
+  const F = { gender: "F", sexConfirmedAt: "2026-10-01T08:00:00Z" };
+  const M_OK = { gender: "M", sexConfirmedAt: "2026-10-02T08:00:00Z" };
   const phv = { category: "early", offset: -1.2 };
   it("anterior al #301 ⇒ PHV fuera aunque el sexo esté registrado; el aviso sigue", () => {
     const out = withLegacyPhvWithheld(A({ phv, completed_at: "2026-09-01T00:00:00Z" }), F);
@@ -72,6 +73,13 @@ describe("withLegacyPhvWithheld (7b: PHV crudo en «Datos técnicos» y enlace d
   });
   it("posterior al corte pero sin sexo registrado («M» sin confirmar o ausente) ⇒ fuera y con aviso", () => {
     for (const p of [{ gender: "M" }, {}, null]) {
+      const out = withLegacyPhvWithheld(A({ phv }), p);
+      expect(out.phv).toBeNull();
+      expect(legacyReportNotices({ analysis: out, reports: [] })).toEqual(["maturity_unverified"]);
+    }
+  });
+  it("sexo confirmado o cambiado DESPUÉS del análisis (p. ej. «M» por defecto → «F») o «F» sin marca ⇒ fuera", () => {
+    for (const p of [{ gender: "F", sexConfirmedAt: "2026-10-19T08:00:00Z" }, { gender: "M", sexConfirmedAt: "2026-10-19T08:00:00Z" }, { gender: "F" }]) {
       const out = withLegacyPhvWithheld(A({ phv }), p);
       expect(out.phv).toBeNull();
       expect(legacyReportNotices({ analysis: out, reports: [] })).toEqual(["maturity_unverified"]);

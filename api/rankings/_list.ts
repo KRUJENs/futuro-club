@@ -28,7 +28,7 @@ import { phvGate, matchesTimingFilter, type MaturityTiming, type PhvGateInput } 
 import { registeredSex, withRegisteredSex } from "../../src/lib/shared/registeredSex";
 import { pendingVsiReviewIdsRest } from "../_lib/vsiPendingReview";
 import { vsiTrendArrow } from "../../src/lib/scoring/vsiDelta";
-import { percentilesAmong, percentileGateInfo, type PercentileGateInfo } from "../../src/lib/metrics/percentile";
+import { blockedPercentile, percentilesAmong, percentileGateInfo, type PercentileGateInfo } from "../../src/lib/metrics/percentile";
 
 export const config = { runtime: "edge" };
 
@@ -156,6 +156,11 @@ export default withHandler(
     // percentiles (solo los propios, decisión del dueño 14 oct 2026) y el filtro y la
     // paginación se aplican después, sobre lo que se muestra.
     let allPlayers: PlayerRow[];
+    // Revisión VSI pendiente (57,5 de la 070, D3): no cuenta como evaluado (ni par, ni su
+    // percentil, ni las medias del grupo). null = no se pudo leer ⇒ percentiles y medias
+    // BLOQUEADOS, nunca «nadie pendiente» (api/_lib/vsiPendingReview.ts, lector único).
+    // Sin 500: el cliente caería al cálculo local, que no conoce las revisiones.
+    let pending: Set<string> | null = null;
     {
       const allUrl = `${supabaseUrl}/rest/v1/players?user_id=eq.${userId}&select=id,data,updated_at`;
       const allRes = await fetch(allUrl, { headers: { ...headers, Prefer: "count=exact" } });
@@ -230,25 +235,24 @@ export default withHandler(
       // implementación única (src/lib/metrics/percentile.ts): sin evaluar ⇒ null +
       // motivo; menos de 10 pares evaluados ⇒ null + motivo; un jugador de ejemplo
       // y uno real no se mezclan. Antes: «≤1 valor ⇒ P100» aquí y P0 en la RPC.
-      // Revisión VSI pendiente (57,5 de la 070, D3): no cuenta como evaluado, ni como par
-      // ni para su propio percentil (api/_lib/vsiPendingReview.ts, lector único).
-      let pending: Set<string>;
       try {
         pending = await pendingVsiReviewIdsRest(supabaseUrl, headers);
-      } catch (e) {
-        return errorResponse(`Failed to fetch VSI reviews: ${(e as Error).message.slice(0, 200)}`, 500);
+      } catch {
+        pending = null;
       }
+      const reviewed = pending;
       const members = allPlayers.map((p) => ({
         id: p.id,
-        value: pending.has(p.id) ? null : p.vsi,
+        value: reviewed === null || reviewed.has(p.id) ? null : p.vsi,
         isDemo: p.isDemo,
         group: p.ageGroup,
       }));
       const global = percentilesAmong(members);
       const inGroup = percentilesAmong(members, { byGroup: true });
       for (const p of allPlayers) {
-        const g = global.get(p.id)!;
-        const ag = inGroup.get(p.id)!;
+        const blocked = reviewed === null ? "reviews_unavailable" : reviewed.has(p.id) ? "pending_review" : null;
+        const g = blocked ? blockedPercentile(blocked) : global.get(p.id)!;
+        const ag = blocked ? blockedPercentile(blocked) : inGroup.get(p.id)!;
         p.percentile = g.result.value;
         p.percentileGate = percentileGateInfo(g);
         p.percentileInAgeGroup = ag.result.value;
@@ -263,7 +267,7 @@ export default withHandler(
     const countByAgeGroup: Record<string, number> = {};
     for (const p of allPlayers) {
       countByAgeGroup[p.ageGroup] = (countByAgeGroup[p.ageGroup] ?? 0) + 1;
-      if (p.vsi === null) continue;
+      if (p.vsi === null || pending === null || pending.has(p.id)) continue;
       if (!vsiByAgeGroup[p.ageGroup]) vsiByAgeGroup[p.ageGroup] = [];
       vsiByAgeGroup[p.ageGroup].push(p.vsi);
     }

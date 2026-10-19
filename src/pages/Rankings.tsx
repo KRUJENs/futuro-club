@@ -462,6 +462,12 @@ const Rankings = () => {
                         min: player.percentileInAgeGroupGate.min,
                       })}
                     </span>
+                  ) : player.percentileInAgeGroupGate?.code === "pending_review" ||
+                    player.percentileInAgeGroupGate?.code === "reviews_unavailable" ? (
+                    // Revisión VSI de la 070 (D3): el motivo, nunca un hueco mudo.
+                    <span className="text-muted-foreground">
+                      {t(`percentile.gate.${player.percentileInAgeGroupGate.code}`)}
+                    </span>
                   ) : null}
                   {/* Tendencia */}
                   {player.trending === "up" && <span className="text-primary">↑</span>}

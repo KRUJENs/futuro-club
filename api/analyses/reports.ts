@@ -43,7 +43,7 @@ export default withHandler(
     const [analysisRes, reportsRes] = await Promise.all([
       supabase
         .from("analyses")
-        .select("id, status, vsi, phv, similarity, biomechanics, completed_at, total_latency_ms, player_id, video_id, user_id")
+        .select("id, status, vsi, phv, similarity, biomechanics, completed_at, created_at, total_latency_ms, player_id, video_id, user_id")
         .eq("id", params.data.analysisId)
         .single(),
       supabase

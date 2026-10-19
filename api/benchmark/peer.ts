@@ -37,6 +37,7 @@ import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { ownsPlayer } from "../_lib/ownership";
 import { createClient } from "@supabase/supabase-js";
 import {
+  blockedPercentile,
   peerPercentile,
   peerDistribution,
   percentileGateInfo,
@@ -96,6 +97,12 @@ function compare(player: number | null, peers: Array<number | null>): PeerMetric
     // Sin valor del jugador la distribución sola no se enseña (no hay con qué compararla).
     distribution: player === null ? null : dist.result.value,
   };
+}
+
+/** Revisión VSI (070, D3): ni valor propio, ni percentil, ni distribución; solo el motivo. */
+function blocked(code: "pending_review" | "reviews_unavailable"): PeerMetric {
+  const pct = blockedPercentile(code);
+  return { player: null, percentile: pct.result, gate: percentileGateInfo(pct), distribution: null };
 }
 
 export default withHandler(
@@ -165,14 +172,15 @@ export default withHandler(
     }
 
     // Revisión VSI pendiente (57,5 de la 070, D3): no cuenta como evaluado, ni como par
-    // ni el propio jugador (api/_lib/vsiPendingReview.ts, lector único).
-    let pending: Set<string>;
+    // ni el propio jugador (api/_lib/vsiPendingReview.ts, lector único). Si no se puede
+    // leer quién está pendiente, todo queda bloqueado con su motivo (nunca «nadie»).
+    let pending: Set<string> | null;
     try {
       pending = await pendingVsiReviewIds(supabase);
-    } catch (e) {
-      return errorResponse({ code: "db_error", message: (e as Error).message, status: 500 });
+    } catch {
+      pending = null;
     }
-    const targetPending = pending.has(player.id);
+    const blockedBy = pending === null ? "reviews_unavailable" : pending.has(player.id) ? "pending_review" : null;
 
     // Reales y de ejemplo no se mezclan (misma regla que percentilesAmong).
     const targetIsDemo = player.is_demo === "true";
@@ -180,7 +188,7 @@ export default withHandler(
     // (P1 bloque 7): la columna de un «M» sin confirmar no lo mete en el estrato.
     const withPhv = params.data.withPhv === "true" && !!player.phv_category;
     const peers = ((rows ?? []) as Array<PoolRow & { id?: string; phv_category?: unknown; gender?: unknown; sexConfirmedAt?: unknown }>)
-      .filter((r) => !pending.has(r.id ?? ""))
+      .filter((r) => !pending?.has(r.id ?? ""))
       .filter((r) => (r.is_demo === "true") === targetIsDemo)
       .filter((r) => !withPhv || phvColumnsForPlayer(r).phv_category === player.phv_category);
 
@@ -191,16 +199,19 @@ export default withHandler(
       phvCategory: params.data.withPhv === "true" ? player.phv_category : null,
     };
 
-    const playerMetrics = targetPending ? null : (player.metrics as Record<string, unknown> | null);
+    const playerMetrics = player.metrics as Record<string, unknown> | null;
     const byMetric = Object.fromEntries(
-      METRIC_KEYS.map((k) => [k, compare(metricOf(playerMetrics, k), peers.map((r) => metricOf(r.metrics, k)))]),
+      METRIC_KEYS.map((k) => [
+        k,
+        blockedBy ? blocked(blockedBy) : compare(metricOf(playerMetrics, k), peers.map((r) => metricOf(r.metrics, k))),
+      ]),
     ) as Record<MetricKey, PeerMetric>;
 
     return successResponse({
       stratum,
       scope: PERCENTILE_POOL_SCOPE,
       minPeers: PERCENTILE_MIN_PEERS,
-      vsi: compare(targetPending ? null : finite(player.vsi), peers.map((r) => finite(r.vsi))),
+      vsi: blockedBy ? blocked(blockedBy) : compare(finite(player.vsi), peers.map((r) => finite(r.vsi))),
       byMetric,
     });
   },

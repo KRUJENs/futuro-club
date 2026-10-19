@@ -64,3 +64,11 @@ export async function pendingVsiReviewIdsRest(
   }
   return idsFrom(await res.json());
 }
+
+/**
+ * Filas de jugadores con `vsi` y `metrics` a null para los pendientes: no cuentan como
+ * evaluados en medias, élite ni barras. Exige `id` en la fila. No muta la entrada.
+ */
+export function withPendingVsiExcluded<T extends { id?: unknown }>(rows: T[], pending: ReadonlySet<string>): T[] {
+  return rows.map((r) => (typeof r.id === "string" && pending.has(r.id) ? { ...r, vsi: null, metrics: null } : r));
+}

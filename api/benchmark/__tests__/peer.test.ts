@@ -31,6 +31,7 @@ const filters: Array<[string, string, unknown]> = [];
 const selects: string[] = [];
 // Filas `pending` de vsi_history_reviews (070, D3).
 let pendingRows: Array<{ player_id: string }> = [];
+let pendingError: { code: string; message: string } | null = null;
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
@@ -39,7 +40,7 @@ vi.mock("@supabase/supabase-js", () => ({
       if (table === "vsi_history_reviews") {
         Object.assign(b, {
           select: () => b,
-          eq: () => Promise.resolve({ data: pendingRows, error: null }),
+          eq: () => Promise.resolve(pendingError ? { data: null, error: pendingError } : { data: pendingRows, error: null }),
         });
         return b;
       }
@@ -92,6 +93,7 @@ beforeEach(() => {
   filters.length = 0;
   selects.length = 0;
   pendingRows = [];
+  pendingError = null;
   target = { id: "leo", user_id: "owner-1", age: 11, position: "RW", phv_category: null, vsi: 61.4, metrics: BARS, is_demo: null };
   pool = evaluatedPeers(10);
 });
@@ -181,7 +183,16 @@ describe("/api/benchmark/peer · solo jugadores propios, mínimo 10 pares, sin P
     pendingRows = [{ player_id: "leo" }];
     const { data } = await get();
     expect(data.vsi.percentile.value).toBeNull();
-    expect(data.vsi.gate?.code).toBe("not_evaluated");
-    expect(data.byMetric.speed.gate?.code).toBe("not_evaluated");
+    expect(data.vsi.gate?.code).toBe("pending_review");
+    expect(data.byMetric.speed.gate?.code).toBe("pending_review");
+    expect(data.byMetric.speed.distribution).toBeNull();
+  });
+
+  it("D3: si no se puede leer quién está pendiente ⇒ bloqueado con motivo, nunca «nadie pendiente»", async () => {
+    pendingError = { code: "57014", message: "timeout" };
+    const { status, data } = await get();
+    expect(status).toBe(200);
+    expect(data.vsi.percentile.value).toBeNull();
+    expect(data.vsi.gate?.code).toBe("reviews_unavailable");
   });
 });

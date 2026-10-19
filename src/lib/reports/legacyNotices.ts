@@ -14,7 +14,7 @@
  * Edge-safe: sin alias `@/`.
  */
 
-import { registeredSex } from "../shared/registeredSex";
+import { sexRegisteredAt } from "../shared/registeredSex";
 
 export type LegacyNoticeCode = "maturity_unverified" | "baseline_pre_eval" | "duel_figures";
 
@@ -84,8 +84,9 @@ export function legacyReportNotices(input: LegacyNoticeInput): LegacyNoticeCode[
 
 /**
  * `analyses.phv` guardado que HOY no se aceptaría (P1 bloque 7b): análisis anterior al #301
- * (PHV sin gate) o jugador sin sexo registrado (ausente o «M» sin confirmar; regla única
- * registeredSex). Se retira al leer —`phv: null` + `phv_withheld: true`—: «Datos técnicos»
+ * (PHV sin gate) o jugador cuyo sexo registrado no constaba YA al generarlo (ausente, «M» sin
+ * confirmar, o confirmado/cambiado después: el PHV pudo calcularse con la fórmula del otro
+ * sexo, inv #5; regla sexRegisteredAt). Se retira al leer —`phv: null` + `phv_withheld: true`—: «Datos técnicos»
  * pinta este JSON también en el enlace de la familia. No borra nada en la base.
  */
 export function withLegacyPhvWithheld<T extends { phv?: unknown; completed_at?: string | null; created_at?: string | null }>(
@@ -94,6 +95,6 @@ export function withLegacyPhvWithheld<T extends { phv?: unknown; completed_at?: 
 ): T & { phv_withheld?: true } {
   if (analysis.phv === null || analysis.phv === undefined) return analysis;
   const at = analysis.completed_at ?? analysis.created_at ?? null;
-  if (!before(at, LEGACY_REPORT_CUTOFFS.maturityUnverifiedBefore) && registeredSex(player) !== null) return analysis;
+  if (!before(at, LEGACY_REPORT_CUTOFFS.maturityUnverifiedBefore) && sexRegisteredAt(player, at)) return analysis;
   return { ...analysis, phv: null, phv_withheld: true };
 }

@@ -6311,7 +6311,9 @@
     "gate": {
       "not_evaluated": "Geen beoordeling door de trainer: geen percentiel",
       "insufficient_peers": "Geen percentiel: te weinig vergelijkbare beoordeelde spelers ({{count}} van {{min}})",
-      "insufficient_short": "Geen percentiel ({{count}}/{{min}} vergelijkbare spelers)"
+      "insufficient_short": "Geen percentiel ({{count}}/{{min}} vergelijkbare spelers)",
+      "pending_review": "Beoordeling met standaardwaarden wacht op controle: telt niet als beoordeeld",
+      "reviews_unavailable": "Kon niet controleren welke beoordelingen op controle wachten: percentiel geblokkeerd"
     }
   },
   "coachEval": {

@@ -25,6 +25,19 @@ import { timingSafeEqual } from "../_lib/edgeCrypto";
 import { createClient } from "@supabase/supabase-js";
 import { MODELS } from "../_lib/models";
 import { avgEvaluatedVsi, countElite, formatVsi, ELITE_MIN } from "../_lib/vsiStats";
+import { pendingVsiReviewIds, withPendingVsiExcluded } from "../_lib/vsiPendingReview";
+
+/** Fila de «/equipo» y get_team_stats (players: id, vsi, PHV de columna, edad, sexo). */
+interface TeamStatsRow {
+  id?: unknown;
+  vsi: number | null;
+  phv_category?: string;
+  age?: number | null;
+  gender?: unknown;
+  sexConfirmedAt?: unknown;
+}
+
+const PENDING_REVIEWS_UNAVAILABLE ="No se pudo comprobar qué evaluaciones están pendientes de revisión: inténtalo de nuevo más tarde.";
 import { normalizeLocale, languageDirective, type ReportLocale } from "../../src/lib/shared/locale";
 import { withoutUndatedVsiSeries } from "../../src/lib/scoring/vsiDelta";
 import { phvColumnsForPlayer, trustAnthroForPlayer } from "../../src/lib/shared/sexGatedAnthro";
@@ -218,7 +231,14 @@ export async function execTool(
         .limit(limit);
 
       if (!data || data.length === 0) return "Sin jugadores registrados.";
-      return JSON.stringify(data.map(phvColumnsForPlayer), null, 2);
+      // Revisión VSI pendiente (070, D3): su VSI no va al modelo como evaluación.
+      let pending: Set<string>;
+      try {
+        pending = await pendingVsiReviewIds(supabase);
+      } catch {
+        return PENDING_REVIEWS_UNAVAILABLE;
+      }
+      return JSON.stringify(withPendingVsiExcluded<TeamStatsRow>(data, pending).map(phvColumnsForPlayer), null, 2);
     }
 
     case "get_player": {
@@ -308,9 +328,16 @@ export async function execTool(
     case "get_team_stats": {
       const { data: playersRaw } = await supabase
         .from("players")
-        .select("vsi, phv_category, age, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
+        .select("id, vsi, phv_category, age, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
         .eq("user_id", ctx.userId);
-      const players = playersRaw?.map(phvColumnsForPlayer) ?? null; // P1 bloque 7
+      // Revisión VSI pendiente (070, D3): no cuenta como evaluado (lector único).
+      let pending: Set<string>;
+      try {
+        pending = await pendingVsiReviewIds(supabase);
+      } catch {
+        return PENDING_REVIEWS_UNAVAILABLE;
+      }
+      const players = playersRaw ? withPendingVsiExcluded<TeamStatsRow>(playersRaw, pending).map(phvColumnsForPlayer) : null; // P1 bloque 7
       if (!players || players.length === 0) return "Sin jugadores.";
 
       const n = players.length;
@@ -700,10 +727,19 @@ export default withHandler(
     if (lowerText === "/equipo") {
       const { data: playersRaw } = await supabase
         .from("players")
-        .select("vsi, phv_category, age, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
+        .select("id, vsi, phv_category, age, gender:data->>gender, sexConfirmedAt:data->>sexConfirmedAt")
         .eq("user_id", mapping.user_id);
-      const players = playersRaw?.map(phvColumnsForPlayer) ?? null; // P1 bloque 7
-      if (!players || players.length === 0) {
+      // Revisión VSI pendiente (070, D3): no cuenta como evaluado (lector único).
+      let pending: Set<string> | null;
+      try {
+        pending = await pendingVsiReviewIds(supabase);
+      } catch {
+        pending = null;
+      }
+      const players = playersRaw && pending ? withPendingVsiExcluded<TeamStatsRow>(playersRaw, pending).map(phvColumnsForPlayer) : null; // P1 bloque 7
+      if (pending === null) {
+        await sendMessage(chatId, PENDING_REVIEWS_UNAVAILABLE);
+      } else if (!players || players.length === 0) {
         await sendMessage(chatId, "Aún no tienes jugadores. Añade desde la app → Equipo.");
       } else {
         const n = players.length;

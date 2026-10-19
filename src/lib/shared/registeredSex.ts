@@ -36,6 +36,18 @@ export function registeredSex(p: SexFields | null | undefined): RegisteredSex | 
   return null;
 }
 
+/**
+ * ¿Constaba ya este sexo registrado en `atIso`? Solo con la marca `sexConfirmedAt` anterior o
+ * igual a esa fecha (la marca se reescribe al cambiar el sexo: sexConfirmationFor). Sin marca
+ * —incluida una «F» antigua— no se puede probar ⇒ false (falla cerrado). Sirve para decidir si
+ * un PHV GUARDADO en esa fecha se calculó con el sexo de hoy.
+ */
+export function sexRegisteredAt(p: SexFields | null | undefined, atIso: string | null | undefined): boolean {
+  if (registeredSex(p) === null || !validConfirmation(p?.sexConfirmedAt)) return false;
+  const at = Date.parse(atIso ?? "");
+  return Number.isFinite(at) && Date.parse(p!.sexConfirmedAt as string) <= at;
+}
+
 /** «M» guardado sin confirmar (valor por defecto antiguo posible). */
 export function sexPendingConfirmation(p: SexFields | null | undefined): boolean {
   return !!p && p.gender === "M" && !validConfirmation(p.sexConfirmedAt);

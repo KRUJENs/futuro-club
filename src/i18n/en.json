@@ -6311,7 +6311,9 @@
     "gate": {
       "not_evaluated": "No coach evaluation: no percentile",
       "insufficient_peers": "No percentile: not enough comparable evaluated players ({{count}} of {{min}})",
-      "insufficient_short": "No percentile ({{count}}/{{min}} peers)"
+      "insufficient_short": "No percentile ({{count}}/{{min}} peers)",
+      "pending_review": "Evaluation with default values pending review: it does not count as evaluated",
+      "reviews_unavailable": "Could not check which evaluations are pending review: percentile blocked"
     }
   },
   "coachEval": {
