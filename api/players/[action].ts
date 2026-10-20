@@ -6,12 +6,14 @@ import { errorResponse } from "../_lib/apiResponse";
 
 import search from "./_search";
 import crud from "./_crud";
+import maturityExport from "./_maturity-export";
 
 export const config = { runtime: "edge" };
 
 const routes: Record<string, (req: Request) => Promise<Response>> = {
   "search": search,
   "crud": crud,
+  "maturity-export": maturityExport,
 };
 
 export default async function handler(req: Request): Promise<Response> {
