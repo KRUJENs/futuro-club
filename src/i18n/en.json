@@ -6368,5 +6368,22 @@
     "maturity_unverified": "Report generated with unverified maturation data: anything it says about maturation (early, late, PHV window) does not count.",
     "baseline_pre_eval": "Baseline analysis generated before the coach evaluation was required: its VSI may be a simple average or 0.",
     "duel_figures": "Report generated with duel figures VITAS no longer accepts (no validated criterion): ignore what it says about duels."
+  },
+  "relativeAge": {
+    "title": "Squad relative age",
+    "confidence": "Orientative confidence",
+    "coverage": "{{dated}} of {{total}} with date of birth",
+    "quarter": "Q{{q}}",
+    "gate": {
+      "insufficient_dated_players": "Too few players with a date of birth ({{dated}}; minimum {{min}}) to give a relative age signal.",
+      "cutoff_unavailable": "No valid category cut-off: the relative age signal is not calculated."
+    },
+    "signal": {
+      "early": "Signal: more players born early in the year than expected. There may be relative age bias in selection.",
+      "late": "Signal: more players born late in the year than expected.",
+      "uneven": "Signal: the distribution by quarter is uneven, but without the relative age pattern (more players born early in the year).",
+      "none": "No signal: the distribution by quarter is consistent with an even split."
+    },
+    "note": "This is a signal, not a verdict: it does not correct or score any player. It is compared with an even split across quarters and the calendar year as cut-off (approximations pending validation). In two-year categories the quarter does not rank players within the category."
   }
 }

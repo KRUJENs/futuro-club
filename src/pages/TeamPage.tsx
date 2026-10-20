@@ -3,7 +3,7 @@
  * /equipo — Lista de miembros del equipo + invitaciones (plan Club).
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { coachEvalInline } from "@/lib/metrics/coachEval";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -31,6 +31,7 @@ import { PlayerService, type Player } from "@/services/real/playerService";
 import { EmptyPlayers } from "@/components/illustrations/EmptyIllustrations";
 import { phvGate, type PhvCategory } from "@/lib/phv/phvGate";
 import { usePhvGateText } from "@/components/phv/PhvGateNotice";
+import { RelativeAgeCard } from "@/components/team/RelativeAgeCard";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
 const item = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
@@ -70,6 +71,10 @@ export default function TeamPage() {
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, []);
+
+  // Edad relativa (P2 bloque 8): solo jugadores reales; los de ejemplo nunca se mezclan
+  // con ellos (misma regla que los percentiles).
+  const raeBirthDates = useMemo(() => myPlayers.filter((p) => p.isDemo !== true).map((p) => p.birthDate), [myPlayers]);
 
   // Etapa PHV SOLO desde el gate único (regla del owner 28-sep): sin todas las
   // entradas introducidas no se rotula Pre/En/Post-PHV — se nombra qué falta. Antes
@@ -357,6 +362,13 @@ export default function TeamPage() {
             </div>
           )}
         </motion.div>
+
+        {/* Edad relativa de la plantilla (P2 bloque 8): señal, no veredicto */}
+        {raeBirthDates.length > 0 && (
+          <motion.div variants={item}>
+            <RelativeAgeCard birthDates={raeBirthDates} />
+          </motion.div>
+        )}
 
         {/* Miembros activos */}
         <motion.div variants={item}>
