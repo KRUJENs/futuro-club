@@ -13,12 +13,33 @@ vi.mock("react-i18next", () => ({
 }));
 
 import { BioBandingCard } from "@/components/team/BioBandingCard";
+import es from "@/i18n/es.json";
+import esLA from "@/i18n/es-419.json";
+import en from "@/i18n/en.json";
+import de from "@/i18n/de.json";
+import fr from "@/i18n/fr.json";
+import it_ from "@/i18n/it.json";
+import nl from "@/i18n/nl.json";
 
 const CONFIRMED = "2026-10-01T00:00:00Z";
 const child = { id: "c1", name: "Leo", birthDate: "2017-04-10", height: 135, weight: 30, motherHeightCm: 163, fatherHeightCm: 175, gender: "M", sexConfirmedAt: CONFIRMED };
 const noParents = { id: "c2", name: "Hugo", birthDate: "2016-02-01", height: 140, weight: 33, gender: "F" };
 
 describe("BioBandingCard", () => {
+  it("las bandas %PAH se rotulan por el %, NUNCA como fase PHV (esa es Mirwald) en los 7 idiomas", () => {
+    for (const loc of [es, esLA, en, de, fr, it_, nl]) {
+      for (const label of Object.values(loc.bioBanding.band)) {
+        expect(label).not.toMatch(/PHV/);
+        expect(label).toMatch(/%/);
+      }
+    }
+  });
+
+  it("fuera del rango de Khamis-Roche ⇒ «sin banda» con ese motivo", () => {
+    render(<BioBandingCard players={[{ ...child, id: "a1", birthDate: "1990-01-01" }]} />);
+    expect(screen.getByText(/bioBanding\.missing\.out_of_range/)).toBeDefined();
+  });
+
   it("jugador con todas las entradas ⇒ en su banda, con % y procedencia", () => {
     render(<BioBandingCard players={[child]} />);
     expect(screen.getByText("Leo")).toBeDefined();

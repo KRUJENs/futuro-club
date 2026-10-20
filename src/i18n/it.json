@@ -6386,9 +6386,9 @@
     "title": "Bio-banding per % della statura adulta",
     "coverage": "{{banded}} su {{total}} con fascia",
     "band": {
-      "pre_phv": "Pre-PHV (< {{pre}}%)",
-      "circa_phv": "In PHV ({{pre}}–{{post}}%)",
-      "post_phv": "Post-PHV (> {{post}}%)"
+      "pre_phv": "< {{pre}}% della statura adulta",
+      "circa_phv": "{{pre}}–{{post}}% della statura adulta",
+      "post_phv": "> {{post}}% della statura adulta"
     },
     "more": "e altri {{count}}",
     "percentLabel": "% della statura adulta prevista (Khamis-Roche):",
@@ -6402,6 +6402,6 @@
       "sex": "manca il sesso registrato (o da confermare): {{count}}",
       "out_of_range": "fuori dall'intervallo di validità di Khamis-Roche: {{count}}"
     },
-    "note": "Raggruppa per la % della statura adulta prevista già raggiunta (Khamis-Roche 1994; fasce di Cumming et al. 2017), non per età. Senza la statura di entrambi i genitori non c'è fascia: non viene mai assegnata per difetto né da un'altra misura."
+    "note": "Raggruppa per la % della statura adulta prevista già raggiunta (Khamis-Roche 1994; soglie di Cumming et al. 2017), non per età. Non è la fase PHV mostrata nell'elenco (quella si calcola con Mirwald e può non coincidere). Vicino alle soglie la fascia può cambiare: la statura adulta prevista ha un errore. Senza la statura di entrambi i genitori non c'è fascia: non viene mai assegnata per difetto né da un'altra misura."
   }
 }

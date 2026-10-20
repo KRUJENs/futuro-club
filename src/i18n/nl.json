@@ -6387,9 +6387,9 @@
     "title": "Bio-banding op % van de volwassen lengte",
     "coverage": "{{banded}} van {{total}} met band",
     "band": {
-      "pre_phv": "Pre-PHV (< {{pre}}%)",
-      "circa_phv": "In PHV ({{pre}}–{{post}}%)",
-      "post_phv": "Post-PHV (> {{post}}%)"
+      "pre_phv": "< {{pre}}% van de volwassen lengte",
+      "circa_phv": "{{pre}}–{{post}}% van de volwassen lengte",
+      "post_phv": "> {{post}}% van de volwassen lengte"
     },
     "more": "en nog {{count}}",
     "percentLabel": "% van de voorspelde volwassen lengte (Khamis-Roche):",
@@ -6403,6 +6403,6 @@
       "sex": "geregistreerd geslacht ontbreekt (of nog te bevestigen): {{count}}",
       "out_of_range": "buiten het geldigheidsbereik van Khamis-Roche: {{count}}"
     },
-    "note": "Groepeert op het al bereikte % van de voorspelde volwassen lengte (Khamis-Roche 1994; banden van Cumming et al. 2017), niet op leeftijd. Zonder de lengte van beide ouders is er geen band: die wordt nooit standaard of uit een andere meting toegekend."
+    "note": "Groepeert op het al bereikte % van de voorspelde volwassen lengte (Khamis-Roche 1994; grenzen van Cumming et al. 2017), niet op leeftijd. Het is niet de PHV-fase uit de lijst (die wordt met Mirwald berekend en kan afwijken). Dicht bij de grenzen kan de band veranderen: de voorspelde volwassen lengte heeft een foutmarge. Zonder de lengte van beide ouders is er geen band: die wordt nooit standaard of uit een andere meting toegekend."
   }
 }

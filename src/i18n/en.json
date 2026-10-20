@@ -6387,9 +6387,9 @@
     "title": "Bio-banding by % of adult height",
     "coverage": "{{banded}} of {{total}} banded",
     "band": {
-      "pre_phv": "Pre-PHV (< {{pre}}%)",
-      "circa_phv": "Circa-PHV ({{pre}}–{{post}}%)",
-      "post_phv": "Post-PHV (> {{post}}%)"
+      "pre_phv": "< {{pre}}% of adult height",
+      "circa_phv": "{{pre}}–{{post}}% of adult height",
+      "post_phv": "> {{post}}% of adult height"
     },
     "more": "and {{count}} more",
     "percentLabel": "% of predicted adult height (Khamis-Roche):",
@@ -6403,6 +6403,6 @@
       "sex": "registered sex missing (or pending confirmation): {{count}}",
       "out_of_range": "outside the Khamis-Roche validity range: {{count}}"
     },
-    "note": "Groups players by the % of predicted adult height already reached (Khamis-Roche 1994; Cumming et al. 2017 bands), not by age. Without both parents' heights there is no band: it is never assigned by default or from another measurement."
+    "note": "Groups players by the % of predicted adult height already reached (Khamis-Roche 1994; Cumming et al. 2017 cut-offs), not by age. It is not the PHV phase shown in the list (that one uses Mirwald and may differ). Near the cut-offs the band can change: predicted adult height has an error. Without both parents' heights there is no band: it is never assigned by default or from another measurement."
   }
 }

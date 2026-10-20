@@ -1,7 +1,8 @@
 /**
  * Bio-banding automático de la plantilla por % de talla adulta (P2 bloque 9, D10).
  * Cálculo único en src/lib/phv/squadBioBanding.ts (pahGate + bandas Cumming 2017); aquí
- * solo se pinta. Quien no tiene todas las entradas del %PAH (alturas de los padres, sexo
+ * solo se pinta. Se rotula por el % de la talla adulta, NUNCA como fase PHV (esa es la de
+ * Mirwald, phvGate.ts: el mismo niño no puede ser «En PHV» en la lista y «Pre-PHV» aquí). Quien no tiene todas las entradas del %PAH (alturas de los padres, sexo
  * registrado…) sale como «sin banda» con lo que falta: nunca se le asigna una banda.
  */
 import { useMemo } from "react";
@@ -27,6 +28,7 @@ export function BioBandingCard({ players }: { players: ReadonlyArray<BandablePla
     return [...counts.entries()];
   }, [result]);
   const banded = BIO_BAND_ORDER.reduce((n, b) => n + result.bands[b].length, 0);
+  const firstBanded = BIO_BAND_ORDER.map((b) => result.bands[b][0]).find(Boolean);
 
   return (
     <section className="rounded-2xl border border-border bg-card p-4 space-y-3" aria-labelledby="bioband-title">
@@ -68,10 +70,10 @@ export function BioBandingCard({ players }: { players: ReadonlyArray<BandablePla
         </div>
       )}
 
-      {banded > 0 && (
+      {firstBanded && (
         <p className="text-[11px] flex items-center gap-1.5">
           <span className="text-muted-foreground">{t("bioBanding.percentLabel")}</span>
-          <ProvenanceBadge provenance="DERIVADA" />
+          <ProvenanceBadge provenance={firstBanded.percent.provenance} />
         </p>
       )}
 

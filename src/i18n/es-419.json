@@ -6387,9 +6387,9 @@
     "title": "Bio-banding por % de talla adulta",
     "coverage": "{{banded}} de {{total}} con banda",
     "band": {
-      "pre_phv": "Pre-PHV (< {{pre}} %)",
-      "circa_phv": "En PHV ({{pre}}–{{post}} %)",
-      "post_phv": "Post-PHV (> {{post}} %)"
+      "pre_phv": "< {{pre}} % de la talla adulta",
+      "circa_phv": "{{pre}}–{{post}} % de la talla adulta",
+      "post_phv": "> {{post}} % de la talla adulta"
     },
     "more": "y {{count}} más",
     "percentLabel": "% de la talla adulta predicha (Khamis-Roche):",
@@ -6403,6 +6403,6 @@
       "sex": "falta el sexo registrado (o está por confirmar): {{count}}",
       "out_of_range": "fuera del rango de validez de Khamis-Roche: {{count}}"
     },
-    "note": "Agrupa por el % de la talla adulta predicha ya alcanzado (Khamis-Roche 1994; bandas de Cumming et al. 2017), no por la edad. Sin las alturas de los padres no hay banda: nunca se asigna por defecto ni desde otra medida."
+    "note": "Agrupa por el % de la talla adulta predicha ya alcanzado (Khamis-Roche 1994; cortes de Cumming et al. 2017), no por la edad. No es la fase PHV que se ve en la lista (esa se calcula con Mirwald y puede no coincidir). Cerca de los cortes la banda puede cambiar: la talla adulta predicha tiene error. Sin las alturas de los padres no hay banda: nunca se asigna por defecto ni desde otra medida."
   }
 }

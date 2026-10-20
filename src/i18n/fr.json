@@ -6386,9 +6386,9 @@
     "title": "Bio-banding par % de la taille adulte",
     "coverage": "{{banded}} sur {{total}} avec bande",
     "band": {
-      "pre_phv": "Pré-PHV (< {{pre}} %)",
-      "circa_phv": "En PHV ({{pre}}–{{post}} %)",
-      "post_phv": "Post-PHV (> {{post}} %)"
+      "pre_phv": "< {{pre}} % de la taille adulte",
+      "circa_phv": "{{pre}}–{{post}} % de la taille adulte",
+      "post_phv": "> {{post}} % de la taille adulte"
     },
     "more": "et {{count}} de plus",
     "percentLabel": "% de la taille adulte prédite (Khamis-Roche) :",
@@ -6402,6 +6402,6 @@
       "sex": "sexe enregistré manquant (ou à confirmer) : {{count}}",
       "out_of_range": "hors du domaine de validité de Khamis-Roche : {{count}}"
     },
-    "note": "Regroupe selon le % de la taille adulte prédite déjà atteint (Khamis-Roche 1994 ; bandes de Cumming et al. 2017), pas selon l'âge. Sans la taille des deux parents, pas de bande : elle n'est jamais attribuée par défaut ni à partir d'une autre mesure."
+    "note": "Regroupe selon le % de la taille adulte prédite déjà atteint (Khamis-Roche 1994 ; seuils de Cumming et al. 2017), pas selon l'âge. Ce n'est pas la phase PHV affichée dans la liste (calculée avec Mirwald, elle peut différer). Près des seuils, la bande peut changer : la taille adulte prédite comporte une erreur. Sans la taille des deux parents, pas de bande : elle n'est jamais attribuée par défaut ni à partir d'une autre mesure."
   }
 }
