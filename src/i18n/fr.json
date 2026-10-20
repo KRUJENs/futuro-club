@@ -6367,5 +6367,20 @@
     "maturity_unverified": "Rapport généré avec des données de maturation non vérifiées : ce qu'il dit sur la maturation (précoce, tardif, fenêtre PHV) ne compte pas.",
     "baseline_pre_eval": "Analyse de base générée avant d'exiger l'évaluation de l'entraîneur : son VSI a pu être une simple moyenne ou 0.",
     "duel_figures": "Rapport généré avec des chiffres de duels que VITAS n'accepte plus (sans critère validé) : ignorez ce qu'il dit des duels."
+  },
+  "relativeAge": {
+    "title": "Âge relatif de l'effectif",
+    "coverage": "{{dated}} sur {{total}} avec date de naissance",
+    "quarter": "{{q}}e trim.",
+    "gate": {
+      "insufficient_dated_players": "Trop peu de joueurs avec date de naissance ({{dated}} sur {{min}}) pour donner un signal d'âge relatif.",
+      "cutoff_unavailable": "Pas de date limite de catégorie valide : le signal d'âge relatif n'est pas calculé."
+    },
+    "signal": {
+      "early": "Signal : plus de joueurs nés en début d'année que prévu. Il peut y avoir un biais d'âge relatif dans la sélection.",
+      "late": "Signal : plus de joueurs nés en fin d'année que prévu.",
+      "none": "Pas de signal : la répartition par trimestre est compatible avec une répartition égale."
+    },
+    "note": "C'est un signal, pas un verdict : il ne corrige ni ne note aucun joueur. La comparaison se fait avec une répartition égale entre trimestres et l'année civile comme date limite (approximations à valider). Dans les catégories sur deux ans, le trimestre ne classe pas les joueurs au sein de la catégorie."
   }
 }

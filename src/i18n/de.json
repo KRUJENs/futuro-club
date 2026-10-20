@@ -6367,5 +6367,20 @@
     "maturity_unverified": "Bericht mit nicht verifizierten Reifedaten erstellt: Aussagen zur Reife (früh, spät, PHV-Fenster) zählen nicht.",
     "baseline_pre_eval": "Basisanalyse erstellt, bevor die Trainerbewertung Pflicht war: ihr VSI kann ein einfacher Durchschnitt oder 0 sein.",
     "duel_figures": "Bericht mit Zweikampfzahlen erstellt, die VITAS nicht mehr akzeptiert (kein validiertes Kriterium): Aussagen zu Zweikämpfen ignorieren."
+  },
+  "relativeAge": {
+    "title": "Relatives Alter des Kaders",
+    "coverage": "{{dated}} von {{total}} mit Geburtsdatum",
+    "quarter": "{{q}}. Quartal",
+    "gate": {
+      "insufficient_dated_players": "Zu wenige Spieler mit Geburtsdatum ({{dated}} von {{min}}) für ein Signal zum relativen Alter.",
+      "cutoff_unavailable": "Kein gültiger Stichtag der Altersklasse: Das Signal zum relativen Alter wird nicht berechnet."
+    },
+    "signal": {
+      "early": "Signal: mehr Spieler am Jahresanfang geboren als erwartet. Möglicherweise gibt es einen Relativalterseffekt bei der Auswahl.",
+      "late": "Signal: mehr Spieler am Jahresende geboren als erwartet.",
+      "none": "Kein Signal: Die Verteilung nach Quartalen passt zu einer gleichmäßigen Verteilung."
+    },
+    "note": "Ein Signal, kein Urteil: Es korrigiert oder bewertet keinen Spieler. Verglichen wird mit einer gleichmäßigen Verteilung auf die Quartale und dem Kalenderjahr als Stichtag (Annäherungen, noch zu validieren). In Zwei-Jahres-Altersklassen ordnet das Quartal die Spieler innerhalb der Klasse nicht."
   }
 }

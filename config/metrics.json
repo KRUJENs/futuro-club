@@ -834,10 +834,21 @@
       "concept": "contexto.edad_relativa",
       "provenance": "DERIVADA",
       "calc_paths": ["src/lib/shared/relativeAge.ts"],
-      "ui_paths": [],
+      "ui_paths": ["src/components/team/RelativeAgeCard.tsx"],
       "allowed_literals": [3, 4, 5, 7, 12],
       "gated": true,
       "notes": "P1 bloque 6, punto 22. Implementación ÚNICA de la edad relativa (inv #7): birthQuarter(fecha) = trimestre 1-4 tras el mes de corte, leyendo el mes del TEXTO YYYY-MM-DD validado por toIsoBirthDate (no getMonth(): en husos negativos el 1 de enero sería diciembre). Sin fecha válida ⇒ value null + gate_reason; nunca un trimestre por defecto. Corte = RELATIVE_AGE_CUTOFF_MONTH (config/relativeAge.ts, enero, «pendiente de validar»: depende de la federación y la competición) ⇒ confidence = ORIENTATIVE_CONFIDENCE; con un corte registrado de la competición (opts.cutoff = {month, source}) la confianza es la plena de una DERIVADA, un corte NO registrado (null) se BLOQUEA con su propio motivo (CUTOFF_NOT_REGISTERED_REASON) y uno no válido (mes fuera de 1-12 o sin fuente) con INVALID_CUTOFF_REASON: nunca caen al corte por defecto. Es un dato, no un veredicto: NO corrige ninguna evaluación. Sustituye a RAEService/UBIService/TruthFilterService (advancedMetricsService.ts), retirados: nadie pasaba la fecha (RAE siempre null ⇒ el UBI contaba la edad relativa como 0), pesos 0,55/0,45, +12 %, raeBiasFactor 0,02/mes y correcciones −2/0/+2/+5 sin fuente, leían la FASE PHV («early» = pre-PHV) como si fuera madurador tardío, y /compare pintaba un «Índice UBI» con rótulos invertidos. Sin superficie de UI hoy: el bloque 8 (señal de sesgo por edad relativa con su confianza) se construye sobre esto."
+    },
+    {
+      "id": "edad_relativa_sesgo_plantilla",
+      "name": "Señal de sesgo por edad relativa en la plantilla",
+      "concept": "contexto.edad_relativa.sesgo_plantilla",
+      "provenance": "DERIVADA",
+      "calc_paths": ["src/lib/shared/relativeAgeBias.ts"],
+      "ui_paths": ["src/components/team/RelativeAgeCard.tsx"],
+      "allowed_literals": [0, 1, 2, 3, 4, 100],
+      "gated": true,
+      "notes": "P2 bloque 8. Sobre birthQuarter() (única implementación del trimestre, inv #7): nacidos por trimestre de los jugadores REALES de la plantilla (los de ejemplo no se mezclan) contra un reparto por igual, prueba χ² con 3 grados de libertad. Señal early (más Q1 que Q4 y χ² ≥ RAE_CHI2_CRITICAL), late, o none; nunca un veredicto ni una corrección de ninguna evaluación. Menos de RAE_MIN_DATED_PLAYERS (20) con fecha ⇒ value null + motivo con la cobertura, y no se enseña el reparto; corte no registrado o no válido ⇒ bloqueado por el corte. Confianza SIEMPRE orientativa: reparto esperado uniforme y corte por defecto «pendiente de validar»; mínimo y valor crítico = convenciones estadísticas «pendiente de validar para este uso» (config/relativeAge.ts). Límite: en categorías de 2 años el trimestre no ordena dentro de la categoría."
     },
     {
       "id": "maturity_bias_signal",
