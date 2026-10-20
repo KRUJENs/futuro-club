@@ -3918,9 +3918,6 @@
     "biologicalAge": "Âge biologique",
     "vsPeers": "vs pairs",
     "adjustedByMaturation": "ajusté par maturation",
-    "bioBandingPrefix": "Bio-banding : concourt comme ",
-    "bioBandingMiddle": " mais biologiquement il est ",
-    "bioBandingSuffix": ".",
     "estimatedWarning": "⚠ Mesures anthropométriques estimées à partir de la taille · confiance {{confidence}}%. Ajoutez la taille assis réelle pour un PHV validé."
   },
   "phvWindowPlan": {
@@ -6384,5 +6381,27 @@
       "none": "Pas de signal : la répartition par trimestre est compatible avec une répartition égale."
     },
     "note": "C'est un signal, pas un verdict : il ne corrige ni ne note aucun joueur. La comparaison se fait avec une répartition égale entre trimestres et l'année civile comme date limite (approximations à valider). Dans les catégories sur deux ans, le trimestre ne classe pas les joueurs au sein de la catégorie."
+  },
+  "bioBanding": {
+    "title": "Bio-banding par % de la taille adulte",
+    "coverage": "{{banded}} sur {{total}} avec bande",
+    "band": {
+      "pre_phv": "< {{pre}} % de la taille adulte",
+      "circa_phv": "{{pre}}–{{post}} % de la taille adulte",
+      "post_phv": "> {{post}} % de la taille adulte"
+    },
+    "more": "et {{count}} de plus",
+    "percentLabel": "% de la taille adulte prédite (Khamis-Roche) :",
+    "unbanded": "Sans bande : {{count}}",
+    "missing": {
+      "height": "taille manquante : {{count}}",
+      "weight": "poids manquant : {{count}}",
+      "motherHeight": "taille de la mère manquante : {{count}}",
+      "fatherHeight": "taille du père manquante : {{count}}",
+      "birthDate": "date de naissance manquante : {{count}}",
+      "sex": "sexe enregistré manquant (ou à confirmer) : {{count}}",
+      "out_of_range": "hors du domaine de validité de Khamis-Roche : {{count}}"
+    },
+    "note": "Regroupe selon le % de la taille adulte prédite déjà atteint (Khamis-Roche 1994 ; seuils de Cumming et al. 2017), pas selon l'âge. Ce n'est pas la phase PHV affichée dans la liste (calculée avec Mirwald, elle peut différer). Près des seuils, la bande peut changer : la taille adulte prédite comporte une erreur. Sans la taille des deux parents, pas de bande : elle n'est jamais attribuée par défaut ni à partir d'une autre mesure."
   }
 }

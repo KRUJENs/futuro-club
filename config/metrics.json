@@ -31,11 +31,11 @@
       "name": "%talla adulta (%PAH) / bio-banding (Khamis-Roche)",
       "concept": "maduracion.pah",
       "provenance": "DERIVADA",
-      "calc_paths": ["src/lib/phv/khamisRoche.ts"],
-      "ui_paths": ["src/components/phv/PHVProductCard.tsx"],
+      "calc_paths": ["src/lib/phv/khamisRoche.ts", "src/lib/phv/squadBioBanding.ts"],
+      "ui_paths": ["src/components/phv/PHVProductCard.tsx", "src/components/team/BioBandingCard.tsx"],
       "allowed_literals": [],
       "gated": true,
-      "notes": "NO TOCAR (inv.4). Exige altura de ambos padres; si faltan → null. Bio-banding real del producto."
+      "notes": "NO TOCAR (inv.4). Exige altura de ambos padres; si faltan → null. Bio-banding real del producto. P2 bloque 9 (D10, 20 oct): squadBioBanding.ts agrupa una plantilla por banda (pahGate + bandFromPercentPAH, sin cambiar nada del módulo) y BioBandingCard la pinta en Equipo; sin todas las entradas del %PAH (incluido el sexo REGISTRADO) ⇒ «sin banda» con lo que falta. El viejo bioBanding.ts (edad + offset) se retiró."
     },
     {
       "id": "escudo_estiron",

@@ -3918,9 +3918,6 @@
     "biologicalAge": "Biologisches Alter",
     "vsPeers": "vs. Gleichaltrige",
     "adjustedByMaturation": "nach Reifung korrigiert",
-    "bioBandingPrefix": "Bio-Banding: konkurriert als ",
-    "bioBandingMiddle": " ist aber biologisch ",
-    "bioBandingSuffix": ".",
     "estimatedWarning": "⚠ Anthropometrische Maße aus der Größe geschätzt · Konfidenz {{confidence}}%. Füge die reale Sitzhöhe für einen validierten PHV hinzu."
   },
   "phvWindowPlan": {
@@ -6384,5 +6381,27 @@
       "none": "Kein Signal: Die Verteilung nach Quartalen passt zu einer gleichmäßigen Verteilung."
     },
     "note": "Ein Signal, kein Urteil: Es korrigiert oder bewertet keinen Spieler. Verglichen wird mit einer gleichmäßigen Verteilung auf die Quartale und dem Kalenderjahr als Stichtag (Annäherungen, noch zu validieren). In Zwei-Jahres-Altersklassen ordnet das Quartal die Spieler innerhalb der Klasse nicht."
+  },
+  "bioBanding": {
+    "title": "Bio-Banding nach % der Erwachsenengröße",
+    "coverage": "{{banded}} von {{total}} mit Band",
+    "band": {
+      "pre_phv": "< {{pre}} % der Erwachsenengröße",
+      "circa_phv": "{{pre}}–{{post}} % der Erwachsenengröße",
+      "post_phv": "> {{post}} % der Erwachsenengröße"
+    },
+    "more": "und {{count}} weitere",
+    "percentLabel": "% der vorhergesagten Erwachsenengröße (Khamis-Roche):",
+    "unbanded": "Ohne Band: {{count}}",
+    "missing": {
+      "height": "Größe fehlt: {{count}}",
+      "weight": "Gewicht fehlt: {{count}}",
+      "motherHeight": "Größe der Mutter fehlt: {{count}}",
+      "fatherHeight": "Größe des Vaters fehlt: {{count}}",
+      "birthDate": "Geburtsdatum fehlt: {{count}}",
+      "sex": "erfasstes Geschlecht fehlt (oder unbestätigt): {{count}}",
+      "out_of_range": "außerhalb des Gültigkeitsbereichs von Khamis-Roche: {{count}}"
+    },
+    "note": "Gruppiert nach dem bereits erreichten % der vorhergesagten Erwachsenengröße (Khamis-Roche 1994; Grenzen nach Cumming et al. 2017), nicht nach Alter. Es ist nicht die PHV-Phase aus der Liste (die wird mit Mirwald berechnet und kann abweichen). Nahe an den Grenzen kann sich das Band ändern: Die vorhergesagte Erwachsenengröße hat einen Fehler. Ohne die Größe beider Eltern gibt es kein Band: Es wird nie standardmäßig oder aus einem anderen Messwert vergeben."
   }
 }

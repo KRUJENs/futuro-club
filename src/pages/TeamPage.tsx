@@ -32,6 +32,7 @@ import { EmptyPlayers } from "@/components/illustrations/EmptyIllustrations";
 import { phvGate, type PhvCategory } from "@/lib/phv/phvGate";
 import { usePhvGateText } from "@/components/phv/PhvGateNotice";
 import { RelativeAgeCard } from "@/components/team/RelativeAgeCard";
+import { BioBandingCard } from "@/components/team/BioBandingCard";
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
 const item = { hidden: { opacity: 0, y: 14 }, show: { opacity: 1, y: 0, transition: { duration: 0.3 } } };
@@ -74,7 +75,8 @@ export default function TeamPage() {
 
   // Edad relativa (P2 bloque 8): solo jugadores reales; los de ejemplo nunca se mezclan
   // con ellos (misma regla que los percentiles).
-  const raeBirthDates = useMemo(() => myPlayers.filter((p) => p.isDemo !== true).map((p) => p.birthDate), [myPlayers]);
+  const realPlayers = useMemo(() => myPlayers.filter((p) => p.isDemo !== true), [myPlayers]);
+  const raeBirthDates = useMemo(() => realPlayers.map((p) => p.birthDate), [realPlayers]);
 
   // Etapa PHV SOLO desde el gate único (regla del owner 28-sep): sin todas las
   // entradas introducidas no se rotula Pre/En/Post-PHV — se nombra qué falta. Antes
@@ -367,6 +369,13 @@ export default function TeamPage() {
         {raeBirthDates.length > 0 && (
           <motion.div variants={item}>
             <RelativeAgeCard birthDates={raeBirthDates} />
+          </motion.div>
+        )}
+
+        {/* Bio-banding por % de talla adulta (P2 bloque 9, D10): sin banda si falta un dato */}
+        {realPlayers.length > 0 && (
+          <motion.div variants={item}>
+            <BioBandingCard players={realPlayers} />
           </motion.div>
         )}
 

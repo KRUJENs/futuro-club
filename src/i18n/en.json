@@ -3919,9 +3919,6 @@
     "biologicalAge": "Biological age",
     "vsPeers": "vs peers",
     "adjustedByMaturation": "adjusted for maturation",
-    "bioBandingPrefix": "Bio-banding: competes as ",
-    "bioBandingMiddle": " but biologically is ",
-    "bioBandingSuffix": ".",
     "estimatedWarning": "⚠ Anthropometric measurements estimated from height · confidence {{confidence}}%. Add real sitting height for validated PHV."
   },
   "phvWindowPlan": {
@@ -6385,5 +6382,27 @@
       "none": "No signal: the distribution by quarter is consistent with an even split."
     },
     "note": "This is a signal, not a verdict: it does not correct or score any player. It is compared with an even split across quarters and the calendar year as cut-off (approximations pending validation). In two-year categories the quarter does not rank players within the category."
+  },
+  "bioBanding": {
+    "title": "Bio-banding by % of adult height",
+    "coverage": "{{banded}} of {{total}} banded",
+    "band": {
+      "pre_phv": "< {{pre}}% of adult height",
+      "circa_phv": "{{pre}}–{{post}}% of adult height",
+      "post_phv": "> {{post}}% of adult height"
+    },
+    "more": "and {{count}} more",
+    "percentLabel": "% of predicted adult height (Khamis-Roche):",
+    "unbanded": "No band: {{count}}",
+    "missing": {
+      "height": "height missing: {{count}}",
+      "weight": "weight missing: {{count}}",
+      "motherHeight": "mother's height missing: {{count}}",
+      "fatherHeight": "father's height missing: {{count}}",
+      "birthDate": "date of birth missing: {{count}}",
+      "sex": "registered sex missing (or pending confirmation): {{count}}",
+      "out_of_range": "outside the Khamis-Roche validity range: {{count}}"
+    },
+    "note": "Groups players by the % of predicted adult height already reached (Khamis-Roche 1994; Cumming et al. 2017 cut-offs), not by age. It is not the PHV phase shown in the list (that one uses Mirwald and may differ). Near the cut-offs the band can change: predicted adult height has an error. Without both parents' heights there is no band: it is never assigned by default or from another measurement."
   }
 }
