@@ -6310,7 +6310,8 @@
       "insufficient_peers": "Geen percentiel: te weinig vergelijkbare beoordeelde spelers ({{count}} van {{min}})",
       "insufficient_short": "Geen percentiel ({{count}}/{{min}} vergelijkbare spelers)",
       "pending_review": "Beoordeling met standaardwaarden wacht op controle: telt niet als beoordeeld",
-      "reviews_unavailable": "Kon niet controleren welke beoordelingen op controle wachten: percentiel geblokkeerd"
+      "reviews_unavailable": "Kon niet controleren welke beoordelingen op controle wachten: percentiel geblokkeerd",
+      "age_unknown": "Geen geregistreerde leeftijd: geen percentiel binnen de leeftijdsgroep"
     }
   },
   "coachEval": {
@@ -6404,5 +6405,23 @@
       "out_of_range": "buiten het geldigheidsbereik van Khamis-Roche: {{count}}"
     },
     "note": "Groepeert op het al bereikte % van de voorspelde volwassen lengte (Khamis-Roche 1994; grenzen van Cumming et al. 2017), niet op leeftijd. Het is niet de PHV-fase uit de lijst (die wordt met Mirwald berekend en kan afwijken). Dicht bij de grenzen kan de band veranderen: de voorspelde volwassen lengte heeft een foutmarge. Zonder de lengte van beide ouders is er geen band: die wordt nooit standaard of uit een andere meting toegekend."
+  },
+  "rankingsNl": {
+    "placeholder": "Zoek met een zin: „laatrijpe linksbenige vleugelverdediger, O14”",
+    "button": "Zoeken met AI",
+    "interpreted": "Geïnterpreteerd:",
+    "nothing": "geen filter",
+    "notUnderstood": "Niet begrepen (niet gebruikt):",
+    "error": "De zoekopdracht kon niet worden geïnterpreteerd: gebruik de filters.",
+    "unavailable": "Zoeken met AI is nu niet beschikbaar: gebruik de filters.",
+    "noMatch": "Geen van je spelers voldoet aan alle geïnterpreteerde filters. Vergelijkbare spelers worden niet getoond.",
+    "ageUnknown": "geen leeftijd",
+    "footLabel": "Voorkeursvoet",
+    "foot": {
+      "all": "Alle",
+      "left": "Linksbenig",
+      "right": "Rechtsbenig",
+      "both": "Tweebenig"
+    }
   }
 }

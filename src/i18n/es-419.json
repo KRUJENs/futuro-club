@@ -6310,7 +6310,8 @@
       "insufficient_peers": "Sin percentil: faltan jugadores evaluados comparables ({{count}} de {{min}})",
       "insufficient_short": "Sin percentil ({{count}}/{{min}} pares)",
       "pending_review": "Evaluación con valores por defecto pendiente de revisión: no cuenta como evaluada",
-      "reviews_unavailable": "No se pudo comprobar qué evaluaciones están pendientes de revisión: percentil bloqueado"
+      "reviews_unavailable": "No se pudo comprobar qué evaluaciones están pendientes de revisión: percentil bloqueado",
+      "age_unknown": "Sin edad registrada: no tiene percentil por grupo"
     }
   },
   "coachEval": {
@@ -6404,5 +6405,23 @@
       "out_of_range": "fuera del rango de validez de Khamis-Roche: {{count}}"
     },
     "note": "Agrupa por el % de la talla adulta predicha ya alcanzado (Khamis-Roche 1994; cortes de Cumming et al. 2017), no por la edad. No es la fase PHV que se ve en la lista (esa se calcula con Mirwald y puede no coincidir). Cerca de los cortes la banda puede cambiar: la talla adulta predicha tiene error. Sin las alturas de los padres no hay banda: nunca se asigna por defecto ni desde otra medida."
+  },
+  "rankingsNl": {
+    "placeholder": "Busca con una frase: «lateral zurdo tardío, Sub-14»",
+    "button": "Buscar con IA",
+    "interpreted": "Interpretado:",
+    "nothing": "ningún filtro",
+    "notUnderstood": "No entendido (no se usa):",
+    "error": "No se pudo interpretar la búsqueda: usa los filtros.",
+    "unavailable": "La búsqueda con IA no está disponible ahora: usa los filtros.",
+    "noMatch": "Ninguno de tus jugadores cumple todos los filtros interpretados. No se muestran parecidos.",
+    "ageUnknown": "sin edad",
+    "footLabel": "Pie dominante",
+    "foot": {
+      "all": "Todos",
+      "left": "Zurdo",
+      "right": "Diestro",
+      "both": "Ambidiestro"
+    }
   }
 }

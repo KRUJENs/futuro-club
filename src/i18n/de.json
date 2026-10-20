@@ -6309,7 +6309,8 @@
       "insufficient_peers": "Kein Perzentil: zu wenige vergleichbare bewertete Spieler ({{count}} von {{min}})",
       "insufficient_short": "Kein Perzentil ({{count}}/{{min}} Vergleichsspieler)",
       "pending_review": "Bewertung mit Standardwerten, Prüfung ausstehend: zählt nicht als bewertet",
-      "reviews_unavailable": "Es konnte nicht geprüft werden, welche Bewertungen noch geprüft werden müssen: Perzentil gesperrt"
+      "reviews_unavailable": "Es konnte nicht geprüft werden, welche Bewertungen noch geprüft werden müssen: Perzentil gesperrt",
+      "age_unknown": "Kein erfasstes Alter: kein Perzentil innerhalb der Altersgruppe"
     }
   },
   "coachEval": {
@@ -6403,5 +6404,23 @@
       "out_of_range": "außerhalb des Gültigkeitsbereichs von Khamis-Roche: {{count}}"
     },
     "note": "Gruppiert nach dem bereits erreichten % der vorhergesagten Erwachsenengröße (Khamis-Roche 1994; Grenzen nach Cumming et al. 2017), nicht nach Alter. Es ist nicht die PHV-Phase aus der Liste (die wird mit Mirwald berechnet und kann abweichen). Nahe an den Grenzen kann sich das Band ändern: Die vorhergesagte Erwachsenengröße hat einen Fehler. Ohne die Größe beider Eltern gibt es kein Band: Es wird nie standardmäßig oder aus einem anderen Messwert vergeben."
+  },
+  "rankingsNl": {
+    "placeholder": "Suche mit einem Satz: „spät reifender linker Außenverteidiger, U14“",
+    "button": "Mit KI suchen",
+    "interpreted": "Interpretiert:",
+    "nothing": "kein Filter",
+    "notUnderstood": "Nicht verstanden (nicht verwendet):",
+    "error": "Die Suche konnte nicht interpretiert werden: Nutze die Filter.",
+    "unavailable": "Die KI-Suche ist gerade nicht verfügbar: Nutze die Filter.",
+    "noMatch": "Keiner deiner Spieler erfüllt alle interpretierten Filter. Ähnliche werden nicht angezeigt.",
+    "ageUnknown": "kein Alter",
+    "footLabel": "Starker Fuß",
+    "foot": {
+      "all": "Alle",
+      "left": "Links",
+      "right": "Rechts",
+      "both": "Beidfüßig"
+    }
   }
 }

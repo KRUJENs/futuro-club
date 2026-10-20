@@ -6310,7 +6310,8 @@
       "insufficient_peers": "No percentile: not enough comparable evaluated players ({{count}} of {{min}})",
       "insufficient_short": "No percentile ({{count}}/{{min}} peers)",
       "pending_review": "Evaluation with default values pending review: it does not count as evaluated",
-      "reviews_unavailable": "Could not check which evaluations are pending review: percentile blocked"
+      "reviews_unavailable": "Could not check which evaluations are pending review: percentile blocked",
+      "age_unknown": "No registered age: no percentile within an age group"
     }
   },
   "coachEval": {
@@ -6404,5 +6405,23 @@
       "out_of_range": "outside the Khamis-Roche validity range: {{count}}"
     },
     "note": "Groups players by the % of predicted adult height already reached (Khamis-Roche 1994; Cumming et al. 2017 cut-offs), not by age. It is not the PHV phase shown in the list (that one uses Mirwald and may differ). Near the cut-offs the band can change: predicted adult height has an error. Without both parents' heights there is no band: it is never assigned by default or from another measurement."
+  },
+  "rankingsNl": {
+    "placeholder": "Search with a phrase: \"late-maturing left-footed full-back, U14\"",
+    "button": "Search with AI",
+    "interpreted": "Interpreted:",
+    "nothing": "no filter",
+    "notUnderstood": "Not understood (not used):",
+    "error": "The search could not be interpreted: use the filters.",
+    "unavailable": "AI search is not available right now: use the filters.",
+    "noMatch": "None of your players meet all the interpreted filters. Similar players are not shown.",
+    "ageUnknown": "no age",
+    "footLabel": "Preferred foot",
+    "foot": {
+      "all": "All",
+      "left": "Left-footed",
+      "right": "Right-footed",
+      "both": "Two-footed"
+    }
   }
 }

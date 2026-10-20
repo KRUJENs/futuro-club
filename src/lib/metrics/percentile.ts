@@ -25,7 +25,7 @@ import { derived, gated, ORIENTATIVE_CONFIDENCE, type MetricResult } from "./Met
 import { PERCENTILE_MIN_PEERS } from "../../../config/percentiles";
 
 /** Motivo de bloqueo en forma de código (la UI lo traduce; `gate_reason` es el texto canónico). */
-export type PercentileGateCode = "not_evaluated" | "insufficient_peers" | "pending_review" | "reviews_unavailable";
+export type PercentileGateCode = "not_evaluated" | "insufficient_peers" | "pending_review" | "reviews_unavailable" | "age_unknown";
 
 export const PERCENTILE_SOURCE_REF = "src/lib/metrics/percentile.ts";
 
@@ -72,11 +72,13 @@ export const NOT_EVALUATED_REASON = "sin evaluación: no tiene percentil";
 const BLOCKED_REASON = {
   pending_review: "evaluación con valores por defecto pendiente de revisión: no cuenta como evaluada",
   reviews_unavailable: "no se pudo comprobar qué evaluaciones están pendientes de revisión",
+  age_unknown: "sin edad registrada (o fuera de los grupos de edad): no tiene percentil por grupo",
 } as const;
 
 /**
  * Percentil bloqueado por la revisión VSI de la 070 (D3, P1 bloque 7b): el jugador tiene
- * revisión pendiente, o no se pudo leer quién la tiene (falla cerrado).
+ * revisión pendiente, o no se pudo leer quién la tiene (falla cerrado); o, solo para el
+ * percentil por grupo, el jugador no tiene grupo de edad (P2 bloque 11).
  */
 export function blockedPercentile(code: keyof typeof BLOCKED_REASON, opts: Opts = {}): PeerPercentile {
   return {

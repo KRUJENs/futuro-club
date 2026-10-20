@@ -1,4 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
+import { RANKING_AGE_GROUP_LABELS, RANKING_FEET, RANKING_POSITIONS } from "@/lib/shared/rankingVocab";
+import { NlSearchBox } from "@/components/rankings/NlSearchBox";
+import type { NlRankingFilters } from "@/lib/search/nlRankingFilters";
 import { motion } from "framer-motion";
 import { Crown, Medal, Shield, Search, Plus, X, SlidersHorizontal, BarChart3, Users } from "lucide-react";
 import PageHeader from "@/components/shared/PageHeader";
@@ -31,22 +34,10 @@ const rankIcons = [
 // bajo el rótulo «Tardío ⭐»: listaba a casi todo pre-púber y ocultaba a tardíos.
 const TIMING_FILTERS = ["all", ...RANKING_TIMING_FILTERS] as const;
 
-const POSITION_GROUPS = [
-  "Todos",
-  "Portero",
-  "Defensa Central",
-  "Lateral Derecho",
-  "Lateral Izquierdo",
-  "Pivote",
-  "Mediocentro",
-  "Mediapunta",
-  "Extremo Derecho",
-  "Extremo Izquierdo",
-  "Delantero Centro",
-  "Segundo Delantero",
-];
+// Vocabulario único (src/lib/shared/rankingVocab.ts): el mismo que el servidor y la búsqueda.
+const POSITION_GROUPS = ["Todos", ...RANKING_POSITIONS];
 
-const AGE_GROUPS = ["all", "Sub-10", "Sub-12", "Sub-14", "Sub-16", "Sub-18", "Sub-21"];
+const AGE_GROUPS = ["all", ...RANKING_AGE_GROUP_LABELS];
 
 const container = { hidden: {}, show: { transition: { staggerChildren: 0.06 } } };
 const item = { hidden: { opacity: 0, x: -20 }, show: { opacity: 1, x: 0, transition: { duration: 0.4 } } };
@@ -62,6 +53,9 @@ const Rankings = () => {
   const [posFilter, setPosFilter] = useState("Todos");
   const [ageGroupFilter, setAgeGroupFilter] = useState("all");
   const [levelFilter, setLevelFilter] = useState("all");
+  const [footFilter, setFootFilter] = useState("all");
+  // Filtros puestos por la búsqueda en lenguaje natural (P2 bloque 11): sin resultados ⇒ abstención.
+  const [nlActive, setNlActive] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   // Build filters object for API
@@ -71,9 +65,10 @@ const Rankings = () => {
       position: posFilter,
       ageGroup: ageGroupFilter,
       level: levelFilter,
+      foot: footFilter,
       search: search || undefined,
     }),
-    [timingFilter, posFilter, ageGroupFilter, levelFilter, search]
+    [timingFilter, posFilter, ageGroupFilter, levelFilter, footFilter, search]
   );
 
   // Rótulo ÚNICO del timing (fila y filtro): el chip «Madurador tardío ⭐» lista
@@ -94,7 +89,7 @@ const Rankings = () => {
 
   if (isError) toast.error(t("toasts.rankingsError"));
 
-  const hasFilters = search !== "" || timingFilter !== "all" || posFilter !== "Todos" || ageGroupFilter !== "all" || levelFilter !== "all";
+  const hasFilters = search !== "" || timingFilter !== "all" || posFilter !== "Todos" || ageGroupFilter !== "all" || levelFilter !== "all" || footFilter !== "all";
   const isFiltered = players.length !== totalUnfiltered;
 
   const handleSort = useCallback((field: SortField) => {
@@ -108,6 +103,19 @@ const Rankings = () => {
     setPosFilter("Todos");
     setAgeGroupFilter("all");
     setLevelFilter("all");
+    setFootFilter("all");
+    setNlActive(false);
+  }, []);
+
+  // La búsqueda en lenguaje natural SUSTITUYE los filtros (lo que no dijo la frase queda en «todos»).
+  const applyNlFilters = useCallback((f: NlRankingFilters) => {
+    setSearch("");
+    setLevelFilter("all");
+    setPosFilter(f.position ?? "Todos");
+    setFootFilter(f.foot ?? "all");
+    setTimingFilter(f.timing ?? "all");
+    setAgeGroupFilter(f.ageGroup ?? "all");
+    setNlActive(true);
   }, []);
 
   return (
@@ -240,6 +248,22 @@ const Rankings = () => {
             </select>
           </div>
 
+          {/* Filtro Pie dominante (sin pie registrado no casa) */}
+          <div>
+            <p className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-2">
+              {t("rankingsNl.footLabel")}
+            </p>
+            <select
+              value={footFilter}
+              onChange={(e) => setFootFilter(e.target.value)}
+              className="w-full h-8 rounded-md border border-input bg-background px-3 text-xs font-display text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {["all", ...RANKING_FEET].map((f) => (
+                <option key={f} value={f}>{t(`rankingsNl.foot.${f}`)}</option>
+              ))}
+            </select>
+          </div>
+
           {/* Filtro Grupo de Edad */}
           <div>
             <p className="text-[10px] font-display uppercase tracking-widest text-muted-foreground mb-2">
@@ -366,6 +390,11 @@ const Rankings = () => {
         </motion.div>
       ) : null}
 
+      {/* Búsqueda en lenguaje natural (IA → filtros; la lista sale de tus jugadores reales) */}
+      <motion.div variants={item}>
+        <NlSearchBox onApply={applyNlFilters} />
+      </motion.div>
+
       {/* Lista de jugadores */}
       {isLoading ? (
         <PlayerListSkeleton count={6} />
@@ -375,7 +404,7 @@ const Rankings = () => {
             <>
               <p className="font-display font-bold text-lg">{t("players.rankings.noResults")}</p>
               <p className="text-sm text-muted-foreground">
-                {t("players.rankings.noResultsDesc")}
+                {nlActive ? t("rankingsNl.noMatch") : t("players.rankings.noResultsDesc")}
               </p>
               <Button variant="outline" size="sm" onClick={clearFilters}>
                 {t("common.clearFiltersSm")}
@@ -422,7 +451,7 @@ const Rankings = () => {
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
                   <span className="text-electric font-display">{player.positionShort}</span>
                   <span>·</span>
-                  <span>{player.age}a</span>
+                  <span>{player.age != null ? `${player.age}a` : t("rankingsNl.ageUnknown")}</span>
                   <span>·</span>
                   {/* Timing de maduración desde el motor canónico (misma fuente
                       que la tarjeta PHV): la respuesta del API incluye la
@@ -463,7 +492,8 @@ const Rankings = () => {
                       })}
                     </span>
                   ) : player.percentileInAgeGroupGate?.code === "pending_review" ||
-                    player.percentileInAgeGroupGate?.code === "reviews_unavailable" ? (
+                    player.percentileInAgeGroupGate?.code === "reviews_unavailable" ||
+                    player.percentileInAgeGroupGate?.code === "age_unknown" ? (
                     // Revisión VSI de la 070 (D3): el motivo, nunca un hueco mudo.
                     <span className="text-muted-foreground">
                       {t(`percentile.gate.${player.percentileInAgeGroupGate.code}`)}

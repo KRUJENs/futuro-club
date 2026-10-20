@@ -6,6 +6,7 @@ import { PlayerService } from "@/services/real/playerService";
 import { adaptPlayerForUI } from "@/services/real/adapters";
 import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabase";
 import { phvGate, matchesTimingFilter, type MaturityTiming } from "@/lib/phv/phvGate";
+import { rankingAgeGroup } from "@/lib/shared/rankingVocab";
 import { percentilesAmong, percentileGateInfo, type PercentileGateInfo } from "@/lib/metrics/percentile";
 
 export type SortField = "vsi" | "name" | "age" | "percentile";
@@ -18,6 +19,8 @@ export interface RankingsFilters {
   ageGroup?: string;   // "Sub-14", etc. or "all"
   level?: string;      // Competitive level or "all"
   search?: string;     // Name search
+  /** Pie dominante ("left" | "right" | "both") o "all"; sin pie registrado no casa. */
+  foot?: string;
 }
 
 export interface RankingsResponse {
@@ -37,7 +40,8 @@ export interface RankingsResponse {
 export interface RankedPlayer {
   id: string;
   name: string;
-  age: number;
+  /** null = edad no registrada (el servidor ya no inventa 15). */
+  age: number | null;
   position: string;
   secondaryPositions?: string[];          // polivalencia
   positionShort: string;
@@ -49,7 +53,7 @@ export interface RankedPlayer {
   /** Motivo del gate PHV del servidor (qué falta) cuando phvCategory es null. */
   phvGateReason?: string | null;
   competitiveLevel?: string | null;       // ausente/null ⇒ nivel no registrado
-  ageGroup: string;
+  ageGroup: string | null;
   trending: "up" | "down" | "stable";
   // null si sin evaluar o con menos de 10 pares evaluados; el motivo va en *Gate
   // (implementación única src/lib/metrics/percentile.ts, P1 bloque 5).
@@ -99,6 +103,7 @@ export async function fetchRankedPlayers(
         if (filters.timing && filters.timing !== "all") params.set("timing", filters.timing);
         if (filters.position && filters.position !== "Todos") params.set("position", filters.position);
         if (filters.ageGroup && filters.ageGroup !== "all") params.set("ageGroup", filters.ageGroup);
+        if (filters.foot && filters.foot !== "all") params.set("foot", filters.foot);
         if (filters.level && filters.level !== "all") params.set("level", filters.level);
         if (filters.search) params.set("search", filters.search);
 
@@ -130,17 +135,7 @@ function fetchLocalRankedPlayers(
   const sorted = PlayerService.sort(players, sortBy === "percentile" ? "vsi" : sortBy, dir);
   const uiPlayers = sorted.map(adaptPlayerForUI);
 
-  const AGE_GROUPS: Record<string, [number, number]> = {
-    "Sub-10": [8, 10], "Sub-12": [11, 12], "Sub-14": [13, 14],
-    "Sub-16": [15, 16], "Sub-18": [17, 18], "Sub-21": [19, 21],
-  };
 
-  function getAgeGroup(age: number): string {
-    for (const [label, [min, max]] of Object.entries(AGE_GROUPS)) {
-      if (age >= min && age <= max) return label;
-    }
-    return "Sub-21";
-  }
 
   // Group VSIs by age group — solo evaluados para avg/percentiles; el conteo
   // por grupo cuenta a todos.
@@ -148,11 +143,14 @@ function fetchLocalRankedPlayers(
   const countByAgeGroup: Record<string, number> = {};
   const enriched: RankedPlayer[] = uiPlayers.map((p, i) => {
     const raw = sorted[i]; // jugador CRUDO (mismo índice) → tiene sexo/antropometría
-    const ageGroup = getAgeGroup(p.age);
-    countByAgeGroup[ageGroup] = (countByAgeGroup[ageGroup] ?? 0) + 1;
-    if (p.vsi !== null) {
-      if (!vsiByAgeGroup[ageGroup]) vsiByAgeGroup[ageGroup] = [];
-      vsiByAgeGroup[ageGroup].push(p.vsi);
+    // Grupo de edad con la regla única (rankingVocab): sin edad válida ⇒ sin grupo.
+    const ageGroup = rankingAgeGroup(p.age);
+    if (ageGroup !== null) {
+      countByAgeGroup[ageGroup] = (countByAgeGroup[ageGroup] ?? 0) + 1;
+      if (p.vsi !== null) {
+        if (!vsiByAgeGroup[ageGroup]) vsiByAgeGroup[ageGroup] = [];
+        vsiByAgeGroup[ageGroup].push(p.vsi);
+      }
     }
     const row = {
       id: p.id,
@@ -233,6 +231,9 @@ function fetchLocalRankedPlayers(
   }
   if (filters.ageGroup && filters.ageGroup !== "all") {
     filtered = filtered.filter((p) => p.ageGroup === filters.ageGroup);
+  }
+  if (filters.foot && filters.foot !== "all") {
+    filtered = filtered.filter((p) => p.foot === filters.foot);
   }
   if (filters.level && filters.level !== "all") {
     filtered = filtered.filter(

@@ -148,6 +148,31 @@ describe("rankings · percentil entre pares (implementación única)", () => {
     }
   });
 
+  it("filtro de pie (bloque 11): solo el pie registrado casa; sin pie no; valor fuera del vocabulario se ignora", async () => {
+    rows = [player("zurdo", 60, { foot: "left" }), player("diestro", 61, { foot: "right" }), player("sin-pie", 62)];
+    const get = async (q: string) => {
+      const res = await listHandler(new Request(`https://x.test/api/rankings/list?limit=200${q}`, { headers: { Authorization: "Bearer user-jwt" } }));
+      return ((await res.json()) as { data: { players: Array<{ id: string }> } }).data.players.map((p) => p.id);
+    };
+    expect(await get("&foot=left")).toEqual(["zurdo"]);
+    expect((await get("&foot=zurdo")).sort()).toEqual(["diestro", "sin-pie", "zurdo"]);
+  });
+
+  it("sin edad registrada (o fuera de 8-21) ⇒ sin grupo ni percentil por grupo; nunca 15 ⇒ «Sub-16» ni «Sub-21» por defecto", async () => {
+    rows = [player("sin-edad", 60, { age: undefined }), player("adulto", 61, { age: 25 }), player("sub14", 62)];
+    const res = await listHandler(new Request("https://x.test/api/rankings/list?limit=200", { headers: { Authorization: "Bearer user-jwt" } }));
+    const data = ((await res.json()) as { data: { players: Array<Record<string, unknown>>; ageGroups: string[] } }).data;
+    const byId = (id: string) => data.players.find((p) => p.id === id)!;
+    for (const id of ["sin-edad", "adulto"]) {
+      expect(byId(id).ageGroup).toBeNull();
+      expect((byId(id).percentileInAgeGroupGate as { code: string }).code).toBe("age_unknown");
+    }
+    expect(byId("sin-edad").age).toBeNull();
+    expect(data.ageGroups).toEqual(["Sub-14"]);
+    const sub16 = await listHandler(new Request("https://x.test/api/rankings/list?limit=200&ageGroup=Sub-16", { headers: { Authorization: "Bearer user-jwt" } }));
+    expect(((await sub16.json()) as { data: { players: unknown[] } }).data.players).toEqual([]);
+  });
+
   it("los jugadores de ejemplo no cuentan como pares de los reales", async () => {
     rows = [
       ...Array.from({ length: 10 }, (_, i) => player(`demo${i}`, 40 + i, { isDemo: true })),
