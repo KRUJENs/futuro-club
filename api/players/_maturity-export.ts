@@ -47,7 +47,8 @@ export default withHandler(
       .eq("id", playerId)
       .single();
     if (pErr || !player) {
-      return errorResponse({ code: "player_not_found", message: pErr?.message ?? "Jugador no existe", status: 404 });
+      // Mensajes genéricos: nunca el texto crudo de la base hacia fuera.
+      return errorResponse({ code: "player_not_found", message: "Jugador no existe", status: 404 });
     }
     const blob = (player.data ?? {}) as Record<string, unknown>;
     const birthDate =
@@ -58,7 +59,8 @@ export default withHandler(
       try {
         hasConsent = await hasActiveParentalConsent(playerId);
       } catch (e) {
-        return errorResponse({ code: "db_error", message: (e as Error).message, status: 500 });
+        console.error("[maturity-export] consentimiento", (e as Error).message);
+        return errorResponse({ code: "db_error", message: "No se pudo comprobar el consentimiento", status: 500 });
       }
       if (!hasConsent) {
         // Sin consentimiento no se lee ni la medición.
@@ -75,7 +77,8 @@ export default withHandler(
       .eq("player_id", playerId)
       .maybeSingle();
     if (aErr) {
-      return errorResponse({ code: "db_error", message: aErr.message, status: 500 });
+      console.error("[maturity-export] medición", aErr.message);
+      return errorResponse({ code: "db_error", message: "No se pudo leer la medición", status: 500 });
     }
 
     const result = buildMaturityExport({ playerId, birthDate, blob, row: row ?? null, hasConsent });

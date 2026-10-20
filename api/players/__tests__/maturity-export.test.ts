@@ -26,6 +26,7 @@ const ROW = {
   age_source: "birth_date", maturity_offset: g.offset.value, phv_category: g.category, measured_at: MEASURED,
 };
 const tablesRead: string[] = [];
+let playerBirth: string | null = BIRTH;
 
 vi.mock("@supabase/supabase-js", () => ({
   createClient: () => ({
@@ -35,7 +36,7 @@ vi.mock("@supabase/supabase-js", () => ({
       const chain = () => b;
       Object.assign(b, {
         select: chain, eq: chain,
-        single: async () => ({ data: { birth_date: BIRTH, data: { gender: "M", sexConfirmedAt: "2026-08-01T00:00:00Z", name: "Leo", vsi: 70 } }, error: null }),
+        single: async () => ({ data: { birth_date: playerBirth, data: { gender: "M", sexConfirmedAt: "2026-08-01T00:00:00Z", name: "Leo", vsi: 70 } }, error: null }),
         maybeSingle: async () => ({ data: ROW, error: null }),
       });
       return b;
@@ -54,6 +55,7 @@ beforeEach(() => {
   mockOwns.mockReset().mockResolvedValue(true);
   mockConsent.mockReset().mockResolvedValue(true);
   tablesRead.length = 0;
+  playerBirth = BIRTH;
 });
 
 describe("GET /api/players/maturity-export", () => {
@@ -75,6 +77,25 @@ describe("GET /api/players/maturity-export", () => {
   it("fallo al leer el consentimiento ⇒ 500 (falla cerrado)", async () => {
     mockConsent.mockRejectedValue(new Error("db down"));
     expect((await get()).status).toBe(500);
+  });
+
+  it("edad desconocida ⇒ también exige el consentimiento (403 sin él)", async () => {
+    playerBirth = null;
+    mockConsent.mockResolvedValue(false);
+    expect((await get()).status).toBe(403);
+    expect(mockConsent).toHaveBeenCalled();
+  });
+
+  it("adulto ⇒ no se consulta el consentimiento", async () => {
+    playerBirth = "2000-01-01";
+    await get();
+    expect(mockConsent).not.toHaveBeenCalled();
+  });
+
+  it("error de la base ⇒ mensaje genérico, nunca el texto crudo", async () => {
+    mockConsent.mockRejectedValue(new Error("relation parental_consents secret detail"));
+    const res = await get();
+    expect(JSON.stringify(await res.json())).not.toMatch(/secret detail/);
   });
 
   it("control positivo: dueño + consentimiento ⇒ solo el contrato (sin nombre, VSI ni medidas)", async () => {

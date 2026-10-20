@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { buildMaturityExport, MATURITY_EXPORT_SCHEMA, requiresGuardianConsent } from "@/lib/shared/maturityExport";
 import { phvGate } from "@/lib/phv/phvGate";
+import { decimalAgeYears } from "@/lib/shared/age";
 
 const BIRTH = "2013-03-01";
 const MEASURED = "2026-09-01T10:00:00Z";
@@ -32,9 +33,9 @@ describe("buildMaturityExport", () => {
     expect(r.payload.status.confidence).toBe(g.offset.confidence);
     expect(r.payload.phv_date.confidence).toBe(g.aphv.confidence);
     expect(r.payload.phv_date.provenance).toBe("DERIVADA");
-    // Fecha = nacimiento + APHV (años), con precisión de días.
-    const days = (Date.parse(`${r.payload.phv_date.value}T00:00:00Z`) - Date.parse(`${BIRTH}T00:00:00Z`)) / 86_400_000;
-    expect(Math.abs(days / 365.2425 - (g.aphv.value as number))).toBeLessThan(0.01);
+    // Fecha = nacimiento + APHV: comprobado por otra vía (la edad de la app en esa fecha).
+    expect(Math.abs((decimalAgeYears(BIRTH, r.payload.phv_date.value) as number) - (g.aphv.value as number))).toBeLessThanOrEqual(0.01);
+    expect(r.payload.status.source_ref).not.toMatch(/src\//); // nada de rutas internas hacia fuera
   });
 
   it("menor sin consentimiento activo del tutor ⇒ bloqueado, sin decir nada del PHV", () => {
@@ -46,6 +47,12 @@ describe("buildMaturityExport", () => {
     expect(requiresGuardianConsent(null, NOW)).toBe(true);
     expect(requiresGuardianConsent("2000-01-01", NOW)).toBe(false);
     expect(requiresGuardianConsent(BIRTH, NOW)).toBe(true);
+  });
+
+  it("frontera de los 18 por años CUMPLIDOS: la víspera aún es menor (revisión r1)", () => {
+    expect(requiresGuardianConsent("2008-01-02", new Date("2025-12-31T12:00:00Z"))).toBe(true);
+    expect(requiresGuardianConsent("2008-10-22", new Date("2026-10-20T14:00:00Z"))).toBe(true);
+    expect(requiresGuardianConsent("2008-10-22", new Date("2026-10-22T00:00:00Z"))).toBe(false);
   });
 
   it("«M» sin confirmar = sin sexo registrado ⇒ phv_unavailable", () => {

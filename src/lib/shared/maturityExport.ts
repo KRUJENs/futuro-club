@@ -12,6 +12,10 @@
  *  - estado y edad del PHV salen de `phvGate` sobre esas mismas entradas (fase única de
  *    Mirwald y su confianza); si las dos puertas no coinciden, se bloquea;
  *  - fecha del PHV = fecha de nacimiento + edad del PHV (APHV).
+ * La fase es la de la FECHA DE LA MEDICIÓN (`measured_at`), que es cuando las medidas son
+ * ciertas; la tarjeta PHV del Hub la recalcula con la edad de hoy (pendiente anotado).
+ * La mayoría de edad se decide con `completedYearsAt` (años cumplidos, regla legal única de
+ * videoConsent.ts), nunca con la edad decimal del PHV.
  * Orden de las comprobaciones: sin consentimiento no se dice nada más (ni el motivo del PHV).
  * Edge-safe: sin alias `@/`.
  */
@@ -19,13 +23,14 @@
 import { phvGate, type PhvPhase } from "../phv/phvGate";
 import type { AnthropometricsRowLike } from "../phv/phvGate";
 import { derived, type MetricResult } from "../metrics/MetricResult";
-import { decimalAgeYears } from "./age";
 import { toIsoBirthDate } from "./birthDate";
 import { withRegisteredSex } from "./registeredSex";
 import { trustAnthroForPlayer } from "./sexGatedAnthro";
+import { completedYearsAt } from "./videoConsent";
 
 export const MATURITY_EXPORT_SCHEMA = "vitas.maturity.v1";
-export const MATURITY_EXPORT_SOURCE_REF = "src/lib/shared/maturityExport.ts";
+/** Referencia PÚBLICA (sale a un tercero): sin rutas internas del repositorio. */
+export const MATURITY_EXPORT_SOURCE_REF = "vitas.maturity.v1 · Mirwald (fase y edad del PHV)";
 
 /** Edad a partir de la cual no hace falta el tutor (mayoría de edad). */
 export const ADULT_AGE_YEARS = 18;
@@ -54,10 +59,10 @@ export const PHV_INCONSISTENT_REASON =
 
 type Blob = Record<string, unknown>;
 
-/** ¿Hace falta el tutor? Menor o edad desconocida (se pide de más, nunca de menos). */
-export function requiresGuardianConsent(birthDate: string | null, now?: Date): boolean {
-  const age = decimalAgeYears(birthDate, now);
-  return age === null || age < ADULT_AGE_YEARS;
+/** ¿Hace falta el tutor? Menor (años CUMPLIDOS) o edad desconocida: de más, nunca de menos. */
+export function requiresGuardianConsent(birthDate: string | null, now: Date = new Date()): boolean {
+  const years = birthDate ? completedYearsAt(birthDate, now) : null;
+  return years === null || years < ADULT_AGE_YEARS;
 }
 
 function addYearsIso(isoDate: string, years: number): string {
@@ -101,7 +106,7 @@ export function buildMaturityExport(input: {
     return { ok: false, code: "phv_unavailable", gate_reason: PHV_INCONSISTENT_REASON };
   }
 
-  const source_ref = `${MATURITY_EXPORT_SOURCE_REF} · ${gate.aphv.source_ref ?? "phvGate"}`;
+  const source_ref = MATURITY_EXPORT_SOURCE_REF;
   return {
     ok: true,
     payload: {
