@@ -37,8 +37,13 @@ export const RAE_BIAS_SOURCE_REF = "src/lib/shared/relativeAgeBias.ts";
 /** Nacidos por trimestre, del 1.º (los mayores del año) al 4.º (los más jóvenes). */
 export type QuarterCounts = [number, number, number, number];
 
-/** early = más nacidos al principio del año; late = al final; none = reparto compatible con el esperado. */
-export type RaeDirection = "early" | "late" | "none";
+/**
+ * early = más nacidos al principio del año (1.er trimestre por encima de lo esperado, 4.º por
+ * debajo y primera mitad del año por encima); late = lo simétrico; uneven = el reparto NO es
+ * uniforme pero sin ese patrón (la prueba χ² no dice hacia dónde); none = compatible con el
+ * reparto por igual.
+ */
+export type RaeDirection = "early" | "late" | "uneven" | "none";
 
 export interface RaeSignal {
   counts: QuarterCounts;
@@ -59,7 +64,7 @@ export interface SquadRelativeAge {
 }
 
 export function insufficientDatedReason(dated: number, min: number): string {
-  return `Pocos jugadores con fecha de nacimiento (${dated} de ${min}) para una señal de edad relativa.`;
+  return `Pocos jugadores con fecha de nacimiento (${dated}; mínimo ${min}) para una señal de edad relativa.`;
 }
 
 export const CUTOFF_UNAVAILABLE_REASON =
@@ -104,7 +109,10 @@ export function squadRelativeAge(
   const expected = dated / counts.length;
   const chiSquare = counts.reduce((acc, o) => acc + ((o - expected) * (o - expected)) / expected, 0);
   const uneven = chiSquare >= RAE_CHI2_CRITICAL;
-  const direction: RaeDirection = !uneven || counts[0] === counts[3] ? "none" : counts[0] > counts[3] ? "early" : "late";
+  const [q1, q2, q3, q4] = counts;
+  const early = q1 > expected && q4 < expected && q1 + q2 > 2 * expected;
+  const late = q4 > expected && q1 < expected && q3 + q4 > 2 * expected;
+  const direction: RaeDirection = !uneven ? "none" : early ? "early" : late ? "late" : "uneven";
 
   return {
     ...base,

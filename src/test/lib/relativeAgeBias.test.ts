@@ -20,7 +20,7 @@ describe("squadRelativeAge", () => {
     expect(r.dated).toBe(18);
     expect(r.signal.value).toBeNull();
     expect(r.gate_code).toBe("insufficient_dated_players");
-    expect(r.signal.gate_reason).toContain("18 de 20");
+    expect(r.signal.gate_reason).toContain("18; mínimo 20");
   });
 
   it("control positivo: reparto por igual ⇒ sin señal (none), orientativa y DERIVADA", () => {
@@ -40,6 +40,15 @@ describe("squadRelativeAge", () => {
     const r = squadRelativeAge(squad(10, 5, 3, 2), { now: NOW });
     expect(r.signal.value?.chiSquare).toBe(7.6);
     expect(r.signal.value?.direction).toBe("none");
+  });
+
+  it("reparto desigual sin el patrón de edad relativa ⇒ uneven, nunca early/late ni «compatible»", () => {
+    // Exceso en el 2.º o 3.er trimestre, o en el centro con 1.º y 4.º iguales (revisión r1).
+    for (const [a, b, c, d] of [[2, 12, 2, 4], [6, 1, 12, 1], [1, 9, 9, 1]]) {
+      const v = squadRelativeAge(squad(a, b, c, d), { now: NOW }).signal.value!;
+      expect(v.chiSquare).toBeGreaterThanOrEqual(7.815);
+      expect(v.direction).toBe("uneven");
+    }
   });
 
   it("más nacidos al final del año ⇒ late", () => {

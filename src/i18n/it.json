@@ -6370,15 +6370,17 @@
   },
   "relativeAge": {
     "title": "Età relativa della rosa",
+    "confidence": "Affidabilità orientativa: {{pct}}%",
     "coverage": "{{dated}} su {{total}} con data di nascita",
     "quarter": "{{q}}° trim.",
     "gate": {
-      "insufficient_dated_players": "Troppo pochi giocatori con data di nascita ({{dated}} su {{min}}) per dare un segnale di età relativa.",
+      "insufficient_dated_players": "Troppo pochi giocatori con data di nascita ({{dated}}; minimo {{min}}) per dare un segnale di età relativa.",
       "cutoff_unavailable": "Nessuna data limite di categoria valida: il segnale di età relativa non viene calcolato."
     },
     "signal": {
       "early": "Segnale: più nati a inizio anno del previsto. Potrebbe esserci un bias di età relativa nella selezione.",
       "late": "Segnale: più nati a fine anno del previsto.",
+      "uneven": "Segnale: la distribuzione per trimestre non è uniforme, ma senza lo schema dell'età relativa (più nati a inizio anno).",
       "none": "Nessun segnale: la distribuzione per trimestre è compatibile con una distribuzione uniforme."
     },
     "note": "È un segnale, non un verdetto: non corregge né valuta nessun giocatore. Il confronto è con una distribuzione uniforme tra trimestri e con l'anno solare come data limite (approssimazioni da validare). Nelle categorie di due anni il trimestre non ordina i giocatori all'interno della categoria."

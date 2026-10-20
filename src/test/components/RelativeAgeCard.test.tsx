@@ -31,5 +31,6 @@ describe("RelativeAgeCard", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(4);
     expect(screen.getByText("relativeAge.signal.early")).toBeDefined();
     expect(screen.getByText("Calculado")).toBeDefined();
+    expect(screen.getByText(/relativeAge\.confidence .*"pct":40/)).toBeDefined();
   });
 });

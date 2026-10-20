@@ -6371,15 +6371,17 @@
   },
   "relativeAge": {
     "title": "Relatieve leeftijd van de selectie",
+    "confidence": "Indicatieve betrouwbaarheid: {{pct}}%",
     "coverage": "{{dated}} van {{total}} met geboortedatum",
     "quarter": "{{q}}e kwart.",
     "gate": {
-      "insufficient_dated_players": "Te weinig spelers met geboortedatum ({{dated}} van {{min}}) voor een signaal over relatieve leeftijd.",
+      "insufficient_dated_players": "Te weinig spelers met geboortedatum ({{dated}}; minimaal {{min}}) voor een signaal over relatieve leeftijd.",
       "cutoff_unavailable": "Geen geldige peildatum voor de categorie: het signaal over relatieve leeftijd wordt niet berekend."
     },
     "signal": {
       "early": "Signaal: meer spelers geboren aan het begin van het jaar dan verwacht. Er kan sprake zijn van een relatieve-leeftijdseffect bij de selectie.",
       "late": "Signaal: meer spelers geboren aan het eind van het jaar dan verwacht.",
+      "uneven": "Signaal: de verdeling per kwartaal is ongelijk, maar zonder het patroon van relatieve leeftijd (meer spelers geboren aan het begin van het jaar).",
       "none": "Geen signaal: de verdeling per kwartaal past bij een gelijke verdeling."
     },
     "note": "Dit is een signaal, geen oordeel: het corrigeert of beoordeelt geen enkele speler. Er wordt vergeleken met een gelijke verdeling over de kwartalen en het kalenderjaar als peildatum (benaderingen, nog te valideren). In categorieën van twee jaar ordent het kwartaal de spelers binnen de categorie niet."

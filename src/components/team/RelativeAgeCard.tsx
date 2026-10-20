@@ -22,9 +22,12 @@ export function RelativeAgeCard({ birthDates }: { birthDates: ReadonlyArray<unkn
         <h2 id="rae-title" className="font-display font-semibold text-sm text-muted-foreground uppercase tracking-wider flex items-center gap-2">
           <CalendarRange size={13} /> {t("relativeAge.title")}
         </h2>
-        <span className="text-[11px] text-muted-foreground">
-          {t("relativeAge.coverage", { dated: rae.dated, total: rae.total })}
-        </span>
+        {/* Con el corte bloqueado nadie tiene trimestre: la cobertura «0 de N» sería falsa. */}
+        {rae.gate_code !== "cutoff_unavailable" && (
+          <span className="text-[11px] text-muted-foreground">
+            {t("relativeAge.coverage", { dated: rae.dated, total: rae.total })}
+          </span>
+        )}
       </div>
 
       {signal === null ? (
@@ -47,6 +50,9 @@ export function RelativeAgeCard({ birthDates }: { birthDates: ReadonlyArray<unkn
           <p className="text-xs flex items-center gap-1.5 flex-wrap">
             <span>{t(`relativeAge.signal.${signal.direction}`)}</span>
             <ProvenanceBadge provenance={rae.signal.provenance} />
+            <span className="text-[10px] text-muted-foreground">
+              {t("relativeAge.confidence", { pct: Math.round(rae.signal.confidence * 100) })}
+            </span>
           </p>
         </>
       )}
