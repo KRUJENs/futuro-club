@@ -82,14 +82,18 @@ describe("GET /api/players/maturity-export", () => {
   it("edad desconocida ⇒ también exige el consentimiento (403 sin él)", async () => {
     playerBirth = null;
     mockConsent.mockResolvedValue(false);
-    expect((await get()).status).toBe(403);
+    const res = await get();
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as { errorDetail: { code: string } }).errorDetail.code).toBe("consent_required");
     expect(mockConsent).toHaveBeenCalled();
   });
 
   it("adulto ⇒ no se consulta el consentimiento", async () => {
     playerBirth = "2000-01-01";
-    await get();
+    const res = await get();
     expect(mockConsent).not.toHaveBeenCalled();
+    // La fila de prueba es de un niño: con fecha de adulto el gate no la reproduce ⇒ 422, nunca 500.
+    expect(res.status).toBe(422);
   });
 
   it("error de la base ⇒ mensaje genérico, nunca el texto crudo", async () => {
