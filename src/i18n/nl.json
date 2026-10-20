@@ -3919,9 +3919,6 @@
     "biologicalAge": "Biologische leeftijd",
     "vsPeers": "vs leeftijdsgenoten",
     "adjustedByMaturation": "gecorrigeerd voor rijping",
-    "bioBandingPrefix": "Bio-banding: speelt als ",
-    "bioBandingMiddle": " maar biologisch is hij/zij ",
-    "bioBandingSuffix": ".",
     "estimatedWarning": "⚠ Antropometrische metingen geschat op basis van de lengte · betrouwbaarheid {{confidence}}%. Voeg een echte zithoogte toe voor een gevalideerd PHV."
   },
   "phvWindowPlan": {
@@ -6385,5 +6382,27 @@
       "none": "Geen signaal: de verdeling per kwartaal past bij een gelijke verdeling."
     },
     "note": "Dit is een signaal, geen oordeel: het corrigeert of beoordeelt geen enkele speler. Er wordt vergeleken met een gelijke verdeling over de kwartalen en het kalenderjaar als peildatum (benaderingen, nog te valideren). In categorieën van twee jaar ordent het kwartaal de spelers binnen de categorie niet."
+  },
+  "bioBanding": {
+    "title": "Bio-banding op % van de volwassen lengte",
+    "coverage": "{{banded}} van {{total}} met band",
+    "band": {
+      "pre_phv": "Pre-PHV (< {{pre}}%)",
+      "circa_phv": "In PHV ({{pre}}–{{post}}%)",
+      "post_phv": "Post-PHV (> {{post}}%)"
+    },
+    "more": "en nog {{count}}",
+    "percentLabel": "% van de voorspelde volwassen lengte (Khamis-Roche):",
+    "unbanded": "Zonder band: {{count}}",
+    "missing": {
+      "height": "lengte ontbreekt: {{count}}",
+      "weight": "gewicht ontbreekt: {{count}}",
+      "motherHeight": "lengte van de moeder ontbreekt: {{count}}",
+      "fatherHeight": "lengte van de vader ontbreekt: {{count}}",
+      "birthDate": "geboortedatum ontbreekt: {{count}}",
+      "sex": "geregistreerd geslacht ontbreekt (of nog te bevestigen): {{count}}",
+      "out_of_range": "buiten het geldigheidsbereik van Khamis-Roche: {{count}}"
+    },
+    "note": "Groepeert op het al bereikte % van de voorspelde volwassen lengte (Khamis-Roche 1994; banden van Cumming et al. 2017), niet op leeftijd. Zonder de lengte van beide ouders is er geen band: die wordt nooit standaard of uit een andere meting toegekend."
   }
 }

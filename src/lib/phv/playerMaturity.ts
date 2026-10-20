@@ -76,7 +76,8 @@ export function maturityConfidenceKey(confidence: MaturityAssessment["confidence
 /**
  * Etiqueta de banda biológica por %PAH (bio-banding real, Cumming) cuando hay
  * datos parentales; si no, null (no inventar banda desde el offset inválido).
- * Sustituye al viejo bioBandFor(edad+offset).
+ * El viejo bioBandFor(edad+offset) se retiró (P2 bloque 9); el agrupamiento de una
+ * plantilla por banda vive en squadBioBanding.ts.
  */
 export function maturityBandKey(a: MaturityAssessment): string | null {
   if (a.method !== "khamis_roche_pah" || a.status === "unknown") return null;

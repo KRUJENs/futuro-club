@@ -3918,9 +3918,6 @@
     "biologicalAge": "Età biologica",
     "vsPeers": "vs pari",
     "adjustedByMaturation": "corretto per maturazione",
-    "bioBandingPrefix": "Bio-banding: compete come ",
-    "bioBandingMiddle": " ma biologicamente è ",
-    "bioBandingSuffix": ".",
     "estimatedWarning": "⚠ Misure antropometriche stimate dall'altezza · confidenza {{confidence}}%. Aggiungi l'altezza da seduto reale per un PHV validato."
   },
   "phvWindowPlan": {
@@ -6384,5 +6381,27 @@
       "none": "Nessun segnale: la distribuzione per trimestre è compatibile con una distribuzione uniforme."
     },
     "note": "È un segnale, non un verdetto: non corregge né valuta nessun giocatore. Il confronto è con una distribuzione uniforme tra trimestri e con l'anno solare come data limite (approssimazioni da validare). Nelle categorie di due anni il trimestre non ordina i giocatori all'interno della categoria."
+  },
+  "bioBanding": {
+    "title": "Bio-banding per % della statura adulta",
+    "coverage": "{{banded}} su {{total}} con fascia",
+    "band": {
+      "pre_phv": "Pre-PHV (< {{pre}}%)",
+      "circa_phv": "In PHV ({{pre}}–{{post}}%)",
+      "post_phv": "Post-PHV (> {{post}}%)"
+    },
+    "more": "e altri {{count}}",
+    "percentLabel": "% della statura adulta prevista (Khamis-Roche):",
+    "unbanded": "Senza fascia: {{count}}",
+    "missing": {
+      "height": "manca la statura: {{count}}",
+      "weight": "manca il peso: {{count}}",
+      "motherHeight": "manca la statura della madre: {{count}}",
+      "fatherHeight": "manca la statura del padre: {{count}}",
+      "birthDate": "manca la data di nascita: {{count}}",
+      "sex": "manca il sesso registrato (o da confermare): {{count}}",
+      "out_of_range": "fuori dall'intervallo di validità di Khamis-Roche: {{count}}"
+    },
+    "note": "Raggruppa per la % della statura adulta prevista già raggiunta (Khamis-Roche 1994; fasce di Cumming et al. 2017), non per età. Senza la statura di entrambi i genitori non c'è fascia: non viene mai assegnata per difetto né da un'altra misura."
   }
 }

@@ -3919,9 +3919,6 @@
     "biologicalAge": "Edad biológica",
     "vsPeers": "vs pares",
     "adjustedByMaturation": "ajustado por maduración",
-    "bioBandingPrefix": "Bio-banding: compite como ",
-    "bioBandingMiddle": " pero biológicamente es ",
-    "bioBandingSuffix": ".",
     "estimatedWarning": "⚠ Medidas antropométricas estimadas desde la altura · confianza {{confidence}}%. Añade altura-sentado real para PHV validado."
   },
   "phvWindowPlan": {
@@ -6385,5 +6382,27 @@
       "none": "Sin señal: el reparto por trimestres es compatible con un reparto por igual."
     },
     "note": "Es una señal, no un veredicto: no corrige ni puntúa a ningún jugador. Se compara con un reparto por igual entre trimestres y con el año natural como corte (aproximaciones pendientes de validar). En categorías de 2 años el trimestre no ordena a los jugadores dentro de la categoría."
+  },
+  "bioBanding": {
+    "title": "Bio-banding por % de talla adulta",
+    "coverage": "{{banded}} de {{total}} con banda",
+    "band": {
+      "pre_phv": "Pre-PHV (< {{pre}} %)",
+      "circa_phv": "En PHV ({{pre}}–{{post}} %)",
+      "post_phv": "Post-PHV (> {{post}} %)"
+    },
+    "more": "y {{count}} más",
+    "percentLabel": "% de la talla adulta predicha (Khamis-Roche):",
+    "unbanded": "Sin banda: {{count}}",
+    "missing": {
+      "height": "falta la talla: {{count}}",
+      "weight": "falta el peso: {{count}}",
+      "motherHeight": "falta la altura de la madre: {{count}}",
+      "fatherHeight": "falta la altura del padre: {{count}}",
+      "birthDate": "falta la fecha de nacimiento: {{count}}",
+      "sex": "falta el sexo registrado (o está por confirmar): {{count}}",
+      "out_of_range": "fuera del rango de validez de Khamis-Roche: {{count}}"
+    },
+    "note": "Agrupa por el % de la talla adulta predicha ya alcanzado (Khamis-Roche 1994; bandas de Cumming et al. 2017), no por la edad. Sin las alturas de los padres no hay banda: nunca se asigna por defecto ni desde otra medida."
   }
 }
