@@ -6371,7 +6371,7 @@
   },
   "relativeAge": {
     "title": "Relatieve leeftijd van de selectie",
-    "confidence": "Indicatieve betrouwbaarheid: {{pct}}%",
+    "confidence": "Indicatieve betrouwbaarheid",
     "coverage": "{{dated}} van {{total}} met geboortedatum",
     "quarter": "{{q}}e kwart.",
     "gate": {

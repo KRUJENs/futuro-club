@@ -6371,7 +6371,7 @@
   },
   "relativeAge": {
     "title": "Edad relativa de la plantilla",
-    "confidence": "Confianza orientativa: {{pct}} %",
+    "confidence": "Confianza orientativa",
     "coverage": "{{dated}} de {{total}} con fecha de nacimiento",
     "quarter": "{{q}}.º trim.",
     "gate": {

@@ -6370,7 +6370,7 @@
   },
   "relativeAge": {
     "title": "Età relativa della rosa",
-    "confidence": "Affidabilità orientativa: {{pct}}%",
+    "confidence": "Affidabilità orientativa",
     "coverage": "{{dated}} su {{total}} con data di nascita",
     "quarter": "{{q}}° trim.",
     "gate": {

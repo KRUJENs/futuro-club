@@ -6371,7 +6371,7 @@
   },
   "relativeAge": {
     "title": "Squad relative age",
-    "confidence": "Orientative confidence: {{pct}}%",
+    "confidence": "Orientative confidence",
     "coverage": "{{dated}} of {{total}} with date of birth",
     "quarter": "Q{{q}}",
     "gate": {

@@ -50,9 +50,8 @@ export function RelativeAgeCard({ birthDates }: { birthDates: ReadonlyArray<unkn
           <p className="text-xs flex items-center gap-1.5 flex-wrap">
             <span>{t(`relativeAge.signal.${signal.direction}`)}</span>
             <ProvenanceBadge provenance={rae.signal.provenance} />
-            <span className="text-[10px] text-muted-foreground">
-              {t("relativeAge.confidence", { pct: Math.round(rae.signal.confidence * 100) })}
-            </span>
+            {/* Sin cifra: la confianza es la constante orientativa, no una probabilidad medida. */}
+            <span className="text-[10px] text-muted-foreground">{t("relativeAge.confidence")}</span>
           </p>
         </>
       )}

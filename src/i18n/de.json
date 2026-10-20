@@ -6370,7 +6370,7 @@
   },
   "relativeAge": {
     "title": "Relatives Alter des Kaders",
-    "confidence": "Orientierende Konfidenz: {{pct}} %",
+    "confidence": "Orientierende Konfidenz",
     "coverage": "{{dated}} von {{total}} mit Geburtsdatum",
     "quarter": "{{q}}. Quartal",
     "gate": {

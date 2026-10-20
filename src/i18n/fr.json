@@ -6370,7 +6370,7 @@
   },
   "relativeAge": {
     "title": "Âge relatif de l'effectif",
-    "confidence": "Confiance indicative : {{pct}} %",
+    "confidence": "Confiance indicative",
     "coverage": "{{dated}} sur {{total}} avec date de naissance",
     "quarter": "{{q}}e trim.",
     "gate": {
