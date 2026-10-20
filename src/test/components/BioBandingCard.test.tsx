@@ -28,9 +28,9 @@ const noParents = { id: "c2", name: "Hugo", birthDate: "2016-02-01", height: 140
 describe("BioBandingCard", () => {
   it("las bandas %PAH se rotulan por el %, NUNCA como fase PHV (esa es Mirwald) en los 7 idiomas", () => {
     for (const loc of [es, esLA, en, de, fr, it_, nl]) {
-      for (const label of Object.values(loc.bioBanding.band)) {
+      for (const label of [...Object.values(loc.bioBanding.band), loc.bioBanding.title, loc.bioBanding.percentLabel]) {
         expect(label).not.toMatch(/PHV/);
-        expect(label).toMatch(/%/);
+        expect(label).toMatch(/%/); // los tres rótulos, el título y la etiqueta del % lo nombran
       }
     }
   });
