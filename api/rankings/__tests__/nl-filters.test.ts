@@ -4,8 +4,9 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const mockRate = vi.fn();
 vi.mock("../../_lib/rateLimit", () => ({
-  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 19, limit: 20, resetAt: Date.now() + 60000 }),
+  checkRateLimit: (...a: unknown[]) => mockRate(...a),
   getClientIP: vi.fn().mockReturnValue("127.0.0.1"),
   rateLimitHeaders: vi.fn().mockReturnValue({}),
 }));
@@ -40,6 +41,7 @@ const post = (query: string) =>
 beforeEach(() => {
   process.env.ANTHROPIC_API_KEY = "test-key";
   mockOver.mockReset().mockResolvedValue(false);
+  mockRate.mockReset().mockResolvedValue({ allowed: true, remaining: 9, limit: 10, resetAt: Date.now() + 60000 });
   mockSpend.mockReset().mockResolvedValue(undefined);
   llmOk = true;
   llmText = '{"position":"Lateral Izquierdo","foot":"left","timing":"late","ageGroup":"Sub-14","not_understood":["rápido"]}';
@@ -69,6 +71,19 @@ describe("POST /api/rankings/nl-filters", () => {
     mockOver.mockResolvedValue(true);
     expect((await post("zurdo")).status).toBe(429);
     expect(sentBodies).toHaveLength(0);
+  });
+
+  it("cupo diario por usuario agotado ⇒ 429 nl_daily_limit, sin llamar al modelo", async () => {
+    mockRate.mockImplementation(async (key: string) =>
+      String(key).startsWith("nl-filters:")
+        ? { allowed: false, remaining: 0, limit: 40, resetAt: Date.now() + 86_400_000 }
+        : { allowed: true, remaining: 9, limit: 10, resetAt: Date.now() + 60000 },
+    );
+    const res = await post("zurdo");
+    expect(res.status).toBe(429);
+    expect(((await res.json()) as { errorDetail: { code: string } }).errorDetail.code).toBe("nl_daily_limit");
+    expect(sentBodies).toHaveLength(0);
+    expect(mockRate).toHaveBeenCalledWith("nl-filters:owner-1", expect.objectContaining({ max: 40 }));
   });
 
   it("respuesta del modelo no interpretable o error ⇒ 502", async () => {

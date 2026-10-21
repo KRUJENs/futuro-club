@@ -4,7 +4,7 @@
  * saca el filtrado de siempre sobre los jugadores reales. Se enseña qué se interpretó
  * (rotulado «Estimado por IA») y qué no se entendió; nunca se rellena lo no entendido.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Sparkles, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -19,12 +19,24 @@ type ErrorKey = "unavailable" | "error" | "limit";
 /**
  * `active` = los filtros actuales siguen siendo los que puso la búsqueda (el padre lo
  * decide): si el usuario los cambia o los limpia, la interpretación deja de enseñarse.
+ * `filtersKey` cambia con cualquier filtro: borra el aviso de «nada entendido».
  */
-export function NlSearchBox({ onApply, active }: { onApply: (filters: NlRankingFilters) => void; active: boolean }) {
+export function NlSearchBox({
+  onApply,
+  active,
+  filtersKey,
+}: {
+  onApply: (filters: NlRankingFilters) => void;
+  active: boolean;
+  filtersKey: string;
+}) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  // Última interpretación APLICADA (sus chips) y último intento sin nada entendido (aviso).
   const [result, setResult] = useState<NlParseResult | null>(null);
+  const [notice, setNotice] = useState<NlParseResult | null>(null);
+  useEffect(() => setNotice(null), [filtersKey]);
   const [error, setError] = useState<ErrorKey | null>(null);
 
   const submit = async (e: React.FormEvent) => {
@@ -40,18 +52,23 @@ export function NlSearchBox({ onApply, active }: { onApply: (filters: NlRankingF
         body: JSON.stringify({ query: q }),
       });
       if (!res.ok) {
-        setResult(null);
+        setNotice(null);
         setError(res.status === 503 ? "unavailable" : res.status === 429 ? "limit" : "error");
         return;
       }
       const body = (await res.json()) as { data?: NlParseResult } & NlParseResult;
       const parsed = body.data ?? body;
-      setResult(parsed);
       // Nada entendido ⇒ no se toca ningún filtro (si no, la lista completa con su podio
-      // parecería la respuesta a «los más rápidos»).
-      if (Object.keys(parsed.filters).length > 0) onApply(parsed.filters);
+      // parecería la respuesta a «los más rápidos»); la interpretación anterior sigue vigente.
+      if (Object.keys(parsed.filters).length > 0) {
+        setNotice(null);
+        setResult(parsed);
+        onApply(parsed.filters);
+      } else {
+        setNotice(parsed);
+      }
     } catch {
-      setResult(null);
+      setNotice(null);
       setError("error");
     } finally {
       setLoading(false);
@@ -83,14 +100,14 @@ export function NlSearchBox({ onApply, active }: { onApply: (filters: NlRankingF
 
       {error && <p className="text-xs text-muted-foreground italic">{t(`rankingsNl.${error}`)}</p>}
 
-      {result && Object.keys(result.filters).length === 0 && (
+      {notice && (
         <p className="text-xs text-muted-foreground italic">
           {t("rankingsNl.nothingApplied")}
-          {result.not_understood.length > 0 && ` ${t("rankingsNl.notUnderstood")} ${result.not_understood.join(" · ")}`}
+          {notice.not_understood.length > 0 && ` ${t("rankingsNl.notUnderstood")} ${notice.not_understood.join(" · ")}`}
         </p>
       )}
 
-      {result && active && Object.keys(result.filters).length > 0 && (
+      {result && active && (
         <div className="text-[11px] space-y-1">
           <p className="flex items-center gap-1.5 flex-wrap">
             <span className="text-muted-foreground">{t("rankingsNl.interpreted")}</span>

@@ -403,7 +403,7 @@ const Rankings = () => {
 
       {/* Búsqueda en lenguaje natural (IA → filtros; la lista sale de tus jugadores reales) */}
       <motion.div variants={item}>
-        <NlSearchBox onApply={applyNlFilters} active={nlActive} />
+        <NlSearchBox onApply={applyNlFilters} active={nlActive} filtersKey={JSON.stringify(filters)} />
       </motion.div>
 
       {/* Lista de jugadores */}

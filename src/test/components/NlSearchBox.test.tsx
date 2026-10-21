@@ -22,7 +22,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 function search(onApply = vi.fn(), active = true) {
-  render(<NlSearchBox onApply={onApply} active={active} />);
+  render(<NlSearchBox onApply={onApply} active={active} filtersKey="k" />);
   fireEvent.change(screen.getByRole("textbox"), { target: { value: "lateral zurdo tardío, U14, rápido" } });
   fireEvent.click(screen.getByRole("button"));
   return onApply;
@@ -42,6 +42,23 @@ describe("NlSearchBox", () => {
     const onApply = search(vi.fn(), false);
     await waitFor(() => expect(onApply).toHaveBeenCalled());
     expect(screen.queryByText("Estimado por IA")).toBeNull();
+  });
+
+  it("búsqueda aplicada y luego una sin nada entendido ⇒ siguen las chips de la anterior + el aviso; cambiar filtros borra el aviso", async () => {
+    response = new Response(JSON.stringify({ data: { filters: { foot: "left" }, not_understood: [] } }));
+    const onApply = vi.fn();
+    const { rerender } = render(<NlSearchBox onApply={onApply} active filtersKey="a" />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "zurdo" } });
+    fireEvent.click(screen.getByRole("button"));
+    await waitFor(() => expect(screen.getByText("rankingsNl.foot.left")).toBeDefined());
+    response = new Response(JSON.stringify({ data: { filters: {}, not_understood: ["rápidos"] } }));
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "rápidos" } });
+    fireEvent.click(screen.getByRole("button"));
+    await waitFor(() => expect(screen.getByText(/rankingsNl\.nothingApplied/)).toBeDefined());
+    expect(screen.getByText("rankingsNl.foot.left")).toBeDefined(); // la anterior sigue vigente
+    rerender(<NlSearchBox onApply={onApply} active={false} filtersKey="b" />);
+    expect(screen.queryByText(/rankingsNl\.nothingApplied/)).toBeNull();
+    expect(screen.queryByText("rankingsNl.foot.left")).toBeNull();
   });
 
   it("límite diario (429) ⇒ aviso propio, sin tocar filtros", async () => {
