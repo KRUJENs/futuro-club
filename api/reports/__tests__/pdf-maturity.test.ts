@@ -77,7 +77,7 @@ describe("PDF · Maduración", () => {
   });
 
   it("entradas completas ⇒ fase por ESTADO del gate (no un timing vs pares)", async () => {
-    const complete = { height: 165, weight: 55, sittingHeight: 85, legLength: 80, birthDate: "2012-03-15", gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z" };
+    const complete = { height: 165, weight: 55, sittingHeight: 85, legLength: 80, birthDate: "2012-03-15", gender: "M", sexConfirmedAt: "2026-01-01T00:00:00.000Z", measuredAt: "2026-09-01T10:00:00.000Z" };
     blob = { ...BASE, ...complete, phvCategory: "late" };
     const g = phvGate(complete);
     if (!g.ok) throw new Error("gate cerrado");

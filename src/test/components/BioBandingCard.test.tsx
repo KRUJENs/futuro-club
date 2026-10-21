@@ -22,7 +22,7 @@ import it_ from "@/i18n/it.json";
 import nl from "@/i18n/nl.json";
 
 const CONFIRMED = "2026-10-01T00:00:00Z";
-const child = { id: "c1", name: "Leo", birthDate: "2017-04-10", height: 135, weight: 30, motherHeightCm: 163, fatherHeightCm: 175, gender: "M", sexConfirmedAt: CONFIRMED };
+const child = { id: "c1", name: "Leo", birthDate: "2017-04-10", measuredAt: "2026-09-01T10:00:00.000Z", height: 135, weight: 30, motherHeightCm: 163, fatherHeightCm: 175, gender: "M", sexConfirmedAt: CONFIRMED };
 const noParents = { id: "c2", name: "Hugo", birthDate: "2016-02-01", height: 140, weight: 33, gender: "F" };
 
 describe("BioBandingCard", () => {

@@ -4,6 +4,7 @@
  * Ruta /players/:id/edit → modo edición
  */
 
+import { isRealIsoDate } from "@/lib/phv/phvGate";
 import { RANKING_POSITIONS } from "@/lib/shared/rankingVocab";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -58,6 +59,8 @@ const formSchema = z.object({
   // preprocess: vacío/0/NaN → undefined (opcional válido); solo un número fuera de
   // rango real falla → evita que la "zona muerta" bloquee el guardado en silencio.
   birthDate: z.string().optional().or(z.literal("")),
+  // Fecha en que se tomaron las medidas (la declara quien las conoce; el PHV usa esa edad).
+  measuredAt: z.string().optional().or(z.literal("")),
   motherHeightCm: z.preprocess(
     (v) => (v == null || v === 0 || v === "" || (typeof v === "number" && !Number.isFinite(v)) ? undefined : v),
     z.number().min(130, "Entre 130 y 210 cm").max(210, "Entre 130 y 210 cm").optional(),
@@ -276,6 +279,7 @@ const PlayerForm = () => {
       sittingHeight: 0,
       legLength: 0,
       birthDate: "",
+      measuredAt: "",
       motherHeightCm: 0,
       fatherHeightCm: 0,
       competitiveLevel: "",
@@ -308,6 +312,7 @@ const PlayerForm = () => {
       sittingHeight: player.sittingHeight ?? 0,
       legLength: player.legLength ?? 0,
       birthDate: player.birthDate ?? "",
+      measuredAt: player.measuredAt ? player.measuredAt.slice(0, 10) : "",
       motherHeightCm: player.motherHeightCm ?? 0,
       fatherHeightCm: player.fatherHeightCm ?? 0,
       competitiveLevel: player.competitiveLevel ?? "",
@@ -328,11 +333,13 @@ const PlayerForm = () => {
   // Confirmación EXPLÍCITA de que el entrenador valoró las 6 barras. Sin ella no se
   // guarda evaluación (ni VSI, ni entrada en vsiEvaluations).
   const [metricsConfirmed, setMetricsConfirmed] = useState(false);
+  // Medidas cambiadas sin tocar su fecha: el primer guardado avisa; el segundo confirma (errata).
+  const [measuredAtAck, setMeasuredAtAck] = useState(false);
 
   // Campos de cada paso para validación parcial (trigger)
   const STEP_FIELDS = {
     1: ["name", "age", "position", "gender", "foot"] as const,
-    2: ["height", "weight", "sittingHeight", "legLength", "birthDate", "motherHeightCm", "fatherHeightCm", "competitiveLevel", "minutesPlayed"] as const,
+    2: ["height", "weight", "sittingHeight", "legLength", "measuredAt", "birthDate", "motherHeightCm", "fatherHeightCm", "competitiveLevel", "minutesPlayed"] as const,
     3: ["metrics"] as const,
   };
 
@@ -363,8 +370,26 @@ const PlayerForm = () => {
     // Fecha de nacimiento DEL JUGADOR: misma regla que la columna birth_date
     // (toIsoBirthDate, consentimiento RGPD). Una fecha que la columna rechazaría
     // no se guarda en el blob (dos fechas distintas para un concepto, inv #7).
+    // Fecha de las medidas: fecha real, no futura ni anterior al nacimiento (o vacía).
+    if (data.measuredAt) {
+      const m = Date.parse(data.measuredAt);
+      const b = Date.parse(data.birthDate ?? "");
+      if (!isRealIsoDate(data.measuredAt) || m > Date.now() + 86_400_000 || (Number.isFinite(b) && m < b)) {
+        toast.error(t("players.form.measuredAtInvalid"));
+        return;
+      }
+    }
     if (data.birthDate && toIsoBirthDate(data.birthDate) === null) {
       toast.error(t("playerPhvSection.birthDateInvalid"));
+      return;
+    }
+
+    // Talla nueva con la fecha antigua ⇒ edad de entonces con la talla de hoy (PHV sesgado):
+    // si cambian medidas y la fecha no se toca, se avisa una vez antes de guardar.
+    const measuresDirty = (["height", "weight", "sittingHeight", "legLength"] as const).some((k) => dirtyFields[k]);
+    if (isEditMode && measuresDirty && data.measuredAt && !dirtyFields.measuredAt && !measuredAtAck) {
+      toast.warning(t("players.form.measuredAtConfirm"));
+      setMeasuredAtAck(true);
       return;
     }
 
@@ -412,6 +437,10 @@ const PlayerForm = () => {
             weight: data.weight,
             sittingHeight: data.sittingHeight || undefined,
             legLength: data.legLength || undefined,
+            // Sin tocar: se conserva el valor guardado (con su hora), no la fecha recortada.
+            measuredAt: data.measuredAt
+              ? players[idx].measuredAt?.slice(0, 10) === data.measuredAt ? players[idx].measuredAt : data.measuredAt
+              : undefined,
             birthDate: data.birthDate || undefined,
             motherHeightCm: data.motherHeightCm || undefined,
             fatherHeightCm: data.fatherHeightCm || undefined,
@@ -448,6 +477,7 @@ const PlayerForm = () => {
           weight: data.weight,
           sittingHeight: data.sittingHeight || undefined,
           legLength: data.legLength || undefined,
+          measuredAt: data.measuredAt || undefined,
           birthDate: data.birthDate || undefined,
           motherHeightCm: data.motherHeightCm || undefined,
           fatherHeightCm: data.fatherHeightCm || undefined,
@@ -792,6 +822,15 @@ const PlayerForm = () => {
               />
               <p className="text-[9px] text-muted-foreground">{t("players.form.legLengthHint")}</p>
             </div>
+          </div>
+
+          {/* Fecha de las medidas: la edad del PHV y del % de talla adulta es la de ESE día */}
+          <div className="space-y-1.5">
+            <Label htmlFor="measuredAt" className="text-xs font-display text-muted-foreground uppercase tracking-wide">
+              {t("players.form.measuredAt")}
+            </Label>
+            <Input id="measuredAt" type="date" {...register("measuredAt")} />
+            <p className="text-[9px] text-muted-foreground">{t("players.form.measuredAtHint")}</p>
           </div>
 
           {/* Maduración biológica (opcional) — precisión del cálculo PHV */}

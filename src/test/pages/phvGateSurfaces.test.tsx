@@ -57,7 +57,7 @@ const SAMU = {
 };
 const COMPLETE = {
   id: "full", name: "Completo", age: 14, position: "Mediocentro", foot: "right",
-  height: 165, weight: 55, sittingHeight: 85, legLength: 80, birthDate: "2012-03-15", gender: "M",
+  height: 165, weight: 55, sittingHeight: 85, legLength: 80, birthDate: "2012-03-15", measuredAt: "2026-09-01T10:00:00.000Z", gender: "M",
   competitiveLevel: "Regional", minutesPlayed: 600, vsi: 60, vsiHistory: [60],
   metrics: { speed: 60, technique: 60, vision: 60, stamina: 60, shooting: 60, defending: 60 },
   createdAt: "2026-08-01T00:00:00Z", updatedAt: "2026-08-01T00:00:00Z",
@@ -130,7 +130,7 @@ describe("PlayerHubPrint · maduración solo con el gate abierto", () => {
     render(<PlayerHubPrint />);
     const body = document.body.textContent ?? "";
     expect(body).toContain(GATE_UNAVAILABLE);
-    expect(body).toContain("maturity.gate.missing[maturity.gate.input.sittingHeight, maturity.gate.input.legLength, maturity.gate.input.birthDate]");
+    expect(body).toContain("maturity.gate.missing[maturity.gate.input.sittingHeight, maturity.gate.input.legLength, maturity.gate.input.birthDate, maturity.gate.input.measuredAt]");
     expect(body).not.toContain("maturity.status.pre_phv");
     expect(body).not.toContain("playerHubPrint.phvBodyPre");
   });
@@ -174,7 +174,7 @@ describe("Misma fase PHV en todas las superficies con alturas parentales (%PAH �
   // y el equipo/familia/PDF (category) En PHV.
   const BOY = {
     ...COMPLETE, id: "samu", name: "Chico", age: 13,
-    height: 158, weight: 46, sittingHeight: 80, legLength: 78, birthDate: "2013-06-01", gender: "M",
+    height: 158, weight: 46, sittingHeight: 80, legLength: 78, birthDate: "2013-06-01", measuredAt: "2026-09-01T10:00:00.000Z", gender: "M",
     motherHeightCm: 170, fatherHeightCm: 185,
   };
   beforeEach(() => {

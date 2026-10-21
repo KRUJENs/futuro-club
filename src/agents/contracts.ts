@@ -24,6 +24,8 @@ export const PHVInputSchema = z.object({
   // Fecha de nacimiento del JUGADOR (ISO): fuente de la edad DECIMAL de Mirwald
   // (regla del owner 28-sep). Sin ella el endpoint bloquea (422).
   birthDate: z.string().optional(),
+  // Fecha en que se tomaron las medidas (ISO): sin ella el agente responde 422.
+  measuredAt: z.string().optional(),
   // VSI real del jugador: sin él no hay «VSI ajustado» (antes: base fija 70).
   currentVSI: z.number().min(0).max(100).optional(),
 });

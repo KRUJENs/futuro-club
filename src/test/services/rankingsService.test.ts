@@ -192,8 +192,8 @@ describe("fetchRankedPlayers (local fallback)", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-09-29T12:00:00Z"));
     try {
-      const late = { ...mockPlayers[0], id: "late", name: "Tardío", height: 160, weight: 48, sittingHeight: 80, legLength: 80, birthDate: "2011-09-29", gender: "M", phvCategory: "early" };
-      const pre = { ...mockPlayers[0], id: "pre", name: "PreFase", height: 150, weight: 42, sittingHeight: 78, legLength: 72, birthDate: "2016-03-29", gender: "M", phvCategory: "late" };
+      const late = { ...mockPlayers[0], id: "late", name: "Tardío", height: 160, weight: 48, sittingHeight: 80, legLength: 80, birthDate: "2011-09-29", measuredAt: "2026-09-01T10:00:00.000Z", gender: "M", phvCategory: "early" };
+      const pre = { ...mockPlayers[0], id: "pre", name: "PreFase", height: 150, weight: 42, sittingHeight: 78, legLength: 72, birthDate: "2016-03-29", measuredAt: "2026-09-01T10:00:00.000Z", gender: "M", phvCategory: "late" };
       const roster = [...mockPlayers, late, pre];
       vi.mocked(PlayerService.getAll).mockReturnValue(roster as never);
       const lateOnly = await fetchRankedPlayers("vsi", "desc", { timing: "late" });

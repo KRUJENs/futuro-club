@@ -25,7 +25,7 @@ import {
 const CONFIRMED = "2026-10-18T10:00:00.000Z";
 // Entradas completas del PHV (las 6): solo cambia el sexo entre casos.
 const FULL = {
-  height: 150, weight: 40, sittingHeight: 78, legLength: 72, birthDate: "2013-03-01",
+  height: 150, weight: 40, sittingHeight: 78, legLength: 72, birthDate: "2013-03-01", measuredAt: "2026-09-01T10:00:00.000Z",
   phvCategory: "early" as const, phvOffset: -1.2,
 };
 

@@ -168,6 +168,8 @@ export function AnthropometricsForm({ playerId, chronologicalAge, birthDate, gen
       weight: m.weightKg,
       sittingHeight: m.sittingHeightCm,
       legLength: m.legLengthCm,
+      // Solo se llama tras un envío correcto: el servidor fechó la fila ahora (measured_at).
+      measuredAt: new Date().toISOString(),
     }).catch(() => null); // caché local inaccesible ⇒ la ficha no cambió (se avisa)
     if (!updated) return "not_found";
     // Misma semántica que el resto de guardados de la ficha (PlayerForm,

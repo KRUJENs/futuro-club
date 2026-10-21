@@ -48,6 +48,7 @@ const p = (name, age, position, foot, gender, height, weight, level) => {
     height, weight,
     sittingHeight,
     legLength: height - sittingHeight,
+    measuredAt: "2026-09-01T10:00:00.000Z", // demo: fecha de las medidas (gate del PHV)
     competitiveLevel: level,
   };
 };
