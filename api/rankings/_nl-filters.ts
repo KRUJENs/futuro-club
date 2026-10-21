@@ -14,20 +14,31 @@ import { successResponse, errorResponse } from "../_lib/apiResponse";
 import { MODELS, modelParams } from "../_lib/models";
 import { fetchMessages, responseText } from "../_lib/anthropic";
 import { isOverBudget, recordSpendUsd, budgetExceededResponse } from "../_lib/budgetGuard";
+import { checkRateLimit } from "../_lib/rateLimit";
 import { NL_QUERY_MAX_CHARS, nlFilterSystemPrompt, parseNlFilterJson } from "../../src/lib/search/nlRankingFilters";
 
 export const config = { runtime: "edge" };
 
 const bodySchema = z.object({ query: z.string().trim().min(1).max(NL_QUERY_MAX_CHARS) });
 
+/**
+ * Cupo diario de búsquedas con IA POR USUARIO: límite operativo, pendiente de validar con el
+ * uso real. Sin él, un solo usuario podía agotar el tope global de IA de todos los clientes.
+ */
+const NL_DAILY_SEARCHES_PER_USER = 40;
+
 export default withHandler(
-  { schema: bodySchema, method: ["POST"], requireAuth: true, maxRequests: 20 },
-  async ({ body }) => {
+  { schema: bodySchema, method: ["POST"], requireAuth: true, maxRequests: 10 },
+  async ({ body, userId }) => {
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       return errorResponse({ code: "ai_unavailable", message: "La búsqueda con IA no está disponible: usa los filtros.", status: 503 });
     }
     if (await isOverBudget()) return budgetExceededResponse();
+    const quota = await checkRateLimit(`nl-filters:${userId}`, { windowMs: 86_400_000, max: NL_DAILY_SEARCHES_PER_USER });
+    if (!quota.allowed) {
+      return errorResponse({ code: "nl_daily_limit", message: "Has llegado al límite diario de búsquedas con IA: usa los filtros.", status: 429 });
+    }
 
     const res = await fetchMessages({
       method: "POST",

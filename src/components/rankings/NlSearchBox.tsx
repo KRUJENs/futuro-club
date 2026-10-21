@@ -14,9 +14,13 @@ import { getAuthHeaders } from "@/lib/apiAuth";
 import { NL_QUERY_MAX_CHARS, type NlParseResult, type NlRankingFilters } from "@/lib/search/nlRankingFilters";
 import { maturityTimingKey } from "@/lib/phv/playerMaturity";
 
-type ErrorKey = "unavailable" | "error";
+type ErrorKey = "unavailable" | "error" | "limit";
 
-export function NlSearchBox({ onApply }: { onApply: (filters: NlRankingFilters) => void }) {
+/**
+ * `active` = los filtros actuales siguen siendo los que puso la búsqueda (el padre lo
+ * decide): si el usuario los cambia o los limpia, la interpretación deja de enseñarse.
+ */
+export function NlSearchBox({ onApply, active }: { onApply: (filters: NlRankingFilters) => void; active: boolean }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -37,13 +41,15 @@ export function NlSearchBox({ onApply }: { onApply: (filters: NlRankingFilters) 
       });
       if (!res.ok) {
         setResult(null);
-        setError(res.status === 503 ? "unavailable" : "error");
+        setError(res.status === 503 ? "unavailable" : res.status === 429 ? "limit" : "error");
         return;
       }
       const body = (await res.json()) as { data?: NlParseResult } & NlParseResult;
       const parsed = body.data ?? body;
       setResult(parsed);
-      onApply(parsed.filters);
+      // Nada entendido ⇒ no se toca ningún filtro (si no, la lista completa con su podio
+      // parecería la respuesta a «los más rápidos»).
+      if (Object.keys(parsed.filters).length > 0) onApply(parsed.filters);
     } catch {
       setResult(null);
       setError("error");
@@ -77,7 +83,14 @@ export function NlSearchBox({ onApply }: { onApply: (filters: NlRankingFilters) 
 
       {error && <p className="text-xs text-muted-foreground italic">{t(`rankingsNl.${error}`)}</p>}
 
-      {result && (
+      {result && Object.keys(result.filters).length === 0 && (
+        <p className="text-xs text-muted-foreground italic">
+          {t("rankingsNl.nothingApplied")}
+          {result.not_understood.length > 0 && ` ${t("rankingsNl.notUnderstood")} ${result.not_understood.join(" · ")}`}
+        </p>
+      )}
+
+      {result && active && Object.keys(result.filters).length > 0 && (
         <div className="text-[11px] space-y-1">
           <p className="flex items-center gap-1.5 flex-wrap">
             <span className="text-muted-foreground">{t("rankingsNl.interpreted")}</span>

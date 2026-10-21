@@ -54,8 +54,8 @@ const Rankings = () => {
   const [ageGroupFilter, setAgeGroupFilter] = useState("all");
   const [levelFilter, setLevelFilter] = useState("all");
   const [footFilter, setFootFilter] = useState("all");
-  // Filtros puestos por la búsqueda en lenguaje natural (P2 bloque 11): sin resultados ⇒ abstención.
-  const [nlActive, setNlActive] = useState(false);
+  // Filtros puestos por la búsqueda en lenguaje natural (P2 bloque 11).
+  const [nlApplied, setNlApplied] = useState<NlRankingFilters | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
   // Build filters object for API
@@ -104,7 +104,7 @@ const Rankings = () => {
     setAgeGroupFilter("all");
     setLevelFilter("all");
     setFootFilter("all");
-    setNlActive(false);
+    setNlApplied(null);
   }, []);
 
   // La búsqueda en lenguaje natural SUSTITUYE los filtros (lo que no dijo la frase queda en «todos»).
@@ -115,8 +115,19 @@ const Rankings = () => {
     setFootFilter(f.foot ?? "all");
     setTimingFilter(f.timing ?? "all");
     setAgeGroupFilter(f.ageGroup ?? "all");
-    setNlActive(true);
+    setNlApplied(f);
   }, []);
+
+  // La interpretación solo «manda» mientras los filtros sigan siendo los suyos: si el usuario
+  // cambia o limpia alguno, ni sus chips ni el mensaje de abstención de la IA se enseñan.
+  const nlActive =
+    nlApplied !== null &&
+    search === "" &&
+    levelFilter === "all" &&
+    posFilter === (nlApplied.position ?? "Todos") &&
+    footFilter === (nlApplied.foot ?? "all") &&
+    timingFilter === (nlApplied.timing ?? "all") &&
+    ageGroupFilter === (nlApplied.ageGroup ?? "all");
 
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="px-4 pt-4 pb-24 space-y-4 max-w-lg lg:max-w-5xl mx-auto">
@@ -392,7 +403,7 @@ const Rankings = () => {
 
       {/* Búsqueda en lenguaje natural (IA → filtros; la lista sale de tus jugadores reales) */}
       <motion.div variants={item}>
-        <NlSearchBox onApply={applyNlFilters} />
+        <NlSearchBox onApply={applyNlFilters} active={nlActive} />
       </motion.div>
 
       {/* Lista de jugadores */}

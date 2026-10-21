@@ -7,7 +7,7 @@ import { adaptPlayerForUI } from "@/services/real/adapters";
 import { supabase, SUPABASE_CONFIGURED } from "@/lib/supabase";
 import { phvGate, matchesTimingFilter, type MaturityTiming } from "@/lib/phv/phvGate";
 import { rankingAgeGroup } from "@/lib/shared/rankingVocab";
-import { percentilesAmong, percentileGateInfo, type PercentileGateInfo } from "@/lib/metrics/percentile";
+import { blockedPercentile, percentilesAmong, percentileGateInfo, type PercentileGateInfo } from "@/lib/metrics/percentile";
 
 export type SortField = "vsi" | "name" | "age" | "percentile";
 export type SortDir = "asc" | "desc";
@@ -205,7 +205,8 @@ function fetchLocalRankedPlayers(
   const inGroup = percentilesAmong(members, { byGroup: true });
   for (const p of enriched) {
     const g = global.get(p.id)!;
-    const ag = inGroup.get(p.id)!;
+    // Sin grupo de edad ⇒ sin percentil por grupo (misma regla que el servidor).
+    const ag = p.ageGroup === null ? blockedPercentile("age_unknown") : inGroup.get(p.id)!;
     p.percentile = g.result.value;
     p.percentileGate = percentileGateInfo(g);
     p.percentileInAgeGroup = ag.result.value;

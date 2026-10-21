@@ -21,14 +21,36 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-function search(onApply = vi.fn()) {
-  render(<NlSearchBox onApply={onApply} />);
+function search(onApply = vi.fn(), active = true) {
+  render(<NlSearchBox onApply={onApply} active={active} />);
   fireEvent.change(screen.getByRole("textbox"), { target: { value: "lateral zurdo tardío, U14, rápido" } });
   fireEvent.click(screen.getByRole("button"));
   return onApply;
 }
 
 describe("NlSearchBox", () => {
+  it("nada entendido ⇒ NO se aplica ningún filtro (no sale la lista con su podio como respuesta) y se avisa", async () => {
+    response = new Response(JSON.stringify({ data: { filters: {}, not_understood: ["los más rápidos"] } }));
+    const onApply = search();
+    await waitFor(() => expect(screen.getByText(/rankingsNl.nothingApplied/)).toBeDefined());
+    expect(onApply).not.toHaveBeenCalled();
+    expect(screen.queryByText("Estimado por IA")).toBeNull();
+  });
+
+  it("si los filtros ya no son los de la búsqueda (active=false) ⇒ no se enseña la interpretación", async () => {
+    response = new Response(JSON.stringify({ data: { filters: { foot: "left" }, not_understood: [] } }));
+    const onApply = search(vi.fn(), false);
+    await waitFor(() => expect(onApply).toHaveBeenCalled());
+    expect(screen.queryByText("Estimado por IA")).toBeNull();
+  });
+
+  it("límite diario (429) ⇒ aviso propio, sin tocar filtros", async () => {
+    response = new Response("{}", { status: 429 });
+    const onApply = search();
+    await waitFor(() => expect(screen.getByText("rankingsNl.limit")).toBeDefined());
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
   it("aplica los filtros interpretados y los enseña rotulados «Estimado por IA», con lo no entendido", async () => {
     response = new Response(JSON.stringify({
       data: { filters: { position: "Lateral Izquierdo", foot: "left", timing: "late", ageGroup: "Sub-14" }, not_understood: ["rápido"] },

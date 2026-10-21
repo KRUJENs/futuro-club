@@ -88,6 +88,21 @@ describe("fetchRankedPlayers (local fallback)", () => {
     }
   });
 
+  it("filtro de pie (bloque 11): solo el pie registrado casa; valor fuera del vocabulario ⇒ nadie (igual que el servidor)", async () => {
+    expect((await fetchRankedPlayers("vsi", "desc", { foot: "left" })).players.map((p) => p.id)).toEqual(["p2"]);
+    expect((await fetchRankedPlayers("vsi", "desc", { foot: "zurdo" })).players).toEqual([]);
+    expect((await fetchRankedPlayers("vsi", "desc", { foot: "all" })).players).toHaveLength(5);
+  });
+
+  it("edad sin grupo (fuera de 8-21) ⇒ sin percentil por grupo (age_unknown), como el servidor; 14,5 cuenta como 14", async () => {
+    vi.mocked(PlayerService.getAll).mockReturnValueOnce([{ ...mockPlayers[0], id: "x", age: 25 }, { ...mockPlayers[1], id: "y", age: 14.5 }] as never);
+    const r = await fetchRankedPlayers("vsi", "desc", {});
+    const x = r.players.find((p) => p.id === "x")!;
+    expect(x.ageGroup).toBeNull();
+    expect(x.percentileInAgeGroupGate?.code).toBe("age_unknown");
+    expect(r.players.find((p) => p.id === "y")!.ageGroup).toBe("Sub-14");
+  });
+
   it("con 11 evaluados sí hay percentil (punto medio) y el más alto tiene el más alto", async () => {
     const many = Array.from({ length: 11 }, (_, i) => ({
       ...mockPlayers[0],

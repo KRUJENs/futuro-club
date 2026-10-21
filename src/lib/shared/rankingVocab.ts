@@ -34,12 +34,14 @@ export const RANKING_AGE_GROUP_LABELS = Object.keys(RANKING_AGE_GROUPS);
 /**
  * Grupo de edad de un jugador. Sin edad numérica, o fuera de todos los grupos ⇒ null:
  * nunca una edad por defecto (antes 15 ⇒ «Sub-16») ni el último grupo (antes «Sub-21»
- * para cualquiera fuera de 8-21 años). Invariante #2.
+ * para cualquiera fuera de 8-21 años). Invariante #2. Una edad decimal cuenta por años
+ * CUMPLIDOS (14,5 ⇒ 14 ⇒ «Sub-14»), como los grupos.
  */
 export function rankingAgeGroup(age: unknown): string | null {
   if (typeof age !== "number" || !Number.isFinite(age)) return null;
+  const years = Math.floor(age);
   for (const [label, [min, max]] of Object.entries(RANKING_AGE_GROUPS)) {
-    if (age >= min && age <= max) return label;
+    if (years >= min && years <= max) return label;
   }
   return null;
 }

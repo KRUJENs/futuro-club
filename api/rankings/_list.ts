@@ -27,7 +27,7 @@ import { fichaVsiFromBlob } from "../../src/services/real/metricsService";
 import { phvGate, matchesTimingFilter, type MaturityTiming, type PhvGateInput } from "../../src/lib/phv/phvGate";
 import { registeredSex, withRegisteredSex } from "../../src/lib/shared/registeredSex";
 import { pendingVsiReviewIdsRest } from "../_lib/vsiPendingReview";
-import { RANKING_FEET, rankingAgeGroup } from "../../src/lib/shared/rankingVocab";
+import { rankingAgeGroup } from "../../src/lib/shared/rankingVocab";
 import { vsiTrendArrow } from "../../src/lib/scoring/vsiDelta";
 import { blockedPercentile, percentilesAmong, percentileGateInfo, type PercentileGateInfo } from "../../src/lib/metrics/percentile";
 
@@ -133,9 +133,10 @@ export default withHandler(
     const ageGroupFilter = url.searchParams.get("ageGroup"); // "Sub-14", etc.
     const levelFilter = url.searchParams.get("level"); // competitive level
     const search = url.searchParams.get("search")?.toLowerCase();
-    // Pie dominante (P2 bloque 11): solo valores del vocabulario; sin pie registrado no casa.
+    // Pie dominante (P2 bloque 11): sin pie registrado no casa, y un valor fuera del
+    // vocabulario no casa con nadie (igual que el cálculo local del cliente).
     const footParam = url.searchParams.get("foot");
-    const footFilter = (RANKING_FEET as readonly string[]).includes(footParam ?? "") ? footParam : null;
+    const footFilter = footParam && footParam !== "all" ? footParam : null;
 
     const headers = {
       apikey: supabaseKey,

@@ -6311,7 +6311,7 @@
       "insufficient_short": "Sin percentil ({{count}}/{{min}} pares)",
       "pending_review": "Evaluación con valores por defecto pendiente de revisión: no cuenta como evaluada",
       "reviews_unavailable": "No se pudo comprobar qué evaluaciones están pendientes de revisión: percentil bloqueado",
-      "age_unknown": "Sin edad registrada: no tiene percentil por grupo"
+      "age_unknown": "Sin grupo de edad: no tiene percentil por grupo"
     }
   },
   "coachEval": {
@@ -6409,12 +6409,14 @@
   "rankingsNl": {
     "placeholder": "Busca con una frase: «lateral zurdo tardío, Sub-14»",
     "button": "Buscar con IA",
+    "nothingApplied": "No se ha entendido ningún filtro: no se ha cambiado nada.",
+    "limit": "Has llegado al límite diario de búsquedas con IA: usa los filtros.",
     "interpreted": "Interpretado:",
     "nothing": "ningún filtro",
     "notUnderstood": "No entendido (no se usa):",
     "error": "No se pudo interpretar la búsqueda: usa los filtros.",
     "unavailable": "La búsqueda con IA no está disponible ahora: usa los filtros.",
-    "noMatch": "Ninguno de tus jugadores cumple todos los filtros interpretados. No se muestran parecidos.",
+    "noMatch": "Ninguno de tus jugadores cumple todos los filtros interpretados; no se muestran parecidos. Quien no tiene registrado el dato (pie, maduración, edad) no aparece al filtrar por él.",
     "ageUnknown": "sin edad",
     "footLabel": "Pie dominante",
     "foot": {

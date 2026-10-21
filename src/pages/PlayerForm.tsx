@@ -4,6 +4,7 @@
  * Ruta /players/:id/edit → modo edición
  */
 
+import { RANKING_POSITIONS } from "@/lib/shared/rankingVocab";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
@@ -90,11 +91,8 @@ const editFormSchema = formSchema.extend({
 type FormValues = Omit<z.infer<typeof formSchema>, "metrics"> & { metrics: PlayerMetrics };
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
-const POSITIONS = [
-  "Portero", "Defensa Central", "Lateral Derecho", "Lateral Izquierdo",
-  "Pivote", "Mediocentro", "Mediapunta",
-  "Extremo Derecho", "Extremo Izquierdo", "Delantero Centro", "Segundo Delantero",
-];
+// Vocabulario único de posiciones (src/lib/shared/rankingVocab.ts, inv #7).
+const POSITIONS: string[] = [...RANKING_POSITIONS];
 
 const COMPETITIVE_LEVELS = ["Local", "Regional", "Nacional", "Internacional"];
 

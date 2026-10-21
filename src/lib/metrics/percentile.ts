@@ -72,7 +72,7 @@ export const NOT_EVALUATED_REASON = "sin evaluación: no tiene percentil";
 const BLOCKED_REASON = {
   pending_review: "evaluación con valores por defecto pendiente de revisión: no cuenta como evaluada",
   reviews_unavailable: "no se pudo comprobar qué evaluaciones están pendientes de revisión",
-  age_unknown: "sin edad registrada (o fuera de los grupos de edad): no tiene percentil por grupo",
+  age_unknown: "sin grupo de edad (edad no registrada o fuera de los grupos): no tiene percentil por grupo",
 } as const;
 
 /**

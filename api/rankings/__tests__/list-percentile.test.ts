@@ -148,14 +148,18 @@ describe("rankings · percentil entre pares (implementación única)", () => {
     }
   });
 
-  it("filtro de pie (bloque 11): solo el pie registrado casa; sin pie no; valor fuera del vocabulario se ignora", async () => {
+  it("filtro de pie (bloque 11): solo el pie registrado casa; sin pie no; valor fuera del vocabulario ⇒ nadie", async () => {
     rows = [player("zurdo", 60, { foot: "left" }), player("diestro", 61, { foot: "right" }), player("sin-pie", 62)];
     const get = async (q: string) => {
       const res = await listHandler(new Request(`https://x.test/api/rankings/list?limit=200${q}`, { headers: { Authorization: "Bearer user-jwt" } }));
       return ((await res.json()) as { data: { players: Array<{ id: string }> } }).data.players.map((p) => p.id);
     };
     expect(await get("&foot=left")).toEqual(["zurdo"]);
-    expect((await get("&foot=zurdo")).sort()).toEqual(["diestro", "sin-pie", "zurdo"]);
+    expect(await get("&foot=zurdo")).toEqual([]);
+    // Orden por edad: sin edad ⇒ al final en las dos direcciones.
+    rows = [player("a", 60, { age: 12 }), player("b", 61, { age: undefined }), player("c", 62, { age: 15 })];
+    expect(await get("&sort=age&dir=asc")).toEqual(["a", "c", "b"]);
+    expect(await get("&sort=age&dir=desc")).toEqual(["c", "a", "b"]);
   });
 
   it("sin edad registrada (o fuera de 8-21) ⇒ sin grupo ni percentil por grupo; nunca 15 ⇒ «Sub-16» ni «Sub-21» por defecto", async () => {

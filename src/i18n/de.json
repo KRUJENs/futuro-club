@@ -6310,7 +6310,7 @@
       "insufficient_short": "Kein Perzentil ({{count}}/{{min}} Vergleichsspieler)",
       "pending_review": "Bewertung mit Standardwerten, Prüfung ausstehend: zählt nicht als bewertet",
       "reviews_unavailable": "Es konnte nicht geprüft werden, welche Bewertungen noch geprüft werden müssen: Perzentil gesperrt",
-      "age_unknown": "Kein erfasstes Alter: kein Perzentil innerhalb der Altersgruppe"
+      "age_unknown": "Keine Altersgruppe: kein Perzentil innerhalb der Altersgruppe"
     }
   },
   "coachEval": {
@@ -6408,12 +6408,14 @@
   "rankingsNl": {
     "placeholder": "Suche mit einem Satz: „spät reifender linker Außenverteidiger, U14“",
     "button": "Mit KI suchen",
+    "nothingApplied": "Kein Filter wurde verstanden: Es wurde nichts geändert.",
+    "limit": "Du hast das Tageslimit für KI-Suchen erreicht: Nutze die Filter.",
     "interpreted": "Interpretiert:",
     "nothing": "kein Filter",
     "notUnderstood": "Nicht verstanden (nicht verwendet):",
     "error": "Die Suche konnte nicht interpretiert werden: Nutze die Filter.",
     "unavailable": "Die KI-Suche ist gerade nicht verfügbar: Nutze die Filter.",
-    "noMatch": "Keiner deiner Spieler erfüllt alle interpretierten Filter. Ähnliche werden nicht angezeigt.",
+    "noMatch": "Keiner deiner Spieler erfüllt alle interpretierten Filter; Ähnliche werden nicht angezeigt. Wer die Angabe (Fuß, Reifung, Alter) nicht erfasst hat, erscheint beim Filtern danach nicht.",
     "ageUnknown": "kein Alter",
     "footLabel": "Starker Fuß",
     "foot": {

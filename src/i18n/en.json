@@ -6311,7 +6311,7 @@
       "insufficient_short": "No percentile ({{count}}/{{min}} peers)",
       "pending_review": "Evaluation with default values pending review: it does not count as evaluated",
       "reviews_unavailable": "Could not check which evaluations are pending review: percentile blocked",
-      "age_unknown": "No registered age: no percentile within an age group"
+      "age_unknown": "No age group: no percentile within an age group"
     }
   },
   "coachEval": {
@@ -6409,12 +6409,14 @@
   "rankingsNl": {
     "placeholder": "Search with a phrase: \"late-maturing left-footed full-back, U14\"",
     "button": "Search with AI",
+    "nothingApplied": "No filter was understood: nothing was changed.",
+    "limit": "You have reached the daily limit of AI searches: use the filters.",
     "interpreted": "Interpreted:",
     "nothing": "no filter",
     "notUnderstood": "Not understood (not used):",
     "error": "The search could not be interpreted: use the filters.",
     "unavailable": "AI search is not available right now: use the filters.",
-    "noMatch": "None of your players meet all the interpreted filters. Similar players are not shown.",
+    "noMatch": "None of your players meet all the interpreted filters; similar players are not shown. Players without that data recorded (foot, maturation, age) do not appear when filtering by it.",
     "ageUnknown": "no age",
     "footLabel": "Preferred foot",
     "foot": {

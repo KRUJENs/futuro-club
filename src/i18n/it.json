@@ -6310,7 +6310,7 @@
       "insufficient_short": "Nessun percentile ({{count}}/{{min}} pari)",
       "pending_review": "Valutazione con valori predefiniti in attesa di revisione: non conta come valutata",
       "reviews_unavailable": "Impossibile verificare quali valutazioni sono in attesa di revisione: percentile bloccato",
-      "age_unknown": "Nessuna età registrata: nessun percentile per fascia d'età"
+      "age_unknown": "Nessuna fascia d'età: nessun percentile per fascia"
     }
   },
   "coachEval": {
@@ -6408,12 +6408,14 @@
   "rankingsNl": {
     "placeholder": "Cerca con una frase: «terzino mancino tardivo, U14»",
     "button": "Cerca con l'IA",
+    "nothingApplied": "Nessun filtro è stato capito: non è stato cambiato nulla.",
+    "limit": "Hai raggiunto il limite giornaliero di ricerche con IA: usa i filtri.",
     "interpreted": "Interpretato:",
     "nothing": "nessun filtro",
     "notUnderstood": "Non capito (non usato):",
     "error": "Non è stato possibile interpretare la ricerca: usa i filtri.",
     "unavailable": "La ricerca con IA non è disponibile ora: usa i filtri.",
-    "noMatch": "Nessuno dei tuoi giocatori soddisfa tutti i filtri interpretati. Non vengono mostrati giocatori simili.",
+    "noMatch": "Nessuno dei tuoi giocatori soddisfa tutti i filtri interpretati; non vengono mostrati giocatori simili. Chi non ha registrato il dato (piede, maturazione, età) non compare filtrando per quel dato.",
     "ageUnknown": "età non registrata",
     "footLabel": "Piede preferito",
     "foot": {

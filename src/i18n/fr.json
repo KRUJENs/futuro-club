@@ -6310,7 +6310,7 @@
       "insufficient_short": "Pas de percentile ({{count}}/{{min}} pairs)",
       "pending_review": "Évaluation avec valeurs par défaut en attente de révision : elle ne compte pas comme évaluée",
       "reviews_unavailable": "Impossible de vérifier quelles évaluations sont en attente de révision : percentile bloqué",
-      "age_unknown": "Pas d'âge enregistré : pas de percentile par catégorie d'âge"
+      "age_unknown": "Pas de catégorie d'âge : pas de percentile par catégorie"
     }
   },
   "coachEval": {
@@ -6408,12 +6408,14 @@
   "rankingsNl": {
     "placeholder": "Cherchez avec une phrase : « latéral gaucher tardif, U14 »",
     "button": "Chercher avec l'IA",
+    "nothingApplied": "Aucun filtre n'a été compris : rien n'a été modifié.",
+    "limit": "Vous avez atteint la limite quotidienne de recherches par IA : utilisez les filtres.",
     "interpreted": "Interprété :",
     "nothing": "aucun filtre",
     "notUnderstood": "Non compris (non utilisé) :",
     "error": "La recherche n'a pas pu être interprétée : utilisez les filtres.",
     "unavailable": "La recherche par IA n'est pas disponible pour le moment : utilisez les filtres.",
-    "noMatch": "Aucun de vos joueurs ne remplit tous les filtres interprétés. Les joueurs similaires ne sont pas affichés.",
+    "noMatch": "Aucun de vos joueurs ne remplit tous les filtres interprétés ; les joueurs similaires ne sont pas affichés. Ceux dont la donnée n'est pas enregistrée (pied, maturation, âge) n'apparaissent pas quand on filtre dessus.",
     "ageUnknown": "âge inconnu",
     "footLabel": "Pied fort",
     "foot": {
