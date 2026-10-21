@@ -22,6 +22,8 @@ import { PlayerTrackingService, type TrackingSnapshot } from "./playerTrackingSe
 
 // Fecha fija (ejemplo MOCK): en el demo el sexo se da por elegido (registeredSex.ts).
 const DEMO_SEX_CONFIRMED_AT = "2026-01-15T00:00:00.000Z";
+// Demo: fecha de las medidas (sin ella el PHV se bloquea, src/lib/phv/phvGate.ts).
+const DEMO_MEASURED_AT = "2026-09-01T10:00:00.000Z";
 
 const DEMO_PLAYERS: CreatePlayerInput[] = [
   {
@@ -34,6 +36,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     sexConfirmedAt: DEMO_SEX_CONFIRMED_AT, // demo: sexo elegido (P1 bloque 7)
     foot: "left",
     height: 172, weight: 62, sittingHeight: 89, legLength: 83,
+    measuredAt: DEMO_MEASURED_AT,
     motherHeightCm: 165, fatherHeightCm: 178,
     competitiveLevel: "Nacional",
     minutesPlayed: 1200,
@@ -47,6 +50,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     gender: "F",
     foot: "right",
     height: 158, weight: 50, sittingHeight: 82, legLength: 76,
+    measuredAt: DEMO_MEASURED_AT,
     motherHeightCm: 160, fatherHeightCm: 170,
     competitiveLevel: "Regional",
     minutesPlayed: 800,
@@ -62,6 +66,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     sexConfirmedAt: DEMO_SEX_CONFIRMED_AT, // demo: sexo elegido (P1 bloque 7)
     foot: "right",
     height: 176, weight: 66, sittingHeight: 91, legLength: 85,
+    measuredAt: DEMO_MEASURED_AT,
     motherHeightCm: 168, fatherHeightCm: 182,
     competitiveLevel: "Regional",
     minutesPlayed: 500,
@@ -78,6 +83,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     sexConfirmedAt: DEMO_SEX_CONFIRMED_AT, // demo: sexo elegido (P1 bloque 7)
     foot: "left",
     height: 143, weight: 35, sittingHeight: 72, legLength: 68,
+    measuredAt: DEMO_MEASURED_AT,
     motherHeightCm: 172, fatherHeightCm: 186,
     competitiveLevel: "Regional",
     minutesPlayed: 950,
@@ -93,6 +99,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     sexConfirmedAt: DEMO_SEX_CONFIRMED_AT, // demo: sexo elegido (P1 bloque 7)
     foot: "right",
     height: 182, weight: 74, sittingHeight: 95, legLength: 87,
+    measuredAt: DEMO_MEASURED_AT,
     motherHeightCm: 162, fatherHeightCm: 176,
     competitiveLevel: "Nacional",
     minutesPlayed: 1100,
@@ -107,6 +114,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     gender: "F",
     foot: "left",
     height: 165, weight: 56, sittingHeight: 86, legLength: 79,
+    measuredAt: DEMO_MEASURED_AT,
     motherHeightCm: 163, fatherHeightCm: 172,
     competitiveLevel: "Nacional",
     minutesPlayed: 1000,
@@ -121,6 +129,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     sexConfirmedAt: DEMO_SEX_CONFIRMED_AT, // demo: sexo elegido (P1 bloque 7)
     foot: "right",
     height: 181, weight: 73, sittingHeight: 94, legLength: 87,
+    measuredAt: DEMO_MEASURED_AT,
     motherHeightCm: 170, fatherHeightCm: 184,
     competitiveLevel: "Nacional",
     minutesPlayed: 1400,
@@ -135,6 +144,7 @@ const DEMO_PLAYERS: CreatePlayerInput[] = [
     sexConfirmedAt: DEMO_SEX_CONFIRMED_AT, // demo: sexo elegido (P1 bloque 7)
     foot: "right",
     height: 146, weight: 39, sittingHeight: 76, legLength: 70,
+    measuredAt: DEMO_MEASURED_AT,
     motherHeightCm: 166, fatherHeightCm: 179,
     competitiveLevel: "Regional",
     minutesPlayed: 600,

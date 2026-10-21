@@ -84,6 +84,9 @@ export const PlayerSchema = z.object({
   // ── Inputs de maduración (para edad decimal exacta y %PAH Khamis-Roche) ──
   // Se persisten en el jsonb `data` de la tabla players (sin migración).
   birthDate: z.string().optional(),                        // ISO YYYY-MM-DD → edad decimal
+  // Fecha en la que se tomaron talla/peso/talla sentado/pierna (ISO): la edad del PHV y del
+  // %PAH es la de ESA fecha. Sin ella, el gate bloquea (src/lib/phv/phvGate.ts).
+  measuredAt: z.string().optional(),
   motherHeightCm: z.number().min(120).max(210).optional(), // para %PAH (Khamis-Roche)
   fatherHeightCm: z.number().min(120).max(230).optional(),
   // true ⇒ jugador de DEMO (cargado con "Cargar datos de ejemplo"), no real. La UI lo
@@ -243,6 +246,7 @@ export const PlayerService = {
       Pick<
         Player,
         | "birthDate"
+        | "measuredAt"
         | "motherHeightCm"
         | "fatherHeightCm"
         | "height"

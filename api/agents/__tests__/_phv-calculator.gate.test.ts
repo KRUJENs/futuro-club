@@ -25,7 +25,7 @@ import { decimalAgeYears } from "../../../src/lib/shared/age";
 
 const FULL = {
   playerId: "p1", chronologicalAge: 14, height: 165, weight: 55, sittingHeight: 85, legLength: 80,
-  gender: "M", birthDate: "2012-03-15",
+  gender: "M", birthDate: "2012-03-15", measuredAt: "2026-09-01T10:00:00Z",
 };
 
 async function call(body: Record<string, unknown>) {
@@ -68,7 +68,7 @@ describe("phv-calculator · gate de entradas", () => {
     const { status, json } = await call(FULL);
     expect(status).toBe(200);
     const data = json.data as Record<string, unknown>;
-    const age = decimalAgeYears(FULL.birthDate)!;
+    const age = decimalAgeYears(FULL.birthDate, FULL.measuredAt)!; // edad en la FECHA DE LA MEDICIÓN
     expect(data.chronologicalAge).toBe(age);
     expect(data.ageSource).toBe("birth_date");
     const g = phvGate(FULL);

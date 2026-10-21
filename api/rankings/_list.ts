@@ -93,6 +93,8 @@ type PlayerRow = {
   birthDate: string | null;
   sittingHeight: number | null;
   legLength: number | null;
+  /** Fecha de las medidas: la fila la reenvía porque Rankings recalcula el PHV con ella. */
+  measuredAt: string | null;
   motherHeightCm: number | null;
   fatherHeightCm: number | null;
 };
@@ -219,6 +221,7 @@ export default withHandler(
           birthDate: (d.birthDate as string) ?? null,
           sittingHeight: (d.sittingHeight as number) ?? null,
           legLength: (d.legLength as number) ?? null,
+          measuredAt: typeof d.measuredAt === "string" ? d.measuredAt : null,
           motherHeightCm: (d.motherHeightCm as number) ?? null,
           fatherHeightCm: (d.fatherHeightCm as number) ?? null,
         };

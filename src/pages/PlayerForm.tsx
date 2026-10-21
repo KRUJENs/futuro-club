@@ -5,6 +5,7 @@
  */
 
 import { RANKING_POSITIONS } from "@/lib/shared/rankingVocab";
+import { measuredAtFor } from "@/lib/shared/measuredAt";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
@@ -412,6 +413,7 @@ const PlayerForm = () => {
             weight: data.weight,
             sittingHeight: data.sittingHeight || undefined,
             legLength: data.legLength || undefined,
+            measuredAt: measuredAtFor(data, players[idx]),
             birthDate: data.birthDate || undefined,
             motherHeightCm: data.motherHeightCm || undefined,
             fatherHeightCm: data.fatherHeightCm || undefined,
@@ -448,6 +450,7 @@ const PlayerForm = () => {
           weight: data.weight,
           sittingHeight: data.sittingHeight || undefined,
           legLength: data.legLength || undefined,
+          measuredAt: measuredAtFor(data),
           birthDate: data.birthDate || undefined,
           motherHeightCm: data.motherHeightCm || undefined,
           fatherHeightCm: data.fatherHeightCm || undefined,

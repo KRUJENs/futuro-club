@@ -3242,7 +3242,8 @@
         "sittingHeight": "talla sentado",
         "legLength": "longitud de pierna",
         "birthDate": "fecha de nacimiento del jugador",
-        "sex": "sexo registrado"
+        "sex": "sexo registrado",
+        "measuredAt": "fecha de la medición (registra una medición nueva)"
       }
     },
     "sexPending": "sexo por confirmar (confírmalo en «Editar jugador»)",
@@ -6402,7 +6403,8 @@
       "fatherHeight": "falta la altura del padre: {{count}}",
       "birthDate": "falta la fecha de nacimiento: {{count}}",
       "sex": "falta el sexo registrado (o está por confirmar): {{count}}",
-      "out_of_range": "fuera del rango de validez de Khamis-Roche: {{count}}"
+      "out_of_range": "fuera del rango de validez de Khamis-Roche: {{count}}",
+      "measuredAt": "falta la fecha de la medición (registra una medición nueva): {{count}}"
     },
     "note": "Agrupa por el % de la talla adulta predicha ya alcanzado (Khamis-Roche 1994; cortes de Cumming et al. 2017), no por la edad. No es la fase PHV que se ve en la lista (esa se calcula con Mirwald y puede no coincidir). Cerca de los cortes la banda puede cambiar: la talla adulta predicha tiene error. Sin las alturas de los padres no hay banda: nunca se asigna por defecto ni desde otra medida."
   },

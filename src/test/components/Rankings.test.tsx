@@ -194,7 +194,7 @@ describe("Rankings", () => {
   it("jugador con entradas completas introducidas muestra timing del motor, sin aviso de gate", () => {
     const complete = {
       ...mockPlayers[0], id: "full", name: "Completo",
-      height: 165, weight: 55, sittingHeight: 85, legLength: 80, birthDate: "2012-03-15", gender: "M",
+      height: 165, weight: 55, sittingHeight: 85, legLength: 80, birthDate: "2012-03-15", measuredAt: "2026-09-01T10:00:00.000Z", gender: "M",
     };
     mockUseRankedPlayers.mockReturnValue({
       data: { ...mockRankingsResponse, players: [complete], total: 1, totalUnfiltered: 1 },
@@ -214,11 +214,11 @@ describe("Rankings", () => {
     try {
       const lateInPhv = {
         ...mockPlayers[0], id: "late", name: "Tardio EnPHV",
-        height: 160, weight: 48, sittingHeight: 80, legLength: 80, birthDate: "2011-09-29", gender: "M",
+        height: 160, weight: 48, sittingHeight: 80, legLength: 80, birthDate: "2011-09-29", measuredAt: "2026-09-01T10:00:00.000Z", gender: "M",
       };
       const preOnTime = {
         ...mockPlayers[1], id: "pre", name: "Pre EnFase",
-        height: 150, weight: 42, sittingHeight: 78, legLength: 72, birthDate: "2016-03-29", gender: "M",
+        height: 150, weight: 42, sittingHeight: 78, legLength: 72, birthDate: "2016-03-29", measuredAt: "2026-09-01T10:00:00.000Z", gender: "M",
       };
       mockUseRankedPlayers.mockReturnValue({
         data: { ...mockRankingsResponse, players: [lateInPhv, preOnTime], total: 2, totalUnfiltered: 2 },

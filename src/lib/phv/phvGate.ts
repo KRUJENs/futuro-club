@@ -36,7 +36,7 @@ import { derived, gated, type MetricResult } from "../metrics/MetricResult";
 // ── Entradas ────────────────────────────────────────────────────────────────
 
 /** Entradas que exige el PHV (orden = orden en el que se listan en el gate_reason). */
-export type PhvInputKey = "height" | "weight" | "sittingHeight" | "legLength" | "birthDate" | "sex";
+export type PhvInputKey = "height" | "weight" | "sittingHeight" | "legLength" | "birthDate" | "sex" | "measuredAt";
 
 export const PHV_INPUT_KEYS: readonly PhvInputKey[] = [
   "height",
@@ -45,6 +45,7 @@ export const PHV_INPUT_KEYS: readonly PhvInputKey[] = [
   "legLength",
   "birthDate",
   "sex",
+  "measuredAt",
 ];
 
 /** Nombre canónico (es) de cada entrada, para el gate_reason servidor/LLM/PDF. */
@@ -55,6 +56,7 @@ export const PHV_INPUT_LABEL_ES: Record<PhvInputKey, string> = {
   legLength: "longitud de pierna",
   birthDate: "fecha de nacimiento del jugador",
   sex: "sexo registrado",
+  measuredAt: "fecha de la medición (registra una medición nueva)",
 };
 
 /** Clave i18n de cada entrada (la UI traduce; ver `maturity.gate.input.*`). */
@@ -72,6 +74,13 @@ export interface PhvGateInput {
   birthDate?: string | null;
   /** Sexo registrado. Cualquier valor que no sea "M"/"F" cuenta como ausente. */
   gender?: string | null;
+  /**
+   * Fecha en la que se tomaron las medidas (ISO). La edad del cálculo es la de ESA fecha:
+   * con la edad de hoy y una talla vieja el resultado sale sesgado. Sin ella (medidas
+   * guardadas antes de registrarla) el PHV y el %PAH se bloquean pidiendo volver a guardar
+   * las medidas (decisión del dueño, 21 oct 2026). Un `at` explícito tiene prioridad.
+   */
+  measuredAt?: string | null;
   /** Solo para %PAH (`pahGate`, Khamis-Roche); NO son entradas del PHV ni deciden su fase. */
   motherHeightCm?: number | null;
   fatherHeightCm?: number | null;
@@ -164,6 +173,22 @@ function blocked(reason: PhvBlockReason, missing: PhvInputKey[], gate_reason: st
 }
 
 /** Qué entradas del PHV faltan (lista vacía ⇒ completas). */
+/**
+ * Fecha de las medidas: `at` explícito, o `input.measuredAt` si es una fecha válida que no
+ * está en el futuro (más de un día) ni es anterior al nacimiento. Si no, null (nunca hoy por
+ * defecto: invariante #2).
+ */
+export function measurementDateOf(input: PhvGateInput, at?: string | Date): string | Date | null {
+  if (at !== undefined && at !== null) return at;
+  const raw = typeof input.measuredAt === "string" ? input.measuredAt.trim() : "";
+  const t = Date.parse(raw);
+  if (!raw || !Number.isFinite(t)) return null;
+  if (t > Date.now() + 86_400_000) return null;
+  const birth = Date.parse(input.birthDate ?? "");
+  if (Number.isFinite(birth) && t < birth) return null;
+  return raw;
+}
+
 export function missingPhvInputs(input: PhvGateInput, at?: string | Date): PhvInputKey[] {
   const missing: PhvInputKey[] = [];
   const height = num(input.height);
@@ -175,14 +200,16 @@ export function missingPhvInputs(input: PhvGateInput, at?: string | Date): PhvIn
   // Pierna: introducida, o talla − talla sentado (ambas introducidas y coherentes).
   const derivable = height !== null && sitting !== null && height > sitting;
   if (leg === null && !derivable) missing.push("legLength");
-  if (decimalAgeYears(input.birthDate ?? null, at) === null) missing.push("birthDate");
+  const when = measurementDateOf(input, at);
+  if (decimalAgeYears(input.birthDate ?? null, when ?? undefined) === null) missing.push("birthDate");
   if (sexOf(input.gender) === null) missing.push("sex");
+  if (when === null) missing.push("measuredAt");
   return missing;
 }
 
 /**
- * Gate del PHV. `at` = fecha de la medida (por defecto hoy): la edad decimal se
- * calcula en esa fecha, no hoy, para que una medida antigua conserve su edad real.
+ * Gate del PHV. La edad decimal se calcula en la FECHA DE LA MEDIDA (`at` explícito o
+ * `input.measuredAt`), nunca hoy por defecto: una medida antigua conserva su edad real.
  */
 export function phvGate(input: PhvGateInput, at?: string | Date): PhvGate {
   const missing = missingPhvInputs(input, at);
@@ -193,7 +220,7 @@ export function phvGate(input: PhvGateInput, at?: string | Date): PhvGate {
   const sittingHeight = num(input.sittingHeight) as number;
   const measuredLeg = num(input.legLength);
   const legLengthCm = measuredLeg ?? height - sittingHeight;
-  const ageYears = decimalAgeYears(input.birthDate ?? null, at) as number;
+  const ageYears = decimalAgeYears(input.birthDate ?? null, measurementDateOf(input, at) as string | Date) as number;
   const sex = sexOf(input.gender) as "M" | "F";
 
   if (!canComputeMirwald({ age: ageYears, height, weight })) {
@@ -353,7 +380,7 @@ export function trustedSnapshotPhv(
 
 // ── %PAH (Khamis-Roche) — métrica DISTINTA, rotulada «% talla adulta» ─────────
 
-export type PahInputKey = "height" | "weight" | "motherHeight" | "fatherHeight" | "birthDate" | "sex";
+export type PahInputKey = "height" | "weight" | "motherHeight" | "fatherHeight" | "birthDate" | "sex" | "measuredAt";
 
 export const PAH_INPUT_LABEL_ES: Record<PahInputKey, string> = {
   height: "talla",
@@ -362,6 +389,7 @@ export const PAH_INPUT_LABEL_ES: Record<PahInputKey, string> = {
   fatherHeight: "altura del padre",
   birthDate: "fecha de nacimiento del jugador",
   sex: "sexo registrado",
+  measuredAt: "fecha de la medición (registra una medición nueva)",
 };
 
 export interface PahGate {
@@ -381,10 +409,12 @@ export function pahGate(input: PhvGateInput, at?: string | Date): PahGate {
   if (num(input.weight) === null) missing.push("weight");
   if (num(input.motherHeightCm) === null) missing.push("motherHeight");
   if (num(input.fatherHeightCm) === null) missing.push("fatherHeight");
-  const ageYears = decimalAgeYears(input.birthDate ?? null, at);
+  const when = measurementDateOf(input, at);
+  const ageYears = decimalAgeYears(input.birthDate ?? null, when ?? undefined);
   if (ageYears === null) missing.push("birthDate");
   const sex = sexOf(input.gender);
   if (sex === null) missing.push("sex");
+  if (when === null) missing.push("measuredAt");
 
   const block = (reason: string): PahGate => ({
     ok: false,

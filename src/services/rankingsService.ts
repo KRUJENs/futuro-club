@@ -71,6 +71,8 @@ export interface RankedPlayer {
   // "por determinar" para TODOS. Se arrastran desde el jugador crudo.
   gender?: "M" | "F";
   sittingHeight?: number;
+  /** Fecha de las medidas (el gate del PHV calcula con la edad de esa fecha). */
+  measuredAt?: string | null;
   legLength?: number;
   motherHeightCm?: number;
   fatherHeightCm?: number;
@@ -181,6 +183,7 @@ function fetchLocalRankedPlayers(
       // playerMaturity calcula PHV/timing en el ranking en vez de "por determinar".
       gender: raw?.gender,
       sittingHeight: raw?.sittingHeight,
+      measuredAt: raw?.measuredAt,
       legLength: raw?.legLength,
       motherHeightCm: raw?.motherHeightCm,
       fatherHeightCm: raw?.fatherHeightCm,

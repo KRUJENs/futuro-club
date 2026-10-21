@@ -30,6 +30,9 @@ const phvSchema = z.object({
   weight: z.number().positive().optional(),         // kg
   sittingHeight: z.number().positive().optional(),  // cm
   legLength: z.number().positive().optional(),      // cm
+  // Fecha en la que se tomaron las medidas (ISO): sin ella el gate bloquea (la edad del
+  // cálculo es la de esa fecha, nunca hoy por defecto).
+  measuredAt: z.string().max(40).optional(),
   currentVSI: z.number().min(0).max(100).optional(),
   // Sexo SIN default: el PHV es sexo-específico (invariante #5). Ausente ⇒ se
   // bloquea (throw PHV_MISSING_SEX), NUNCA se asume masculino ni femenino.
@@ -195,7 +198,7 @@ function adjustVSI(
 
 /** Código/HTTP del bloqueo del gate (se conservan los códigos históricos). */
 function gateError(g: PhvGateBlocked): { code: string; message: string } {
-  const measures = g.missing.filter((k) => k !== "birthDate" && k !== "sex");
+  const measures = g.missing.filter((k) => k !== "birthDate" && k !== "sex" && k !== "measuredAt");
   if (measures.length > 0) {
     return {
       code: "phv_incomplete_data",
@@ -220,6 +223,14 @@ function gateError(g: PhvGateBlocked): { code: string; message: string } {
       message:
         "PHV_MISSING_BIRTH_DATE: Mirwald exige la edad EXACTA (decimal) desde la fecha " +
         `de nacimiento del jugador; no se usa la edad entera. ${g.gate_reason}`,
+    };
+  }
+  if (g.missing.includes("measuredAt")) {
+    return {
+      code: "phv_missing_measured_at",
+      message:
+        "PHV_MISSING_MEASURED_AT: hace falta la fecha en la que se tomaron las medidas; la edad " +
+        `del cálculo es la de esa fecha, nunca la de hoy por defecto. ${g.gate_reason}`,
     };
   }
   return { code: "phv_out_of_range", message: `PHV_OUT_OF_RANGE: ${g.gate_reason}` };
@@ -263,6 +274,7 @@ export default withHandler(
         legLength: rawInput.legLength,
         birthDate: rawInput.birthDate,
         gender: rawInput.gender,
+        measuredAt: rawInput.measuredAt,
       });
       if (!gate.ok) {
         const e = gateError(gate);

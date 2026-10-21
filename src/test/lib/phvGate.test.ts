@@ -30,7 +30,7 @@ const COMPLETE = {
   weight: 55,
   sittingHeight: 85,
   legLength: 80,
-  birthDate: "2012-03-15",
+  birthDate: "2012-03-15", measuredAt: "2026-09-01T10:00:00.000Z",
   gender: "M" as const,
 };
 
@@ -160,11 +160,11 @@ describe("phvGate · UNA sola fase aunque haya alturas parentales (%PAH ≠ PHV)
   const TODAY = "2026-09-29T12:00:00Z";
   const BOY = {
     height: 158, weight: 46, sittingHeight: 80, legLength: 78,
-    birthDate: "2013-06-01", gender: "M" as const, motherHeightCm: 170, fatherHeightCm: 185,
+    birthDate: "2013-06-01", measuredAt: "2026-09-01T10:00:00.000Z", gender: "M" as const, motherHeightCm: 170, fatherHeightCm: 185,
   };
   const GIRL = {
     height: 150, weight: 40, sittingHeight: 78, legLength: 72,
-    birthDate: "2014-03-01", gender: "F" as const, motherHeightCm: 165, fatherHeightCm: 178,
+    birthDate: "2014-03-01", measuredAt: "2026-09-01T10:00:00.000Z", gender: "F" as const, motherHeightCm: 165, fatherHeightCm: 178,
   };
 
   beforeEach(() => {

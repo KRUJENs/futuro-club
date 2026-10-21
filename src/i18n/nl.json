@@ -3242,7 +3242,8 @@
         "sittingHeight": "zithoogte",
         "legLength": "beenlengte",
         "birthDate": "geboortedatum van de speler",
-        "sex": "geregistreerd geslacht"
+        "sex": "geregistreerd geslacht",
+        "measuredAt": "meetdatum (registreer een nieuwe meting)"
       }
     },
     "sexPending": "geslacht nog te bevestigen (via ‘Speler bewerken’)",
@@ -6402,7 +6403,8 @@
       "fatherHeight": "lengte van de vader ontbreekt: {{count}}",
       "birthDate": "geboortedatum ontbreekt: {{count}}",
       "sex": "geregistreerd geslacht ontbreekt (of nog te bevestigen): {{count}}",
-      "out_of_range": "buiten het geldigheidsbereik van Khamis-Roche: {{count}}"
+      "out_of_range": "buiten het geldigheidsbereik van Khamis-Roche: {{count}}",
+      "measuredAt": "meetdatum ontbreekt (registreer een nieuwe meting): {{count}}"
     },
     "note": "Groepeert op het al bereikte % van de voorspelde volwassen lengte (Khamis-Roche 1994; grenzen van Cumming et al. 2017), niet op leeftijd. Het is niet de PHV-fase uit de lijst (die wordt met Mirwald berekend en kan afwijken). Dicht bij de grenzen kan de band veranderen: de voorspelde volwassen lengte heeft een foutmarge. Zonder de lengte van beide ouders is er geen band: die wordt nooit standaard of uit een andere meting toegekend."
   },
