@@ -6309,7 +6309,8 @@
       "insufficient_peers": "Nessun percentile: non ci sono abbastanza giocatori valutati comparabili ({{count}} su {{min}})",
       "insufficient_short": "Nessun percentile ({{count}}/{{min}} pari)",
       "pending_review": "Valutazione con valori predefiniti in attesa di revisione: non conta come valutata",
-      "reviews_unavailable": "Impossibile verificare quali valutazioni sono in attesa di revisione: percentile bloccato"
+      "reviews_unavailable": "Impossibile verificare quali valutazioni sono in attesa di revisione: percentile bloccato",
+      "age_unknown": "Nessuna fascia d'età: nessun percentile per fascia"
     }
   },
   "coachEval": {
@@ -6403,5 +6404,25 @@
       "out_of_range": "fuori dall'intervallo di validità di Khamis-Roche: {{count}}"
     },
     "note": "Raggruppa per la % della statura adulta prevista già raggiunta (Khamis-Roche 1994; soglie di Cumming et al. 2017), non per età. Non è la fase PHV mostrata nell'elenco (quella si calcola con Mirwald e può non coincidere). Vicino alle soglie la fascia può cambiare: la statura adulta prevista ha un errore. Senza la statura di entrambi i genitori non c'è fascia: non viene mai assegnata per difetto né da un'altra misura."
+  },
+  "rankingsNl": {
+    "placeholder": "Cerca con una frase: «terzino mancino tardivo, U14»",
+    "button": "Cerca con l'IA",
+    "nothingApplied": "Nessun filtro è stato capito: non è stato cambiato nulla.",
+    "limit": "Hai raggiunto il limite giornaliero di ricerche con IA: usa i filtri.",
+    "interpreted": "Interpretato:",
+    "nothing": "nessun filtro",
+    "notUnderstood": "Non capito (non usato):",
+    "error": "Non è stato possibile interpretare la ricerca: usa i filtri.",
+    "unavailable": "La ricerca con IA non è disponibile ora: usa i filtri.",
+    "noMatch": "Nessuno dei tuoi giocatori soddisfa tutti i filtri interpretati; non vengono mostrati giocatori simili. Chi non ha registrato il dato (piede, maturazione, età) non compare filtrando per quel dato.",
+    "ageUnknown": "età non registrata",
+    "footLabel": "Piede preferito",
+    "foot": {
+      "all": "Tutti",
+      "left": "Mancino",
+      "right": "Destro",
+      "both": "Ambidestro"
+    }
   }
 }

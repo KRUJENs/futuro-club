@@ -27,6 +27,7 @@ import { fichaVsiFromBlob } from "../../src/services/real/metricsService";
 import { phvGate, matchesTimingFilter, type MaturityTiming, type PhvGateInput } from "../../src/lib/phv/phvGate";
 import { registeredSex, withRegisteredSex } from "../../src/lib/shared/registeredSex";
 import { pendingVsiReviewIdsRest } from "../_lib/vsiPendingReview";
+import { rankingAgeGroup } from "../../src/lib/shared/rankingVocab";
 import { vsiTrendArrow } from "../../src/lib/scoring/vsiDelta";
 import { blockedPercentile, percentilesAmong, percentileGateInfo, type PercentileGateInfo } from "../../src/lib/metrics/percentile";
 
@@ -55,26 +56,12 @@ function gatedPhvFields(d: Record<string, unknown>): {
 // VSI de ficha: pesos + fórmula en fuente ÚNICA src/services/real/metricsService.ts (invariante #7).
 
 // ── Age Group definitions ────────────────────────────────────────────────
-const AGE_GROUPS: Record<string, [number, number]> = {
-  "Sub-10": [8, 10],
-  "Sub-12": [11, 12],
-  "Sub-14": [13, 14],
-  "Sub-16": [15, 16],
-  "Sub-18": [17, 18],
-  "Sub-21": [19, 21],
-};
-
-function getAgeGroup(age: number): string {
-  for (const [label, [min, max]] of Object.entries(AGE_GROUPS)) {
-    if (age >= min && age <= max) return label;
-  }
-  return "Sub-21";
-}
 
 type PlayerRow = {
   id: string;
   name: string;
-  age: number;
+  /** null = edad no registrada (nunca una edad por defecto). */
+  age: number | null;
   position: string;
   positionShort: string;
   vsi: number | null; // null ⇒ "sin evaluar" (jugador sin evaluación del coach)
@@ -84,7 +71,8 @@ type PlayerRow = {
   phvTiming: MaturityTiming | null;
   phvGateReason: string | null;
   competitiveLevel: string | null; // null ⇒ nivel no registrado
-  ageGroup: string;
+  /** null = sin edad registrada o fuera de los grupos. */
+  ageGroup: string | null;
   trending: "up" | "down" | "stable";
   // null si sin evaluar o con menos de 10 pares; el motivo va en *Gate.
   percentile: number | null;
@@ -145,6 +133,10 @@ export default withHandler(
     const ageGroupFilter = url.searchParams.get("ageGroup"); // "Sub-14", etc.
     const levelFilter = url.searchParams.get("level"); // competitive level
     const search = url.searchParams.get("search")?.toLowerCase();
+    // Pie dominante (P2 bloque 11): sin pie registrado no casa, y un valor fuera del
+    // vocabulario no casa con nadie (igual que el cálculo local del cliente).
+    const footParam = url.searchParams.get("foot");
+    const footFilter = footParam && footParam !== "all" ? footParam : null;
 
     const headers = {
       apikey: supabaseKey,
@@ -184,7 +176,8 @@ export default withHandler(
         // el mismo que enseña la ficha; si no, null ("sin evaluar"). Antes se recalculaba
         // con barras parciales (una barra ausente valía 0: `metrics: {}` ⇒ VSI 0 como par).
         const vsi: number | null = fichaVsiFromBlob(d);
-        const age = (d.age as number) ?? 15;
+        // Sin edad registrada ⇒ null (antes 15 ⇒ «Sub-16»: invariante #2).
+        const age = typeof d.age === "number" && Number.isFinite(d.age) ? d.age : null;
         // Flecha ↑/↓ solo desde dos evaluaciones reales con fecha (fuente única
         // vsiTrendArrow → computeVsiDelta, invariante #7); el vsiHistory legacy (sin
         // fechas, con el 57.5 fabricado antes de #146) solo cuenta para jugadores demo.
@@ -205,7 +198,7 @@ export default withHandler(
           ...gatedPhvFields(d),
           // Sin nivel elegido ⇒ null, no «Regional» (P1 bloque 2, inv #2).
           competitiveLevel: typeof d.competitiveLevel === "string" && d.competitiveLevel ? d.competitiveLevel : null,
-          ageGroup: getAgeGroup(age),
+          ageGroup: rankingAgeGroup(age),
           trending,
           percentile: null, // calculated below
           percentileInAgeGroup: null, // calculated below
@@ -252,7 +245,8 @@ export default withHandler(
       for (const p of allPlayers) {
         const blocked = reviewed === null ? "reviews_unavailable" : reviewed.has(p.id) ? "pending_review" : null;
         const g = blocked ? blockedPercentile(blocked) : global.get(p.id)!;
-        const ag = blocked ? blockedPercentile(blocked) : inGroup.get(p.id)!;
+        // Sin grupo de edad (edad no registrada o fuera de los grupos) no hay percentil por grupo.
+        const ag = blocked ? blockedPercentile(blocked) : p.ageGroup === null ? blockedPercentile("age_unknown") : inGroup.get(p.id)!;
         p.percentile = g.result.value;
         p.percentileGate = percentileGateInfo(g);
         p.percentileInAgeGroup = ag.result.value;
@@ -266,6 +260,7 @@ export default withHandler(
     const vsiByAgeGroup: Record<string, number[]> = {};
     const countByAgeGroup: Record<string, number> = {};
     for (const p of allPlayers) {
+      if (p.ageGroup === null) continue; // sin edad: no cuenta en ningún grupo
       countByAgeGroup[p.ageGroup] = (countByAgeGroup[p.ageGroup] ?? 0) + 1;
       if (p.vsi === null || pending === null || pending.has(p.id)) continue;
       if (!vsiByAgeGroup[p.ageGroup]) vsiByAgeGroup[p.ageGroup] = [];
@@ -295,6 +290,9 @@ export default withHandler(
         (p) => p.competitiveLevel?.toLowerCase() === levelFilter.toLowerCase()
       );
     }
+    if (footFilter) {
+      filtered = filtered.filter((p) => p.foot === footFilter);
+    }
 
     // Sort. Los valores null (sin evaluar) van SIEMPRE al final, sin importar
     // la dirección — un hueco no se ordena como 0.
@@ -319,8 +317,11 @@ export default withHandler(
           const r = nullLast(a.percentileInAgeGroup, b.percentileInAgeGroup, (x, y) => x - y);
           return r ?? 0;
         }
-        case "age":
+        case "age": {
+          // Sin edad ⇒ al final en ambas direcciones (un hueco no se ordena como 0).
+          if (a.age === null || b.age === null) return a.age === b.age ? 0 : a.age === null ? 1 : -1;
           return sortDir === "asc" ? a.age - b.age : -(a.age - b.age);
+        }
         case "name": {
           const diff = a.name.localeCompare(b.name);
           return sortDir === "asc" ? diff : -diff;

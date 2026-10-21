@@ -3,9 +3,11 @@
  */
 import { errorResponse } from "../_lib/apiResponse";
 import list from "./_list";
+import nlFilters from "./_nl-filters";
 
 const routes: Record<string, (req: Request) => Promise<Response>> = {
   list,
+  "nl-filters": nlFilters,
 };
 
 export default async function handler(req: Request): Promise<Response> {
