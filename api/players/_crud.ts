@@ -6,6 +6,7 @@
  * PATCH  /api/players/crud          — update player (metrics, PHV, etc.)
  * DELETE /api/players/crud          — delete player
  */
+import { isRealIsoDate } from "../../src/lib/phv/phvGate";
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
@@ -53,7 +54,7 @@ const MetricsSchema = z.object({
 });
 
 /** Fecha de las medidas (ISO): sin ella el PHV y el %PAH se bloquean (src/lib/phv/phvGate.ts). */
-const MeasuredAtSchema = z.string().max(40).regex(/^\d{4}-\d{2}-\d{2}(?:[T ][0-9:.]+(?:Z|[+-]\d{2}:?\d{2})?)?$/);
+const MeasuredAtSchema = z.string().max(40).refine(isRealIsoDate, "fecha de las medidas no válida");
 
 const CreatePlayerSchema = z.object({
   id: z.string().optional(), // client can provide or server generates

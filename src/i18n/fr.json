@@ -329,6 +329,7 @@
       "measuredAt": "Date des mesures",
       "measuredAtHint": "Jour où la taille, le poids, la taille assise et la longueur de jambe ont été mesurés. Pour de nouvelles mesures, indiquez leur date ; pour corriger une faute, gardez l'actuelle. Sans date, le PHV n'est pas calculé.",
       "measuredAtInvalid": "Date des mesures non valide : elle ne peut être ni future ni antérieure à la naissance.",
+      "measuredAtConfirm": "Vous avez modifié des mesures sans changer leur date. Si ce sont de nouvelles mesures, indiquez leur date ; si c'était une faute, enregistrez à nouveau.",
       "maturationInputsNote": "Facultatif — améliore la précision de la maturation biologique. La date de naissance donne l'âge exact ; la taille des deux parents permet le calcul par % de taille adulte (Khamis-Roche).",
       "birthDate": "Date de naissance",
       "birthDateHint": "Âge décimal exact pour le calcul PHV (plus précis que l'âge en années).",

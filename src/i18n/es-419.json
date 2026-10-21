@@ -329,6 +329,7 @@
       "measuredAt": "Fecha de las medidas",
       "measuredAtHint": "Día en que se tomaron talla, peso, talla sentado y pierna. Si son medidas nuevas, pon su fecha; para corregir una errata, deja la que hay. Sin fecha no se calcula el PHV.",
       "measuredAtInvalid": "Fecha de las medidas no válida: no puede ser futura ni anterior al nacimiento.",
+      "measuredAtConfirm": "Has cambiado medidas sin tocar su fecha. Si son medidas nuevas, pon su fecha; si era una errata, vuelve a guardar.",
       "maturationInputsNote": "Opcional — mejora la precisión de la maduración biológica. La fecha de nacimiento da la edad exacta; la altura de ambos padres permite el cálculo por % de talla adulta (Khamis-Roche).",
       "birthDate": "Fecha de nacimiento",
       "birthDateHint": "Edad decimal exacta para el cálculo PHV (más precisa que la edad en años).",

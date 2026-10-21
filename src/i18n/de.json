@@ -329,6 +329,7 @@
       "measuredAt": "Messdatum",
       "measuredAtHint": "Tag, an dem Größe, Gewicht, Sitzhöhe und Beinlänge gemessen wurden. Bei neuen Messungen ihr Datum eintragen; bei einem Tippfehler das vorhandene lassen. Ohne Datum wird kein PHV berechnet.",
       "measuredAtInvalid": "Ungültiges Messdatum: Es darf weder in der Zukunft noch vor der Geburt liegen.",
+      "measuredAtConfirm": "Du hast Messwerte geändert, ohne ihr Datum zu ändern. Bei neuen Messungen ihr Datum eintragen; bei einem Tippfehler erneut speichern.",
       "maturationInputsNote": "Optional — verbessert die Genauigkeit der biologischen Reifung. Das Geburtsdatum liefert das exakte Alter; die Körpergröße beider Eltern ermöglicht die Berechnung über den % der Erwachsenengröße (Khamis-Roche).",
       "birthDate": "Geburtsdatum",
       "birthDateHint": "Exaktes Dezimalalter für die PHV-Berechnung (präziser als das Alter in Jahren).",

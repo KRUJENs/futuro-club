@@ -112,6 +112,21 @@ describe("PlayerForm · editar · guardado honesto", () => {
     expect(PlayerService.getAll().find((x) => x.id === p.id)?.measuredAt).toBe("2026-03-01");
   });
 
+  it("medidas cambiadas sin tocar su fecha ⇒ aviso y NO guarda; al volver a guardar (errata) conserva la fecha original completa", async () => {
+    const p = PlayerService.create({ ...BASE, measuredAt: "2026-03-01T10:30:00.000Z" });
+    renderEdit(p.id);
+    const height = (await screen.findByLabelText(/players.form.height/)) as HTMLInputElement;
+    fireEvent.change(height, { target: { value: "143" } });
+    fireEvent.click(screen.getByRole("button", { name: /players.form.submitEdit/ }));
+    await waitFor(() => expect(toastMock.warning).toHaveBeenCalledWith("players.form.measuredAtConfirm"));
+    expect(PlayerService.getAll().find((x) => x.id === p.id)?.height).toBe(142);
+    fireEvent.click(screen.getByRole("button", { name: /players.form.submitEdit/ }));
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("toasts.playerUpdated"));
+    const saved = PlayerService.getAll().find((x) => x.id === p.id)!;
+    expect(saved.height).toBe(143);
+    expect(saved.measuredAt).toBe("2026-03-01T10:30:00.000Z");
+  });
+
   it("jugador del alta rápida SIN pie: se guarda sin obligar a elegir uno (no se adivina) y la columna queda null", async () => {
     const { foot: _f, height: _h, weight: _w, competitiveLevel: _l, ...quick } = BASE;
     const p = PlayerService.create(quick);

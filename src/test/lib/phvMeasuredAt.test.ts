@@ -39,6 +39,7 @@ describe("phvGate · fecha de la medición", () => {
     }
     // Fecha corta ISO (la del campo de la ficha) sí vale; un `at` explícito vacío o libre, no.
     expect(missingPhvInputs({ ...BOY, measuredAt: "2026-03-01" })).toEqual([]);
+    expect(missingPhvInputs({ ...BOY, measuredAt: "2026-02-30" })).toContain("measuredAt"); // fecha imposible
     expect(missingPhvInputs(BOY, "")).toContain("measuredAt");
     expect(missingPhvInputs(BOY, "ayer")).toContain("measuredAt");
     expect(measurementDateOf({ ...BOY, measuredAt: MEASURED })).toBe(MEASURED);

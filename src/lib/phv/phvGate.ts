@@ -177,13 +177,22 @@ function blocked(reason: PhvBlockReason, missing: PhvInputKey[], gate_reason: st
 /** Fecha ISO (`YYYY-MM-DD` o con hora): nada de formatos libres que `Date.parse` acepte. */
 export const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(?:[T ][0-9:.]+(?:Z|[+-]\d{2}:?\d{2})?)?$/;
 
+/** ¿Fecha ISO de calendario real? (`Date.parse` convertiría 2026-02-30 en el 2 de marzo). */
+export function isRealIsoDate(raw: string): boolean {
+  const v = raw.trim();
+  if (!ISO_DATE_RE.test(v)) return false;
+  const [y, m, d] = v.slice(0, 10).split("-").map(Number);
+  const probe = new Date(Date.UTC(y, m - 1, d));
+  return probe.getUTCFullYear() === y && probe.getUTCMonth() === m - 1 && probe.getUTCDate() === d;
+}
+
 function validMeasurementDate(value: string | Date, birthDate: string | null | undefined): string | Date | null {
   let t: number;
   if (value instanceof Date) {
     t = value.getTime();
   } else {
     const raw = value.trim();
-    if (!ISO_DATE_RE.test(raw)) return null;
+    if (!isRealIsoDate(raw)) return null;
     t = Date.parse(raw);
   }
   if (!Number.isFinite(t)) return null;
