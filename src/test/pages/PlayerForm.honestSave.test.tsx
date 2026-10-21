@@ -97,6 +97,21 @@ describe("PlayerForm · editar · guardado honesto", () => {
     expect(await screen.findByText("hub")).toBeInTheDocument();
   });
 
+  it("fecha de las medidas: la que escribe la persona se guarda; vacía no se inventa; futura se rechaza", async () => {
+    const p = PlayerService.create(BASE);
+    renderEdit(p.id);
+    const input = (await screen.findByLabelText("players.form.measuredAt")) as HTMLInputElement;
+    expect(input.value).toBe(""); // jugador antiguo: sin fecha, no se rellena con hoy
+    fireEvent.change(input, { target: { value: "2999-01-01" } });
+    fireEvent.click(screen.getByRole("button", { name: /players.form.submitEdit/ }));
+    await waitFor(() => expect(toastMock.error).toHaveBeenCalledWith("players.form.measuredAtInvalid"));
+    expect(PlayerService.getAll().find((x) => x.id === p.id)?.measuredAt).toBeUndefined();
+    fireEvent.change(input, { target: { value: "2026-03-01" } });
+    fireEvent.click(screen.getByRole("button", { name: /players.form.submitEdit/ }));
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalledWith("toasts.playerUpdated"));
+    expect(PlayerService.getAll().find((x) => x.id === p.id)?.measuredAt).toBe("2026-03-01");
+  });
+
   it("jugador del alta rápida SIN pie: se guarda sin obligar a elegir uno (no se adivina) y la columna queda null", async () => {
     const { foot: _f, height: _h, weight: _w, competitiveLevel: _l, ...quick } = BASE;
     const p = PlayerService.create(quick);

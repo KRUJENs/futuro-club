@@ -64,6 +64,13 @@ describe("phv-calculator · gate de entradas", () => {
     expect(JSON.stringify(json)).toContain("phv_missing_sex");
   });
 
+  it("sin fecha de las medidas ⇒ 422 phv_missing_measured_at (nunca la edad de hoy por defecto)", async () => {
+    const { measuredAt: _m, ...noDate } = FULL;
+    const { status, json } = await call(noDate);
+    expect(status).toBe(422);
+    expect(JSON.stringify(json)).toContain("phv_missing_measured_at");
+  });
+
   it("completo ⇒ usa la edad DECIMAL y el offset del motor canónico en esa edad", async () => {
     const { status, json } = await call(FULL);
     expect(status).toBe(200);

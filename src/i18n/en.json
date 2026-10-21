@@ -326,6 +326,9 @@
       "anthropometricNote": "Optional — improves PHV accuracy from 74% to 92%",
       "sittingHeightHint": "Improves PHV accuracy",
       "legLengthHint": "Improves PHV accuracy",
+      "measuredAt": "Measurement date",
+      "measuredAtHint": "Day height, weight, sitting height and leg length were taken. If they are new measurements, enter their date; to fix a typo, keep the current one. Without a date PHV is not calculated.",
+      "measuredAtInvalid": "Invalid measurement date: it cannot be in the future or before birth.",
       "maturationInputsNote": "Optional — improves biological maturity accuracy. Date of birth gives the exact age; both parents' heights enable the percentage-of-predicted-adult-height method (Khamis-Roche).",
       "birthDate": "Date of birth",
       "birthDateHint": "Exact decimal age for the PHV calculation (more precise than age in years).",
@@ -3243,7 +3246,7 @@
         "legLength": "leg length",
         "birthDate": "player's date of birth",
         "sex": "registered sex",
-        "measuredAt": "measurement date (record a new measurement)"
+        "measuredAt": "measurement date (enter it in the profile or record a measurement)"
       }
     },
     "sexPending": "sex to be confirmed (confirm it in “Edit player”)",
@@ -6404,7 +6407,7 @@
       "birthDate": "date of birth missing: {{count}}",
       "sex": "registered sex missing (or pending confirmation): {{count}}",
       "out_of_range": "outside the Khamis-Roche validity range: {{count}}",
-      "measuredAt": "measurement date missing (record a new measurement): {{count}}"
+      "measuredAt": "measurement date missing: {{count}}"
     },
     "note": "Groups players by the % of predicted adult height already reached (Khamis-Roche 1994; Cumming et al. 2017 cut-offs), not by age. It is not the PHV phase shown in the list (that one uses Mirwald and may differ). Near the cut-offs the band can change: predicted adult height has an error. Without both parents' heights there is no band: it is never assigned by default or from another measurement."
   },

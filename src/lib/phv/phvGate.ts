@@ -56,7 +56,7 @@ export const PHV_INPUT_LABEL_ES: Record<PhvInputKey, string> = {
   legLength: "longitud de pierna",
   birthDate: "fecha de nacimiento del jugador",
   sex: "sexo registrado",
-  measuredAt: "fecha de la medición (registra una medición nueva)",
+  measuredAt: "fecha de las medidas (indícala en la ficha o registra una medición)",
 };
 
 /** Clave i18n de cada entrada (la UI traduce; ver `maturity.gate.input.*`). */
@@ -77,8 +77,9 @@ export interface PhvGateInput {
   /**
    * Fecha en la que se tomaron las medidas (ISO). La edad del cálculo es la de ESA fecha:
    * con la edad de hoy y una talla vieja el resultado sale sesgado. Sin ella (medidas
-   * guardadas antes de registrarla) el PHV y el %PAH se bloquean pidiendo volver a guardar
-   * las medidas (decisión del dueño, 21 oct 2026). Un `at` explícito tiene prioridad.
+   * guardadas antes de registrarla) el PHV y el %PAH se bloquean pidiendo la fecha (decisión
+   * del dueño, 21 oct 2026). La declara una persona en la ficha o sale de la medición guardada;
+   * nunca se pone sola. Un `at` explícito (válido) tiene prioridad.
    */
   measuredAt?: string | null;
   /** Solo para %PAH (`pahGate`, Khamis-Roche); NO son entradas del PHV ni deciden su fase. */
@@ -173,20 +174,35 @@ function blocked(reason: PhvBlockReason, missing: PhvInputKey[], gate_reason: st
 }
 
 /** Qué entradas del PHV faltan (lista vacía ⇒ completas). */
+/** Fecha ISO (`YYYY-MM-DD` o con hora): nada de formatos libres que `Date.parse` acepte. */
+export const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}(?:[T ][0-9:.]+(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+
+function validMeasurementDate(value: string | Date, birthDate: string | null | undefined): string | Date | null {
+  let t: number;
+  if (value instanceof Date) {
+    t = value.getTime();
+  } else {
+    const raw = value.trim();
+    if (!ISO_DATE_RE.test(raw)) return null;
+    t = Date.parse(raw);
+  }
+  if (!Number.isFinite(t)) return null;
+  if (t > Date.now() + 86_400_000) return null; // en el futuro (más de un día)
+  const birth = Date.parse(birthDate ?? "");
+  // Antes de nacer (solo con un nacimiento válido: uno futuro ya es su propia entrada que falta).
+  if (Number.isFinite(birth) && birth <= Date.now() && t < birth) return null;
+  return value instanceof Date ? value : value.trim();
+}
+
 /**
- * Fecha de las medidas: `at` explícito, o `input.measuredAt` si es una fecha válida que no
- * está en el futuro (más de un día) ni es anterior al nacimiento. Si no, null (nunca hoy por
- * defecto: invariante #2).
+ * Fecha de las medidas: `at` explícito (si es válido), o `input.measuredAt` — la que declaró
+ * una persona o la de la fila guardada. Fecha ISO real, no futura ni anterior al nacimiento;
+ * si no, null (nunca hoy por defecto: invariante #2).
  */
 export function measurementDateOf(input: PhvGateInput, at?: string | Date): string | Date | null {
-  if (at !== undefined && at !== null) return at;
-  const raw = typeof input.measuredAt === "string" ? input.measuredAt.trim() : "";
-  const t = Date.parse(raw);
-  if (!raw || !Number.isFinite(t)) return null;
-  if (t > Date.now() + 86_400_000) return null;
-  const birth = Date.parse(input.birthDate ?? "");
-  if (Number.isFinite(birth) && t < birth) return null;
-  return raw;
+  if (at !== undefined && at !== null) return validMeasurementDate(at, input.birthDate);
+  if (typeof input.measuredAt !== "string") return null;
+  return validMeasurementDate(input.measuredAt, input.birthDate);
 }
 
 export function missingPhvInputs(input: PhvGateInput, at?: string | Date): PhvInputKey[] {
@@ -389,7 +405,7 @@ export const PAH_INPUT_LABEL_ES: Record<PahInputKey, string> = {
   fatherHeight: "altura del padre",
   birthDate: "fecha de nacimiento del jugador",
   sex: "sexo registrado",
-  measuredAt: "fecha de la medición (registra una medición nueva)",
+  measuredAt: "fecha de las medidas (indícala en la ficha o registra una medición)",
 };
 
 export interface PahGate {

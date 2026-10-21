@@ -326,6 +326,9 @@
       "anthropometricNote": "Opzionali — migliorano la precisione del PHV dal 74% al 92%",
       "sittingHeightHint": "Migliora la precisione del PHV",
       "legLengthHint": "Migliora la precisione del PHV",
+      "measuredAt": "Data delle misure",
+      "measuredAtHint": "Giorno in cui sono state prese statura, peso, statura da seduto e lunghezza della gamba. Se sono misure nuove, inserisci la loro data; per correggere un errore, lascia quella attuale. Senza data il PHV non viene calcolato.",
+      "measuredAtInvalid": "Data delle misure non valida: non può essere futura né precedente alla nascita.",
       "maturationInputsNote": "Opzionale — migliora la precisione della maturazione biologica. La data di nascita fornisce l'età esatta; l'altezza di entrambi i genitori consente il calcolo per % di statura adulta (Khamis-Roche).",
       "birthDate": "Data di nascita",
       "birthDateHint": "Età decimale esatta per il calcolo del PHV (più precisa dell'età in anni).",
@@ -3242,7 +3245,7 @@
         "legLength": "lunghezza della gamba",
         "birthDate": "data di nascita del giocatore",
         "sex": "sesso registrato",
-        "measuredAt": "data della misurazione (registra una nuova misurazione)"
+        "measuredAt": "data delle misure (indicala nella scheda o registra una misurazione)"
       }
     },
     "sexPending": "sesso da confermare (confermalo in «Modifica giocatore»)",
@@ -6403,7 +6406,7 @@
       "birthDate": "manca la data di nascita: {{count}}",
       "sex": "manca il sesso registrato (o da confermare): {{count}}",
       "out_of_range": "fuori dall'intervallo di validità di Khamis-Roche: {{count}}",
-      "measuredAt": "manca la data della misurazione (registra una nuova misurazione): {{count}}"
+      "measuredAt": "manca la data delle misure: {{count}}"
     },
     "note": "Raggruppa per la % della statura adulta prevista già raggiunta (Khamis-Roche 1994; soglie di Cumming et al. 2017), non per età. Non è la fase PHV mostrata nell'elenco (quella si calcola con Mirwald e può non coincidere). Vicino alle soglie la fascia può cambiare: la statura adulta prevista ha un errore. Senza la statura di entrambi i genitori non c'è fascia: non viene mai assegnata per difetto né da un'altra misura."
   },

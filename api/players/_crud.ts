@@ -52,6 +52,9 @@ const MetricsSchema = z.object({
   defending: z.number().min(0).max(100),
 });
 
+/** Fecha de las medidas (ISO): sin ella el PHV y el %PAH se bloquean (src/lib/phv/phvGate.ts). */
+const MeasuredAtSchema = z.string().max(40).regex(/^\d{4}-\d{2}-\d{2}(?:[T ][0-9:.]+(?:Z|[+-]\d{2}:?\d{2})?)?$/);
+
 const CreatePlayerSchema = z.object({
   id: z.string().optional(), // client can provide or server generates
   name: z.string().min(2).max(80),
@@ -72,6 +75,7 @@ const CreatePlayerSchema = z.object({
   weight: z.number().min(20).max(120).optional(),
   sittingHeight: z.number().min(30).max(130).optional(),
   legLength: z.number().min(30).max(130).optional(),
+  measuredAt: MeasuredAtSchema.optional(),
   competitiveLevel: z.string().min(1).optional(),
   minutesPlayed: z.number().default(0),
   // OPCIONAL: el alta rápida no evalúa ⇒ sin métricas → VSI de ficha null.
@@ -110,6 +114,7 @@ const UpdatePlayerSchema = z.object({
   weight: z.number().min(20).max(120).optional(),
   sittingHeight: z.number().min(30).max(130).optional(),
   legLength: z.number().min(30).max(130).optional(),
+  measuredAt: MeasuredAtSchema.nullable().optional(),
   competitiveLevel: z.string().optional(),
   minutesPlayed: z.number().optional(),
 });
@@ -345,6 +350,9 @@ export default withHandler(
       if (updates.weight !== undefined) updatedData.weight = updates.weight;
       if (updates.sittingHeight !== undefined) updatedData.sittingHeight = updates.sittingHeight;
       if (updates.legLength !== undefined) updatedData.legLength = updates.legLength;
+      // Fecha de las medidas: la manda quien las declara; null la borra (vuelve a bloquear el PHV).
+      if (updates.measuredAt === null) delete updatedData.measuredAt;
+      else if (updates.measuredAt !== undefined) updatedData.measuredAt = updates.measuredAt;
       if (updates.competitiveLevel !== undefined) updatedData.competitiveLevel = updates.competitiveLevel;
       if (updates.minutesPlayed !== undefined) updatedData.minutesPlayed = updates.minutesPlayed;
       if (updates.phvCategory !== undefined) updatedData.phvCategory = updates.phvCategory;

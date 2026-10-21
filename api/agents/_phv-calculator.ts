@@ -15,7 +15,7 @@
 import { z } from "zod";
 import { withHandler } from "../_lib/withHandler";
 import { successResponse, errorResponse } from "../_lib/apiResponse";
-import { phvGate, type PhvGateBlocked } from "../../src/lib/phv/phvGate";
+import { ISO_DATE_RE, phvGate, type PhvGateBlocked } from "../../src/lib/phv/phvGate";
 
 export const config = { runtime: "edge" };
 
@@ -32,7 +32,7 @@ const phvSchema = z.object({
   legLength: z.number().positive().optional(),      // cm
   // Fecha en la que se tomaron las medidas (ISO): sin ella el gate bloquea (la edad del
   // cálculo es la de esa fecha, nunca hoy por defecto).
-  measuredAt: z.string().max(40).optional(),
+  measuredAt: z.string().max(40).regex(ISO_DATE_RE).optional(),
   currentVSI: z.number().min(0).max(100).optional(),
   // Sexo SIN default: el PHV es sexo-específico (invariante #5). Ausente ⇒ se
   // bloquea (throw PHV_MISSING_SEX), NUNCA se asume masculino ni femenino.

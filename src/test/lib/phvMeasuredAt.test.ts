@@ -7,7 +7,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { gatedMaturity, measurementDateOf, missingPhvInputs, pahGate, phvGate } from "@/lib/phv/phvGate";
 import { buildMaturityExport } from "@/lib/shared/maturityExport";
-import { measuredAtFor } from "@/lib/shared/measuredAt";
 
 const MEASURED = "2026-03-01T10:00:00.000Z";
 const BOY = {
@@ -22,7 +21,7 @@ describe("phvGate · fecha de la medición", () => {
     const g = phvGate(BOY);
     expect(g.ok).toBe(false);
     expect(g.missing).toEqual(["measuredAt"]);
-    expect(g.gate_reason).toMatch(/fecha de la medición/);
+    expect(g.gate_reason).toMatch(/fecha de las medidas/);
     expect(pahGate(BOY).missing).toEqual(["measuredAt"]);
     expect(gatedMaturity(BOY).status).toBe("unknown");
   });
@@ -35,9 +34,13 @@ describe("phvGate · fecha de la medición", () => {
   });
 
   it("fecha no válida, futura o anterior al nacimiento ⇒ como si faltara", () => {
-    for (const measuredAt of ["no-es-fecha", "2999-01-01", "2010-01-01", ""]) {
+    for (const measuredAt of ["no-es-fecha", "2999-01-01", "2010-01-01", "", "March 1, 2026", "1/3/2026"]) {
       expect(missingPhvInputs({ ...BOY, measuredAt })).toContain("measuredAt");
     }
+    // Fecha corta ISO (la del campo de la ficha) sí vale; un `at` explícito vacío o libre, no.
+    expect(missingPhvInputs({ ...BOY, measuredAt: "2026-03-01" })).toEqual([]);
+    expect(missingPhvInputs(BOY, "")).toContain("measuredAt");
+    expect(missingPhvInputs(BOY, "ayer")).toContain("measuredAt");
     expect(measurementDateOf({ ...BOY, measuredAt: MEASURED })).toBe(MEASURED);
   });
 
@@ -61,22 +64,5 @@ describe("phvGate · fecha de la medición", () => {
     };
     const exp = buildMaturityExport({ playerId: "p", birthDate: BOY.birthDate, blob, row, hasConsent: true });
     expect(exp.ok && exp.payload.status.value).toBe(hub.status);
-  });
-});
-
-describe("measuredAtFor · cuándo cambia la fecha al guardar la ficha", () => {
-  const NOW = new Date("2026-10-21T12:00:00Z");
-  const prev = { height: 150, weight: 40, sittingHeight: 78, legLength: 72, measuredAt: "2026-05-01T00:00:00.000Z" };
-  it("medidas iguales ⇒ conserva la fecha (re-guardar no las «fecha hoy»)", () => {
-    expect(measuredAtFor({ height: 150, weight: 40, sittingHeight: 78, legLength: 72 }, prev, NOW)).toBe(prev.measuredAt);
-  });
-  it("alguna medida cambia o se dan por primera vez ⇒ ahora", () => {
-    expect(measuredAtFor({ height: 152, weight: 40, sittingHeight: 78, legLength: 72 }, prev, NOW)).toBe(NOW.toISOString());
-    expect(measuredAtFor({ height: 152 }, undefined, NOW)).toBe(NOW.toISOString());
-  });
-  it("sin medidas ⇒ sin fecha nueva; jugador antiguo sin fecha y medidas iguales ⇒ sigue sin fecha (bloqueado)", () => {
-    expect(measuredAtFor({}, undefined, NOW)).toBeUndefined();
-    const legacy = { height: 150, weight: 40, sittingHeight: 78, legLength: 72 };
-    expect(measuredAtFor(legacy, legacy, NOW)).toBeUndefined();
   });
 });
